@@ -1,0 +1,111 @@
+/* Estilos Base */
+body {
+  background-color: #050508;
+  color: white;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+/* Classes de Texto Jumbo */
+.texto-titulo-jumbo {
+  font-size: 5rem !important; /* 80px */
+  font-weight: 900;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
+}
+
+.texto-subtitulo-jumbo {
+  font-size: 1.5rem;
+  color: #a1a1aa;
+}
+
+/* Botão Gigante Personalizado */
+.botao-jumbo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #4f46e5; /* Indigo 600 */
+  color: white;
+  padding: 30px 60px; /* Muito preenchimento */
+  border-radius: 20px;
+  font-size: 2rem; /* Texto 32px */
+  font-weight: 900;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-transform: uppercase;
+}
+
+.botao-jumbo:hover {
+  background-color: #4338ca;
+  transform: scale(1.02);
+}
+/* Efeito de Vidro para os Cards */
+.card-glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding: 60px;
+  margin-top: 40px;
+}
+
+/* Texto Gradiente */
+.texto-gradiente {
+  background: linear-gradient(to right, #fff, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Grid de Destaques */
+.grid-detalhes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  margin-top: 60px;
+  text-align: left;
+}
+
+.item-detalhe h3 {
+  font-size: 1.8rem;
+  color: #818cf8;
+  margin-bottom: 10px;
+}
+
+.item-detalhe p {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+/* AJUSTES PARA TELEMÓVEL (Mobile) */
+@media (max-width: 768px) {
+  .texto-titulo-jumbo {
+    font-size: 3rem !important; /* Diminui de 5rem para 3rem no telemóvel */
+    line-height: 1.1;
+  }
+
+  .texto-subtitulo-jumbo {
+    font-size: 1.2rem;
+    padding: 0 10px;
+  }
+
+  .botao-jumbo {
+    padding: 20px 30px; /* Botão ligeiramente menor mas ainda fácil de tocar */
+    font-size: 1.5rem;
+    border-radius: 15px;
+  }
+
+  .card-glass {
+    padding: 30px 20px;
+    border-radius: 30px;
+    margin-top: 20px;
+  }
+
+  /* Seção de detalhes passa de 2 colunas para 1 */
+  div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 30px !important;
+  }
+}
