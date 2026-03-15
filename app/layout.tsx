@@ -1,20 +1,13 @@
-import type { Metadata } from 'next'
+import Navbar from '@/components/layout/Navbar';
 import './globals.css';
-export const metadata = {
-  title: 'Maker Studio Pro',
-  description: 'Gere os teus STLs de forma profissional',
-}
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt">
-      <body style={{ margin: 0, padding: 0, backgroundColor: '#0f0f1e' }}>
+      <body className="bg-[#0a0a0a] text-white">
+        <Navbar />
         {children}
       </body>
     </html>
-  )
+  );
 }
