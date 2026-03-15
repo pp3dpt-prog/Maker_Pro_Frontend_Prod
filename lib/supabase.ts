@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
+// 1. Lê as variáveis de ambiente
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Exporta uma única instância para toda a app
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// A palavra 'export' é OBRIGATÓRIA aqui para o ExploreView conseguir importar
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

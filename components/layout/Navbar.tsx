@@ -1,28 +1,60 @@
+'use client'; // Necessário para usar hooks
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import styles from './Navbar.module.css'; 
 
 export default function Navbar() {
+  const [user, setUser] = useState(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Verifica sessão inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+
+    // Escuta mudanças (Login/Logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
   return (
-    <nav className="border-b border-gray-800 bg-[#0a0a0a] py-4">
-      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        {/* Logo */}
-        <Link href="/" className="text-white font-bold text-lg tracking-tight">
-          Maker<span className="text-blue-500">Pro</span>
-        </Link>
+    <nav className={styles.navContainer}>
+      <Link href="/" className={styles.logo}>
+      <div style={{ color: 'white', fontWeight: 'bold', fontSize: '1.25rem' }}>
+        Maker<span style={{ color: '#3b82f6' }}>Pro</span>
+      </div>
+      </Link>
 
-        {/* Links */}
-        <div className="flex gap-8 text-sm text-gray-400">
-          <Link href="/" className="hover:text-blue-500 transition-colors">Home</Link>
-          <Link href="/explore" className="hover:text-blue-500 transition-colors">Explore</Link>
-          <Link href="/pricing" className="hover:text-blue-500 transition-colors">Pricing</Link>
-        </div>
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <Link href="/pricing" className={styles.buttonSecondary}>Preçário</Link>
 
-        {/* Ação */}
-        <Link 
-          href="/dashboard" 
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm transition-all"
-        >
-          My Dashboard
-        </Link>
+        {user ? (
+          // O que aparece quando ESTÁ LOGADO
+          <button 
+            onClick={handleLogout} 
+            style={{ color: 'white', fontSize: '14px', cursor: 'pointer', background: 'transparent', border: 'none' }}
+          >
+            Logout
+          </button>
+        ) : (
+          // O que aparece quando NÃO ESTÁ LOGADO (teu código original)
+          <>
+            <Link href="/login" style={{ color: 'white', fontSize: '14px', textDecoration: 'none' }}>Login</Link>
+            <Link href="/register" className={styles.buttonPrimary}>Registo</Link>
+          </>
+        )}
       </div>
     </nav>
   );

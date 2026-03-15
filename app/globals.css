@@ -1,6 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Estilos Base */
 body {
-  background-color: #050508;
+  background-color: #020617; /* Slate 950 - Ajusta para o teu tom de azul profundo */
   color: white;
   margin: 0;
   font-family: sans-serif;

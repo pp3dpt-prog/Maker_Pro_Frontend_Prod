@@ -1,0 +1,27 @@
+.navContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #0f172a;
+  border-bottom: 1px solid #1e293b;
+}
+
+.buttonPrimary {
+  padding: 0.5rem 1.5rem;
+  border-radius: 9999px;
+  background-color: #2563eb;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.buttonSecondary {
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 0.875rem;
+}

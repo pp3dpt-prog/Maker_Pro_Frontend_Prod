@@ -1,91 +1,64 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Ajusta o path conforme o teu projeto
-import DesignCard from '@/components/cards/DesignCard';
-import { Search, Filter, LayoutGrid, Zap, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import Link from 'next/link'; // <--- ESTA LINHA FALTAVA!
 
 export default function ExploreView() {
-  const [designs, setDesigns] = useState([]);
+  const [programas, setProgramas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchDesigns() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('designs') // Nome da tabela que criámos no schema prod
-        .select('*')
-        .order('criado_em', { ascending: false });
-
-      if (!error && data) setDesigns(data);
+    async function fetchData() {
+      const { data } = await supabase.from('prod_programas').select('*');
+      setProgramas(data || []);
       setLoading(false);
     }
-
-    fetchDesigns();
+    fetchData();
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-100 font-sans">
+    /* Fundo alterado de #050508 para #0f172a (um azul-escuro mais suave) */
+    <div style={{ backgroundColor: '#0f172a', minHeight: '100vh', padding: '40px 20px' }}>
       
-      {/* Barra de Stats (Azul) */}
-      <div className="border-b border-gray-800 bg-[#0d0d0d]/50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 py-2 flex justify-between items-center text-[10px] uppercase tracking-widest text-gray-500">
-          <div className="flex gap-6">
-            <span className="flex items-center gap-1.5"><Zap size={12} className="text-blue-500 fill-blue-500"/> {designs.length} Designs</span>
-            <span className="flex items-center gap-1.5">👥 30 Users</span>
-            <span className="flex items-center gap-1.5 text-blue-400">💎 Premium Active</span>
-          </div>
-        </div>
-      </div>
+      <Link href="/pet-tag" className="block w-full">
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* Hero Section */}
-        <section className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-3">
-            Explore <span className="text-blue-500">Designs</span>
-          </h1>
-          <p className="text-gray-400 text-sm max-w-xl mx-auto">
-            Personaliza parâmetros e gera ficheiros STL em segundos com tecnologia OpenSCAD.
-          </p>
-        </section>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          
+          <h1 style={{ color: '#f8fafc', fontSize: '32px', marginBottom: '40px' }}>EXPLORE</h1>
 
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-10">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" size={18} />
-            <input 
-              type="text" 
-              placeholder="Procurar modelos..." 
-              className="w-full bg-[#121212] border border-gray-800 rounded-lg py-2.5 pl-10 pr-4 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-sm"
-            />
-          </div>
-          <button className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-            Novo Design
-          </button>
-        </div>
-
-        {/* Grid de Conteúdo */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-            <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
-            <p>A carregar galeria...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {designs.length > 0 ? (
-              designs.map((design) => (
-                <DesignCard key={design.id} design={design} />
-              ))
-            ) : (
-              // Empty State (Aparece se não houver nada na DB)
-              <div className="col-span-full border-2 border-dashed border-gray-800 rounded-2xl p-12 text-center">
-                <p className="text-gray-500">Ainda não existem designs disponíveis.</p>
-                <p className="text-blue-500 text-sm mt-2 cursor-pointer hover:underline">Sê o primeiro a criar!</p>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+            gap: '30px' 
+          }}>
+            {programas.map((prog) => (
+              <div key={prog.id} style={{ 
+                backgroundColor: '#1e293b', /* Card um pouco mais claro para contrastar com o fundo */
+                border: '1px solid #334155', 
+                borderRadius: '20px', 
+                padding: '25px',
+                color: 'white'
+              }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '10px' }}>{prog.nome}</h2>
+                <p style={{ color: '#cbd5e1', fontSize: '14px', marginBottom: '20px' }}>{prog.descricao}</p>
+                
+                {/*<button style={{ 
+                  width: '100%', 
+                  padding: '12px', 
+                  backgroundColor: '#3b82f6', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}>
+                  ABRIR APP
+                </button>*/}
               </div>
-            )}
+            ))}
           </div>
-        )}
-      </main>
+        </div>
+      </Link>
     </div>
   );
 }
