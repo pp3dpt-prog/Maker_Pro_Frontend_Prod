@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link'; // <--- ESTA LINHA FALTAVA!
+import StatusBar from '@/components/ui/StatusBar';
 
 export default function ExploreView() {
   const [programas, setProgramas] = useState<any[]>([]);
@@ -20,12 +21,13 @@ export default function ExploreView() {
   return (
     /* Fundo alterado de #050508 para #0f172a (um azul-escuro mais suave) */
     <div style={{ backgroundColor: '#0f172a', minHeight: '100vh', padding: '40px 20px' }}>
+      <StatusBar />
       
       <Link href="/pet-tag" className="block w-full">
 
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           
-          <h1 style={{ color: '#f8fafc', fontSize: '32px', marginBottom: '40px' }}>EXPLORE</h1>
+          <h1 style={{ color: '#f8fafc', fontSize: '32px', marginBottom: '40px' }}>Explore aplicativos</h1>
 
           <div style={{ 
             display: 'grid', 

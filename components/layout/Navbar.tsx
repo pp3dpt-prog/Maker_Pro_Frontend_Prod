@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Navbar.module.css'; 
+import Image from 'next/image';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -31,17 +32,34 @@ export default function Navbar() {
 
   return (
     <nav className={styles.navContainer}>
-      <Link href="/" className={styles.logo}>
-      <div style={{ color: 'white', fontWeight: 'bold', fontSize: '1.25rem' }}>
-        Maker<span style={{ color: '#3b82f6' }}>Pro</span>
-      </div>
-      </Link>
+      <Link href="/" className="flex items-center gap-4 no-underline">
+    {/* A Imagem */}
+    <Image 
+      src="/logo.png" 
+      alt="Logo MakerPro" 
+      width={50}  // Aumentei um pouco para acompanhar o texto maior
+      height={50} 
+      className="object-contain"
+    />
+
+    {/* O Texto */}
+    <div style={{ 
+      color: 'white', 
+      fontWeight: '900', // 'bold' é 700, para logos usa-se 900
+      fontSize: '2.5rem', // Aumentado conforme pediste
+      lineHeight: '1',    // Evita que o texto "flutue" desalinhado
+      letterSpacing: '-0.05em' // Dá um toque mais profissional/compacto
+    }}>
+      Maker<span style={{ color: '#3b82f6' }}>Pro</span>
+    </div>
+  </Link>
 
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
         <Link href="/pricing" className={styles.buttonSecondary}>Preçário</Link>
 
         {user ? (
           // O que aparece quando ESTÁ LOGADO
+          
           <button 
             onClick={handleLogout} 
             style={{ color: 'white', fontSize: '14px', cursor: 'pointer', background: 'transparent', border: 'none' }}

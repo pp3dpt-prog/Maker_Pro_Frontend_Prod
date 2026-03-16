@@ -13,7 +13,7 @@ export default function ForgotPassword() {
     
     // O Supabase envia um link de recuperação para o email
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'http://localhost:3000/update-password', // Onde o utilizador define a nova password
+      redirectTo: 'https://maker-pro-frontend-prod.vercel.app/update-password', // Onde o utilizador define a nova password
     });
 
     if (error) alert(error.message);
