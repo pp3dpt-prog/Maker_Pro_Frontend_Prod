@@ -59,6 +59,8 @@ export default function Navbar() {
 
         {user ? (
           // O que aparece quando ESTÁ LOGADO
+          <>
+            <Link href="/dashboard" className={styles.buttonPrimary}>Dashboard</Link>
           
           <button 
             onClick={handleLogout} 
@@ -66,6 +68,7 @@ export default function Navbar() {
           >
             Logout
           </button>
+          </>
         ) : (
           // O que aparece quando NÃO ESTÁ LOGADO (teu código original)
           <>
