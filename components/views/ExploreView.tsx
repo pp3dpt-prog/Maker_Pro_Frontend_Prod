@@ -42,19 +42,75 @@ export default function ExploreView() {
             {programas.map((prog) => (
               <Link 
                 key={prog.id} 
-                href={`/pet-tag`}  // Ajuste a rota conforme seu projeto
-                className="group block bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden hover:border-blue-500 transition-all"
+                href="/pet-tag" 
+                className="group" // Permite efeitos nos elementos filhos
+                style={{ textDecoration: 'none', display: 'block', color: 'inherit' }}
               >
-                <div className="p-6">
-                  <h2 className="text-xl font-bold mb-2 text-white group-hover:text-blue-400">
-                    {prog.nome}
-                  </h2>
-                  <p className="text-slate-400 text-sm leading-relaxed mb-4 line-clamp-2">
-                    {prog.descricao}
-                  </p>
+                <div style={{ 
+                  backgroundColor: '#1e293b', 
+                  border: '1px solid #334155', 
+                  borderRadius: '20px', 
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  transition: 'border-color 0.3s'
+                }} className="hover:border-blue-500/50 shadow-lg">
                   
-                  <div className="flex items-center text-xs font-semibold text-blue-500 uppercase tracking-widest">
-                    Abrir Programa →
+                  {/* Contentor da Imagem (Tamanho Fixo) */}
+                  <div style={{ 
+                    height: '200px', 
+                    width: '100%', 
+                    backgroundColor: '#0f172a', 
+                    overflow: 'hidden', 
+                    position: 'relative',
+                    borderBottom: '1px solid #334155'
+                  }}>
+                    {prog.imagem_url ? (
+                      <img 
+                        src={prog.imagem_url} 
+                        alt={prog.nome}
+                        className="transition-transform duration-500 group-hover:scale-110"
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover', 
+                          objectPosition: 'center', 
+                          display: 'block'
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.opacity = '0';
+                        }}
+                      />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#475569', fontSize: '12px' }}>
+                        SEM PRÉ-VISUALIZAÇÃO
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Conteúdo do Card */}
+                  <div style={{ padding: '25px', flexGrow: 1 }}>
+                    <h2 className="group-hover:text-blue-400 transition-colors" style={{ 
+                      color: '#ffffff', 
+                      fontSize: '20px', 
+                      fontWeight: 'bold', 
+                      margin: '0 0 10px 0' 
+                    }}>
+                      {prog.nome}
+                    </h2>
+                    <p style={{ 
+                      color: '#cbd5e1', 
+                      fontSize: '14px', 
+                      margin: '0', 
+                      lineHeight: '1.5',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}>
+                      {prog.descricao}
+                    </p>
                   </div>
                 </div>
               </Link>
