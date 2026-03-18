@@ -35,7 +35,7 @@ export default function Navbar() {
       <Link href="/" className="flex items-center gap-4 no-underline">
     {/* A Imagem */}
     <Image 
-      src="/logo.png" 
+      src="/Logo.png" 
       alt="Logo MakerPro" 
       width={50}  // Aumentei um pouco para acompanhar o texto maior
       height={50} 
