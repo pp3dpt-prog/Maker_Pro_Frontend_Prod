@@ -28,6 +28,7 @@ export default function Navbar() {
       }
     };
 
+    
     checkUser();
 
     // Ouvir mudanças de login/logout
