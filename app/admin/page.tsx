@@ -152,18 +152,18 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Título</label>
-                    <input type="text" placeholder="Ex: Promoção Flash" className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white placeholder-gray-600 focus:border-indigo-500 outline-none transition-all w-full" />
+                    <input type="text" placeholder="Ex: Promoção Flash" className="bg-white border border-white/10 p-4 rounded-xl text-white placeholder-gray-600 focus:border-indigo-500 outline-none transition-all w-full" />
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Canal</label>
                     <select className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none">
-                      <option className="bg-[#0a0a16]">Feed da App</option>
-                      <option className="bg-[#0a0a16]">Banner Principal</option>
+                      <option className="bg-white">Feed da App</option>
+                      <option className="bg-white">Banner Principal</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Conteúdo da Mensagem</label>
-                    <textarea placeholder="Escreve aqui..." className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"></textarea>
+                    <textarea placeholder="Escreve aqui..." className="bg-white border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"></textarea>
                   </div>
                   <button className="md:col-span-2 bg-indigo-600 hover:bg-indigo-700 py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20 transition-all active:scale-95">Publicar Campanha</button>
                 </div>
