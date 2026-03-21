@@ -156,7 +156,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Canal</label>
-                    <select className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none">
+                    <select className="bg-white border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none">
                       <option className="bg-white">Feed da App</option>
                       <option className="bg-white">Banner Principal</option>
                     </select>
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Conteúdo da Mensagem</label>
                     <textarea placeholder="Escreve aqui..." className="bg-white border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"></textarea>
                   </div>
-                  <button className="md:col-span-2 bg-indigo-600 hover:bg-indigo-700 py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20 transition-all active:scale-95">Publicar Campanha</button>
+                  <button className="md:col-span-2 bg-[#1a1a2e] hover:bg-indigo-700 py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20 transition-all active:scale-95">Publicar Campanha</button>
                 </div>
               </div>
 
