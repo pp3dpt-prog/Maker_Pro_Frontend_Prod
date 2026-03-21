@@ -165,7 +165,16 @@ export default function AdminDashboard() {
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Conteúdo da Mensagem</label>
                     <textarea placeholder="Escreve aqui..." className="bg-white border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"></textarea>
                   </div>
-                  <button className="md:col-span-2 bg-[#1a1a2e] hover:bg-indigo-700 py-4 rounded-xl font-black text-indigo-400 uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20 transition-all active:scale-95">Publicar Campanha</button>
+                 <button 
+                  type="button" // IMPORTANTE: evita o refresh automático
+                  onClick={() => {
+                    console.log("TESTE: O botão funciona!");
+                    handleCriar();
+                  }}
+                  className="..."
+                >
+                  Confirmar e Publicar
+                </button>
                 </div>
               </div>
 
