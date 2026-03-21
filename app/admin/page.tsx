@@ -34,6 +34,20 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, tickets: 0 });
   const [loading, setLoading] = useState(true);
 
+  const handleCriar = async () => {
+  console.log("Iniciando gravação...");
+  
+  // Aqui podes adicionar a lógica do Supabase depois
+  alert("A função handleCriar foi chamada com sucesso!");
+  
+  // Exemplo de insert (ajusta os nomes das variáveis se necessário)
+  /*
+  const { error } = await supabase
+    .from('prod_campanhas')
+    .insert([{ titulo: 'Teste', ativa: true }]);
+  */
+};
+
   // --- CARREGAMENTO DE DADOS ---
   const fetchData = useCallback(async () => {
     try {
