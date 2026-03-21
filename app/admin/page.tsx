@@ -157,8 +157,8 @@ export default function AdminDashboard() {
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Canal</label>
                     <select className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none">
-                      <option>Feed da App</option>
-                      <option>Banner Principal</option>
+                      <option className="bg-[#0a0a16]">Feed da App</option>
+                      <option className="bg-[#0a0a16]">Banner Principal</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-2 md:col-span-2">
