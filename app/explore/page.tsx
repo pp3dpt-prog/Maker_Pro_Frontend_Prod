@@ -12,7 +12,7 @@ export default function DesignDetailView({ design }) {
 
       {/* 2. Painel de Controlo (1/3 do espaço) */}
       <div className="bg-[#111] p-6 border-l border-gray-800 overflow-y-auto">
-        <h1 className="text-2xl font-bold text-white mb-2">{design.nome}</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">{design?.nome}</h1>
         <p className="text-gray-400 text-sm mb-8">{design.descricao}</p>
 
         {/* Form de Parametrização */}
