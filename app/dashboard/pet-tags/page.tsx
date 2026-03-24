@@ -7,7 +7,7 @@ import STLViewer from '@/components/STLViewer';
 
 function STLMakerContent() {
   const searchParams = useSearchParams();
-  const designId = searchParams.get('id'); 
+  const designId = searchParams.get('id'); // Lê o ID da URL (?id=...)
 
   const [config, setConfig] = useState<any>(null); 
   const [formData, setFormData] = useState<any>({}); 
@@ -17,7 +17,7 @@ function STLMakerContent() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
 
-  // 1. Carregar Sessão e Perfil
+  // 1. Carregar Sessão do Utilizador
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -29,32 +29,32 @@ function STLMakerContent() {
 
   // 2. Carregar Configuração do Design da Supabase
   useEffect(() => {
-    if (designId) {
-      fetchDesignConfig();
-    } else {
+    async function fetchDesignConfig() {
+      if (!designId) {
+        setLoadingConfig(false);
+        return;
+      }
+      setLoadingConfig(true);
+      const { data, error } = await supabase
+        .from('prod_designs')
+        .select('*')
+        .eq('id', designId)
+        .single();
+
+      if (data) {
+        setConfig(data);
+        const initialData: any = {};
+        // Preenche os valores iniciais (defaults) definidos no teu ui_schema
+        data.ui_schema?.forEach((campo: any) => {
+          initialData[campo.name] = campo.default || '';
+        });
+        setFormData(initialData);
+      }
       setLoadingConfig(false);
     }
+
+    fetchDesignConfig();
   }, [designId]);
-
-  async function fetchDesignConfig() {
-    setLoadingConfig(true);
-    const { data, error } = await supabase
-      .from('prod_designs')
-      .select('*')
-      .eq('id', designId)
-      .single();
-
-    if (data) {
-      setConfig(data);
-      // Inicializar o formData com os valores default do ui_schema 
-      const initialData: any = {};
-      data.ui_schema?.forEach((campo: any) => {
-        initialData[campo.name] = campo.default || '';
-      });
-      setFormData(initialData);
-    }
-    setLoadingConfig(false);
-  }
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase
@@ -75,7 +75,7 @@ function STLMakerContent() {
       const response = await fetch(`${backendUrl}/gerar-stl-pro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Enviamos o template e os parâmetros dinâmicos para o server.js
+        // Envia o template SCAD e os parâmetros (ex: largura, altura) para o Docker
         body: JSON.stringify({ 
           scad_template: config.scad_template, 
           parametros: formData 
@@ -93,7 +93,6 @@ function STLMakerContent() {
 
   const handleDownload = async () => {
     if (!user) { alert("Faz login para descarregar."); return; }
-    
     if (!userProfile?.acesso_comercial_ativo && (userProfile?.creditos_disponiveis || 0) <= 0) {
       alert("Créditos insuficientes."); return;
     }
@@ -110,7 +109,7 @@ function STLMakerContent() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${formData.name || 'modelo'}.stl`;
+      link.download = `modelo_3d.stl`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -118,30 +117,31 @@ function STLMakerContent() {
     } catch (err) { alert("Erro no download."); }
   };
 
-  if (loadingConfig) return <div className="loading">A carregar configurações...</div>;
-  if (!designId) return <div className="error">ID do modelo não fornecido na URL.</div>;
+  if (loadingConfig) return <div style={{padding: '20px'}}>A carregar configurações do modelo...</div>;
+  if (!designId) return <div style={{padding: '20px'}}>Por favor, forneça um ID de modelo na URL (ex: ?id=...).</div>;
 
   return (
     <div className="container">
       <style jsx>{`
-        .container { display: flex; flex-direction: row; min-height: 100vh; background-color: #0f172a; color: #f1f5f9; }
+        .container { display: flex; flex-direction: row; min-height: 100vh; background-color: #0f172a; color: #f1f5f9; font-family: sans-serif; }
         .sidebar { width: 400px; background-color: #1e293b; padding: 40px; border-right: 1px solid #334155; overflow-y: auto; }
-        .viewer { flex: 1; background: radial-gradient(circle, #1e293b 0%, #0f172a 100%); display: flex; align-items: center; justify-content: center; }
+        .viewer { flex: 1; background: radial-gradient(circle, #1e293b 0%, #0f172a 100%); display: flex; align-items: center; justify-content: center; position: relative; }
         .btn-main { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 20px; }
         .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .btn-shape { padding: 12px; background: #0f172a; border: 2px solid #334155; color: #94a3b8; border-radius: 8px; cursor: pointer; }
+        .btn-shape { padding: 12px; background: #0f172a; border: 2px solid #334155; color: #94a3b8; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
         .btn-shape.active { border-color: #3b82f6; background: #1e3a8a; color: white; }
         input { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: white; margin-bottom: 15px; }
         .label { display: block; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; font-weight: bold; }
       `}</style>
 
       <div className="sidebar">
-        <h1>{config?.nome?.toUpperCase() || 'PERSONALIZADOR'}</h1>
+        <h1>{config?.nome?.toUpperCase() || 'DESIGN'} <span>PRO</span></h1>
         
-        {/* Renderização Dinâmica baseada no ui_schema da Supabase  */}
+        {/* FORMULÁRIO DINÂMICO: Desenha os campos baseados no que está na Supabase */}
         {config?.ui_schema?.map((campo: any) => (
           <div key={campo.name} style={{ marginBottom: '20px' }}>
             <span className="label">{campo.label}</span>
+            
             {campo.type === 'select' ? (
               <div className="grid-buttons">
                 {campo.options.map((opt: string) => (
@@ -161,11 +161,11 @@ function STLMakerContent() {
                   value={formData[campo.name] || campo.min}
                   onChange={(e) => setFormData({...formData, [campo.name]: Number(e.target.value)})} 
                 />
-                <span>{formData[campo.name]}</span>
+                <span style={{fontSize: '14px', width: '30px'}}>{formData[campo.name]}</span>
               </div>
             ) : (
               <input 
-                placeholder={campo.placeholder} 
+                placeholder={campo.placeholder || campo.label} 
                 value={formData[campo.name] || ''} 
                 onChange={(e) => setFormData({...formData, [campo.name]: e.target.value})} 
               />
@@ -185,7 +185,9 @@ function STLMakerContent() {
       </div>
 
       <div className="viewer">
-        <STLViewer url={stlUrl} />
+        {isGenerating ? <p>A processar 3D...</p> : (
+          <STLViewer url={stlUrl} />
+        )}
       </div>
     </div>
   );
@@ -193,7 +195,7 @@ function STLMakerContent() {
 
 export default function STLMakerPro() {
   return (
-    <Suspense fallback={<div>Carregando motor...</div>}>
+    <Suspense fallback={<div>Carregando motor dinâmico...</div>}>
       <STLMakerContent />
     </Suspense>
   );
