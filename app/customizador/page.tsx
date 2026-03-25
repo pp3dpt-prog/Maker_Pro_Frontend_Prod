@@ -1,84 +1,97 @@
-'use client';
+import { supabase } from '@/lib/supabase';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase'; 
-import STLViewer from '@/components/STLViewer';
+export default async function CustomizadorPage({
+  searchParams,
+}: {
+  searchParams: { id?: string };
+}) {
+  // 1. Verificar se o ID existe na URL
+  const id = searchParams?.id;
 
-function CustomizadorContent() {
-  const searchParams = useSearchParams();
-  const designId = searchParams.get('id');
+  if (!id) {
+    redirect('/produtos');
+  }
 
-  const [config, setConfig] = useState<any>(null); 
-  const [formData, setFormData] = useState<any>({}); 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [stlUrl, setStlUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // 2. Procurar o produto (CORRIGIDO: 'produtoAtual' sem espaço)
+  const { data: produtoAtual, error } = await supabase
+    .from('prod_designs')
+    .select('*')
+    .eq('id', id)
+    .single();
 
-  useEffect(() => {
-    async function loadDesign() {
-      if (!designId) { setLoading(false); return; }
-      const { data } = await supabase.from('prod_designs').select('*').eq('id', designId).single();
-      if (data) {
-        setConfig(data);
-        const initial: any = {};
-        data.ui_schema?.forEach((c: any) => initial[c.name] = c.default || '');
-        setFormData(initial);
-      }
-      setLoading(false);
-    }
-    loadDesign();
-  }, [designId]);
+  // Se o ID não existir na base de dados, volta para o catálogo
+  if (error || !produtoAtual) {
+    redirect('/produtos');
+  }
 
-  const handlePreview = async () => {
-    if (!config) return;
-    setIsGenerating(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/gerar-stl-pro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scad_template: config.scad_template, parametros: formData }),
-      });
-      const data = await response.json();
-      if (data.url) setStlUrl(data.url);
-    } catch (e) { alert("Erro ao ligar ao Docker."); }
-    finally { setIsGenerating(false); }
-  };
-
-  if (loading) return <div style={{color: 'white', padding: '20px'}}>A carregar...</div>;
-  if (!designId) return <div style={{color: 'white', padding: '20px'}}>ID em falta.</div>;
+  // 3. Procurar modelos da mesma família
+  const { data: modelosFamilia } = await supabase
+    .from('prod_designs')
+    .select('id, nome, familia')
+    .eq('familia', produtoAtual.familia);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0f172a', color: 'white' }}>
-      <div style={{ width: '350px', padding: '30px', background: '#1e293b', borderRight: '1px solid #334155' }}>
-        <h1>{config?.nome || 'Customizador'}</h1>
-        {config?.ui_schema?.map((field: any) => (
-          <div key={field.name} style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>{field.label}</label>
-            {field.type === 'slider' ? (
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="range" min={field.min} max={field.max} value={formData[field.name]}
-                  onChange={(e) => setFormData({...formData, [field.name]: Number(e.target.value)})} />
-                <span>{formData[field.name]}</span>
-              </div>
-            ) : (
-              <input style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white' }}
-                value={formData[field.name]} onChange={(e) => setFormData({...formData, [field.name]: e.target.value})} />
-            )}
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'Inter, sans-serif' }}>
+      
+      {/* BARRA LATERAL */}
+      <div style={{ width: '350px', backgroundColor: '#1e293b', borderRight: '1px solid #334155', padding: '30px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        
+        <header>
+          <Link href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold' }}>
+            ← VOLTAR AO CATÁLOGO
+          </Link>
+          <h1 style={{ fontSize: '24px', fontWeight: '900', marginTop: '15px', textTransform: 'uppercase' }}>
+            {produtoAtual.nome}
+          </h1>
+        </header>
+
+        {/* SELETOR DE MODELOS */}
+        <div>
+          <label style={{ fontSize: '11px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '15px', display: 'block' }}>
+            Mudar Formato
+          </label>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {modelosFamilia?.map((item) => (
+              <Link
+                key={item.id}
+                href={`/customizador?id=${item.id}`}
+                style={{
+                  textDecoration: 'none',
+                  backgroundColor: String(item.id) === String(id) ? '#2563eb' : '#0f172a',
+                  border: String(item.id) === String(id) ? '1px solid #3b82f6' : '1px solid #334155',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>
+                  {item.nome.toLowerCase().includes('osso') ? '🦴' : 
+                   item.nome.toLowerCase().includes('coração') ? '❤️' : '✨'}
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 'bold', color: String(item.id) === String(id) ? 'white' : '#94a3b8' }}>
+                  {item.nome.replace('Pet Tag - ', '')}
+                </span>
+              </Link>
+            ))}
           </div>
-        ))}
-        <button onClick={handlePreview} disabled={isGenerating}
-          style={{ width: '100%', padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-          {isGenerating ? 'A PROCESSAR...' : 'VISUALIZAR 3D'}
-        </button>
+        </div>
       </div>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
-        {isGenerating ? <div style={{ color: '#3b82f6' }}>A gerar geometria...</div> : <STLViewer url={stlUrl} />}
+
+      {/* ÁREA 3D */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '100px', opacity: 0.1 }}>🧊</div>
+          <p style={{ color: '#475569', fontWeight: 'bold' }}>{produtoAtual.nome.toUpperCase()}</p>
+        </div>
       </div>
+
     </div>
   );
-}
-
-export default function Page() {
-  return <Suspense fallback={<div>A carregar...</div>}><CustomizadorContent /></Suspense>;
 }
