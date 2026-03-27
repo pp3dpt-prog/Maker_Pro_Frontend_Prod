@@ -6,7 +6,7 @@ function FamilyCard({ familia, produtos }: { familia: string, produtos: any[] })
   const principal = produtos[0];
   
   return (
-    <Link href={`/customizador?id=${principal.id}`} style={{ textDecoration: 'none' }}>
+    <Link href={`/customizador?familia=${familia}`} style={{ textDecoration: 'none' }}>
       <div style={{
         backgroundColor: '#1e293b', // AZUL MAIS CLARO E VIBRANTE
         border: '1px solid #334155', // BORDA DEFINIDA
@@ -96,7 +96,7 @@ function FamilyCard({ familia, produtos }: { familia: string, produtos: any[] })
             letterSpacing: '1px',
             boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
           }}>
-            Personalizar →
+            PERSONALIZAR →
           </div>
         </div>
       </div>

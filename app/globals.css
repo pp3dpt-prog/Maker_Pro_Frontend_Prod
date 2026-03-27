@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Define as variáveis CSS para as fontes importadas */
+  --font-inter: 'Inter', sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-open-sans: 'Open Sans', sans-serif;
+  --font-roboto-mono: 'Roboto Mono', monospace;
+}
+
 /* Estilos Base */
 body {
   background-color: #020617; /* Slate 950 - Ajusta para o teu tom de azul profundo */

@@ -1,51 +1,52 @@
-"use client";
+'use client';
 
-import React, { Suspense } from "react";
-import { Canvas, useLoader } from "@react-three/fiber";
-import { OrbitControls, Stage, Text } from "@react-three/drei";
-import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
+import { Canvas, useLoader } from '@react-three/fiber';
+import { OrbitControls, Center, Stage, Text, ContactShadows } from '@react-three/drei';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
+import { Suspense } from 'react';
+import * as THREE from 'three';
 
-// 1. Definimos a interface aqui. Isto diz ao componente exatamente o que ele recebe.
-interface STLViewerProps {
-  url: string | null;
-  name?: string; // O '?' torna a propriedade opcional
-  phone?: string; // O '?' torna a propriedade opcional
-}
-
-function Model({ url }: { url: string }) {
+function ModeloSTL({ url, valores }: { url: string, valores: any }) {
+  // O useLoader só corre se a url for válida
   const geometry = useLoader(STLLoader, url);
+
   return (
-    <mesh geometry={geometry} castShadow receiveShadow>
-      <meshPhysicalMaterial color="#3b82f6" roughness={0.7} metalness={0.0} />
-    </mesh>
+    <group>
+      <mesh castShadow receiveShadow>
+        <primitive object={geometry} attach="geometry" />
+        <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.1} side={THREE.DoubleSide} />
+      </mesh>
+
+      {valores.nome_pet && (
+        <Center position={[0, 0, 5]}>
+          <Text fontSize={8} color="#1e293b" maxWidth={60} textAlign="center">
+            {valores.nome_pet}
+          </Text>
+        </Center>
+      )}
+    </group>
   );
 }
 
-// 2. Agora o componente aceita as props definidas na interface
-export default function STLViewer({ url, name, phone }: STLViewerProps) {
-  if (!url) return null;
+export default function STLViewer({ url, valores }: { url: string, valores: any }) {
+  // Validação do caminho do ficheiro
+  if (!url || url.trim() === "") return <div style={{color: 'white'}}>URL inválida</div>;
 
   return (
-    <div style={{ width: '100%', height: '500px' }}>
-      <Canvas shadows camera={{ position: [0, 0, 10], fov: 45 }}>
-        <ambientLight intensity={0.5} />
-        <Suspense fallback={null}>
-          <Stage environment="city" intensity={0.6} adjustCamera={true}>
-            <Model url={url} />
-            
-            {/* 3. Renderiza o texto passado pelo page.tsx */}
-            {name && (
-              <Text position={[0, 0, 2.5]} fontSize={0.6} color="white">
-                {name}
-              </Text>
-            )}
-            {phone && (
-              <Text position={[0, -1, -2]} fontSize={0.4} color="white">
-                {phone}
-              </Text>
-            )}
+    <div style={{ width: '100%', height: '500px', background: '#020617' }}>
+      <Canvas shadows camera={{ position: [0, 0, 150], fov: 50 }}>
+        <ambientLight intensity={1} />
+        <pointLight position={[10, 10, 10]} />
+        
+        <Suspense fallback={<Text color="white" position={[0,0,0]}>A carregar modelo...</Text>}>
+          <Stage environment="city" intensity={0.5}>
+            <Center>
+              <ModeloSTL url={url} valores={valores} />
+            </Center>
           </Stage>
+          <ContactShadows position={[0, -40, 0]} opacity={0.4} scale={20} blur={2} />
         </Suspense>
+        
         <OrbitControls makeDefault />
       </Canvas>
     </div>
