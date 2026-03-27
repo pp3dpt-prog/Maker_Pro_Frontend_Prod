@@ -132,7 +132,7 @@ useEffect(() => {
 
       <div className="viewer">
         {isGenerating ? <p>Gerando...</p> : (
-          <STLViewer url={stlUrl} name={name} phone={phone} />
+          <STLViewer url={stlUrl} valores={{ nome_pet: name, telefone: phone }} />
         )}
       </div>
     </div>
