@@ -121,7 +121,7 @@ function STLMakerContent() {
       </div>
 
       <div className="viewer">
-        <STLViewer url={stlUrl} />
+        <STLViewer url={stlUrl} valores={{}} />
       </div>
     </div>
   );
