@@ -14,12 +14,18 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
     <group>
       <mesh castShadow receiveShadow>
         <primitive object={geometry} attach="geometry" />
-        <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.1} side={THREE.DoubleSide} />
+        {/* Material branco com brilho suave para parecer real */}
+        <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.1} />
       </mesh>
 
-      {valores.nome_pet && (
-        <Center position={[0, 0, 5]}>
-          <Text fontSize={8} color="#1e293b" maxWidth={60} textAlign="center">
+      {/* O texto "Final" só aparece se o utilizador escrever algo */}
+      {valores?.nome_pet && (
+        <Center position={[0, 0, 2]}> 
+          <Text
+            fontSize={6}
+            color="#334155" // Cor de "gravação"
+            textAlign="center"
+          >
             {valores.nome_pet}
           </Text>
         </Center>
