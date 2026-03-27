@@ -1,31 +1,31 @@
+// components/STLViewer.tsx
 'use client';
 
 import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Center, Stage, Text, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Center, Stage, Text } from '@react-three/drei';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 import * as THREE from 'three';
 
 function ModeloSTL({ url, valores }: { url: string, valores: any }) {
-  // O useLoader só corre se a url for válida
   const geometry = useLoader(STLLoader, url);
 
+  const escala: [number, number, number] = useMemo(() => {
+    if (!valores?.largura) return [1, 1, 1];
+    return [valores.largura / 100, (valores.profundidade || 100) / 100, (valores.altura || 100) / 100];
+  }, [valores]);
+
   return (
-    <group>
+    <group scale={escala}>
       <mesh castShadow receiveShadow>
         <primitive object={geometry} attach="geometry" />
-        {/* Material branco com brilho suave para parecer real */}
-        <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.1} />
+        <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.2} />
       </mesh>
 
-      {/* O texto "Final" só aparece se o utilizador escrever algo */}
+      {/* O texto só aparece se houver dados em valores.nome_pet */}
       {valores?.nome_pet && (
-        <Center position={[0, 0, 2]}> 
-          <Text
-            fontSize={6}
-            color="#334155" // Cor de "gravação"
-            textAlign="center"
-          >
+        <Center top position={[0, 0, 2]}>
+          <Text fontSize={8} color="#1e293b" maxWidth={50} textAlign="center">
             {valores.nome_pet}
           </Text>
         </Center>
@@ -34,25 +34,31 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
   );
 }
 
-export default function STLViewer({ url, valores }: { url: string, valores: any }) {
-  // Validação do caminho do ficheiro
-  if (!url || url.trim() === "") return <div style={{color: 'white'}}>URL inválida</div>;
+// Tornamos as props opcionais (?.) para evitar os erros das imagens
+export default function STLViewer({ 
+  produto, 
+  url, 
+  valores = {} 
+}: { 
+  produto?: any; 
+  url?: string; 
+  valores?: any; 
+}) {
+  // Define a URL final priorizando stl_file_path
+  const urlFinal = url || produto?.stl_file_path || produto?.modelo_url;
+
+  if (!urlFinal) return <div style={{ color: '#475569' }}>Modelo não configurado</div>;
 
   return (
-    <div style={{ width: '100%', height: '500px', background: '#020617' }}>
-      <Canvas shadows camera={{ position: [0, 0, 150], fov: 50 }}>
-        <ambientLight intensity={1} />
-        <pointLight position={[10, 10, 10]} />
-        
-        <Suspense fallback={<Text color="white" position={[0,0,0]}>A carregar modelo...</Text>}>
+    <div style={{ width: '100%', height: '500px' }}>
+      <Canvas shadows camera={{ position: [0, 0, 200], fov: 45 }}>
+        <Suspense fallback={null}>
           <Stage environment="city" intensity={0.5}>
             <Center>
-              <ModeloSTL url={url} valores={valores} />
+              <ModeloSTL url={urlFinal} valores={valores} />
             </Center>
           </Stage>
-          <ContactShadows position={[0, -40, 0]} opacity={0.4} scale={20} blur={2} />
         </Suspense>
-        
         <OrbitControls makeDefault />
       </Canvas>
     </div>

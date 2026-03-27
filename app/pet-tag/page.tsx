@@ -12,6 +12,7 @@ export default function STLMakerPro() {
   const [stlUrl, setStlUrl] = useState(null);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [mostrarPreview, setMostrarPreview] = useState(false); // Novo estado
 
   // 1. useEffect para carregar o perfil do utilizador (apenas uma vez ao montar)
 useEffect(() => {
@@ -121,7 +122,12 @@ useEffect(() => {
         <input placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} />
         <input placeholder="Telemóvel" value={phone} onChange={(e) => setPhone(e.target.value)} />
         
-        <button className="btn-main" onClick={handlePreview}>VISUALIZAR</button>
+        <button 
+          className="btn-main" 
+          onClick={() => setMostrarPreview(!mostrarPreview)}
+        >
+          {mostrarPreview ? "VER PEÇA ORIGINAL" : "VISUALIZAR PERSONALIZAÇÃO"}
+        </button>
 
         {stlUrl && (
           <button className="btn-main" style={{background: '#059669'}} onClick={handleDownload}>
@@ -132,7 +138,8 @@ useEffect(() => {
 
       <div className="viewer">
         {isGenerating ? <p>Gerando...</p> : (
-          <STLViewer url={stlUrl} valores={{ nome_pet: name, telefone: phone }} />
+          <STLViewer url={stlUrl} 
+            valores={{ nome_pet: name, telefone: phone }} />
         )}
       </div>
     </div>

@@ -11,6 +11,7 @@ function CustomizadorConteudo() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const familiaURL = searchParams.get('familia');
+  const [mostrarPreview, setMostrarPreview] = useState(false); // Novo estado
 
   const [produtoAtual, setProdutoAtual] = useState<any>(null);
   const [modelos, setModelos] = useState<any[]>([]);
@@ -90,6 +91,23 @@ function CustomizadorConteudo() {
         </div>
 
         <EditorControls produto={produtoAtual} onUpdate={setValores} />
+        <button 
+          onClick={() => setMostrarPreview(!mostrarPreview)}
+          style={{
+            width: '100%',
+            marginTop: '20px',
+            padding: '15px',
+            backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e',
+            color: 'white',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            border: 'none',
+            transition: '0.3s'
+          }}
+        >
+          {mostrarPreview ? 'VOLTAR À FORMA ORIGINAL' : 'VISUALIZAR PERSONALIZAÇÃO'}
+        </button>
       </aside>
 
       <main style={{ 
@@ -102,7 +120,10 @@ function CustomizadorConteudo() {
       }}>
         {/* CORREÇÃO: Passamos a coluna correta stl_file_path para o componente */}
         {produtoAtual?.stl_file_path ? (
-          <STLViewer url={produtoAtual.stl_file_path} valores={valores} />
+          <STLViewer 
+            produto={produtoAtual} 
+            valores={mostrarPreview ? valores : {}} // Se false, envia objeto vazio (peça limpa)
+          />
         ) : (
           <div style={{ color: '#475569' }}>Ficheiro 3D não configurado (stl_file_path vazio)</div>
         )}
