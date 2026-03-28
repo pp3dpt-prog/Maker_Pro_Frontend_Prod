@@ -16,18 +16,20 @@ export default function EditorControls({ produto, onUpdate }: any) {
     xPosN: 0
   });
 
-  // Atualiza os valores padrão quando o produto muda
+  // Sincroniza com a Base de Dados ao carregar o produto
   useEffect(() => {
     if (produto) {
-      setLocalValores(prev => ({
-        ...prev,
+      const novosValores = {
+        ...localValores,
         xPos: produto.def_x_nome ?? 0,
         yPos: produto.def_y_nome ?? 0,
         fontSize: produto.def_size_nome ?? 7,
         xPosN: produto.def_x_num ?? 0,
         yPosN: produto.def_y_num ?? 0,
         fontSizeN: produto.def_size_num ?? 6.5,
-      }));
+      };
+      setLocalValores(novosValores);
+      onUpdate(novosValores);
     }
   }, [produto?.id]);
 
@@ -37,30 +39,19 @@ export default function EditorControls({ produto, onUpdate }: any) {
     onUpdate(novosValores);
   };
 
-  // FUNÇÃO PARA GERAR O STL REAL NO DOCKER
   const handleGerarSTL = async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          produto: produto,
-          valores: localValores
-        }),
+        body: JSON.stringify({ produto, valores: localValores }),
       });
-
       const data = await response.json();
-
-      if (data.url) {
-        // Abre o ficheiro gerado em nova aba ou faz download
-        window.open(data.url, '_blank');
-      } else {
-        alert("Erro ao processar 3D: " + (data.error || "Desconhecido"));
-      }
+      if (data.url) window.open(data.url, '_blank');
+      else alert("Erro ao gerar: " + data.error);
     } catch (err) {
-      console.error(err);
-      alert("Erro na ligação com o servidor de render.");
+      alert("Erro na ligação ao servidor.");
     } finally {
       setLoading(false);
     }
@@ -70,37 +61,53 @@ export default function EditorControls({ produto, onUpdate }: any) {
   const containerStyle = { background: '#0f172a', padding: '10px', borderRadius: '6px', border: '1px solid #334155', marginBottom: '10px' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', paddingBottom: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px' }}>
       
-      {/* SEÇÃO NOME */}
+      {/* --- SEÇÃO NOME (FRENTE) --- */}
       <div style={containerStyle}>
         <label style={labelStyle}>NOME DO PET</label>
         <input 
           type="text" 
+          placeholder="REX"
           value={localValores.nome_pet}
           onChange={(e) => handleChange('nome_pet', e.target.value)}
           style={{ width: '100%', padding: '10px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px', marginBottom: '10px' }}
         />
+        
         <label style={labelStyle}>TAMANHO NOME ({localValores.fontSize})</label>
         <input type="range" min="3" max="15" step="0.5" value={localValores.fontSize} onChange={(e) => handleChange('fontSize', parseFloat(e.target.value))} style={{ width: '100%' }} />
+        
+        <label style={labelStyle}>POSIÇÃO X (NOME) ({localValores.xPos})</label>
+        <input type="range" min={produto?.min_x_nome ?? -20} max={produto?.max_x_nome ?? 20} step="0.1" value={localValores.xPos} onChange={(e) => handleChange('xPos', parseFloat(e.target.value))} style={{ width: '100%' }} />
+        
+        <label style={labelStyle}>POSIÇÃO Y (NOME) ({localValores.yPos})</label>
+        <input type="range" min={produto?.min_y_nome ?? -15} max={produto?.max_y_nome ?? 15} step="0.1" value={localValores.yPos} onChange={(e) => handleChange('yPos', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
 
-      {/* SEÇÃO TELEFONE */}
+      {/* --- SEÇÃO TELEFONE (VERSO) --- */}
       <div style={containerStyle}>
-        <label style={labelStyle}>TELEFONE (VERSO)</label>
+        <label style={labelStyle}>TELEFONE / NÚMERO</label>
         <input 
           type="text" 
+          placeholder="912..."
           value={localValores.telefone}
           onChange={(e) => handleChange('telefone', e.target.value)}
           style={{ width: '100%', padding: '10px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px', marginBottom: '10px' }}
         />
+        
         <label style={labelStyle}>TAMANHO NÚMERO ({localValores.fontSizeN})</label>
         <input type="range" min="3" max="15" step="0.5" value={localValores.fontSizeN} onChange={(e) => handleChange('fontSizeN', parseFloat(e.target.value))} style={{ width: '100%' }} />
+        
+        <label style={labelStyle}>POSIÇÃO X (NÚMERO) ({localValores.xPosN})</label>
+        <input type="range" min={produto?.min_x_num ?? -20} max={produto?.max_x_num ?? 20} step="0.1" value={localValores.xPosN} onChange={(e) => handleChange('xPosN', parseFloat(e.target.value))} style={{ width: '100%' }} />
+        
+        <label style={labelStyle}>POSIÇÃO Y (NÚMERO) ({localValores.yPosN})</label>
+        <input type="range" min={produto?.min_y_num ?? -15} max={produto?.max_y_num ?? 15} step="0.1" value={localValores.yPosN} onChange={(e) => handleChange('yPosN', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
 
-      {/* SEÇÃO FONTE */}
+      {/* --- SELETOR DE FONTE --- */}
       <div style={containerStyle}>
-        <label style={labelStyle}>FONTE</label>
+        <label style={labelStyle}>ESTILO DA FONTE</label>
         <select 
           value={localValores.fonte}
           onChange={(e) => handleChange('fonte', e.target.value)}
@@ -114,23 +121,21 @@ export default function EditorControls({ produto, onUpdate }: any) {
         </select>
       </div>
 
-      {/* BOTÃO FINAL - RENDER NO DOCKER */}
+      {/* BOTÃO DE RENDERIZAÇÃO */}
       <button 
         onClick={handleGerarSTL}
         disabled={loading}
         style={{ 
-          marginTop: '10px',
           padding: '15px', 
           background: loading ? '#475569' : '#3b82f6', 
           color: 'white', 
           border: 'none', 
           borderRadius: '8px', 
           fontWeight: 'bold',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          transition: 'background 0.2s'
+          cursor: loading ? 'not-allowed' : 'pointer'
         }}
       >
-        {loading ? 'A GERAR FICHEIRO 3D...' : 'VISUALIZAR RENDER FINAL'}
+        {loading ? 'A GERAR STL FINAL...' : 'VISUALIZAR RENDER FINAL'}
       </button>
     </div>
   );
