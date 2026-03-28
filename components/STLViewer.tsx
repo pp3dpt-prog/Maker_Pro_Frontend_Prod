@@ -9,14 +9,19 @@ import * as THREE from 'three';
 function ModeloSTL({ url, valores }: { url: string, valores: any }) {
   const geometry = useLoader(STLLoader, url);
 
-  // Parametrização dinâmica com os valores que vêm dos Sliders
+  // --- PARAMETRIZAÇÃO DO NOME (FRENTE) ---
   const fontSize = valores?.fontSize || 7;
-  const yPos = valores?.yPos || 0;
   const xPos = valores?.xPos || 0;
+  const yPos = valores?.yPos || 0;
+
+  // --- PARAMETRIZAÇÃO DO NÚMERO (VERSO) ---
   const fontSizeN = valores?.fontSizeN || 6.5;
-  const yPosN = valores?.yPosN || 0;
   const xPosN = valores?.xPosN || 0;
-  
+  const yPosN = valores?.yPosN || 0;
+
+  // Z Fixo para garantir que o texto fica na superfície
+  const zFrente = 3.1; 
+  const zTras = -0.1;
 
   const fontPath = useMemo(() => {
     let path = '/fonts/OpenSans-Bold.ttf';
@@ -34,15 +39,15 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
 
   return (
     <group>
-      {/* A PEÇA STL */}
+      {/* PEÇA BASE */}
       <mesh castShadow receiveShadow>
         <primitive object={geometry} attach="geometry" />
         <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.2} />
       </mesh>
 
-      {/* TEXTO FRENTE (NOME) */}
+      {/* TEXTO NOME (FRENTE) */}
       {valores?.nome_pet && (
-        <group position={[xPos, yPos, 3.1]}>
+        <group position={[xPos, yPos, zFrente]}>
           <Center>
             <Text
               font={fontPath}
@@ -59,9 +64,10 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
         </group>
       )}
 
-      {/* TEXTO VERSO (NÚMERO/TELEFONE) */}
+      {/* TEXTO NÚMERO (VERSO) */}
+      {/* Nota: xPosN é invertido (-xPosN) porque a peça está rodada 180º no verso */}
       {valores?.telefone && (
-        <group position={[xPosN, yPosN, -0.1]} rotation={[0, Math.PI, 0]}>
+        <group position={[-xPosN, yPosN, zTras]} rotation={[0, Math.PI, 0]}>
           <Center>
             <Text
               font={fontPath}
