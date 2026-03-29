@@ -34,28 +34,32 @@ export default function EditorControls({ produto, onUpdate }: any) {
 
   const handleGerarSTL = async () => {
     setLoading(true);
-    // FORÇAR O URL DIRETO PARA TESTE
-    const URL_FINAL = "https://maker-pro-docker.onrender.com/api/render";
-    
     try {
-      console.log("A enviar pedido para:", URL_FINAL);
+      // Usamos o URL direto para não haver falhas de variáveis de ambiente
+      const baseUrl = "https://maker-pro-docker.onrender.com";
       
-      const response = await fetch(URL_FINAL, {
+      const response = await fetch(`${baseUrl}/api/render`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produto, valores: localValores }),
+        body: JSON.stringify({
+          produto: produto,
+          valores: localValores
+        }),
       });
+
+      if (!response.ok) throw new Error("Falha no servidor");
 
       const data = await response.json();
 
       if (data.success && data.url) {
-        window.open(`https://maker-pro-docker.onrender.com${data.url}`, '_blank');
+        // Abre o ficheiro STL no servidor do Render
+        window.open(`${baseUrl}${data.url}`, '_blank');
       } else {
-        alert("Erro no Servidor: " + (data.error || "Desconhecido"));
+        alert("Erro: " + data.error);
       }
     } catch (err) {
-      alert("ERRO DE LIGAÇÃO: O servidor do Render.com não respondeu. Verifica se ele está online.");
-      console.error(err);
+      console.error("Erro detalhado:", err);
+      alert("O servidor do Render.com ainda está a bloquear a ligação ou está offline.");
     } finally {
       setLoading(false);
     }
