@@ -16,7 +16,7 @@ export default function EditorControls({ produto, onUpdate }: any) {
     xPosN: 0
   });
 
-  // Sincroniza com os valores padrão da BD quando o produto muda
+  // 1. Sincroniza com os valores padrão da BD quando o produto muda
   useEffect(() => {
     if (produto) {
       const novosValores = {
@@ -39,90 +39,85 @@ export default function EditorControls({ produto, onUpdate }: any) {
     onUpdate(novosValores);
   };
 
-  // Função de Render que comunica com o teu Backend no Docker
+  // 2. FUNÇÃO DE RENDERIZAÇÃO (Ligação ao Render.com)
   const handleGerarSTL = async () => {
-  setLoading(true);
-  try {
-    // 1. Pegamos o URL do Render.com (da tua variável .env)
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL; // https://maker-pro-docker.onrender.com
+    setLoading(true);
+    try {
+      // URL do teu projeto no Render.com
+      const backendUrl = "https://maker-pro-docker.onrender.com";
+      const endpoint = "/api/render"; 
 
-    // 2. Montamos os dados exatamente como o OpenSCAD precisa
-    const dadosParaRender = {
-      produto: produto,
-      valores: {
-        ...localValores, // Aqui já vão xPos, yPos, nome_pet, etc.
-        // Mapeamento extra caso o template seja a caixa:
-        largura: localValores.xPos,
-        profundidade: localValores.yPos,
-        altura: localValores.fontSize
+      const response = await fetch(`${backendUrl}${endpoint}`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          produto: produto,
+          valores: localValores
+        }),
+      });
+
+      if (!response.ok) throw new Error("Erro na ligação ao servidor");
+
+      const data = await response.json();
+
+      if (data.success && data.url) {
+        // Abre o ficheiro STL gerado no servidor do Render.com
+        window.open(`${backendUrl}${data.url}`, '_blank');
+      } else {
+        alert("Erro no motor de render: " + (data.error || "Erro desconhecido"));
       }
-    };
-
-    const response = await fetch(`${backendUrl}/api/render`, {
-      method: "POST",
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosParaRender)
-    });
-
-    const data = await response.json();
-
-    if (data.success && data.url) {
-      // 3. Abrir o ficheiro gerado no Render.com
-      window.open(`${backendUrl}${data.url}`, '_blank');
-    } else {
-      alert("Erro no motor de render: " + data.error);
+    } catch (err) {
+      console.error(err);
+      alert("O servidor está a acordar ou offline. Tenta novamente em 30 segundos.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Erro de ligação:", err);
-    alert("O servidor de renderização está offline ou lento. Tenta novamente.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const labelStyle = { fontSize: '10px', color: '#64748b', fontWeight: 'bold', display: 'block', marginBottom: '5px' };
   const containerStyle = { background: '#0f172a', padding: '10px', borderRadius: '6px', border: '1px solid #334155', marginBottom: '10px' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px' }}>
       
       {/* SEÇÃO NOME (FRENTE) */}
       <div style={containerStyle}>
-        <label style={labelStyle}>NOME DO PET</label>
+        <label style={labelStyle}>NOME DO PET (FRENTE)</label>
         <input 
           type="text" 
+          placeholder="REX"
           value={localValores.nome_pet}
-          placeholder="Ex: REX"
           onChange={(e) => handleChange('nome_pet', e.target.value)}
           style={{ width: '100%', padding: '10px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px', marginBottom: '10px' }}
         />
         <label style={labelStyle}>TAMANHO NOME ({localValores.fontSize})</label>
         <input type="range" min="3" max="15" step="0.5" value={localValores.fontSize} onChange={(e) => handleChange('fontSize', parseFloat(e.target.value))} style={{ width: '100%' }} />
         
-        <label style={labelStyle}>POSIÇÃO X (NOME) ({localValores.xPos})</label>
+        <label style={labelStyle}>POSIÇÃO X ({localValores.xPos})</label>
         <input type="range" min={produto?.min_x_nome ?? -20} max={produto?.max_x_nome ?? 20} step="0.1" value={localValores.xPos} onChange={(e) => handleChange('xPos', parseFloat(e.target.value))} style={{ width: '100%' }} />
         
-        <label style={labelStyle}>POSIÇÃO Y (NOME) ({localValores.yPos})</label>
+        <label style={labelStyle}>POSIÇÃO Y ({localValores.yPos})</label>
         <input type="range" min={produto?.min_y_nome ?? -15} max={produto?.max_y_nome ?? 15} step="0.1" value={localValores.yPos} onChange={(e) => handleChange('yPos', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
 
       {/* SEÇÃO TELEFONE (VERSO) */}
       <div style={containerStyle}>
-        <label style={labelStyle}>TELEFONE / NÚMERO</label>
+        <label style={labelStyle}>TELEFONE (VERSO)</label>
         <input 
           type="text" 
-          value={localValores.telefone}
           placeholder="912..."
+          value={localValores.telefone}
           onChange={(e) => handleChange('telefone', e.target.value)}
           style={{ width: '100%', padding: '10px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px', marginBottom: '10px' }}
         />
         <label style={labelStyle}>TAMANHO NÚMERO ({localValores.fontSizeN})</label>
         <input type="range" min="3" max="15" step="0.5" value={localValores.fontSizeN} onChange={(e) => handleChange('fontSizeN', parseFloat(e.target.value))} style={{ width: '100%' }} />
         
-        <label style={labelStyle}>POSIÇÃO X (NÚMERO) ({localValores.xPosN})</label>
+        <label style={labelStyle}>POSIÇÃO X NÚMERO ({localValores.xPosN})</label>
         <input type="range" min={produto?.min_x_num ?? -20} max={produto?.max_x_num ?? 20} step="0.1" value={localValores.xPosN} onChange={(e) => handleChange('xPosN', parseFloat(e.target.value))} style={{ width: '100%' }} />
         
-        <label style={labelStyle}>POSIÇÃO Y (NÚMERO) ({localValores.yPosN})</label>
+        <label style={labelStyle}>POSIÇÃO Y NÚMERO ({localValores.yPosN})</label>
         <input type="range" min={produto?.min_y_num ?? -15} max={produto?.max_y_num ?? 15} step="0.1" value={localValores.yPosN} onChange={(e) => handleChange('yPosN', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
 
@@ -156,10 +151,11 @@ export default function EditorControls({ produto, onUpdate }: any) {
           cursor: loading ? 'not-allowed' : 'pointer'
         }}
       >
-        {loading ? 'A PROCESSAR 3D...' : 'VISUALIZAR RENDER FINAL'}
+        {loading ? 'A GERAR FICHEIRO 3D...' : 'VISUALIZAR RENDER FINAL'}
       </button>
 
-      <div style={{ padding: '15px', background: '#0f172a', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px' }}>
+      {/* PREÇO */}
+      <div style={{ padding: '15px', background: '#0f172a', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: 'white' }}>
         {produto?.preco || '0.00'} €
       </div>
     </div>
