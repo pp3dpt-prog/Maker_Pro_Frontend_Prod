@@ -33,37 +33,35 @@ export default function EditorControls({ produto, onUpdate }: any) {
   };
 
   const handleGerarSTL = async () => {
-    setLoading(true);
-    try {
-      // Usamos o URL direto para não haver falhas de variáveis de ambiente
-      const baseUrl = "https://maker-pro-docker.onrender.com";
-      
-      const response = await fetch(`${baseUrl}/api/render`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          produto: produto,
-          valores: localValores
-        }),
-      });
+  setLoading(true);
+  try {
+    // URL direto para evitar erro de variável de ambiente
+    const baseUrl = "https://maker-pro-docker.onrender.com";
 
-      if (!response.ok) throw new Error("Falha no servidor");
+    const response = await fetch(`${baseUrl}/api/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        produto: produto,
+        valores: localValores
+      }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success && data.url) {
-        // Abre o ficheiro STL no servidor do Render
-        window.open(`${baseUrl}${data.url}`, '_blank');
-      } else {
-        alert("Erro: " + data.error);
-      }
-    } catch (err) {
-      console.error("Erro detalhado:", err);
-      alert("O servidor do Render.com ainda está a bloquear a ligação ou está offline.");
-    } finally {
-      setLoading(false);
+    if (data.success) {
+      window.open(`${baseUrl}${data.url}`, '_blank');
+    } else {
+      alert("Erro: " + data.error);
     }
-  };
+  } catch (err) {
+    // Se o erro de CORS persistir, o browser vai cair aqui
+    console.error("ERRO NO FETCH:", err);
+    alert("Erro de CORS ou Servidor Offline. Verifica se o Backend no Render.com foi atualizado com o header '*'.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px', color: 'white' }}>
