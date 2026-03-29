@@ -43,30 +43,38 @@ export default function EditorControls({ produto, onUpdate }: any) {
   const handleGerarSTL = async () => {
   setLoading(true);
   try {
-    // Se NEXT_PUBLIC_API_URL estiver vazio, ele usa o relativo (Vercel)
-    // Se tiver o IP da VPS, ele envia para o Docker
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    
-    const response = await fetch(`${baseUrl}/api/render`, {
-      method: 'POST',
+    // 1. Pegamos o URL do Render.com (da tua variável .env)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL; // https://maker-pro-docker.onrender.com
+
+    // 2. Montamos os dados exatamente como o OpenSCAD precisa
+    const dadosParaRender = {
+      produto: produto,
+      valores: {
+        ...localValores, // Aqui já vão xPos, yPos, nome_pet, etc.
+        // Mapeamento extra caso o template seja a caixa:
+        largura: localValores.xPos,
+        profundidade: localValores.yPos,
+        altura: localValores.fontSize
+      }
+    };
+
+    const response = await fetch(`${backendUrl}/api/render`, {
+      method: "POST",
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        produto: produto,
-        valores: localValores
-      }),
+      body: JSON.stringify(dadosParaRender)
     });
 
     const data = await response.json();
-    
-    if (data.url) {
-      // O URL retornado deve ser completo para o utilizador conseguir baixar
-      const fileUrl = data.url.startsWith('http') ? data.url : `${baseUrl}${data.url}`;
-      window.open(fileUrl, '_blank');
+
+    if (data.success && data.url) {
+      // 3. Abrir o ficheiro gerado no Render.com
+      window.open(`${backendUrl}${data.url}`, '_blank');
     } else {
-      alert("Erro: " + data.error);
+      alert("Erro no motor de render: " + data.error);
     }
   } catch (err) {
-    alert("Erro na ligação ao servidor Docker. Verifica se o contentor está online.");
+    console.error("Erro de ligação:", err);
+    alert("O servidor de renderização está offline ou lento. Tenta novamente.");
   } finally {
     setLoading(false);
   }
