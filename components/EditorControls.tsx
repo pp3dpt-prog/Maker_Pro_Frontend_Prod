@@ -43,7 +43,6 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         body: JSON.stringify({
           ...localValores,
           forma: produto?.forma || 'circulo',
-          userId: null, 
           designId: produto?.id
         }),
       });
@@ -63,23 +62,23 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
 
   const ControlGroup = ({ label, keySize, keyX, keyY, vals }: any) => (
     <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #334155' }}>
-      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</label>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-        <div>
+      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold', textTransform: 'uppercase' }}>{label}</label>
+      <div style={{ marginTop: '10px' }}>
+        <div style={{ marginBottom: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-            <span style={{ fontSize: '10px', color: '#64748b' }}>TAMANHO</span>
-            <span style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold' }}>{vals[keySize]}mm</span>
+            <span style={{ fontSize: '10px' }}>TAMANHO</span>
+            <span style={{ fontSize: '10px', color: '#3b82f6' }}>{vals[keySize]}mm</span>
           </div>
-          <input type="range" min="2" max="12" step="0.5" value={vals[keySize]} onChange={(e) => handleChange(keySize, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
+          <input type="range" min="3" max="15" step="0.1" value={vals[keySize]} onChange={(e) => handleChange(keySize, parseFloat(e.target.value))} style={{ width: '100%' }} />
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <div style={{ flex: 1 }}>
-            <span style={{ fontSize: '10px', color: '#64748b', display: 'block', marginBottom: '5px' }}>POS X: {vals[keyX]}</span>
-            <input type="range" min="-12" max="12" step="0.5" value={vals[keyX]} onChange={(e) => handleChange(keyX, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div>
+            <span style={{ fontSize: '10px' }}>POS X: {vals[keyX]}</span>
+            <input type="range" min="-15" max="15" step="0.5" value={vals[keyX]} onChange={(e) => handleChange(keyX, parseFloat(e.target.value))} style={{ width: '100%' }} />
           </div>
-          <div style={{ flex: 1 }}>
-            <span style={{ fontSize: '10px', color: '#64748b', display: 'block', marginBottom: '5px' }}>POS Y: {vals[keyY]}</span>
-            <input type="range" min="-12" max="12" step="0.5" value={vals[keyY]} onChange={(e) => handleChange(keyY, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
+          <div>
+            <span style={{ fontSize: '10px' }}>POS Y: {vals[keyY]}</span>
+            <input type="range" min="-15" max="15" step="0.5" value={vals[keyY]} onChange={(e) => handleChange(keyY, parseFloat(e.target.value))} style={{ width: '100%' }} />
           </div>
         </div>
       </div>
@@ -92,65 +91,44 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         placeholder="NOME DO PET"
         value={localValores.nome_pet}
         onChange={(e) => handleChange('nome_pet', e.target.value.toUpperCase())}
-        style={{ width: '100%', padding: '14px', background: '#0f172a', border: '1px solid #334155', color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' }}
+        style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px', fontWeight: 'bold' }}
       />
-      
       <input 
         placeholder="TELEFONE"
         value={localValores.telefone}
         onChange={(e) => handleChange('telefone', e.target.value)}
-        style={{ width: '100%', padding: '14px', background: '#0f172a', border: '1px solid #334155', color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' }}
+        style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }}
       />
 
       <select 
         value={localValores.fonte}
         onChange={(e) => handleChange('fonte', e.target.value)}
-        style={{ width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', cursor: 'pointer' }}
+        style={{ width: '100%', padding: '10px', background: '#0f172a', color: 'white', border: '1px solid #475569', borderRadius: '8px' }}
       >
-        <option value="OpenSans">Open Sans (Padrão)</option>
+        <option value="OpenSans">Open Sans</option>
         <option value="Bebas">Bebas Neue</option>
         <option value="Playfair">Playfair Display</option>
         <option value="Eindhoven">Eindhoven</option>
-        <option value="BADABB">Badabb</option>
+        <option value="BADABB">Badaboom</option>
       </select>
 
-      <ControlGroup label="Ajustes do Nome (Frente)" keySize="fontSize" keyX="xPos" keyY="yPos" vals={localValores} />
-      <ControlGroup label="Ajustes do Telefone (Verso)" keySize="fontSizeN" keyX="xPosN" keyY="yPosN" vals={localValores} />
+      <ControlGroup label="AJUSTE NOME (FRENTE)" keySize="fontSize" keyX="xPos" keyY="yPos" vals={localValores} />
+      <ControlGroup label="AJUSTE TELEFONE (VERSO)" keySize="fontSizeN" keyX="xPosN" keyY="yPosN" vals={localValores} />
 
       <button 
         onClick={handleGerarSTL}
         disabled={loading}
         style={{ 
-          padding: '20px', 
+          padding: '18px', 
           backgroundColor: loading ? '#334155' : '#2563eb', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '10px', 
-          fontWeight: '900', 
-          fontSize: '14px',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          transition: 'all 0.3s',
-          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+          color: 'white', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer'
         }}
       >
-        {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-            <div className="spinner"></div>
-            PROCESSANDO NO SERVIDOR...
-          </div>
-        ) : "GERAR MODELO 3D FINAL"}
+        {loading ? "A PROCESSAR..." : "VISUALIZAR MODELO 3D FINAL"}
       </button>
 
       <style jsx>{`
-        .spinner {
-          width: 20px;
-          height: 20px;
-          border: 3px solid rgba(255,255,255,0.2);
-          border-radius: 50%;
-          border-top-color: #fff;
-          animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        input[type=range] { accent-color: #2563eb; cursor: pointer; }
       `}</style>
     </div>
   );
