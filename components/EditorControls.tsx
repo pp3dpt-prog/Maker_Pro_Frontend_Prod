@@ -37,29 +37,46 @@ export default function EditorControls({ produto, onUpdate }: any) {
     onUpdate(novosValores);
   };
 
+  // FUNÇÃO CORRIGIDA PARA LIGAR AO RENDER
   const handleGerarSTL = async () => {
     setLoading(true);
     const baseUrl = "https://maker-pro-docker.onrender.com";
     
     try {
-      const response = await fetch(`${baseUrl}/api/render`, {
+      // Alterado para a rota correta do teu backend funcional
+      const response = await fetch(`${baseUrl}/gerar-stl-pro`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          produto: produto,
-          valores: localValores // Envia TUDO: nome, telefone, xPos, yPos, fontSize, etc.
+          // Mapeamento de nomes para o backend entender (nome_pet -> nome)
+          nome: localValores.nome_pet,
+          telefone: localValores.telefone,
+          forma: produto?.forma || 'circulo',
+          fonte: localValores.fonte,
+          // Se tiveres autenticação, estes campos devem ser preenchidos:
+          userId: null, 
+          designId: produto?.id
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro no servidor');
+      }
+
       const data = await response.json();
 
-      if (data.success && data.url) {
-        window.open(`${baseUrl}${data.url}`, '_blank');
+      // O servidor devolve a URL diretamente no objeto data
+      if (data.url) {
+        window.open(data.url, '_blank');
       } else {
-        alert("Erro no servidor: " + data.error);
+        alert("Erro: O servidor não devolveu um link válido.");
       }
-    } catch (err) {
-      alert("Erro de ligação. O servidor ainda está a bloquear o CORS ou está a acordar.");
+    } catch (err: any) {
+      console.error("Erro na ligação:", err);
+      alert(`Erro: ${err.message}. Verifica se o backend no Render está ativo.`);
     } finally {
       setLoading(false);
     }
@@ -78,37 +95,42 @@ export default function EditorControls({ produto, onUpdate }: any) {
           type="text" 
           value={localValores.nome_pet}
           onChange={(e) => handleChange('nome_pet', e.target.value)}
+          placeholder="Ex: Bobby"
           style={{ width: '100%', padding: '8px', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '4px' }}
         />
         <label style={labelStyle}>TAMANHO NOME: {localValores.fontSize}</label>
         <input type="range" min="3" max="15" step="0.5" value={localValores.fontSize} onChange={(e) => handleChange('fontSize', parseFloat(e.target.value))} style={{ width: '100%' }} />
-        <label style={labelStyle}>POSIÇÃO X: {localValores.xPos} | Y: {localValores.yPos}</label>
-        <input type="range" min="-20" max="20" step="0.1" value={localValores.xPos} onChange={(e) => handleChange('xPos', parseFloat(e.target.value))} style={{ width: '100%' }} />
-        <input type="range" min="-20" max="20" step="0.1" value={localValores.yPos} onChange={(e) => handleChange('yPos', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
 
-      {/* SEÇÃO TELEFONE - REPOSTA AQUI */}
+      {/* SEÇÃO TELEFONE */}
       <div style={sectionStyle}>
         <label style={labelStyle}>TELEFONE (VERSO)</label>
         <input 
           type="text" 
           value={localValores.telefone}
           onChange={(e) => handleChange('telefone', e.target.value)}
+          placeholder="Ex: 912345678"
           style={{ width: '100%', padding: '8px', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '4px' }}
         />
         <label style={labelStyle}>TAMANHO NÚMERO: {localValores.fontSizeN}</label>
         <input type="range" min="3" max="15" step="0.5" value={localValores.fontSizeN} onChange={(e) => handleChange('fontSizeN', parseFloat(e.target.value))} style={{ width: '100%' }} />
-        <label style={labelStyle}>POSIÇÃO X NÚMERO: {localValores.xPosN} | Y: {localValores.yPosN}</label>
-        <input type="range" min="-20" max="20" step="0.1" value={localValores.xPosN} onChange={(e) => handleChange('xPosN', parseFloat(e.target.value))} style={{ width: '100%' }} />
-        <input type="range" min="-20" max="20" step="0.1" value={localValores.yPosN} onChange={(e) => handleChange('yPosN', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
 
       <button 
         onClick={handleGerarSTL}
         disabled={loading}
-        style={{ padding: '15px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+        style={{ 
+          padding: '15px', 
+          background: loading ? '#555' : '#3b82f6', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '8px', 
+          fontWeight: 'bold', 
+          cursor: loading ? 'not-allowed' : 'pointer',
+          transition: 'background 0.3s'
+        }}
       >
-        {loading ? 'A PROCESSAR...' : 'VISUALIZAR RENDER FINAL'}
+        {loading ? 'A PROCESSAR RENDER...' : 'VISUALIZAR RENDER FINAL'}
       </button>
     </div>
   );
