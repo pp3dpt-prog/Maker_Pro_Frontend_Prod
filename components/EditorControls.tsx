@@ -16,7 +16,6 @@ export default function EditorControls({ produto, onUpdate }: any) {
     xPosN: 0
   });
 
-  // Sincroniza com os valores da BD
   useEffect(() => {
     if (produto) {
       setLocalValores(prev => ({
@@ -37,26 +36,20 @@ export default function EditorControls({ produto, onUpdate }: any) {
     onUpdate(novosValores);
   };
 
-  // FUNÇÃO CORRIGIDA PARA LIGAR AO RENDER
   const handleGerarSTL = async () => {
     setLoading(true);
     const baseUrl = "https://maker-pro-docker.onrender.com";
     
     try {
-      // Alterado para a rota correta do teu backend funcional
       const response = await fetch(`${baseUrl}/gerar-stl-pro`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // Mapeamento de nomes para o backend entender (nome_pet -> nome)
           nome: localValores.nome_pet,
           telefone: localValores.telefone,
           forma: produto?.forma || 'circulo',
           fonte: localValores.fonte,
-          // Se tiveres autenticação, estes campos devem ser preenchidos:
-          userId: null, 
+          userId: null, // Alterar para o ID real do utilizador se necessário
           designId: produto?.id
         }),
       });
@@ -67,70 +60,34 @@ export default function EditorControls({ produto, onUpdate }: any) {
       }
 
       const data = await response.json();
-
-      // O servidor devolve a URL diretamente no objeto data
       if (data.url) {
         window.open(data.url, '_blank');
-      } else {
-        alert("Erro: O servidor não devolveu um link válido.");
       }
     } catch (err: any) {
       console.error("Erro na ligação:", err);
-      alert(`Erro: ${err.message}. Verifica se o backend no Render está ativo.`);
+      alert(`Erro: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const labelStyle = { fontSize: '10px', color: '#888', fontWeight: 'bold', display: 'block', marginBottom: '5px' };
-  const sectionStyle = { background: '#16181a', padding: '10px', borderRadius: '6px', marginBottom: '10px', border: '1px solid #333' };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px' }}>
-      
-      {/* SEÇÃO NOME */}
-      <div style={sectionStyle}>
-        <label style={labelStyle}>NOME DO PET (FRENTE)</label>
+      <div style={{ background: '#16181a', padding: '10px', borderRadius: '6px', border: '1px solid #333' }}>
+        <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold' }}>NOME DO PET</label>
         <input 
           type="text" 
           value={localValores.nome_pet}
           onChange={(e) => handleChange('nome_pet', e.target.value)}
-          placeholder="Ex: Bobby"
-          style={{ width: '100%', padding: '8px', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '4px' }}
+          style={{ width: '100%', padding: '8px', background: '#222', color: 'white', border: '1px solid #444' }}
         />
-        <label style={labelStyle}>TAMANHO NOME: {localValores.fontSize}</label>
-        <input type="range" min="3" max="15" step="0.5" value={localValores.fontSize} onChange={(e) => handleChange('fontSize', parseFloat(e.target.value))} style={{ width: '100%' }} />
       </div>
-
-      {/* SEÇÃO TELEFONE */}
-      <div style={sectionStyle}>
-        <label style={labelStyle}>TELEFONE (VERSO)</label>
-        <input 
-          type="text" 
-          value={localValores.telefone}
-          onChange={(e) => handleChange('telefone', e.target.value)}
-          placeholder="Ex: 912345678"
-          style={{ width: '100%', padding: '8px', background: '#222', border: '1px solid #444', color: 'white', borderRadius: '4px' }}
-        />
-        <label style={labelStyle}>TAMANHO NÚMERO: {localValores.fontSizeN}</label>
-        <input type="range" min="3" max="15" step="0.5" value={localValores.fontSizeN} onChange={(e) => handleChange('fontSizeN', parseFloat(e.target.value))} style={{ width: '100%' }} />
-      </div>
-
       <button 
         onClick={handleGerarSTL}
         disabled={loading}
-        style={{ 
-          padding: '15px', 
-          background: loading ? '#555' : '#3b82f6', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '8px', 
-          fontWeight: 'bold', 
-          cursor: loading ? 'not-allowed' : 'pointer',
-          transition: 'background 0.3s'
-        }}
+        style={{ padding: '15px', background: loading ? '#555' : '#3b82f6', color: 'white', borderRadius: '8px', cursor: 'pointer' }}
       >
-        {loading ? 'A PROCESSAR RENDER...' : 'VISUALIZAR RENDER FINAL'}
+        {loading ? 'A PROCESSAR...' : 'VISUALIZAR RENDER FINAL'}
       </button>
     </div>
   );
