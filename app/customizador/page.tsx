@@ -32,25 +32,24 @@ function CustomizadorConteudo() {
     fetchData();
   }, [id, familiaURL]);
 
-  // FUNÇÃO CRÍTICA PARA ATUALIZAR O VIEWER
   const aoGerarStlComSucesso = (urlGerada: string) => {
     setProdutoAtual((prev: any) => ({
       ...prev,
-      stl_file_path: `${urlGerada}?t=${Date.now()}` 
+      stl_file_path: `${urlGerada}?t=${Date.now()}`
     }));
-    setMostrarPreview(false); // Desliga o texto "fake" para mostrar o STL real
+    setMostrarPreview(false); // Desliga o preview fake para mostrar o real
   };
 
-  if (loading) return <div style={{ background: '#0f172a', height: '100vh', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Carregando...</div>;
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'100vh', background:'#0f172a', color:'white' }}>Carregando...</div>;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>
       <aside style={{ width: '350px', backgroundColor: '#1e293b', padding: '25px', borderRight: '1px solid #334155', height: '100vh', overflowY: 'auto' }}>
         <Link href="/produtos" style={{ color: '#3b82f6', fontSize: '12px', fontWeight: 'bold', textDecoration: 'none' }}>← VOLTAR</Link>
         <h1 style={{ fontSize: '20px', margin: '15px 0', fontWeight: '900' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
 
         <div style={{ marginBottom: '25px' }}>
-          <label style={{ fontSize: '10px', color: '#64748b', display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>1. FORMA:</label>
+          <label style={{ fontSize: '10px', color: '#64748b', display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>1. SELECIONE A FORMA:</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {modelos.map((item) => (
               <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
@@ -71,11 +70,7 @@ function CustomizadorConteudo() {
         </div>
 
         <div style={{ borderTop: '1px solid #334155', paddingTop: '20px' }}>
-          <EditorControls 
-            produto={produtoAtual} 
-            onUpdate={setValores} 
-            onGerarSucesso={aoGerarStlComSucesso} 
-          />
+          <EditorControls produto={produtoAtual} onUpdate={setValores} onGerarSucesso={aoGerarStlComSucesso} />
         </div>
 
         <button 
