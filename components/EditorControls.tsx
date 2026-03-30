@@ -35,7 +35,7 @@ export default function EditorControls({ produto, onUpdate }: any) {
   const handleGerarSTL = async () => {
     setLoading(true);
     // URL exato do teu backend no Render
-    const baseUrl = "https://maker-pro-docker.onrender.com";
+    const baseUrl = "https://maker-pro-docker-prod.onrender.com";
     
     try {
       const response = await fetch(`${baseUrl}/gerar-stl-pro`, {
