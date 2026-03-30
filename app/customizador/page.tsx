@@ -32,15 +32,16 @@ function CustomizadorConteudo() {
     fetchData();
   }, [id, familiaURL]);
 
+  // FUNÇÃO QUE RECEBE O URL DO DOCKER E ATUALIZA O VIEWER
   const aoGerarStlComSucesso = (urlGerada: string) => {
     setProdutoAtual((prev: any) => ({
       ...prev,
-      stl_file_path: `${urlGerada}?t=${Date.now()}`
+      stl_file_path: `${urlGerada}?t=${Date.now()}` // Timestamp limpa a cache
     }));
-    setMostrarPreview(false); // Desliga o preview fake para mostrar o real
+    setMostrarPreview(false); // Removemos o preview fake para ver o real
   };
 
-  if (loading) return <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'100vh', background:'#0f172a', color:'white' }}>Carregando...</div>;
+  if (loading) return <div style={{background:'#0f172a', height:'100vh', color:'white', display:'flex', justifyContent:'center', alignItems:'center'}}>Carregando...</div>;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>
@@ -70,7 +71,11 @@ function CustomizadorConteudo() {
         </div>
 
         <div style={{ borderTop: '1px solid #334155', paddingTop: '20px' }}>
-          <EditorControls produto={produtoAtual} onUpdate={setValores} onGerarSucesso={aoGerarStlComSucesso} />
+          <EditorControls 
+            produto={produtoAtual} 
+            onUpdate={setValores} 
+            onGerarSucesso={aoGerarStlComSucesso} 
+          />
         </div>
 
         <button 
