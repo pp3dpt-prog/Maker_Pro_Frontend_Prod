@@ -59,9 +59,15 @@ export default function EditorControls({ produto, onUpdate }: any) {
       }
 
       const data = await response.json();
-      if (data.url) {
-        window.open(data.url, '_blank');
-      } else {
+        if (data.url) {
+          // Criar um link invisível para forçar o download com o nome correto
+          const link = document.createElement('a');
+          link.href = data.url;
+          link.setAttribute('download', `gravacao_${Date.now()}.stl`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } else {
         alert("O link do ficheiro não foi gerado.");
       }
     } catch (err: any) {
