@@ -18,10 +18,13 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
 
   useEffect(() => {
     if (produto) {
+      // Carrega os valores padrão definidos na tabela prod_designs
       setLocalValores(prev => ({
         ...prev,
-        fontSize: produto.def_size_nome ?? 7,
-        fontSizeN: produto.def_size_num ?? 6.5,
+        fontSize: produto.default_size_nome ?? 7,
+        fontSizeN: produto.default_size_num ?? 6.5,
+        yPos: produto.default_y_nome ?? 0,
+        xPos: produto.default_x_nome ?? 0,
       }));
     }
   }, [produto?.id]);
@@ -33,33 +36,44 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
   };
 
   const handleGerarSTL = async () => {
+    if (!produto?.id) {
+      alert("Erro: ID do produto não encontrado.");
+      return;
+    }
+
     setLoading(true);
     const baseUrl = "https://maker-pro-docker-prod.onrender.com";
     
     try {
+      // Envia o ID (slug) correto para o servidor
       const response = await fetch(`${baseUrl}/gerar-stl-pro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...localValores,
-          forma: produto?.forma || 'circulo',
-          designId: produto?.id
+          id: produto.id, // <--- Crucial: envia "tag-osso", "tag-coracao", etc.
+          escala: produto.default_size_nome || 30
         }),
       });
 
-      if (!response.ok) throw new Error('Erro na geração');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro na geração');
+      }
 
       const data = await response.json();
       if (data.url && onGerarSucesso) {
         onGerarSucesso(data.url);
       }
-    } catch (err) {
-      alert("Erro ao gerar modelo 3D.");
+    } catch (err: any) {
+      console.error("Erro na API:", err);
+      alert(`Erro ao gerar modelo 3D: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // ... (O componente ControlGroup e o resto do JSX mantêm-se iguais)
   const ControlGroup = ({ label, keySize, keyX, keyY, vals }: any) => (
     <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #334155' }}>
       <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold', textTransform: 'uppercase' }}>{label}</label>
