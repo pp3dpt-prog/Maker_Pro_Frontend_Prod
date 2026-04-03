@@ -31,7 +31,7 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
       {valores?.nome_pet && (
         <group position={[valores.xPos || 0, valores.yPos || 0, 3.1]}>
           <Center>
-            <Text font={fontPath} fontSize={(valores.fontSize || 7)*1.4} color="#1e293b" textAlign="center" anchorX="center" anchorY="middle">
+            <Text font={fontPath} fontSize={(valores.fontSize || 7)*1.5} color="#1e293b" textAlign="center" anchorX="center" anchorY="middle">
               {String(valores.nome_pet).toUpperCase()}
             </Text>
           </Center>
@@ -42,7 +42,7 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
       {valores?.telefone && (
         <group position={[-(valores.xPosN || 0), valores.yPosN || 0, -0.1]} rotation={[0, Math.PI, 0]}>
           <Center>
-            <Text font={fontPath} fontSize={(valores.fontSizeN || 5)*1.4} color="#475569" textAlign="center" anchorX="center" anchorY="middle">
+            <Text font={fontPath} fontSize={(valores.fontSizeN || 5)*1.5} color="#475569" textAlign="center" anchorX="center" anchorY="middle">
               {String(valores.telefone)}
             </Text>
           </Center>
