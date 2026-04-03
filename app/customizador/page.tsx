@@ -67,7 +67,11 @@ function CustomizadorConteudo() {
             <div>
               <button 
                 onClick={() => setMostrarPreview(!mostrarPreview)}
-                style={{ width: '100%', marginTop: '25px', padding: '15px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', border: 'none' }}
+                style={{ width: '100%', 
+                  marginTop: '25px', marginBottom: '25px',
+                  padding: '15px', 
+                  backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', 
+                  borderRadius: '8px', fontWeight: '900', cursor: 'pointer', border: 'none' }}
               >
                 {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
               </button>
