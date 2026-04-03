@@ -24,7 +24,7 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
   // --- LÓGICA DE EXCLUSÃO INTELIGENTE ---
   // O coração é mais compacto e usa mm reais no server, por isso precisa de menos "ajuda" visual.
   // As outras peças (osso/circulo) mantêm o fator 1.6 que já tinhas calibrado.
-  const multiplicadorVisual = valores?.forma === 'coracao' ? 1.0 : 1.6;
+  const multiplicadorVisual = valores?.forma === 'coracao' ? 1.2 : 1.6;
 
   return (
     <group>
