@@ -14,32 +14,37 @@ export default function Navbar() {
   const router = useRouter();
 
   useEffect(() => {
-    // Função para validar o user e o admin
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user || null;
-      setUser(currentUser);
+      // Forçamos a limpeza de estados antes de verificar
+      const { data: { session }, error } = await supabase.auth.getSession();
       
-      // Verifica se o email é o teu (coloca o teu email real aqui)
-      if (currentUser && currentUser.email === 'pp3d.pt@gmail.com') {
-        setIsAdmin(true);
-      } else {
+      if (error || !session) {
+        setUser(null);
         setIsAdmin(false);
+        return;
       }
-    };
 
-    
-    checkUser();
-
-    // Ouvir mudanças de login/logout
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user || null;
+      const currentUser = session.user;
       setUser(currentUser);
       setIsAdmin(currentUser?.email === 'pp3d.pt@gmail.com');
+    };
+
+    checkUser();
+
+    // Este listener é crucial para quando o login/logout acontece noutras janelas ou modais
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setUser(session.user);
+        setIsAdmin(session.user?.email === 'pp3d.pt@gmail.com');
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAdmin(false);
+        router.push('/');
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
