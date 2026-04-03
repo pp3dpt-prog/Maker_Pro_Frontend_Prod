@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 export default function EditorControls({ produto, onUpdate, onGerarSucesso }: any) {
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState({ 
-    fonte: 'OpenSans', 
+    fonte: '', 
     nome_pet: '', 
     telefone: '',
     fontSize: 7,
@@ -122,8 +122,8 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         <option value="OpenSans">Open Sans</option>
         <option value="Bebas">Bebas Neue</option>
         <option value="Playfair">Playfair Display</option>
-        <option value="Eindhoven">Eindhoven</option>
-        <option value="BADABB">Badaboom</option>
+        {/* <option value="Eindhoven">Eindhoven</option> */}
+        {/* <option value="BADABB">Badaboom</option> */}
       </select>
 
       <ControlGroup label="AJUSTE NOME (FRENTE)" keySize="fontSize" keyX="xPos" keyY="yPos" vals={localValores} />
