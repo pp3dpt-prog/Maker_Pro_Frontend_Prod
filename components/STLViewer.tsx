@@ -8,6 +8,7 @@ import { Suspense, useMemo } from 'react';
 function ModeloSTL({ url, valores }: { url: string, valores: any }) {
   const geometry = useLoader(STLLoader, url);
 
+  // Mapeamento de fontes para garantir que o preview usa o mesmo estilo que o OpenSCAD
   const fontPath = useMemo(() => {
     let path = '/fonts/OpenSans-Bold.ttf';
     switch (valores?.fonte) {
@@ -20,6 +21,11 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
     return path;
   }, [valores?.fonte]);
 
+  // --- LÓGICA DE EXCLUSÃO INTELIGENTE ---
+  // O coração é mais compacto e usa mm reais no server, por isso precisa de menos "ajuda" visual.
+  // As outras peças (osso/circulo) mantêm o fator 1.6 que já tinhas calibrado.
+  const multiplicadorVisual = valores?.forma === 'coracao' ? 1.1 : 1.6;
+
   return (
     <group>
       <mesh castShadow receiveShadow>
@@ -28,11 +34,18 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
       </mesh>
 
       {/* TEXTO NOME (FRENTE) */}
-      {valores?.nome_pet && (
+      {(valores?.nome_pet || valores?.nome) && (
         <group position={[valores.xPos || 0, valores.yPos || 0, 3.1]}>
           <Center>
-            <Text font={fontPath} fontSize={(valores.fontSize || 7)*1.6} color="#1e293b" textAlign="center" anchorX="center" anchorY="middle">
-              {String(valores.nome_pet).toUpperCase()}
+            <Text 
+              font={fontPath} 
+              fontSize={(valores.fontSize || 7) * multiplicadorVisual} 
+              color="#1e293b" 
+              textAlign="center" 
+              anchorX="center" 
+              anchorY="middle"
+            >
+              {String(valores.nome_pet || valores.nome).toUpperCase()}
             </Text>
           </Center>
         </group>
@@ -42,7 +55,14 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
       {valores?.telefone && (
         <group position={[-(valores.xPosN || 0), valores.yPosN || 0, -0.1]} rotation={[0, Math.PI, 0]}>
           <Center>
-            <Text font={fontPath} fontSize={(valores.fontSizeN || 5)*1.6} color="#475569" textAlign="center" anchorX="center" anchorY="middle">
+            <Text 
+              font={fontPath} 
+              fontSize={(valores.fontSizeN || 5) * multiplicadorVisual} 
+              color="#475569" 
+              textAlign="center" 
+              anchorX="center" 
+              anchorY="middle"
+            >
               {String(valores.telefone)}
             </Text>
           </Center>
@@ -53,7 +73,12 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
 }
 
 export default function STLViewer({ produto, valores = {} }: any) {
-  if (!produto?.stl_file_path) return null;
+  // Fallback para garantir que o componente não quebra sem ficheiro
+  if (!produto?.stl_file_path) return (
+    <div style={{ width: '100%', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', borderRadius: '8px' }}>
+      <p style={{ color: '#94a3b8' }}>Carregando modelo 3D...</p>
+    </div>
+  );
 
   return (
     <div style={{ width: '100%', height: '500px' }}>
