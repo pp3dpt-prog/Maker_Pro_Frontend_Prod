@@ -121,7 +121,7 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
       >
         <option value="OpenSans">Open Sans</option>
         <option value="Bebas">Bebas Neue</option>
-        <option value="Playfair">Playfair Display</option>
+        {/* <option value="Playfair">Playfair Display</option> */}
         {/* <option value="Eindhoven">Eindhoven</option> */}
         {/* <option value="BADABB">Badaboom</option> */}
       </select>
