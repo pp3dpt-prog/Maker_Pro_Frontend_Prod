@@ -1,81 +1,69 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-// Mudamos a importação para a forma mais estável que evita o erro da imagem
 import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  'https://zyjxzeossyjnhbtrnlln.supabase.co',
+  'A_TUA_ANON_KEY_AQUI' 
+);
+
 export default function Dashboard() {
-  // Inicialização manual para garantir que o VS Code não reclame do pacote NextJS
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const [activeTab, setActiveTab] = useState("historico");
-  const [profile, setProfile] = useState<any>(null);
-
-  const tabs = [
-    { id: "historico", label: "Histórico de Downloads" },
-    { id: "pagamentos", label: "Pagamentos" },
-    { id: "conta", label: "Estado da Conta" }
-  ];
-
-  async function fetchProfile(userId: string) {
-    // Busca os créditos na coluna confirmada por ti
-    const { data, error } = await supabase
-      .from('prod_perfis')
-      .select('creditos_disponiveis, data_expiracao_plano')
-      .eq('id', userId)
-      .single();
-    
-    if (data) {
-      setProfile(data);
-    } else if (error) {
-      console.error("Erro ao carregar créditos:", error.message);
-    }
-  }
+  const [status, setStatus] = useState("A verificar sessão...");
+  const [creditos, setCreditos] = useState<any>(null);
 
   useEffect(() => {
-    // Pegar a sessão de forma segura
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && session.user) {
-        fetchProfile(session.user.id);
+    async function check() {
+      // 1. Pegar o utilizador que está REALMENTE logado agora
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setStatus("Erro: Não estás logado no browser!");
+        return;
       }
-    });
+
+      const meuID = user.id;
+      setStatus("Logado com o ID: " + meuID);
+
+      // 2. Tentar buscar a linha desse ID
+      const { data, error } = await supabase
+        .from('prod_perfis')
+        .select('*')
+        .eq('id', meuID)
+        .maybeSingle();
+
+      if (error) {
+        setStatus("Erro na Base de Dados: " + error.message);
+      } else if (data) {
+        setCreditos(data.creditos_disponiveis);
+        setStatus("Sucesso! Linha encontrada para o teu ID.");
+      } else {
+        setCreditos("NÃO EXISTE");
+        setStatus("Atenção: Não existe nenhuma linha na tabela prod_perfis com o ID " + meuID);
+      }
+    }
+    check();
   }, []);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white' }}>
-      <aside style={{ width: '260px', backgroundColor: '#0f172a', borderRight: '1px solid #1e293b', padding: '24px' }}>
-        <h2 style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>Menu</h2>
+    <div style={{ padding: '40px', background: '#0f172a', minHeight: '100vh', color: 'white', fontFamily: 'monospace' }}>
+      <div style={{ border: '1px solid #334155', padding: '20px', borderRadius: '12px', background: '#1e293b' }}>
+        <h2 style={{ color: '#3b82f6', marginBottom: '20px' }}>{status}</h2>
         
-        {/* Bloco de Créditos - Corrigido para ler 'creditos_disponiveis' */}
-        <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', marginBottom: '30px', border: '1px solid #334155' }}>
-          <p style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>Créditos Disponíveis</p>
-          <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#3b82f6' }}>
-            {profile ? profile.creditos_disponiveis : 0} 
-            <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '5px' }}>créditos</span>
-          </h3>
-          <p style={{ fontSize: '10px', color: '#64748b', marginTop: '8px' }}>
-            Ativo até: {profile?.data_expiracao_plano ? new Date(profile.data_expiracao_plano).toLocaleDateString('pt-PT') : "Sem plano ativo"}
-          </p>
+        <div style={{ padding: '15px', background: '#0f172a', borderRadius: '8px' }}>
+          <p style={{ color: '#94a3b8', margin: '0' }}>Créditos lidos da BD:</p>
+          <h1 style={{ fontSize: '60px', margin: '10px 0' }}>{creditos ?? "..."}</h1>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: '12px 16px', borderRadius: '12px', backgroundColor: activeTab === tab.id ? '#1e293b' : 'transparent', color: activeTab === tab.id ? '#3b82f6' : '#94a3b8', border: 'none', textAlign: 'left', cursor: 'pointer', fontWeight: activeTab === tab.id ? 'bold' : 'normal' }}>
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      <main style={{ flex: 1, padding: '40px' }}>
-        <h1 style={{ fontSize: '24px', marginBottom: '30px' }}>{tabs.find(t => t.id === activeTab)?.label}</h1>
-        <div style={{ backgroundColor: '#1e293b', borderRadius: '20px', padding: '30px', border: '1px solid #334155' }}>
-          <p style={{ color: '#94a3b8' }}>Conteúdo para {activeTab} carregado aqui...</p>
-        </div>
-      </main>
+        {creditos === "NÃO EXISTE" && (
+          <div style={{ marginTop: '20px', color: '#fbbf24', fontSize: '14px' }}>
+            <strong>Como resolver:</strong> vai ao Supabase, localiza a linha que tem o número 3, 
+            e substitui o ID que lá está por este: <br/>
+            <code style={{ background: '#000', padding: '4px', display: 'block', marginTop: '10px' }}>
+              {status.replace("Logado com o ID: ", "")}
+            </code>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
