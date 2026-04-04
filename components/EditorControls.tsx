@@ -12,6 +12,7 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         iniciais[c.name] = c.value !== undefined ? c.value : c.default;
       });
       if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
+      if (!iniciais.gerar_parte) iniciais.gerar_parte = 'tudo';
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
@@ -32,7 +33,6 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         body: JSON.stringify({ ...localValores, id: produto.id }),
       });
       const d = await r.json();
-      // Suporta resposta de URL única ou array de URLs
       onGerarSucesso(d.urls || d.url);
     } catch (err) { alert("Erro na geração"); }
     finally { setLoading(false); }
@@ -40,6 +40,22 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {/* SELETOR DE VISUALIZAÇÃO: Aparece apenas se houver opção de tampa */}
+      {produto?.ui_schema?.some((c: any) => c.name === 'com_tampa') && (
+        <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #3b82f6', marginBottom: '5px' }}>
+          <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>MODO DE VISUALIZAÇÃO</label>
+          <select 
+            value={localValores.gerar_parte || 'tudo'} 
+            onChange={(e) => handleChange('gerar_parte', e.target.value)}
+            style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#0f172a', color: 'white', border: '1px solid #475569', borderRadius: '8px' }}
+          >
+            <option value="tudo">VER CONJUNTO (CAIXA + TAMPA)</option>
+            <option value="corpo">VER APENAS CAIXA</option>
+            <option value="tampa">VER APENAS TAMPA</option>
+          </select>
+        </div>
+      )}
+
       {produto?.ui_schema?.map((c: any) => {
         if (c.type === 'hidden') return null;
 
