@@ -28,21 +28,38 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
   };
 
   const handleGerarSTL = async () => {
-    if (!produto?.id) return;
-    setLoading(true);
-    try {
-      const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...localValores, id: produto.id }),
-      });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      onGerarSucesso(d.urls || d.url);
-    } catch (err) { 
-      alert("Erro ao gerar modelo 3D."); 
-    } finally { setLoading(false); }
+  if (!produto?.id) return;
+  setLoading(true);
+
+  // Criamos o objeto base com todos os valores locais (incluindo nome_pet)
+  const payload: any = { 
+    ...localValores, 
+    id: produto.id 
   };
+
+  // LÓGICA DE CORREÇÃO:
+  // Se o teu motor 3D espera a chave "nome", mas o formulário usa "nome_pet",
+  // forçamos a atribuição do valor correto aqui.
+  if (localValores.nome_pet) {
+    payload.nome = localValores.nome_pet;
+  }
+
+  try {
+    const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    onGerarSucesso(d.urls || d.url);
+  } catch (err) { 
+    alert("Erro ao gerar modelo 3D."); 
+  } finally { 
+    setLoading(false); 
+  }
+};
 
   if (!produto || !produto.ui_schema) return <div style={{ color: '#94a3b8', padding: '20px' }}>Carregando...</div>;
 
