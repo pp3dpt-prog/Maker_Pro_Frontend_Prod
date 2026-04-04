@@ -5,79 +5,84 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
-  // Inicializa os valores baseados no ui_schema da base de dados
   useEffect(() => {
     if (produto?.ui_schema) {
       const iniciais: any = {};
-      produto.ui_schema.forEach((campo: any) => {
-        iniciais[campo.name] = campo.default;
+      produto.ui_schema.forEach((c: any) => {
+        iniciais[c.name] = c.value !== undefined ? c.value : c.default;
       });
-      // Mantém a fonte se existir no objeto anterior ou define padrão
-      iniciais.fonte = localValores.fonte || 'OpenSans';
+      // Mantém a fonte padrão se não estiver no schema
+      if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
   }, [produto?.id]);
 
-  const handleChange = (chave: string, valor: any) => {
-    const novosValores = { ...localValores, [chave]: valor };
-    setLocalValores(novosValores);
-    onUpdate(novosValores);
+  const handleChange = (k: string, v: any) => {
+    const n = { ...localValores, [k]: v };
+    setLocalValores(n);
+    onUpdate(n);
   };
 
   const handleGerarSTL = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
+      const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...localValores, id: produto.id }),
       });
-      const data = await response.json();
-      if (data.url) onGerarSucesso(data.url);
-    } catch (err) {
-      alert("Erro na geração 3D");
-    } finally {
-      setLoading(false);
-    }
+      const d = await r.json();
+      if (d.url) onGerarSucesso(d.url);
+    } catch (err) { alert("Erro na geração"); }
+    finally { setLoading(false); }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-      {/* RENDERIZAÇÃO DINÂMICA DOS CAMPOS DO UI_SCHEMA */}
-      {produto?.ui_schema?.map((campo: any) => (
-        <div key={campo.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>{campo.label.toUpperCase()}</label>
-          
-          {campo.type === 'slider' ? (
-            <div style={{ marginTop: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
-                <span>VALOR</span>
-                <span style={{ color: '#3b82f6' }}>{localValores[campo.name]}</span>
-              </div>
-              <input 
-                type="range" 
-                min={campo.min} 
-                max={campo.max} 
-                step={campo.step || 1}
-                value={localValores[campo.name] || campo.default}
-                onChange={(e) => handleChange(campo.name, parseFloat(e.target.value))}
-                style={{ width: '100%', accentColor: '#2563eb' }}
-              />
-            </div>
-          ) : (
-            <input 
-              type="text"
-              value={localValores[campo.name] || ''}
-              onChange={(e) => handleChange(campo.name, e.target.value)}
-              style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }}
-            />
-          )}
-        </div>
-      ))}
+      {produto?.ui_schema?.map((c: any) => {
+        // IGNORA campos de controle interno (como o do botão)
+        if (c.type === 'hidden') return null;
 
-      <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '18px', backgroundColor: '#2563eb', color: 'white', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-        {loading ? "A PROCESSAR..." : "GERAR MODELO 3D"}
+        return (
+          <div key={c.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+            <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label.toUpperCase()}</label>
+            <div style={{ marginTop: '10px' }}>
+              {c.type === 'slider' ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
+                    <span>VALOR</span><span style={{ color: '#3b82f6' }}>{localValores[c.name]}</span>
+                  </div>
+                  <input type="range" min={c.min} max={c.max} step={c.step || 1} 
+                    value={localValores[c.name] || c.default} 
+                    onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} 
+                    style={{ width: '100%', accentColor: '#2563eb' }} />
+                </>
+              ) : (
+                <input type="text" value={localValores[c.name] || ''} 
+                  onChange={(e) => handleChange(c.name, e.target.value)} 
+                  style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Se for uma Tag (tem campo nome_pet no schema), mostra o seletor de fontes */}
+      {produto?.ui_schema?.some((c: any) => c.name === 'nome_pet') && (
+        <select 
+          value={localValores.fonte} 
+          onChange={(e) => handleChange('fonte', e.target.value)}
+          style={{ width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: '1px solid #475569', borderRadius: '8px' }}
+        >
+          <option value="Open Sans">Open Sans</option>
+          <option value="Bebas">Bebas Neue</option>
+          <option value="Playfair">Playfair Display</option>
+        </select>
+      )}
+
+      <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '18px', background: '#2563eb', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+        {loading ? "A PROCESSAR..." : "VISUALIZAR MODELO 3D FINAL"}
       </button>
     </div>
   );
