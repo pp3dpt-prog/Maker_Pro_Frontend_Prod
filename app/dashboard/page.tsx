@@ -111,4 +111,65 @@ export default function Dashboard() {
           </h1>
         </header>
         
-        <div style={{ backgroundColor: '#1e293b', borderRadius: '24
+        <div style={{ backgroundColor: '#1e293b', borderRadius: '24px', padding: '40px', border: '1px solid #334155', minHeight: '450px' }}>
+          
+          {/* ABA: HISTÓRICO */}
+          {activeTab === 'historico' && (
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <div style={{ fontSize: '48px', marginBottom: '20px' }}>📂</div>
+              <h3 style={{ color: '#94a3b8' }}>Ainda não tem downloads realizados.</h3>
+              <button onClick={() => window.location.href = '/editor'} style={{ marginTop: '20px', background: '#3b82f6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                Ir para o Editor
+              </button>
+            </div>
+          )}
+
+          {/* ABA: ESTADO DA CONTA */}
+          {activeTab === 'conta' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                <div style={{ padding: '24px', background: '#0f172a', borderRadius: '16px', border: '1px solid #334155' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '8px' }}>Plano Atual</p>
+                  <h4 style={{ fontSize: '24px', color: '#4ade80', margin: 0 }}>{perfil?.plano_nome || "Maker Free"}</h4>
+                </div>
+                <div style={{ padding: '24px', background: '#0f172a', borderRadius: '16px', border: '1px solid #334155' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '8px' }}>Estado do Plano</p>
+                  <h4 style={{ fontSize: '24px', color: 'white', margin: 0 }}>Ativo</h4>
+                </div>
+              </div>
+
+              <div style={{ padding: '30px', background: '#0f172a', borderRadius: '16px', border: '1px solid #334155' }}>
+                <h4 style={{ marginBottom: '20px', fontSize: '18px' }}>Informações de Segurança</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
+                    ID da Conta: <span style={{ color: '#64748b', fontFamily: 'monospace' }}>{perfil?.id}</span>
+                  </p>
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
+                    Email: <span style={{ color: '#64748b' }}>Sessão Protegida</span>
+                  </p>
+                </div>
+                <button 
+                  onClick={() => alert('Enviamos um link de recuperação para o seu email.')}
+                  style={{ marginTop: '25px', padding: '12px 20px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Alterar Password
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ABA: PAGAMENTOS */}
+          {activeTab === 'pagamentos' && (
+            <div style={{ color: '#94a3b8', textAlign: 'center', paddingTop: '40px' }}>
+              <p>Não existem faturas pendentes ou histórico de pagamentos.</p>
+              <button style={{ marginTop: '20px', color: '#3b82f6', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}>
+                Ver faturas no Stripe
+              </button>
+            </div>
+          )}
+
+        </div>
+      </main>
+    </div>
+  );
+}
