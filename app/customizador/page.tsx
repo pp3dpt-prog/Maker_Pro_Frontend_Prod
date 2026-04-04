@@ -18,6 +18,12 @@ function CustomizadorConteudo() {
   const [valores, setValores] = useState<any>({ fonte: 'OpenSans' });
   const [loading, setLoading] = useState(true);
 
+  // Verifica se o produto atual deve mostrar o botão de texto baseado no ui_schema
+  const mostrarBotaoTexto = produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true);
+  
+  // Define o rótulo da seção dinamicamente
+  const labelSeccao = familiaURL?.includes('caixa') ? '1. FORMA DA CAIXA:' : '1. FORMA DA MEDALHA:';
+
   useEffect(() => {
     async function fetchData() {
       if (!id && !familiaURL) return;
@@ -49,7 +55,11 @@ function CustomizadorConteudo() {
         <h1 style={{ fontSize: '22px', fontWeight: '900', margin: '20px 0' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
 
         <div style={{ marginBottom: '30px' }}>
-          <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '12px', fontWeight: 'bold' }}>1. FORMA DA MEDALHA:</label>
+          {/* TEXTO DINÂMICO AQUI */}
+          <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '12px', fontWeight: 'bold' }}>
+            {labelSeccao}
+          </label>
+          
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {modelos.map((item) => (
               <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
@@ -58,22 +68,22 @@ function CustomizadorConteudo() {
                   backgroundColor: item.id === produtoAtual?.id ? '#2563eb' : '#0f172a',
                   padding: '12px 5px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', border: '1px solid #334155', fontWeight: 'bold'
                 }}>
-                {item.nome.replace('Pet Tag - ', '').toUpperCase()}
+                {item.nome.replace(/(Pet Tag|Caixa Paramétrica)\s*-\s*/gi, '').toUpperCase()}
               </Link>
             ))}
           </div>
         </div>
 
-        {/* Procura no ui_schema se existe a permissão para mostrar o botão */}
-        {produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true) && (
+        {/* BOTÃO CONDICIONAL: Só aparece se show_preview_button for true no ui_schema */}
+        {mostrarBotaoTexto && (
           <div>
             <button 
               onClick={() => setMostrarPreview(!mostrarPreview)}
-              style={{ 
-                width: '100%', marginTop: '10px', marginBottom: '25px', padding: '15px', 
+              style={{ width: '100%', 
+                marginTop: '25px', marginBottom: '25px',
+                padding: '15px', 
                 backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', 
-                borderRadius: '8px', fontWeight: '900', border: 'none', cursor: 'pointer' 
-              }}
+                borderRadius: '8px', fontWeight: '900', cursor: 'pointer', border: 'none' }}
             >
               {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
             </button>
@@ -85,12 +95,13 @@ function CustomizadorConteudo() {
           onUpdate={setValores} 
           onGerarSucesso={aoGerarStlComSucesso} 
         />
-
-        
       </aside>
 
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617' }}>
-        <STLViewer produto={produtoAtual} valores={mostrarPreview ? valores : {}} />
+        <STLViewer 
+          produto={produtoAtual} 
+          valores={mostrarPreview ? valores : {}} 
+        />
       </main>
     </div>
   );
