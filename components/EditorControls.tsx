@@ -40,16 +40,16 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-      {/* SELETOR DE VISUALIZAÇÃO: Aparece apenas se houver opção de tampa */}
+      {/* SELETOR DE VISUALIZAÇÃO: Aparece apenas para produtos com tampa */}
       {produto?.ui_schema?.some((c: any) => c.name === 'com_tampa') && (
         <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #3b82f6', marginBottom: '5px' }}>
-          <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>MODO DE VISUALIZAÇÃO</label>
+          <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>VISUALIZAÇÃO 3D</label>
           <select 
             value={localValores.gerar_parte || 'tudo'} 
             onChange={(e) => handleChange('gerar_parte', e.target.value)}
             style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#0f172a', color: 'white', border: '1px solid #475569', borderRadius: '8px' }}
           >
-            <option value="tudo">VER CONJUNTO (CAIXA + TAMPA)</option>
+            <option value="tudo">VER TUDO (CONJUNTO)</option>
             <option value="corpo">VER APENAS CAIXA</option>
             <option value="tampa">VER APENAS TAMPA</option>
           </select>
@@ -58,7 +58,6 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
 
       {produto?.ui_schema?.map((c: any) => {
         if (c.type === 'hidden') return null;
-
         return (
           <div key={c.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
             <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label.toUpperCase()}</label>
@@ -90,15 +89,6 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
           </div>
         );
       })}
-
-      {produto?.ui_schema?.some((c: any) => c.name === 'nome_pet') && (
-        <select value={localValores.fonte} onChange={(e) => handleChange('fonte', e.target.value)}
-          style={{ width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: '1px solid #475569', borderRadius: '8px' }}>
-          <option value="Open Sans">Open Sans</option>
-          <option value="Bebas">Bebas Neue</option>
-          <option value="Playfair">Playfair Display</option>
-        </select>
-      )}
 
       <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '18px', background: '#2563eb', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
         {loading ? "A PROCESSAR..." : "VISUALIZAR MODELO 3D FINAL"}
