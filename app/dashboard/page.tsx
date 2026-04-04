@@ -113,7 +113,7 @@ export default function Dashboard() {
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <div style={{ color: '#334155', fontSize: '48px', marginBottom: '20px' }}>📁</div>
               <h3 style={{ color: '#94a3b8' }}>Ainda não tem downloads realizados.</h3>
-              <button onClick={() => window.location.href = '/editor'} style={{ marginTop: '20px', background: '#3b82f6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer' }}>
+              <button onClick={() => window.location.href = '/produtos'} style={{ marginTop: '20px', background: '#3b82f6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer' }}>
                 Ir para o Editor
               </button>
             </div>
