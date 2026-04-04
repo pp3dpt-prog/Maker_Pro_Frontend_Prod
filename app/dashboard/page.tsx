@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente Supabase estável
+// Cliente Supabase estável para evitar erros de compilação
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -21,16 +21,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function carregarDados() {
+      // Obtém a sessão atual de forma direta
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
+        // Busca o perfil completo na tabela prod_perfis
         const { data, error } = await supabase
           .from('prod_perfis')
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
 
-        if (data) setPerfil(data);
+        if (data) {
+          setPerfil(data);
+        }
       }
       setLoading(false);
     }
@@ -38,7 +42,7 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return (
-    <div style={{ background: '#0f172a', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+    <div style={{ background: '#0f172a', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontFamily: 'sans-serif' }}>
       A carregar dashboard...
     </div>
   );
@@ -52,7 +56,7 @@ export default function Dashboard() {
           Menu Principal
         </h2>
 
-        {/* CARTÃO DE CRÉDITOS (O que acabámos de validar) */}
+        {/* CARTÃO DE CRÉDITOS */}
         <div style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '16px', marginBottom: '35px', border: '1px solid #334155' }}>
           <p style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '5px' }}>Créditos Disponíveis</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
@@ -63,7 +67,7 @@ export default function Dashboard() {
           </div>
           {perfil?.data_expiracao_plano && (
             <p style={{ fontSize: '10px', color: '#475569', marginTop: '10px' }}>
-              Renova em: {new Date(perfil.data_expiracao_plano).toLocaleDateString('pt-PT')}
+              Expira em: {new Date(perfil.data_expiracao_plano).toLocaleDateString('pt-PT')}
             </p>
           )}
         </div>
@@ -99,30 +103,12 @@ export default function Dashboard() {
         </button>
       </aside>
 
-      {/* CONTEÚDO */}
+      {/* CONTEÚDO PRINCIPAL */}
       <main style={{ flex: 1, padding: '50px' }}>
         <header style={{ marginBottom: '40px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: 'bold' }}>
             {tabs.find(t => t.id === activeTab)?.label}
           </h1>
-          <p style={{ color: '#64748b', marginTop: '8px' }}>Gerencie as suas informações e histórico de geração.</p>
         </header>
         
-        <div style={{ backgroundColor: '#1e293b', borderRadius: '24px', padding: '40px', border: '1px solid #334155', minHeight: '400px' }}>
-          {activeTab === 'historico' && (
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <div style={{ color: '#334155', fontSize: '48px', marginBottom: '20px' }}>📁</div>
-              <h3 style={{ color: '#94a3b8' }}>Ainda não tem downloads realizados.</h3>
-              <button onClick={() => window.location.href = '/produtos'} style={{ marginTop: '20px', background: '#3b82f6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer' }}>
-                Ir para o Editor
-              </button>
-            </div>
-          )}
-          {activeTab !== 'historico' && (
-            <p style={{ color: '#64748b' }}>Área de {activeTab.toUpperCase()} em desenvolvimento...</p>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
+        <div style={{ backgroundColor: '#1e293b', borderRadius: '24
