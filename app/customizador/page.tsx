@@ -18,11 +18,9 @@ function CustomizadorConteudo() {
   const [valores, setValores] = useState<any>({ fonte: 'OpenSans' });
   const [loading, setLoading] = useState(true);
 
-  // Verifica se o produto atual deve mostrar o botão de texto baseado no ui_schema
-  const mostrarBotaoTexto = produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true);
-  
-  // Define o rótulo da seção dinamicamente
-  const labelSeccao = familiaURL?.includes('caixa') ? '1. FORMA DA CAIXA:' : '1. FORMA DA MEDALHA:';
+  // LOGICA DINÂMICA: Muda texto baseado na família
+  const textoForma = familiaURL?.toLowerCase().includes('caixa') ? 'FORMA DA CAIXA' : 'FORMA DA MEDALHA';
+  const mostrarBotaoPreview = produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true);
 
   useEffect(() => {
     async function fetchData() {
@@ -38,10 +36,12 @@ function CustomizadorConteudo() {
     fetchData();
   }, [id, familiaURL]);
 
-  const aoGerarStlComSucesso = (urlGerada: string) => {
+  const aoGerarStlComSucesso = (resultado: any) => {
+    // Se resultado for string, é um STL único. Se for array, são múltiplos.
     setProdutoAtual((prev: any) => ({
       ...prev,
-      stl_file_path: `${urlGerada}?t=${Date.now()}`
+      stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado,
+      stls_adicionais: Array.isArray(resultado) ? resultado : null
     }));
     setMostrarPreview(false); 
   };
@@ -55,11 +55,7 @@ function CustomizadorConteudo() {
         <h1 style={{ fontSize: '22px', fontWeight: '900', margin: '20px 0' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
 
         <div style={{ marginBottom: '30px' }}>
-          {/* TEXTO DINÂMICO AQUI */}
-          <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '12px', fontWeight: 'bold' }}>
-            {labelSeccao}
-          </label>
-          
+          <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '12px', fontWeight: 'bold' }}>1. {textoForma.toUpperCase()}:</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {modelos.map((item) => (
               <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
@@ -68,19 +64,18 @@ function CustomizadorConteudo() {
                   backgroundColor: item.id === produtoAtual?.id ? '#2563eb' : '#0f172a',
                   padding: '12px 5px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', border: '1px solid #334155', fontWeight: 'bold'
                 }}>
-                {item.nome.replace(/(Pet Tag|Caixa Paramétrica)\s*-\s*/gi, '').toUpperCase()}
+                {item.nome.replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '').toUpperCase()}
               </Link>
             ))}
           </div>
         </div>
 
-        {/* BOTÃO CONDICIONAL: Só aparece se show_preview_button for true no ui_schema */}
-        {mostrarBotaoTexto && (
+        {mostrarBotaoPreview && (
           <div>
             <button 
               onClick={() => setMostrarPreview(!mostrarPreview)}
               style={{ width: '100%', 
-                marginTop: '25px', marginBottom: '25px',
+                marginTop: '10px', marginBottom: '25px',
                 padding: '15px', 
                 backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', 
                 borderRadius: '8px', fontWeight: '900', cursor: 'pointer', border: 'none' }}
@@ -98,10 +93,7 @@ function CustomizadorConteudo() {
       </aside>
 
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617' }}>
-        <STLViewer 
-          produto={produtoAtual} 
-          valores={mostrarPreview ? valores : {}} 
-        />
+        <STLViewer produto={produtoAtual} valores={mostrarPreview ? valores : {}} />
       </main>
     </div>
   );
