@@ -2,76 +2,46 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialização limpa
 const supabase = createClient(
-  'https://zyjxzeossyjnhbtrnlln.supabase.co',
-  'A_TUA_ANON_KEY_AQUI' // Substitui pela tua chave real
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 export default function Dashboard() {
-  const [status, setStatus] = useState("A carregar...");
-  const [creditos, setCreditos] = useState<any>(null);
-  const [sessaoAtiva, setSessaoAtiva] = useState(false);
-
-  async function checkSession() {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      setStatus("Sessão não encontrada. Por favor, faz login.");
-      setSessaoAtiva(false);
-      return;
-    }
-
-    setSessaoAtiva(true);
-    const userId = session.user.id;
-    setStatus("Ligado! ID: " + userId);
-
-    // Buscar créditos
-    const { data, error } = await supabase
-      .from('prod_perfis')
-      .select('creditos_disponiveis')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error) {
-      setStatus("Erro ao ler tabela: " + error.message);
-    } else if (data) {
-      setCreditos(data.creditos_disponiveis);
-    } else {
-      setCreditos("NÃO EXISTE");
-    }
-  }
+  const [perfil, setPerfil] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkSession();
+    async function carregarSessao() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        const { data, error } = await supabase
+          .from('prod_perfis')
+          .select('creditos_disponiveis')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (data) setPerfil(data);
+      }
+      setLoading(false);
+    }
+    carregarSessao();
   }, []);
 
+  if (loading) return <div style={{ color: 'white', padding: '20px' }}>A carregar...</div>;
+
   return (
-    <div style={{ padding: '40px', background: '#0f172a', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
-      <div style={{ background: '#1e293b', padding: '30px', borderRadius: '16px', border: '1px solid #334155' }}>
-        <h2 style={{ color: sessaoAtiva ? '#4ade80' : '#fb7185', marginBottom: '10px' }}>{status}</h2>
-        
-        <div style={{ marginTop: '20px' }}>
-          <p style={{ color: '#94a3b8' }}>Créditos lidos da Base de Dados:</p>
-          <h1 style={{ fontSize: '64px', margin: '10px 0' }}>{creditos !== null ? creditos : "---"}</h1>
-        </div>
-
-        {!sessaoAtiva && (
-          <button 
-            onClick={() => window.location.href = '/login'} 
-            style={{ marginTop: '20px', padding: '12px 24px', background: '#3b82f6', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            Ir para Login
-          </button>
-        )}
-
-        {creditos === "NÃO EXISTE" && (
-          <p style={{ color: '#fbbf24', marginTop: '20px' }}>
-            Atenção: Tens sessão iniciada, mas o teu ID não existe na tabela <strong>prod_perfis</strong>. 
-            Cria uma linha com este ID no Supabase.
-          </p>
-        )}
+    <div style={{ padding: '40px', background: '#0f172a', minHeight: '100vh', color: 'white' }}>
+      <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', border: '1px solid #334155', width: '250px' }}>
+        <p style={{ color: '#94a3b8', fontSize: '12px' }}>Créditos Disponíveis</p>
+        <h2 style={{ fontSize: '32px', color: '#3b82f6' }}>
+          {perfil ? perfil.creditos_disponiveis : 0}
+        </h2>
       </div>
+      <p style={{ marginTop: '20px', color: '#64748b', fontSize: '11px' }}>
+        Sessão ativa: {perfil ? "Sim" : "Não (Verifica o ID no Supabase)"}
+      </p>
     </div>
   );
 }
