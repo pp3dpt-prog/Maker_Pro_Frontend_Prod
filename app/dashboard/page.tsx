@@ -24,19 +24,20 @@ export default function Dashboard() {
   }, []); // [] garante que corre apenas uma vez ao carregar a página
 
   async function fetchProfile(userId) {
-    // Busca os dados na tabela 'prod_perfis' conforme o teu esquema
-    const { data, error } = await supabase
-      .from('prod_perfis')
-      .select('creditos_disponiveis, data_expiracao_plano')
-      .eq('id', userId)
-      .single();
-    
-    if (data) {
-      setUserProfile(data);
-    } else if (error) {
-      console.error("Erro ao carregar perfil:", error);
-    }
+  const { data, error } = await supabase
+    .from('prod_perfis')
+    .select('creditos_disponiveis, data_expiracao_plano')
+    .eq('id', userId)
+    .single();
+  
+  if (data) {
+    // ESTA LINHA É CRUCIAL PARA O DIAGNÓSTICO
+    console.log("CONTEÚDO DO PERFIL:", data); 
+    setUserProfile(data);
+  } else {
+    console.error("ERRO OU SEM DADOS:", error);
   }
+}
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white' }}>
