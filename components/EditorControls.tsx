@@ -5,6 +5,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
+  // MAPEAMENTO CORRETO: Na tua DB o saldo chama-se 'creditos_disponiveis'
+  const saldoAtual = perfil?.creditos_disponiveis ?? 0;
+  const temCreditos = saldoAtual > 0;
+
   useEffect(() => {
     if (stlUrl) setLoading(false);
   }, [stlUrl]);
@@ -31,10 +35,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (!perfil || (perfil.creditos || 0) <= 0) {
-      alert("Créditos insuficientes.");
+    // Verificação baseada no campo correto da base de dados
+    if (saldoAtual <= 0) {
+      alert("Saldo insuficiente. Por favor, carregue a sua conta na área de Faturação.");
       return;
     }
+
     setLoading(true);
     try {
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
@@ -45,31 +51,23 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       const d = await r.json();
       onGerarSucesso(d.urls || d.url);
     } catch (err) {
-      alert("Erro ao gerar.");
+      alert("Erro ao processar o modelo.");
       setLoading(false);
     }
   };
 
   if (!produto || !produto.ui_schema) return null;
 
-  // Filtrar secções: Remove "GESTÃO" e garante que só aparecem grupos com conteúdo
   const seccoesValidas = Array.from(new Set(
     produto.ui_schema
       .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
       .map((c: any) => c.section)
   ));
 
-  const temCreditos = (perfil?.creditos || 0) > 0;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Indicador de Saldo para o Maker */}
-      <div style={{ background: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#94a3b8' }}>SALDO MAKER</span>
-        <span style={{ fontWeight: 'bold', color: temCreditos ? '#10b981' : '#ef4444' }}>{perfil?.creditos || 0} CRÉDITOS</span>
-      </div>
-
+      {/* Grupos de Parâmetros (NOME, CONTACTO, etc.) */}
       {seccoesValidas.map((seccao: any) => (
         <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>
@@ -81,13 +79,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label?.toUpperCase()}</label>
                 <div style={{ marginTop: '5px' }}>
                   {c.type === 'slider' ? (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '4px' }}>
-                        <span>VALOR</span>
-                        <span>{localValores[c.name] ?? c.default}</span>
-                      </div>
-                      <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
-                    </>
+                    <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
                   ) : (
                     <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
                   )}
@@ -98,7 +90,15 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* ÁREA DE ACÇÃO COM SALDO REAL */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', padding: '0 5px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>O TEU SALDO:</span>
+          <span style={{ fontSize: '11px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+            {saldoAtual} CRÉDITOS
+          </span>
+        </div>
+
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || !temCreditos}
@@ -109,7 +109,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
         {stlUrl && temCreditos && (
           <a href={stlUrl} download style={{ padding: '18px', background: '#3b82f6', color: 'white', borderRadius: '12px', fontWeight: '900', textAlign: 'center', textDecoration: 'none' }}>
-            📥 DESCARREGAR STL
+            📥 DESCARREGAR STL (1 CRÉDITO)
           </a>
         )}
       </div>
