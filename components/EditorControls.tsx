@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
-// Estilo para os inputs do Modal de Checkout (RGPD)
+// Estilos consistentes para os inputs do Modal de Checkout
 const modalInputStyle = {
   padding: '12px',
   background: '#0f172a',
@@ -13,7 +14,10 @@ const modalInputStyle = {
   boxSizing: 'border-box' as const
 };
 
-export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso }: any) {
+// URL do teu Webhook do Discord para notificações de logística
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1490366722060976140/OVy9c9eweYDRTrcUW-DQsdbq2BEcfHcCGIBwP427QoOvfWuRLmTzoehKuKZa5loWHScd";
+
+export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
   
@@ -21,7 +25,16 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [showCheckout, setShowCheckout] = useState(false);
   const [termosAceitos, setTermosAceitos] = useState(false);
 
-  // 1. MANTIDO: Lógica original de inicialização de valores
+  // Estado para os dados de envio e faturação (Campos obrigatórios)
+  const [formData, setFormData] = useState({
+    nome_completo: '',
+    morada_entrega: '',
+    codigo_postal: '',
+    cidade: '',
+    nif: ''
+  });
+
+  // 1. MANTIDO: Lógica original de inicialização de valores e parâmetros default
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -38,14 +51,14 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     }
   }, [produto?.id]);
 
-  // 2. MANTIDO: Lógica de atualização de campos
+  // 2. MANTIDO: Lógica de atualização de campos em tempo real
   const handleChange = (k: string, v: any) => {
     const n = { ...localValores, [k]: v };
     setLocalValores(n);
     onUpdate(n);
   };
 
-  // 3. ATUALIZADO: handleGerarSTL com correção da chave "nome"
+  // 3. MANTIDO: Geração de STL com correção da chave "nome" para o motor 3D
   const handleGerarSTL = async () => {
     if (!produto?.id) return;
     setLoading(true);
@@ -70,6 +83,65 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     } finally { setLoading(false); }
   };
 
+  // 4. NOVO: Função de finalização com validação total, gravação e Discord
+  const finalizarEncomenda = async () => {
+    // Verificação de segurança: campos vazios não passam
+    if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
+      return alert("Erro: Preencha todos os campos obrigatórios (*).");
+    }
+    if (!termosAceitos) return alert("Erro: Deve aceitar o processamento de dados.");
+    if (!stlUrl) return alert("Erro: Por favor, atualize a pré-visualização primeiro.");
+
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Gravação na tabela prod_encomendas
+      const { error } = await supabase.from('prod_encomendas').insert([{
+        user_id: session?.user?.id,
+        projeto_id: produto.id,
+        nome_completo: formData.nome_completo,
+        morada_entrega: formData.morada_entrega,
+        codigo_postal: formData.codigo_postal,
+        cidade: formData.cidade,
+        nif: formData.nif,
+        stl_url: stlUrl,
+        configuracao: localValores,
+        status: 'pendente'
+      }]);
+
+      if (error) throw error;
+
+      // Notificação via Discord Webhook
+      await fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: "MakerPro Logística",
+          embeds: [{
+            title: "📦 NOVA ENCOMENDA DE CLIENTE!",
+            color: 5763719,
+            fields: [
+              { name: "👤 Nome", value: formData.nome_completo, inline: true },
+              { name: "📍 Localidade", value: `${formData.cidade} (${formData.codigo_postal})`, inline: true },
+              { name: "🏠 Morada", value: formData.morada_entrega },
+              { name: "📄 NIF", value: formData.nif || "Não fornecido", inline: true },
+              { name: "🔗 Ficheiro STL", value: `[BAIXAR PARA IMPRESSÃO](${stlUrl})` }
+            ],
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+
+      alert("Encomenda registada com sucesso! O administrador foi notificado.");
+      setShowCheckout(false);
+    } catch (err) {
+      alert("Erro ao processar. Verifique a sua ligação.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!produto || !produto.ui_schema) return <div style={{ color: '#94a3b8', padding: '20px' }}>Carregando...</div>;
 
   const camposVisiveis = produto.ui_schema.filter((c: any) => c && c.type !== 'hidden');
@@ -80,7 +152,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* RENDERIZAÇÃO DAS SECÇÕES */}
+      {/* MANTIDO: Renderização dinâmica de campos e secções */}
       {seccoes.map((seccaoNome: any) => {
         const camposDaSeccao = camposVisiveis.filter((c: any) => (c.section || 'GERAL') === seccaoNome);
         if (camposDaSeccao.length === 0) return null;
@@ -120,7 +192,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         );
       })}
 
-      {/* SELETOR DE FONTE */}
+      {/* MANTIDO: Seletor de fontes */}
       {localValores.nome_pet !== undefined && (
         <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>FONTE DO TEXTO</label>
@@ -133,7 +205,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       )}
 
-      {/* BOTÕES ADAPTATIVOS */}
+      {/* BOTÕES DE AÇÃO */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
         <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>
           {loading ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
@@ -141,73 +213,54 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
         {isMaker ? (
           <button 
-            style={{ padding: '20px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900', fontSize: '14px' }}
+            style={{ padding: '20px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
             onClick={() => alert("Iniciando download do STL...")}
           >
             📥 DESCARREGAR FICHEIRO STL
           </button>
         ) : (
           <button 
-            style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900', fontSize: '14px' }}
-            onClick={() => setShowCheckout(true)} // Abre o Modal de Checkout
+            onClick={() => setShowCheckout(true)}
+            style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
           >
             📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
           </button>
         )}
       </div>
 
-      {/* MODAL DE CHECKOUT (RGPD) */}
+      {/* MODAL DE CHECKOUT RGPD COM VALIDAÇÃO COMPLETA */}
       {showCheckout && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            background: '#1e293b', width: '100%', maxWidth: '500px',
-            borderRadius: '24px', padding: '30px', border: '1px solid #334155',
-            position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-          }}>
-            <button 
-              onClick={() => setShowCheckout(false)}
-              style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px' }}
-            >✕</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '30px', border: '1px solid #334155', position: 'relative' }}>
+            <button onClick={() => setShowCheckout(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px' }}>✕</button>
 
             <h2 style={{ fontSize: '22px', marginBottom: '10px', color: 'white' }}>Finalizar Encomenda</h2>
-            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px' }}>
-              Preencha os seus dados para receber a peça personalizada.
-            </p>
+            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px' }}>Por favor, preencha todos os dados obrigatórios (*).</p>
 
-            <form style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <input type="text" placeholder="Nome Completo" required style={modalInputStyle} />
-              <input type="text" placeholder="Morada de Entrega" required style={modalInputStyle} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <input type="text" placeholder="Nome Completo *" required value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
+              <input type="text" placeholder="Morada de Entrega *" required value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <input type="text" placeholder="Cód. Postal" required style={modalInputStyle} />
-                <input type="text" placeholder="Cidade" required style={modalInputStyle} />
+                <input type="text" placeholder="Cód. Postal *" required value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
+                <input type="text" placeholder="Cidade *" required value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
               </div>
-              <input type="text" placeholder="NIF (Para Faturação)" style={modalInputStyle} />
+              <input type="text" placeholder="NIF (Opcional)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
 
               <label style={{ display: 'flex', gap: '10px', marginTop: '10px', cursor: 'pointer', alignItems: 'flex-start' }}>
-                <input type="checkbox" required checked={termosAceitos} onChange={(e) => setTermosAceitos(e.target.checked)} style={{ width: '18px', height: '18px', marginTop: '2px' }} />
+                <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} style={{ width: '18px', height: '18px' }} />
                 <span style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.4' }}>
-                  Aceito que a MakerPro processe os meus dados para fins de envio e faturação, conforme a Política de Privacidade.
+                  Aceito que a MakerPro utilize os meus dados exclusivamente para o envio e faturação da peça encomendada.
                 </span>
               </label>
 
               <button 
-                type="button"
-                disabled={!termosAceitos}
-                onClick={() => alert("Encomenda Registada! Verifique o separador de encomendas no seu Dashboard.")}
-                style={{ 
-                  marginTop: '10px', padding: '16px', background: termosAceitos ? '#059669' : '#334155', 
-                  color: 'white', borderRadius: '12px', border: 'none', 
-                  fontWeight: 'bold', cursor: termosAceitos ? 'pointer' : 'not-allowed' 
-                }}
+                onClick={finalizarEncomenda}
+                disabled={loading}
+                style={{ marginTop: '10px', padding: '16px', background: '#059669', color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
               >
-                CONFIRMAR E PEDIR PEÇA
+                {loading ? "A PROCESSAR..." : "CONFIRMAR ENCOMENDA"}
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
