@@ -27,10 +27,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     morada_entrega: '',
     codigo_postal: '',
     cidade: '',
-    nif: '' // Campo NIF restaurado
+    nif: '' 
   });
 
-  // SOLUÇÃO PARA O BLOQUEIO: Se o stlUrl chegar, paramos o loading imediatamente
+  // CORREÇÃO: Se o stlUrl já existe, para qualquer estado de "pensar"
   useEffect(() => {
     if (stlUrl) {
       setIsGeneratingSTL(false);
@@ -88,12 +88,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const finalizarEncomenda = async () => {
-    // Validação de todos os campos obrigatórios
     if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
-      return alert("Segurança: Todos os campos de morada são obrigatórios.");
+      return alert("Por favor, preencha todos os campos de envio.");
     }
-    if (!termosAceitos) return alert("Deve aceitar os termos de processamento.");
-    if (!stlUrl) return alert("A aguardar ficheiro 3D...");
+    if (!termosAceitos) return alert("Deve aceitar o processamento dos dados.");
+    
+    // Se o URL já existe, não bloqueia
+    if (!stlUrl && isGeneratingSTL) return alert("Ainda a processar o ficheiro...");
 
     setLoading(true);
     try {
@@ -106,7 +107,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         morada_entrega: formData.morada_entrega,
         codigo_postal: formData.codigo_postal,
         cidade: formData.cidade,
-        nif: formData.nif, // Gravação do NIF na DB
+        nif: formData.nif,
         stl_url: stlUrl,
         configuracao: localValores,
         status: 'pendente'
@@ -162,9 +163,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <div style={{ marginTop: '5px' }}>
                   {c.type === 'slider' ? (
                     <>
-                      {/* Reposição das medidas (Valores) sobre os sliders */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
-                        <span>AJUSTE</span>
+                        <span>MEDIDA</span>
                         <span style={{ color: '#3b82f6' }}>{localValores[c.name] ?? c.default}</span>
                       </div>
                       <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#2563eb' }} />
@@ -192,6 +192,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           <button 
             onClick={() => {
               setShowCheckout(true);
+              // Só gera se ainda não houver um link pronto
               if (!stlUrl && !isGeneratingSTL) handleGerarSTL(); 
             }}
             style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
@@ -213,12 +214,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <input type="text" placeholder="CP *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
                 <input type="text" placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
               </div>
-              {/* Campo NIF visível novamente */}
               <input type="text" placeholder="NIF (Opcional)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
               <label style={{ display: 'flex', gap: '10px', cursor: 'pointer' }}>
                 <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} />
                 <span style={{ fontSize: '11px', color: '#94a3b8' }}>Aceito o processamento dos dados.</span>
               </label>
+              
+              {/* CORREÇÃO DO BOTÃO: Se stlUrl existe, ele libera a compra */}
               <button 
                 onClick={finalizarEncomenda}
                 disabled={loading || (isGeneratingSTL && !stlUrl)}
@@ -228,7 +230,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                   color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold'
                 }}
               >
-                {(isGeneratingSTL && !stlUrl) ? "A GERAR FICHEIRO 3D..." : "CONFIRMAR ENCOMENDA"}
+                {(isGeneratingSTL && !stlUrl) ? "A GERAR FICHEIRO 3D..." : loading ? "A PROCESSAR..." : "CONFIRMAR ENCOMENDA"}
               </button>
             </div>
           </div>
