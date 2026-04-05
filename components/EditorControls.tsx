@@ -30,7 +30,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     nif: '' 
   });
 
-  // Garante que se o ficheiro chegar, o estado de loading morre
+  // Sincronização de estados
   useEffect(() => {
     if (stlUrl) {
       setIsGeneratingSTL(false);
@@ -60,7 +60,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (isGeneratingSTL) return;
     setIsGeneratingSTL(true);
     setLoading(true);
     try {
@@ -79,13 +78,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const finalizarEncomenda = async () => {
     if (!formData.nome_completo || !formData.morada_entrega || !termosAceitos) {
-      return alert("Por favor, preencha os dados obrigatórios e aceite os termos.");
+      return alert("Preencha os campos obrigatórios e aceite os termos.");
     }
-
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
       const { error } = await supabase.from('prod_encomendas').insert([{
         user_id: session?.user?.id,
         projeto_id: produto.id,
@@ -94,105 +91,88 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         codigo_postal: formData.codigo_postal,
         cidade: formData.cidade,
         nif: formData.nif,
-        stl_url: stlUrl || "URL_PENDENTE",
+        stl_url: stlUrl || "Pendente",
         configuracao: localValores,
         status: 'pendente'
       }]);
-
       if (error) throw error;
-
       await fetch(DISCORD_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: `📦 **NOVA ENCOMENDA**\n**Cliente:** ${formData.nome_completo}\n**NIF:** ${formData.nif || 'N/A'}\n**Ficheiro:** ${stlUrl || 'Erro no Link'}`
-        })
+        body: JSON.stringify({ content: `📦 **NOVA ENCOMENDA**\n**Cliente:** ${formData.nome_completo}\n**Ficheiro:** ${stlUrl}` })
       });
-
-      alert("Encomenda realizada com sucesso!");
+      alert("Encomenda confirmada!");
       setShowCheckout(false);
     } catch (err) {
-      alert("Erro ao processar pedido.");
+      alert("Erro ao gravar encomenda.");
     } finally {
       setLoading(false);
     }
   };
 
-  const isMaker = perfil?.acesso_comercial_ativo === true || perfil?.role === 'admin';
+  if (!produto || !produto.ui_schema) return null;
+
+  // Lógica de Agrupamento por Secção (NOME, NÚMERO, etc.)
+  const seccoes = Array.from(new Set(produto.ui_schema.map((c: any) => c.section || 'GERAL')));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* SEÇÃO DE SLIDERS - RECUPERADA COM VALORES */}
-      {produto?.ui_schema?.filter((c: any) => c.type !== 'hidden').map((c: any) => (
-        <div key={c.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-            {c.label?.toUpperCase()}
+      {seccoes.map((seccao: any) => (
+        <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>
+            {seccao.toUpperCase()}
           </label>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#3b82f6', marginBottom: '8px' }}>
-            <span>MEDIDA</span>
-            <span style={{ fontWeight: 'bold' }}>{localValores[c.name] ?? c.default}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {produto.ui_schema.filter((c: any) => (c.section || 'GERAL') === seccao && c.type !== 'hidden').map((c: any) => (
+              <div key={c.name}>
+                <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label?.toUpperCase()}</label>
+                <div style={{ marginTop: '5px' }}>
+                  {c.type === 'slider' ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '4px' }}>
+                        <span>MEDIDA</span>
+                        <span>{localValores[c.name] ?? c.default}</span>
+                      </div>
+                      <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%' }} />
+                    </>
+                  ) : (
+                    <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-          <input 
-            type="range" 
-            min={c.min} max={c.max} step={0.1} 
-            value={localValores[c.name] ?? c.default ?? 0} 
-            onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} 
-            style={{ width: '100%', accentColor: '#3b82f6' }} 
-          />
         </div>
       ))}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <button onClick={handleGerarSTL} style={{ padding: '14px', border: '1px solid #3b82f6', color: '#3b82f6', background: 'transparent', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-          {loading ? "A PROCESSAR MODELO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
-        </button>
+      <button onClick={handleGerarSTL} style={{ padding: '15px', border: '1px solid #3b82f6', color: '#3b82f6', background: 'transparent', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
+      </button>
 
-        <button 
-          onClick={() => {
-            setShowCheckout(true);
-            setLoading(false); // Mata o loading para garantir que o botão no modal funcione
-          }}
-          style={{ padding: '18px', background: 'linear-gradient(to right, #059669, #10b981)', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
-        >
-          📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
-        </button>
-      </div>
+      <button onClick={() => { setShowCheckout(true); setLoading(false); }} style={{ padding: '20px', background: '#059669', color: 'white', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>
+        📦 RECEBER PEÇA EM CASA
+      </button>
 
-      {/* MODAL DE CHECKOUT - COM NIF E SEM BLOQUEIO */}
       {showCheckout && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', padding: '30px', borderRadius: '24px', width: '100%', maxWidth: '450px', border: '1px solid #334155' }}>
-            <h2 style={{ color: 'white', marginBottom: '20px', fontSize: '20px' }}>Finalizar Encomenda</h2>
-            
+            <h2 style={{ color: 'white', marginBottom: '20px' }}>Dados de Envio</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <input placeholder="Nome Completo *" value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
-              <input placeholder="Morada de Entrega *" value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
-              
+              <input placeholder="Morada *" value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <input placeholder="Cód. Postal *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
+                <input placeholder="CP *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
                 <input placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
               </div>
-
-              {/* CAMPO NIF RECUPERADO */}
-              <input placeholder="NIF (Para fatura)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
-
-              <label style={{ color: '#94a3b8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '5px' }}>
-                <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} />
-                Aceito o processamento dos meus dados para envio.
+              <input placeholder="NIF" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
+              <label style={{ color: '#94a3b8', fontSize: '11px', display: 'flex', gap: '8px' }}>
+                <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} /> Aceito os termos
               </label>
-
-              <button 
-                onClick={finalizarEncomenda}
-                // O botão agora só bloqueia se o loading de GRAVAÇÃO estiver ativo
-                style={{ padding: '16px', background: '#059669', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', marginTop: '10px', cursor: 'pointer' }}
-              >
-                {loading ? "A GRAVAR PEDIDO..." : "CONFIRMAR ENCOMENDA"}
+              <button onClick={finalizarEncomenda} style={{ padding: '16px', background: '#059669', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', marginTop: '10px' }}>
+                {loading ? "A GRAVAR..." : "CONFIRMAR ENCOMENDA"}
               </button>
-
-              <button onClick={() => setShowCheckout(false)} style={{ color: '#ef4444', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '5px' }}>
-                Cancelar e voltar ao editor
-              </button>
+              <button onClick={() => setShowCheckout(false)} style={{ color: '#94a3b8', background: 'none', border: 'none', marginTop: '5px', cursor: 'pointer' }}>Voltar</button>
             </div>
           </div>
         </div>
