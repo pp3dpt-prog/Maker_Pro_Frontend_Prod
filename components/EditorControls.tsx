@@ -30,7 +30,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     nif: '' 
   });
 
-  // FORÇAR DESBLOQUEIO: Mal o link aparece, limpamos todos os estados de espera
+  // Garante que se o ficheiro chegar, o estado de loading morre
   useEffect(() => {
     if (stlUrl) {
       setIsGeneratingSTL(false);
@@ -48,7 +48,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           }
         });
       }
-      if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
@@ -61,42 +60,32 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (!produto?.id || isGeneratingSTL) return;
+    if (isGeneratingSTL) return;
     setIsGeneratingSTL(true);
     setLoading(true);
-
-    const payload = { 
-      ...localValores, 
-      id: produto.id,
-      nome: localValores.nome_pet || localValores.nome 
-    };
-
     try {
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...localValores, id: produto.id }),
       });
       const d = await r.json();
-      if (d.error) throw new Error(d.error);
       onGerarSucesso(d.urls || d.url);
-    } catch (err) { 
-      alert("Erro ao gerar modelo 3D.");
-      setIsGeneratingSTL(false);
+    } catch (err) {
       setLoading(false);
+      setIsGeneratingSTL(false);
     }
   };
 
   const finalizarEncomenda = async () => {
-    if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
-      return alert("Preencha todos os campos obrigatórios (*).");
+    if (!formData.nome_completo || !formData.morada_entrega || !termosAceitos) {
+      return alert("Por favor, preencha os dados obrigatórios e aceite os termos.");
     }
-    if (!termosAceitos) return alert("Aceite os termos.");
-    if (!stlUrl) return alert("Aguarde o ficheiro 3D.");
 
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      
       const { error } = await supabase.from('prod_encomendas').insert([{
         user_id: session?.user?.id,
         projeto_id: produto.id,
@@ -105,7 +94,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         codigo_postal: formData.codigo_postal,
         cidade: formData.cidade,
         nif: formData.nif,
-        stl_url: stlUrl,
+        stl_url: stlUrl || "URL_PENDENTE",
         configuracao: localValores,
         status: 'pendente'
       }]);
@@ -116,14 +105,14 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: `📦 **NOVA ENCOMENDA**\n**Cliente:** ${formData.nome_completo}\n**NIF:** ${formData.nif || 'N/A'}\n**Link:** ${stlUrl}`
+          content: `📦 **NOVA ENCOMENDA**\n**Cliente:** ${formData.nome_completo}\n**NIF:** ${formData.nif || 'N/A'}\n**Ficheiro:** ${stlUrl || 'Erro no Link'}`
         })
       });
 
-      alert("Encomenda enviada!");
+      alert("Encomenda realizada com sucesso!");
       setShowCheckout(false);
     } catch (err) {
-      alert("Erro ao gravar pedido.");
+      alert("Erro ao processar pedido.");
     } finally {
       setLoading(false);
     }
@@ -131,90 +120,78 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const isMaker = perfil?.acesso_comercial_ativo === true || perfil?.role === 'admin';
 
-  if (!produto || !produto.ui_schema) return null;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Sliders com as etiquetas de MEDIDA restauradas */}
-      {Array.from(new Set(produto.ui_schema.filter((c: any) => c.type !== 'hidden').map((c: any) => c.section || 'GERAL'))).map((seccaoNome: any) => (
-        <div key={seccaoNome} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
-            {String(seccaoNome).toUpperCase()}
+      {/* SEÇÃO DE SLIDERS - RECUPERADA COM VALORES */}
+      {produto?.ui_schema?.filter((c: any) => c.type !== 'hidden').map((c: any) => (
+        <div key={c.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
+            {c.label?.toUpperCase()}
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {produto.ui_schema.filter((c: any) => (c.section || 'GERAL') === seccaoNome && c.type !== 'hidden').map((c: any) => (
-              <div key={c.name}>
-                <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label?.toUpperCase()}</label>
-                <div style={{ marginTop: '5px' }}>
-                  {c.type === 'slider' ? (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
-                        <span>MEDIDA</span>
-                        <span style={{ color: '#3b82f6' }}>{localValores[c.name] ?? c.default}</span>
-                      </div>
-                      <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#2563eb' }} />
-                    </>
-                  ) : (
-                    <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
-                  )}
-                </div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#3b82f6', marginBottom: '8px' }}>
+            <span>MEDIDA</span>
+            <span style={{ fontWeight: 'bold' }}>{localValores[c.name] ?? c.default}</span>
           </div>
+          <input 
+            type="range" 
+            min={c.min} max={c.max} step={0.1} 
+            value={localValores[c.name] ?? c.default ?? 0} 
+            onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} 
+            style={{ width: '100%', accentColor: '#3b82f6' }} 
+          />
         </div>
       ))}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-        {/* BOTÃO ATUALIZAR: Agora diz "VERIFICAR" se o link já existir */}
-        <button 
-          onClick={handleGerarSTL} 
-          disabled={loading && !stlUrl} 
-          style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}
-        >
-          {loading && !stlUrl ? "A PROCESSAR..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <button onClick={handleGerarSTL} style={{ padding: '14px', border: '1px solid #3b82f6', color: '#3b82f6', background: 'transparent', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+          {loading ? "A PROCESSAR MODELO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
         </button>
 
-        {!isMaker && (
-          <button 
-            onClick={() => setShowCheckout(true)}
-            style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
-          >
-            📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
-          </button>
-        )}
+        <button 
+          onClick={() => {
+            setShowCheckout(true);
+            setLoading(false); // Mata o loading para garantir que o botão no modal funcione
+          }}
+          style={{ padding: '18px', background: 'linear-gradient(to right, #059669, #10b981)', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+        >
+          📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
+        </button>
       </div>
 
+      {/* MODAL DE CHECKOUT - COM NIF E SEM BLOQUEIO */}
       {showCheckout && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div style={{ background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '30px', border: '1px solid #334155', position: 'relative' }}>
-            <button onClick={() => setShowCheckout(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px' }}>✕</button>
-            <h2 style={{ fontSize: '22px', marginBottom: '10px', color: 'white' }}>Dados de Envio</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <input type="text" placeholder="Nome Completo *" value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
-              <input type="text" placeholder="Morada *" value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <input type="text" placeholder="CP *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
-                <input type="text" placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
-              </div>
-              <input type="text" placeholder="NIF" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
-              <label style={{ display: 'flex', gap: '10px', cursor: 'pointer' }}>
-                <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} />
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Aceito o processamento dos dados.</span>
-              </label>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ background: '#1e293b', padding: '30px', borderRadius: '24px', width: '100%', maxWidth: '450px', border: '1px solid #334155' }}>
+            <h2 style={{ color: 'white', marginBottom: '20px', fontSize: '20px' }}>Finalizar Encomenda</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <input placeholder="Nome Completo *" value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
+              <input placeholder="Morada de Entrega *" value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
               
-              {/* BOTÃO FINAL: Se o stlUrl existir, ele ignora o estado de carregamento */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <input placeholder="Cód. Postal *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
+                <input placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
+              </div>
+
+              {/* CAMPO NIF RECUPERADO */}
+              <input placeholder="NIF (Para fatura)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
+
+              <label style={{ color: '#94a3b8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '5px' }}>
+                <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} />
+                Aceito o processamento dos meus dados para envio.
+              </label>
+
               <button 
                 onClick={finalizarEncomenda}
-                disabled={!stlUrl || loading}
-                style={{ 
-                  marginTop: '10px', padding: '16px', 
-                  background: stlUrl ? '#059669' : '#334155', 
-                  color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold',
-                  cursor: stlUrl ? 'pointer' : 'not-allowed'
-                }}
+                // O botão agora só bloqueia se o loading de GRAVAÇÃO estiver ativo
+                style={{ padding: '16px', background: '#059669', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', marginTop: '10px', cursor: 'pointer' }}
               >
-                {stlUrl ? "CONFIRMAR ENCOMENDA" : "A GERAR FICHEIRO 3D..."}
+                {loading ? "A GRAVAR PEDIDO..." : "CONFIRMAR ENCOMENDA"}
+              </button>
+
+              <button onClick={() => setShowCheckout(false)} style={{ color: '#ef4444', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '5px' }}>
+                Cancelar e voltar ao editor
               </button>
             </div>
           </div>
