@@ -1,43 +1,16 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 
-const modalInputStyle = {
-  padding: '12px',
-  background: '#0f172a',
-  border: '1px solid #334155',
-  borderRadius: '10px',
-  color: 'white',
-  fontSize: '14px',
-  width: '100%',
-  boxSizing: 'border-box' as const
-};
-
-const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1490366722060976140/OVy9c9eweYDRTrcUW-DQsdbq2BEcfHcCGIBwP427QoOvfWuRLmTzoehKuKZa5loWHScd";
-
-export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
+export default function EditorControls({ produto, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
-  const [isGeneratingSTL, setIsGeneratingSTL] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [termosAceitos, setTermosAceitos] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    nome_completo: '',
-    morada_entrega: '',
-    codigo_postal: '',
-    cidade: '',
-    nif: '' 
-  });
 
-  // Sincronização de estados
+  // Sincroniza o loading com a chegada do link
   useEffect(() => {
-    if (stlUrl) {
-      setIsGeneratingSTL(false);
-      setLoading(false);
-    }
+    if (stlUrl) setLoading(false);
   }, [stlUrl]);
 
+  // Carrega os parâmetros do produto e organiza os campos
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -60,7 +33,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    setIsGeneratingSTL(true);
     setLoading(true);
     try {
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
@@ -69,64 +41,34 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         body: JSON.stringify({ ...localValores, id: produto.id }),
       });
       const d = await r.json();
+      // Envia o link para o Pai (para o visualizador 3D e para o botão de baixar)
       onGerarSucesso(d.urls || d.url);
     } catch (err) {
-      setLoading(false);
-      setIsGeneratingSTL(false);
-    }
-  };
-
-  const finalizarEncomenda = async () => {
-    if (!formData.nome_completo || !formData.morada_entrega || !termosAceitos) {
-      return alert("Preencha os campos obrigatórios e aceite os termos.");
-    }
-    setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { error } = await supabase.from('prod_encomendas').insert([{
-        user_id: session?.user?.id,
-        projeto_id: produto.id,
-        nome_completo: formData.nome_completo,
-        morada_entrega: formData.morada_entrega,
-        codigo_postal: formData.codigo_postal,
-        cidade: formData.cidade,
-        nif: formData.nif,
-        stl_url: stlUrl || "Pendente",
-        configuracao: localValores,
-        status: 'pendente'
-      }]);
-      if (error) throw error;
-      await fetch(DISCORD_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: `📦 **NOVA ENCOMENDA**\n**Cliente:** ${formData.nome_completo}\n**Ficheiro:** ${stlUrl}` })
-      });
-      alert("Encomenda confirmada!");
-      setShowCheckout(false);
-    } catch (err) {
-      alert("Erro ao gravar encomenda.");
-    } finally {
+      alert("Erro ao gerar modelo.");
       setLoading(false);
     }
   };
 
   if (!produto || !produto.ui_schema) return null;
 
-  // Lógica de Agrupamento por Secção (NOME, NÚMERO, etc.)
-  const seccoes = Array.from(new Set(produto.ui_schema.map((c: any) => c.section || 'GERAL')));
+  // Agrupamento por Secções (NOME, NÚMERO, etc.)
+  const seccoesUnicas = Array.from(new Set(produto.ui_schema.map((c: any) => c.section || 'GERAL')));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {seccoes.map((seccao: any) => (
+      {/* MAPEAR GRUPOS DE PARÂMETROS */}
+      {seccoesUnicas.map((seccao: any) => (
         <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>
             {seccao.toUpperCase()}
           </label>
+          
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {produto.ui_schema.filter((c: any) => (c.section || 'GERAL') === seccao && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
                 <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label?.toUpperCase()}</label>
+                
                 <div style={{ marginTop: '5px' }}>
                   {c.type === 'slider' ? (
                     <>
@@ -134,10 +76,21 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                         <span>MEDIDA</span>
                         <span>{localValores[c.name] ?? c.default}</span>
                       </div>
-                      <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%' }} />
+                      <input 
+                        type="range" 
+                        min={c.min} max={c.max} step={0.1} 
+                        value={localValores[c.name] ?? c.default ?? 0} 
+                        onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} 
+                        style={{ width: '100%', accentColor: '#3b82f6' }} 
+                      />
                     </>
                   ) : (
-                    <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
+                    <input 
+                      type="text" 
+                      value={localValores[c.name] || ''} 
+                      onChange={(e) => handleChange(c.name, e.target.value)} 
+                      style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} 
+                    />
                   )}
                 </div>
               </div>
@@ -146,37 +99,29 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      <button onClick={handleGerarSTL} style={{ padding: '15px', border: '1px solid #3b82f6', color: '#3b82f6', background: 'transparent', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-        {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
-      </button>
+      {/* BOTÕES DE AÇÃO DO MAKER */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+        <button 
+          onClick={handleGerarSTL} 
+          disabled={loading}
+          style={{ padding: '16px', background: loading ? '#334155' : 'transparent', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
+        </button>
 
-      <button onClick={() => { setShowCheckout(true); setLoading(false); }} style={{ padding: '20px', background: '#059669', color: 'white', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>
-        📦 RECEBER PEÇA EM CASA
-      </button>
-
-      {showCheckout && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div style={{ background: '#1e293b', padding: '30px', borderRadius: '24px', width: '100%', maxWidth: '450px', border: '1px solid #334155' }}>
-            <h2 style={{ color: 'white', marginBottom: '20px' }}>Dados de Envio</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input placeholder="Nome Completo *" value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
-              <input placeholder="Morada *" value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <input placeholder="CP *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
-                <input placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
-              </div>
-              <input placeholder="NIF" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
-              <label style={{ color: '#94a3b8', fontSize: '11px', display: 'flex', gap: '8px' }}>
-                <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} /> Aceito os termos
-              </label>
-              <button onClick={finalizarEncomenda} style={{ padding: '16px', background: '#059669', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', marginTop: '10px' }}>
-                {loading ? "A GRAVAR..." : "CONFIRMAR ENCOMENDA"}
-              </button>
-              <button onClick={() => setShowCheckout(false)} style={{ color: '#94a3b8', background: 'none', border: 'none', marginTop: '5px', cursor: 'pointer' }}>Voltar</button>
-            </div>
-          </div>
-        </div>
-      )}
+        {stlUrl && (
+          <a 
+            href={stlUrl} 
+            download 
+            style={{ 
+              padding: '16px', background: '#3b82f6', color: 'white', borderRadius: '12px', 
+              fontWeight: 'bold', textAlign: 'center', textDecoration: 'none', display: 'block' 
+            }}
+          >
+            📥 BAIXAR FICHEIRO STL
+          </a>
+        )}
+      </div>
     </div>
   );
 }
