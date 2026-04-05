@@ -21,15 +21,16 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
   const [showCheckout, setShowCheckout] = useState(false);
   const [termosAceitos, setTermosAceitos] = useState(false);
+  
   const [formData, setFormData] = useState({
     nome_completo: '',
     morada_entrega: '',
     codigo_postal: '',
     cidade: '',
-    nif: ''
+    nif: '' // Campo NIF restaurado
   });
 
-  // CORREÇÃO: Liberta o estado de "pensar" assim que o stlUrl é recebido
+  // SOLUÇÃO PARA O BLOQUEIO: Se o stlUrl chegar, paramos o loading imediatamente
   useEffect(() => {
     if (stlUrl) {
       setIsGeneratingSTL(false);
@@ -61,7 +62,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleGerarSTL = async () => {
     if (!produto?.id || isGeneratingSTL) return;
-    
     setIsGeneratingSTL(true);
     setLoading(true);
 
@@ -79,8 +79,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       });
       const d = await r.json();
       if (d.error) throw new Error(d.error);
-      
-      // Envia para o pai atualizar o stlUrl
       onGerarSucesso(d.urls || d.url);
     } catch (err) { 
       alert("Erro ao gerar modelo 3D.");
@@ -90,15 +88,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const finalizarEncomenda = async () => {
+    // Validação de todos os campos obrigatórios
     if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
-      return alert("Erro: Preencha os campos obrigatórios.");
+      return alert("Segurança: Todos os campos de morada são obrigatórios.");
     }
-    if (!termosAceitos) return alert("Erro: Aceite os termos.");
-    
-    // Se o URL ainda não chegou, tentamos uma última verificação
-    if (!stlUrl) {
-      return alert("O ficheiro ainda está a ser processado pelo servidor. Aguarde uns segundos...");
-    }
+    if (!termosAceitos) return alert("Deve aceitar os termos de processamento.");
+    if (!stlUrl) return alert("A aguardar ficheiro 3D...");
 
     setLoading(true);
     try {
@@ -111,7 +106,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         morada_entrega: formData.morada_entrega,
         codigo_postal: formData.codigo_postal,
         cidade: formData.cidade,
-        nif: formData.nif,
+        nif: formData.nif, // Gravação do NIF na DB
         stl_url: stlUrl,
         configuracao: localValores,
         status: 'pendente'
@@ -130,14 +125,16 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
             fields: [
               { name: "👤 Nome", value: formData.nome_completo, inline: true },
               { name: "📍 Localidade", value: `${formData.cidade} (${formData.codigo_postal})`, inline: true },
-              { name: "🔗 Ficheiro", value: `[DOWNLOAD STL](${stlUrl})` }
+              { name: "🏠 Morada", value: formData.morada_entrega },
+              { name: "📄 NIF", value: formData.nif || "Não fornecido", inline: true },
+              { name: "🔗 Ficheiro", value: `[BAIXAR STL](${stlUrl})` }
             ],
             timestamp: new Date().toISOString()
           }]
         })
       });
 
-      alert("Encomenda registada!");
+      alert("Encomenda registada com sucesso!");
       setShowCheckout(false);
     } catch (err) {
       alert("Erro ao gravar encomenda.");
@@ -148,12 +145,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const isMaker = perfil?.acesso_comercial_ativo === true || perfil?.role === 'admin';
 
-  if (!produto || !produto.ui_schema) return <div style={{ color: '#94a3b8', padding: '20px' }}>Carregando...</div>;
+  if (!produto || !produto.ui_schema) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* MANTIDO: Renderização de secções */}
       {Array.from(new Set(produto.ui_schema.filter((c: any) => c.type !== 'hidden').map((c: any) => c.section || 'GERAL'))).map((seccaoNome: any) => (
         <div key={seccaoNome} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
@@ -165,7 +161,14 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label?.toUpperCase()}</label>
                 <div style={{ marginTop: '5px' }}>
                   {c.type === 'slider' ? (
-                    <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#2563eb' }} />
+                    <>
+                      {/* Reposição das medidas (Valores) sobre os sliders */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
+                        <span>AJUSTE</span>
+                        <span style={{ color: '#3b82f6' }}>{localValores[c.name] ?? c.default}</span>
+                      </div>
+                      <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#2563eb' }} />
+                    </>
                   ) : (
                     <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
                   )}
@@ -176,7 +179,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* BOTÕES DE AÇÃO */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
         <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>
           {loading ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
@@ -199,12 +201,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         )}
       </div>
 
-      {/* MODAL DE CHECKOUT */}
       {showCheckout && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '30px', border: '1px solid #334155', position: 'relative' }}>
             <button onClick={() => setShowCheckout(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px' }}>✕</button>
-            <h2 style={{ fontSize: '22px', marginBottom: '10px', color: 'white' }}>Finalizar Encomenda</h2>
+            <h2 style={{ fontSize: '22px', marginBottom: '10px', color: 'white' }}>Dados de Envio</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <input type="text" placeholder="Nome Completo *" value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
               <input type="text" placeholder="Morada *" value={formData.morada_entrega} onChange={e => setFormData({...formData, morada_entrega: e.target.value})} style={modalInputStyle} />
@@ -212,20 +213,22 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <input type="text" placeholder="CP *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
                 <input type="text" placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
               </div>
+              {/* Campo NIF visível novamente */}
+              <input type="text" placeholder="NIF (Opcional)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
               <label style={{ display: 'flex', gap: '10px', cursor: 'pointer' }}>
                 <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} />
                 <span style={{ fontSize: '11px', color: '#94a3b8' }}>Aceito o processamento dos dados.</span>
               </label>
               <button 
                 onClick={finalizarEncomenda}
-                disabled={loading || isGeneratingSTL}
+                disabled={loading || (isGeneratingSTL && !stlUrl)}
                 style={{ 
                   marginTop: '10px', padding: '16px', 
-                  background: (isGeneratingSTL || !stlUrl) ? '#334155' : '#059669', 
+                  background: (isGeneratingSTL && !stlUrl) ? '#334155' : '#059669', 
                   color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold'
                 }}
               >
-                {(isGeneratingSTL || !stlUrl) ? "A GERAR FICHEIRO 3D..." : "CONFIRMAR ENCOMENDA"}
+                {(isGeneratingSTL && !stlUrl) ? "A GERAR FICHEIRO 3D..." : "CONFIRMAR ENCOMENDA"}
               </button>
             </div>
           </div>
