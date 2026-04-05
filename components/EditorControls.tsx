@@ -30,7 +30,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     nif: '' 
   });
 
-  // CORREÇÃO CRÍTICA: Se o link existe, mata qualquer estado de "A Processar"
+  // FORÇAR DESBLOQUEIO: Mal o link aparece, limpamos todos os estados de espera
   useEffect(() => {
     if (stlUrl) {
       setIsGeneratingSTL(false);
@@ -91,8 +91,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
       return alert("Preencha todos os campos obrigatórios (*).");
     }
-    if (!termosAceitos) return alert("Aceite os termos para continuar.");
-    if (!stlUrl) return alert("Ficheiro 3D ainda não está pronto.");
+    if (!termosAceitos) return alert("Aceite os termos.");
+    if (!stlUrl) return alert("Aguarde o ficheiro 3D.");
 
     setLoading(true);
     try {
@@ -116,19 +116,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: "MakerPro Logística",
-          embeds: [{
-            title: "📦 NOVA ENCOMENDA!",
-            color: 5763719,
-            fields: [
-              { name: "👤 Cliente", value: formData.nome_completo, inline: true },
-              { name: "📍 Localidade", value: `${formData.cidade} (${formData.codigo_postal})`, inline: true },
-              { name: "🏠 Morada", value: formData.morada_entrega },
-              { name: "📄 NIF", value: formData.nif || "N/A", inline: true },
-              { name: "🔗 Link 3D", value: `[BAIXAR STL](${stlUrl})` }
-            ],
-            timestamp: new Date().toISOString()
-          }]
+          content: `📦 **NOVA ENCOMENDA**\n**Cliente:** ${formData.nome_completo}\n**NIF:** ${formData.nif || 'N/A'}\n**Link:** ${stlUrl}`
         })
       });
 
@@ -148,7 +136,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Secções de Sliders com Etiquetas de MEDIDA */}
+      {/* Sliders com as etiquetas de MEDIDA restauradas */}
       {Array.from(new Set(produto.ui_schema.filter((c: any) => c.type !== 'hidden').map((c: any) => c.section || 'GERAL'))).map((seccaoNome: any) => (
         <div key={seccaoNome} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
@@ -177,18 +165,19 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* Botões Principais */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-        <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>
-          {(loading && !stlUrl) ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
+        {/* BOTÃO ATUALIZAR: Agora diz "VERIFICAR" se o link já existir */}
+        <button 
+          onClick={handleGerarSTL} 
+          disabled={loading && !stlUrl} 
+          style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          {loading && !stlUrl ? "A PROCESSAR..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
         </button>
 
         {!isMaker && (
           <button 
-            onClick={() => {
-              setShowCheckout(true);
-              if (!stlUrl && !isGeneratingSTL) handleGerarSTL(); 
-            }}
+            onClick={() => setShowCheckout(true)}
             style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
           >
             📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
@@ -196,7 +185,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         )}
       </div>
 
-      {/* Modal de Envio com Campo NIF */}
       {showCheckout && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '30px', border: '1px solid #334155', position: 'relative' }}>
@@ -215,16 +203,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <span style={{ fontSize: '11px', color: '#94a3b8' }}>Aceito o processamento dos dados.</span>
               </label>
               
+              {/* BOTÃO FINAL: Se o stlUrl existir, ele ignora o estado de carregamento */}
               <button 
                 onClick={finalizarEncomenda}
-                disabled={loading || (isGeneratingSTL && !stlUrl)}
+                disabled={!stlUrl || loading}
                 style={{ 
                   marginTop: '10px', padding: '16px', 
-                  background: (isGeneratingSTL && !stlUrl) ? '#334155' : '#059669', 
-                  color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold'
+                  background: stlUrl ? '#059669' : '#334155', 
+                  color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold',
+                  cursor: stlUrl ? 'pointer' : 'not-allowed'
                 }}
               >
-                {(isGeneratingSTL && !stlUrl) ? "A GERAR FICHEIRO 3D..." : "CONFIRMAR ENCOMENDA"}
+                {stlUrl ? "CONFIRMAR ENCOMENDA" : "A GERAR FICHEIRO 3D..."}
               </button>
             </div>
           </div>
