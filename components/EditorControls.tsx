@@ -30,7 +30,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     nif: '' 
   });
 
-  // SOLUÇÃO PARA O BLOQUEIO: Se o stlUrl chegar, paramos o loading imediatamente
+  // CORREÇÃO CRÍTICA: Se o link existe, mata qualquer estado de "A Processar"
   useEffect(() => {
     if (stlUrl) {
       setIsGeneratingSTL(false);
@@ -91,13 +91,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
       return alert("Preencha todos os campos obrigatórios (*).");
     }
-    if (!termosAceitos) return alert("Deve aceitar os termos de processamento.");
-    if (!stlUrl) return alert("Aguarde a conclusão do ficheiro 3D.");
+    if (!termosAceitos) return alert("Aceite os termos para continuar.");
+    if (!stlUrl) return alert("Ficheiro 3D ainda não está pronto.");
 
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
       const { error } = await supabase.from('prod_encomendas').insert([{
         user_id: session?.user?.id,
         projeto_id: produto.id,
@@ -122,21 +121,21 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
             title: "📦 NOVA ENCOMENDA!",
             color: 5763719,
             fields: [
-              { name: "👤 Nome", value: formData.nome_completo, inline: true },
+              { name: "👤 Cliente", value: formData.nome_completo, inline: true },
               { name: "📍 Localidade", value: `${formData.cidade} (${formData.codigo_postal})`, inline: true },
               { name: "🏠 Morada", value: formData.morada_entrega },
-              { name: "📄 NIF", value: formData.nif || "Não fornecido", inline: true },
-              { name: "🔗 Ficheiro", value: `[BAIXAR STL](${stlUrl})` }
+              { name: "📄 NIF", value: formData.nif || "N/A", inline: true },
+              { name: "🔗 Link 3D", value: `[BAIXAR STL](${stlUrl})` }
             ],
             timestamp: new Date().toISOString()
           }]
         })
       });
 
-      alert("Encomenda registada com sucesso!");
+      alert("Encomenda enviada!");
       setShowCheckout(false);
     } catch (err) {
-      alert("Erro ao gravar encomenda.");
+      alert("Erro ao gravar pedido.");
     } finally {
       setLoading(false);
     }
@@ -149,6 +148,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
+      {/* Secções de Sliders com Etiquetas de MEDIDA */}
       {Array.from(new Set(produto.ui_schema.filter((c: any) => c.type !== 'hidden').map((c: any) => c.section || 'GERAL'))).map((seccaoNome: any) => (
         <div key={seccaoNome} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
@@ -161,7 +161,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <div style={{ marginTop: '5px' }}>
                   {c.type === 'slider' ? (
                     <>
-                      {/* Reposição das medidas nos sliders */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
                         <span>MEDIDA</span>
                         <span style={{ color: '#3b82f6' }}>{localValores[c.name] ?? c.default}</span>
@@ -178,16 +177,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
+      {/* Botões Principais */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
         <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>
-          {loading ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
+          {(loading && !stlUrl) ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
         </button>
 
-        {isMaker ? (
-          <button style={{ padding: '20px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}>
-            📥 DESCARREGAR FICHEIRO STL
-          </button>
-        ) : (
+        {!isMaker && (
           <button 
             onClick={() => {
               setShowCheckout(true);
@@ -200,6 +196,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         )}
       </div>
 
+      {/* Modal de Envio com Campo NIF */}
       {showCheckout && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '30px', border: '1px solid #334155', position: 'relative' }}>
@@ -212,14 +209,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <input type="text" placeholder="CP *" value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
                 <input type="text" placeholder="Cidade *" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
               </div>
-              {/* Campo NIF restaurado */}
               <input type="text" placeholder="NIF" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
               <label style={{ display: 'flex', gap: '10px', cursor: 'pointer' }}>
                 <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} />
                 <span style={{ fontSize: '11px', color: '#94a3b8' }}>Aceito o processamento dos dados.</span>
               </label>
               
-              {/* CORREÇÃO: O botão agora liberta assim que o stlUrl existe */}
               <button 
                 onClick={finalizarEncomenda}
                 disabled={loading || (isGeneratingSTL && !stlUrl)}
@@ -229,7 +224,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                   color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold'
                 }}
               >
-                {(isGeneratingSTL && !stlUrl) ? "A GERAR FICHEIRO 3D..." : loading ? "PROCESSANDO..." : "CONFIRMAR ENCOMENDA"}
+                {(isGeneratingSTL && !stlUrl) ? "A GERAR FICHEIRO 3D..." : "CONFIRMAR ENCOMENDA"}
               </button>
             </div>
           </div>
