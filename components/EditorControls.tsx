@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-export default function EditorControls({ produto, onUpdate, onGerarSucesso }: any) {
+export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso }: any) {
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
+  // 1. MANTIDO: Lógica original de inicialização de valores
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -21,62 +22,54 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
     }
   }, [produto?.id]);
 
+  // 2. MANTIDO: Lógica de atualização de campos
   const handleChange = (k: string, v: any) => {
     const n = { ...localValores, [k]: v };
     setLocalValores(n);
     onUpdate(n);
   };
 
+  // 3. ATUALIZADO: handleGerarSTL com correção da chave "nome"
   const handleGerarSTL = async () => {
-  if (!produto?.id) return;
-  setLoading(true);
+    if (!produto?.id) return;
+    setLoading(true);
 
-  // Criamos o objeto base com todos os valores locais (incluindo nome_pet)
-  const payload: any = { 
-    ...localValores, 
-    id: produto.id 
+    // Criamos o payload garantindo que o texto do pet vai na chave certa
+    const payload = { 
+      ...localValores, 
+      id: produto.id,
+      nome: localValores.nome_pet || localValores.nome // Garante que o motor 3D recebe o texto
+    };
+
+    try {
+      const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      onGerarSucesso(d.urls || d.url);
+    } catch (err) { 
+      alert("Erro ao gerar modelo 3D."); 
+    } finally { setLoading(false); }
   };
-
-  // LÓGICA DE CORREÇÃO:
-  // Se o teu motor 3D espera a chave "nome", mas o formulário usa "nome_pet",
-  // forçamos a atribuição do valor correto aqui.
-  if (localValores.nome_pet) {
-    payload.nome = localValores.nome_pet;
-  }
-
-  try {
-    const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    
-    const d = await r.json();
-    if (d.error) throw new Error(d.error);
-    onGerarSucesso(d.urls || d.url);
-  } catch (err) { 
-    alert("Erro ao gerar modelo 3D."); 
-  } finally { 
-    setLoading(false); 
-  }
-};
 
   if (!produto || !produto.ui_schema) return <div style={{ color: '#94a3b8', padding: '20px' }}>Carregando...</div>;
 
-  // 1. Filtramos apenas campos visíveis
+  // 4. MANTIDO: Filtros de visibilidade e secções
   const camposVisiveis = produto.ui_schema.filter((c: any) => c && c.type !== 'hidden');
-
-  // 2. Criamos a lista de secções apenas se tiverem campos visíveis nela
   const seccoes = Array.from(new Set(camposVisiveis.map((c: any) => c.section || 'GERAL')));
+
+  // Determinar se o user é Maker (Acesso comercial ativo ou Admin)
+  const isMaker = perfil?.acesso_comercial_ativo === true || perfil?.role === 'admin';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
+      {/* RENDERIZAÇÃO DAS SECÇÕES (MANTIDA IGUAL) */}
       {seccoes.map((seccaoNome: any) => {
-        // 3. Verificamos se esta secção específica tem campos para renderizar
         const camposDaSeccao = camposVisiveis.filter((c: any) => (c.section || 'GERAL') === seccaoNome);
-        
-        // Se a secção não tiver campos (como o teu bloco GERAL vazio), não renderizamos nada
         if (camposDaSeccao.length === 0) return null;
 
         return (
@@ -114,7 +107,7 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         );
       })}
 
-      {/* Seletor de Fonte */}
+      {/* SELETOR DE FONTE (MANTIDO) */}
       {localValores.nome_pet !== undefined && (
         <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>FONTE DO TEXTO</label>
@@ -127,9 +120,32 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso }: an
         </div>
       )}
 
-      <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '18px', background: '#2563eb', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold', opacity: loading ? 0.7 : 1 }}>
-        {loading ? "GERANDO..." : "VISUALIZAR MODELO 3D FINAL"}
-      </button>
+      {/* NOVOS BOTÕES ADAPTATIVOS */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+        
+        {/* Botão de Visualizar - Agora secundário visualmente */}
+        <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>
+          {loading ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
+        </button>
+
+        {/* Botão de Ação Final - Dinâmico Maker vs Cliente */}
+        {isMaker ? (
+          <button 
+            style={{ padding: '20px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900', fontSize: '14px' }}
+            onClick={() => alert("Iniciando download do STL...")} // Aqui ligas à tua função de download
+          >
+            📥 DESCARREGAR FICHEIRO STL
+          </button>
+        ) : (
+          <button 
+            style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900', fontSize: '14px' }}
+            onClick={() => window.location.href = '/encomendar'}
+          >
+            📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
+          </button>
+        )}
+      </div>
+
     </div>
   );
 }
