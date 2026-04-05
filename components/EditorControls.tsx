@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-// Estilos consistentes para os inputs do Modal de Checkout
+// Estilos para os inputs do Modal
 const modalInputStyle = {
   padding: '12px',
   background: '#0f172a',
@@ -14,18 +14,16 @@ const modalInputStyle = {
   boxSizing: 'border-box' as const
 };
 
-// URL do teu Webhook do Discord para notificações de logística
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1490366722060976140/OVy9c9eweYDRTrcUW-DQsdbq2BEcfHcCGIBwP427QoOvfWuRLmTzoehKuKZa5loWHScd";
 
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
+  const [isGeneratingSTL, setIsGeneratingSTL] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
   
-  // Estados para o Modal de Checkout e RGPD
+  // Estados do Modal e Checkout
   const [showCheckout, setShowCheckout] = useState(false);
   const [termosAceitos, setTermosAceitos] = useState(false);
-
-  // Estado para os dados de envio e faturação (Campos obrigatórios)
   const [formData, setFormData] = useState({
     nome_completo: '',
     morada_entrega: '',
@@ -34,7 +32,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     nif: ''
   });
 
-  // 1. MANTIDO: Lógica original de inicialização de valores e parâmetros default
+  // 1. Inicialização de parâmetros
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -51,16 +49,16 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     }
   }, [produto?.id]);
 
-  // 2. MANTIDO: Lógica de atualização de campos em tempo real
   const handleChange = (k: string, v: any) => {
     const n = { ...localValores, [k]: v };
     setLocalValores(n);
     onUpdate(n);
   };
 
-  // 3. MANTIDO: Geração de STL com correção da chave "nome" para o motor 3D
+  // 2. Função de Geração de STL (Reutilizável)
   const handleGerarSTL = async () => {
     if (!produto?.id) return;
+    setIsGeneratingSTL(true);
     setLoading(true);
 
     const payload = { 
@@ -79,24 +77,31 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       if (d.error) throw new Error(d.error);
       onGerarSucesso(d.urls || d.url);
     } catch (err) { 
-      alert("Erro ao gerar modelo 3D."); 
-    } finally { setLoading(false); }
+      console.error("Erro ao gerar STL:", err);
+    } finally { 
+      setLoading(false); 
+      setIsGeneratingSTL(false);
+    }
   };
 
-  // 4. NOVO: Função de finalização com validação total, gravação e Discord
+  // 3. Submissão Final com Validação Estrita e Notificação
   const finalizarEncomenda = async () => {
-    // Verificação de segurança: campos vazios não passam
+    // Validação de campos obrigatórios
     if (!formData.nome_completo || !formData.morada_entrega || !formData.codigo_postal || !formData.cidade) {
       return alert("Erro: Preencha todos os campos obrigatórios (*).");
     }
     if (!termosAceitos) return alert("Erro: Deve aceitar o processamento de dados.");
-    if (!stlUrl) return alert("Erro: Por favor, atualize a pré-visualização primeiro.");
+    
+    // Se ainda estiver a gerar o STL, espera
+    if (isGeneratingSTL || !stlUrl) {
+      return alert("Ainda estamos a preparar o seu ficheiro 3D... Aguarde 5 segundos e tente novamente.");
+    }
 
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Gravação na tabela prod_encomendas
+      // Gravar no Supabase
       const { error } = await supabase.from('prod_encomendas').insert([{
         user_id: session?.user?.id,
         projeto_id: produto.id,
@@ -112,7 +117,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
       if (error) throw error;
 
-      // Notificação via Discord Webhook
+      // Notificar Discord
       await fetch(DISCORD_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,26 +138,26 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         })
       });
 
-      alert("Encomenda registada com sucesso! O administrador foi notificado.");
+      alert("Encomenda registada com sucesso! O administrador foi notificado via Discord.");
       setShowCheckout(false);
     } catch (err) {
-      alert("Erro ao processar. Verifique a sua ligação.");
+      alert("Erro ao processar. Tente novamente ou contacte o suporte.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!produto || !produto.ui_schema) return <div style={{ color: '#94a3b8', padding: '20px' }}>Carregando...</div>;
+  const isMaker = perfil?.acesso_comercial_ativo === true || perfil?.role === 'admin';
+
+  if (!produto || !produto.ui_schema) return <div style={{ color: '#94a3b8', padding: '20px' }}>Carregando configurador...</div>;
 
   const camposVisiveis = produto.ui_schema.filter((c: any) => c && c.type !== 'hidden');
   const seccoes = Array.from(new Set(camposVisiveis.map((c: any) => c.section || 'GERAL')));
 
-  const isMaker = perfil?.acesso_comercial_ativo === true || perfil?.role === 'admin';
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* MANTIDO: Renderização dinâmica de campos e secções */}
+      {/* RENDERIZAÇÃO DINÂMICA DE CAMPOS */}
       {seccoes.map((seccaoNome: any) => {
         const camposDaSeccao = camposVisiveis.filter((c: any) => (c.section || 'GERAL') === seccaoNome);
         if (camposDaSeccao.length === 0) return null;
@@ -162,7 +167,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
             <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
               {String(seccaoNome).toUpperCase()}
             </label>
-            
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {camposDaSeccao.map((c: any) => (
                 <div key={c.name}>
@@ -192,7 +196,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         );
       })}
 
-      {/* MANTIDO: Seletor de fontes */}
+      {/* SELETOR DE FONTES */}
       {localValores.nome_pet !== undefined && (
         <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'bold' }}>FONTE DO TEXTO</label>
@@ -205,7 +209,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       )}
 
-      {/* BOTÕES DE AÇÃO */}
+      {/* BOTÕES DE AÇÃO ADAPTATIVOS */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
         <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '16px', background: 'transparent', color: '#3b82f6', borderRadius: '12px', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>
           {loading ? "PROCESSANDO..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
@@ -214,13 +218,16 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         {isMaker ? (
           <button 
             style={{ padding: '20px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
-            onClick={() => alert("Iniciando download do STL...")}
+            onClick={() => alert("A descarregar ficheiro STL profissional...")}
           >
             📥 DESCARREGAR FICHEIRO STL
           </button>
         ) : (
           <button 
-            onClick={() => setShowCheckout(true)}
+            onClick={() => {
+              setShowCheckout(true);
+              if (!stlUrl && !isGeneratingSTL) handleGerarSTL(); // Geração automática ao abrir
+            }}
             style={{ padding: '20px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: '900' }}
           >
             📦 RECEBER PEÇA EM CASA (IMPRESSÃO 3D)
@@ -228,14 +235,14 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         )}
       </div>
 
-      {/* MODAL DE CHECKOUT RGPD COM VALIDAÇÃO COMPLETA */}
+      {/* MODAL DE CHECKOUT COM VALIDAÇÃO E RGPD */}
       {showCheckout && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '30px', border: '1px solid #334155', position: 'relative' }}>
             <button onClick={() => setShowCheckout(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px' }}>✕</button>
 
             <h2 style={{ fontSize: '22px', marginBottom: '10px', color: 'white' }}>Finalizar Encomenda</h2>
-            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px' }}>Por favor, preencha todos os dados obrigatórios (*).</p>
+            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px' }}>Por favor, indique onde deseja receber a sua peça.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <input type="text" placeholder="Nome Completo *" required value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} style={modalInputStyle} />
@@ -244,21 +251,26 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <input type="text" placeholder="Cód. Postal *" required value={formData.codigo_postal} onChange={e => setFormData({...formData, codigo_postal: e.target.value})} style={modalInputStyle} />
                 <input type="text" placeholder="Cidade *" required value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} style={modalInputStyle} />
               </div>
-              <input type="text" placeholder="NIF (Opcional)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
+              <input type="text" placeholder="NIF (Para Fatura)" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={modalInputStyle} />
 
               <label style={{ display: 'flex', gap: '10px', marginTop: '10px', cursor: 'pointer', alignItems: 'flex-start' }}>
                 <input type="checkbox" checked={termosAceitos} onChange={e => setTermosAceitos(e.target.checked)} style={{ width: '18px', height: '18px' }} />
                 <span style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.4' }}>
-                  Aceito que a MakerPro utilize os meus dados exclusivamente para o envio e faturação da peça encomendada.
+                  Aceito que a MakerPro processe os meus dados para fins de envio e faturação da peça.
                 </span>
               </label>
 
               <button 
                 onClick={finalizarEncomenda}
                 disabled={loading}
-                style={{ marginTop: '10px', padding: '16px', background: '#059669', color: 'white', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{ 
+                  marginTop: '10px', padding: '16px', 
+                  background: isGeneratingSTL ? '#334155' : '#059669', 
+                  color: 'white', borderRadius: '12px', border: 'none', 
+                  fontWeight: 'bold', cursor: isGeneratingSTL ? 'wait' : 'pointer' 
+                }}
               >
-                {loading ? "A PROCESSAR..." : "CONFIRMAR ENCOMENDA"}
+                {isGeneratingSTL ? "A PREPARAR MODELO 3D..." : loading ? "A PROCESSAR..." : "CONFIRMAR ENCOMENDA"}
               </button>
             </div>
           </div>
