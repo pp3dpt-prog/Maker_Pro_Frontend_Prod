@@ -16,14 +16,15 @@ function CustomizadorConteudo() {
   const [produtoAtual, setProdutoAtual] = useState<any>(null);
   const [modelos, setModelos] = useState<any[]>([]);
   const [valores, setValores] = useState<any>({ fonte: 'OpenSans' });
+  const [perfil, setPerfil] = useState<any>(null); // Estado para o saldo
   const [loading, setLoading] = useState(true);
 
-  // LOGICA DINÂMICA: Muda texto baseado na família
   const textoForma = familiaURL?.toLowerCase().includes('caixa') ? 'FORMA DA CAIXA' : 'FORMA DA MEDALHA';
   const mostrarBotaoPreview = produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true);
 
   useEffect(() => {
     async function fetchData() {
+      // 1. Carregar Dados do Produto
       if (!id && !familiaURL) return;
       const { data: lista } = await supabase.from('prod_designs').select('*').eq('familia', familiaURL || '');
       if (lista && lista.length > 0) {
@@ -31,13 +32,24 @@ function CustomizadorConteudo() {
         const selecionado = id ? lista.find(m => String(m.id) === String(id)) : lista[0];
         setProdutoAtual(selecionado || lista[0]);
       }
+
+      // 2. Carregar Perfil/Créditos do Utilizador
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: perfilData } = await supabase
+          .from('prod_perfis')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        setPerfil(perfilData);
+      }
+
       setLoading(false);
     }
     fetchData();
   }, [id, familiaURL]);
 
   const aoGerarStlComSucesso = (resultado: any) => {
-    // Se resultado for string, é um STL único. Se for array, são múltiplos.
     setProdutoAtual((prev: any) => ({
       ...prev,
       stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado,
@@ -46,7 +58,7 @@ function CustomizadorConteudo() {
     setMostrarPreview(false); 
   };
 
-  if (loading) return <div style={{ background: '#0f172a', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white' }}>Iniciando Customizador...</div>;
+  if (loading) return <div style={{ background: '#0f172a', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white' }}>Iniciando...</div>;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white' }}>
@@ -71,24 +83,18 @@ function CustomizadorConteudo() {
         </div>
 
         {mostrarBotaoPreview && (
-          <div>
-            <button 
-              onClick={() => setMostrarPreview(!mostrarPreview)}
-              style={{ width: '100%', 
-                marginTop: '10px', marginBottom: '25px',
-                padding: '15px', 
-                backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', 
-                borderRadius: '8px', fontWeight: '900', cursor: 'pointer', border: 'none' }}
-            >
-              {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
-            </button>
-          </div>
+          <button onClick={() => setMostrarPreview(!mostrarPreview)} style={{ width: '100%', marginBottom: '25px', padding: '15px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', border: 'none' }}>
+            {mostrarPreview ? 'REMOVER TEXTO' : 'VER TEXTO NA PEÇA'}
+          </button>
         )}
         
+        {/* Agora passamos o perfil carregado para o Editor */}
         <EditorControls 
           produto={produtoAtual} 
+          perfil={perfil} 
           onUpdate={setValores} 
           onGerarSucesso={aoGerarStlComSucesso} 
+          stlUrl={produtoAtual?.stl_file_path}
         />
       </aside>
 
