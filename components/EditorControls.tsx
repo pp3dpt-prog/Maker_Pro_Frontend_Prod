@@ -6,8 +6,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
 
   // CONFIRMAÇÃO DA MUDANÇA: Agora lê explicitamente 'creditos_disponiveis'
-  const saldoAtual = perfil?.creditos_disponiveis ?? 0;
-  const temCreditos = saldoAtual > 0;
+  const saldoAtual = { creditos_disponiveis: perfil?.creditos_disponiveis ?? 0 };
+  const temCreditos = saldoAtual.creditos_disponiveis > 0;
 
   useEffect(() => {
     if (stlUrl) setLoading(false);
@@ -36,7 +36,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleGerarSTL = async () => {
     // Bloqueio de segurança com base no saldo real
-    if (saldoAtual <= 0) {
+    if (saldoAtual.creditos_disponiveis <= 0) {
       alert("Saldo insuficiente para processar.");
       return;
     }
@@ -98,7 +98,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>SALDO DISPONÍVEL:</span>
           <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>
-            {saldoAtual} CRÉDITOS
+            {saldoAtual.creditos_disponiveis} CRÉDITOS
           </span>
         </div>
 
