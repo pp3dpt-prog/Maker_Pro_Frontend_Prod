@@ -120,7 +120,6 @@ export default function Dashboard() {
         )}
 
         {/* ABA 2: FATURAÇÃO (Diferenciada por Perfil) */}
-        // Dentro do activeTab === 'faturacao' no teu app/dashboard/page.tsx
 
 {activeTab === 'faturacao' && (
   <div style={{ maxWidth: '900px' }}>
