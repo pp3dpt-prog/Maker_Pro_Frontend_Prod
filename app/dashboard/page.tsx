@@ -13,25 +13,26 @@ export default function Dashboard() {
   const [transacoes, setTransacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isMaker = perfil?.acesso_comercial_ativo === true;
+
   useEffect(() => {
     async function carregarDados() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Procuramos o perfil e os detalhes do plano
+        // 1. Dados do Perfil e Plano
         const { data: perfilData } = await supabase
           .from('prod_perfis')
-          .select('*, prod_planos(nome, tipo)') // 'tipo' ajudará a saber se é comercial
+          .select('*, prod_planos(nome)')
           .eq('id', session.user.id)
           .maybeSingle();
-        
         if (perfilData) setPerfil(perfilData);
 
+        // 2. Transações (Créditos ou Encomendas)
         const { data: transData } = await supabase
           .from('prod_transacoes')
           .select('*')
           .eq('user_id', session.user.id)
           .order('criado_em', { ascending: false });
-
         if (transData) setTransacoes(transData);
       }
       setLoading(false);
@@ -39,104 +40,98 @@ export default function Dashboard() {
     carregarDados();
   }, []);
 
-  if (loading) return <div style={{ background: '#0f172a', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>A carregar dados seguros...</div>;
+  if (loading) return (
+    <div style={{ background: '#0f172a', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontFamily: 'sans-serif' }}>
+      A preparar o seu Dashboard MakerPro...
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>
       
-      {/* SIDEBAR MANTIDA */}
+      {/* SIDEBAR COMPLETA */}
       <aside style={{ width: '280px', borderRight: '1px solid #1e293b', padding: '30px', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '11px', color: '#64748b', marginBottom: '25px', textTransform: 'uppercase' }}>MakerPro Dashboard</h2>
+        <h2 style={{ fontSize: '11px', color: '#64748b', marginBottom: '25px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          {isMaker ? 'Painel Maker Pro' : 'Minha Conta'}
+        </h2>
+        
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-          <button onClick={() => setActiveTab("conta")} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === "conta" ? '#1e293b' : 'transparent', color: activeTab === "conta" ? '#3b82f6' : '#94a3b8' }}>👤 Perfil</button>
-          <button onClick={() => setActiveTab("pagamentos")} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === "pagamentos" ? '#1e293b' : 'transparent', color: activeTab === "pagamentos" ? '#3b82f6' : '#94a3b8' }}>💳 Faturação</button>
+          <button onClick={() => setActiveTab("conta")} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === "conta" ? '#1e293b' : 'transparent', color: activeTab === "conta" ? '#3b82f6' : '#94a3b8', fontWeight: 'bold' }}>👤 Resumo</button>
+          <button onClick={() => setActiveTab("faturacao")} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === "faturacao" ? '#1e293b' : 'transparent', color: activeTab === "faturacao" ? '#3b82f6' : '#94a3b8', fontWeight: 'bold' }}>💳 {isMaker ? 'Créditos e Planos' : 'Minhas Encomendas'}</button>
+          <button onClick={() => setActiveTab("projetos")} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === "projetos" ? '#1e293b' : 'transparent', color: activeTab === "projetos" ? '#3b82f6' : '#94a3b8', fontWeight: 'bold' }}>📂 {isMaker ? 'Ficheiros STL' : 'Meus Projetos'}</button>
         </nav>
+
+        {/* BOTÃO LOGOUT (Recuperado) */}
+        <button 
+          onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')}
+          style={{ padding: '12px', background: 'transparent', color: '#f87171', border: '1px solid #451a1a', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+        >
+          Sair da Conta
+        </button>
       </aside>
 
       <main style={{ flex: 1, padding: '50px', overflowY: 'auto' }}>
         
+        {/* ABA 1: RESUMO (Métricas Recuperadas) */}
         {activeTab === 'conta' && (
           <div style={{ maxWidth: '900px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '30px' }}>Informações da Conta</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px' }}>
+               <h1 style={{ fontSize: '28px', fontWeight: 'bold' }}>Bem-vindo, {perfil?.email?.split('@')[0]}</h1>
+               {!isMaker && (
+                 <button onClick={() => window.location.href = '/preçario'} style={{ padding: '12px 24px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
+                   TORNE-SE MAKER
+                 </button>
+               )}
+            </div>
             
-            {/* STATUS DO PERFIL (Leitura Apenas) */}
-            <div style={{ background: '#1e293b', padding: '30px', borderRadius: '20px', border: '1px solid #334155', marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '18px' }}>Tipo de Utilizador: 
-                    <span style={{ color: perfil?.acesso_comercial_ativo ? '#4ade80' : '#3b82f6', marginLeft: '10px' }}>
-                      {perfil?.acesso_comercial_ativo ? 'MAKER / PRO' : 'CLIENTE FINAL'}
-                    </span>
-                  </h4>
-                  <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '8px' }}>
-                    {perfil?.acesso_comercial_ativo 
-                      ? "Tem permissão para descarregar ficheiros STL e vender as peças." 
-                      : "Perfil limitado a personalização e encomenda de peças impressas."}
-                  </p>
-                </div>
-                
-                {/* Botão de Upgrade (Fluxo de Ticket/Planos) */}
-                {!perfil?.acesso_comercial_ativo && (
-                  <button 
-                    onClick={() => window.location.href = 'mailto:suporte@makerpro.com?subject=Pedido de Upgrade para Maker'}
-                    style={{ padding: '12px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Quero ser Maker
-                  </button>
-                )}
+            {/* Métricas de Créditos (Sempre visíveis para controlo) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '40px' }}>
+              <div style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155' }}>
+                <p style={{ color: '#94a3b8', fontSize: '11px' }}>PLANO ATIVO</p>
+                <h3 style={{ fontSize: '20px', color: '#4ade80', margin: '5px 0' }}>{perfil?.prod_planos?.nome || "Grátis"}</h3>
+              </div>
+              <div style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155' }}>
+                <p style={{ color: '#94a3b8', fontSize: '11px' }}>SALDO DISPONÍVEL</p>
+                <h3 style={{ fontSize: '28px', color: '#3b82f6', margin: '5px 0' }}>{perfil?.creditos_disponiveis ?? 0}</h3>
+              </div>
+              <div style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155' }}>
+                <p style={{ color: '#94a3b8', fontSize: '11px' }}>CONSUMO TOTAL</p>
+                <h3 style={{ fontSize: '28px', color: '#f59e0b', margin: '5px 0' }}>{perfil?.creditos ?? 0}</h3>
               </div>
             </div>
 
-            {/* DETALHES TÉCNICOS E LICENÇA */}
+            {/* STATUS DE LICENÇA (Regra de Negócio: Bloqueada para Admin) */}
             <div style={{ padding: '30px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155' }}>
-              <h4 style={{ marginBottom: '20px', fontSize: '16px', color: '#94a3b8' }}>Licenciamento e Segurança</h4>
+              <h4 style={{ marginBottom: '20px', fontSize: '16px' }}>🛡️ Segurança e Licenciamento</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                
-                {/* LICENÇA COMERCIAL (Baseada em Plano Ativo) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #0f172a', paddingBottom: '10px' }}>
-                  <span style={{ color: '#64748b', fontSize: '13px' }}>Licença Comercial de Produção</span>
-                  <span style={{ 
-                    fontSize: '12px', fontWeight: 'bold', 
-                    color: perfil?.acesso_comercial_ativo ? '#4ade80' : '#f87171',
-                    background: perfil?.acesso_comercial_ativo ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-                    padding: '4px 12px', borderRadius: '20px'
-                  }}>
-                    {perfil?.acesso_comercial_ativo ? 'ATIVA ✅' : 'INATIVA ❌'}
+                  <span style={{ color: '#64748b' }}>Licença Comercial</span>
+                  <span style={{ color: isMaker ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                    {isMaker ? '✅ ATIVA' : '❌ INATIVA (Apenas Uso Pessoal)'}
                   </span>
                 </div>
-
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #0f172a', paddingBottom: '10px' }}>
-                  <span style={{ color: '#64748b', fontSize: '13px' }}>Plano Atual</span>
-                  <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{perfil?.prod_planos?.nome || "Sem Plano Ativo"}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #0f172a', paddingBottom: '10px' }}>
-                  <span style={{ color: '#64748b', fontSize: '13px' }}>Email de Registo</span>
-                  <span style={{ fontSize: '13px' }}>{perfil?.email}</span>
+                  <span style={{ color: '#64748b' }}>UID</span>
+                  <span style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace' }}>{perfil?.id}</span>
                 </div>
               </div>
-
-              {/* NOTA SOBRE MUDANÇA DE PERFIL */}
-              {!perfil?.acesso_comercial_ativo && (
-                <p style={{ marginTop: '20px', fontSize: '11px', color: '#475569', fontStyle: 'italic' }}>
-                  * A ativação da licença comercial requer a subscrição de um plano Pro e validação técnica via ticket de suporte.
-                </p>
-              )}
             </div>
           </div>
         )}
 
-        {/* ABA PAGAMENTOS (MANTIDA PARA HISTÓRICO) */}
-        {activeTab === 'pagamentos' && (
+        {/* ABA 2: FATURAÇÃO (Diferenciada por Perfil) */}
+        {activeTab === 'faturacao' && (
           <div style={{ maxWidth: '900px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '30px' }}>Histórico de Transações</h1>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '35px' }}>
+              {isMaker ? 'Histórico de Créditos' : 'Histórico de Encomendas'}
+            </h1>
             <div style={{ background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ background: '#0f172a' }}>
                   <tr>
-                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px' }}>DATA</th>
-                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px' }}>TIPO</th>
-                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px' }}>CRÉDITOS</th>
+                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px', textAlign: 'left' }}>DATA</th>
+                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px', textAlign: 'left' }}>DESCRIÇÃO</th>
+                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px', textAlign: 'right' }}>{isMaker ? 'CRÉDITOS' : 'ESTADO'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -144,8 +139,8 @@ export default function Dashboard() {
                     <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
                       <td style={{ padding: '18px 25px', fontSize: '13px' }}>{new Date(t.criado_em).toLocaleDateString()}</td>
                       <td style={{ padding: '18px 25px', fontSize: '13px' }}>{t.descricao}</td>
-                      <td style={{ padding: '18px 25px', fontSize: '13px', color: t.creditos_alterados > 0 ? '#4ade80' : '#f87171' }}>
-                        {t.creditos_alterados > 0 ? `+${t.creditos_alterados}` : t.creditos_alterados}
+                      <td style={{ padding: '18px 25px', fontSize: '13px', textAlign: 'right', fontWeight: 'bold' }}>
+                        {isMaker ? (t.creditos_alterados > 0 ? `+${t.creditos_alterados}` : t.creditos_alterados) : 'Enviado 📦'}
                       </td>
                     </tr>
                   ))}
@@ -154,6 +149,16 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* ABA 3: PROJETOS (Recuperada) */}
+        {activeTab === 'projetos' && (
+          <div style={{ textAlign: 'center', padding: '100px 0' }}>
+            <div style={{ fontSize: '50px', marginBottom: '20px' }}>📁</div>
+            <h3 style={{ color: '#94a3b8' }}>{isMaker ? 'Os seus ficheiros STL exportados aparecerão aqui.' : 'A sua pasta de projetos está vazia.'}</h3>
+            <p style={{ color: '#64748b' }}>Comece a criar no editor para ver os seus ficheiros aqui.</p>
+          </div>
+        )}
+
       </main>
     </div>
   );
