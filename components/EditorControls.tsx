@@ -5,7 +5,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
-  // MAPEAMENTO CORRETO: Na tua DB o saldo chama-se 'creditos_disponiveis'
+  // CONFIRMAÇÃO DA MUDANÇA: Agora lê explicitamente 'creditos_disponiveis'
   const saldoAtual = perfil?.creditos_disponiveis ?? 0;
   const temCreditos = saldoAtual > 0;
 
@@ -35,9 +35,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    // Verificação baseada no campo correto da base de dados
+    // Bloqueio de segurança com base no saldo real
     if (saldoAtual <= 0) {
-      alert("Saldo insuficiente. Por favor, carregue a sua conta na área de Faturação.");
+      alert("Saldo insuficiente para processar.");
       return;
     }
 
@@ -49,15 +49,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         body: JSON.stringify({ ...localValores, id: produto.id }),
       });
       const d = await r.json();
-      onGerarSucesso(d.urls || d.url);
+      if (d.urls || d.url) {
+        onGerarSucesso(d.urls || d.url);
+      }
     } catch (err) {
-      alert("Erro ao processar o modelo.");
+      alert("Erro ao gerar.");
       setLoading(false);
     }
   };
 
   if (!produto || !produto.ui_schema) return null;
 
+  // Filtro para limpar grupos vazios ou de gestão
   const seccoesValidas = Array.from(new Set(
     produto.ui_schema
       .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
@@ -67,7 +70,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Grupos de Parâmetros (NOME, CONTACTO, etc.) */}
+      {/* Listagem de Parâmetros (NOME, NÚMERO, etc.) */}
       {seccoesValidas.map((seccao: any) => (
         <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>
@@ -90,11 +93,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* ÁREA DE ACÇÃO COM SALDO REAL */}
+      {/* PAINEL DE AÇÃO MAKER */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', padding: '0 5px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>O TEU SALDO:</span>
-          <span style={{ fontSize: '11px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>SALDO DISPONÍVEL:</span>
+          <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>
             {saldoAtual} CRÉDITOS
           </span>
         </div>
@@ -104,12 +107,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           disabled={loading || !temCreditos}
           style={{ padding: '16px', background: 'transparent', color: temCreditos ? '#3b82f6' : '#475569', border: `1px solid ${temCreditos ? '#3b82f6' : '#334155'}`, borderRadius: '12px', fontWeight: 'bold', cursor: temCreditos ? 'pointer' : 'not-allowed' }}
         >
-          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR PRÉ-VISUALIZAÇÃO"}
+          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
         </button>
 
         {stlUrl && temCreditos && (
           <a href={stlUrl} download style={{ padding: '18px', background: '#3b82f6', color: 'white', borderRadius: '12px', fontWeight: '900', textAlign: 'center', textDecoration: 'none' }}>
-            📥 DESCARREGAR STL (1 CRÉDITO)
+            📥 DESCARREGAR STL (Consome 1 crédito)
           </a>
         )}
       </div>
