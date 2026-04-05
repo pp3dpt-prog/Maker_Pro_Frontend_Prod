@@ -120,35 +120,76 @@ export default function Dashboard() {
         )}
 
         {/* ABA 2: FATURAÇÃO (Diferenciada por Perfil) */}
-        {activeTab === 'faturacao' && (
-          <div style={{ maxWidth: '900px' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '35px' }}>
-              {isMaker ? 'Histórico de Créditos' : 'Histórico de Encomendas'}
-            </h1>
-            <div style={{ background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#0f172a' }}>
-                  <tr>
-                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px', textAlign: 'left' }}>DATA</th>
-                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px', textAlign: 'left' }}>DESCRIÇÃO</th>
-                    <th style={{ padding: '18px 25px', color: '#94a3b8', fontSize: '11px', textAlign: 'right' }}>{isMaker ? 'CRÉDITOS' : 'ESTADO'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transacoes.map((t, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
-                      <td style={{ padding: '18px 25px', fontSize: '13px' }}>{new Date(t.criado_em).toLocaleDateString()}</td>
-                      <td style={{ padding: '18px 25px', fontSize: '13px' }}>{t.descricao}</td>
-                      <td style={{ padding: '18px 25px', fontSize: '13px', textAlign: 'right', fontWeight: 'bold' }}>
-                        {isMaker ? (t.creditos_alterados > 0 ? `+${t.creditos_alterados}` : t.creditos_alterados) : 'Enviado 📦'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        // Dentro do activeTab === 'faturacao' no teu app/dashboard/page.tsx
+
+{activeTab === 'faturacao' && (
+  <div style={{ maxWidth: '900px' }}>
+    <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>
+      {isMaker ? 'Gestão de Créditos e Planos' : 'Histórico de Encomendas'}
+    </h1>
+    
+    {/* NOTA DE RGPD (Inserida aqui para transparência) */}
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '10px', 
+      background: 'rgba(59, 130, 246, 0.05)', 
+      padding: '12px 16px', 
+      borderRadius: '10px', 
+      border: '1px solid rgba(59, 130, 246, 0.2)',
+      marginBottom: '25px'
+    }}>
+      <span style={{ fontSize: '18px' }}>⚖️</span>
+      <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
+        <b>Proteção de Dados:</b> Os seus dados de faturação e envio são processados exclusivamente para a gestão de encomendas e cumprimento de obrigações legais (fiscais e logísticas). 
+        Para sua segurança, não armazenamos dados de cartões de crédito. Consulte a nossa <a href="/privacidade" style={{ color: '#3b82f6', textDecoration: 'none' }}>Política de Privacidade</a>.
+      </p>
+    </div>
+
+    <div style={{ background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead style={{ background: '#0f172a' }}>
+          <tr>
+            <th style={{ padding: '18px', textAlign: 'left', color: '#64748b', fontSize: '11px' }}>DATA</th>
+            <th style={{ padding: '18px', textAlign: 'left', color: '#64748b', fontSize: '11px' }}>{isMaker ? 'CONCEITO' : 'PRODUTO / REFERÊNCIA'}</th>
+            <th style={{ padding: '18px', textAlign: 'right', color: '#64748b', fontSize: '11px' }}>{isMaker ? 'CRÉDITOS' : 'ESTADO DO ENVIO'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {transacoes.length > 0 ? transacoes.map((t, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
+              <td style={{ padding: '18px', fontSize: '13px' }}>{new Date(t.criado_em).toLocaleDateString()}</td>
+              <td style={{ padding: '18px', fontSize: '13px' }}>{t.descricao}</td>
+              <td style={{ padding: '18px', textAlign: 'right', fontSize: '13px', fontWeight: 'bold' }}>
+                {isMaker ? (
+                  <span style={{ color: t.creditos_alterados > 0 ? '#4ade80' : '#f87171' }}>
+                    {t.creditos_alterados > 0 ? `+${t.creditos_alterados}` : t.creditos_alterados}
+                  </span>
+                ) : (
+                  <span style={{ 
+                    padding: '4px 8px', 
+                    background: '#0f172a', 
+                    borderRadius: '6px', 
+                    fontSize: '11px',
+                    color: t.status === 'enviado' ? '#4ade80' : '#3b82f6' 
+                  }}>
+                    {t.status?.toUpperCase() || 'PROCESSANDO'}
+                  </span>
+                )}
+              </td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                Ainda não existem registos de faturação.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
         {/* ABA 3: PROJETOS (Recuperada) */}
         {activeTab === 'projetos' && (
