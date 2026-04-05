@@ -16,7 +16,7 @@ function CustomizadorConteudo() {
   const [produtoAtual, setProdutoAtual] = useState<any>(null);
   const [modelos, setModelos] = useState<any[]>([]);
   const [valores, setValores] = useState<any>({ fonte: 'OpenSans' });
-  const [perfil, setPerfil] = useState<any>(null); // Estado para o saldo
+  const [perfil, setPerfil] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const textoForma = familiaURL?.toLowerCase().includes('caixa') ? 'FORMA DA CAIXA' : 'FORMA DA MEDALHA';
@@ -24,8 +24,9 @@ function CustomizadorConteudo() {
 
   useEffect(() => {
     async function fetchData() {
-      // 1. Carregar Dados do Produto
       if (!id && !familiaURL) return;
+      
+      // Carrega designs
       const { data: lista } = await supabase.from('prod_designs').select('*').eq('familia', familiaURL || '');
       if (lista && lista.length > 0) {
         setModelos(lista);
@@ -33,7 +34,7 @@ function CustomizadorConteudo() {
         setProdutoAtual(selecionado || lista[0]);
       }
 
-      // 2. Carregar Perfil/Créditos do Utilizador
+      // Carrega perfil para ter os créditos atualizados
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: perfilData } = await supabase
@@ -43,7 +44,6 @@ function CustomizadorConteudo() {
           .maybeSingle();
         setPerfil(perfilData);
       }
-
       setLoading(false);
     }
     fetchData();
@@ -88,7 +88,6 @@ function CustomizadorConteudo() {
           </button>
         )}
         
-        {/* Agora passamos o perfil carregado para o Editor */}
         <EditorControls 
           produto={produtoAtual} 
           perfil={perfil} 
@@ -98,8 +97,16 @@ function CustomizadorConteudo() {
         />
       </aside>
 
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617' }}>
         <STLViewer produto={produtoAtual} valores={mostrarPreview ? valores : {}} />
+        
+        {/* AVISO DE DESIGN ADICIONADO AQUI */}
+        <div style={{ marginTop: '30px', padding: '15px 25px', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px solid #334155', maxWidth: '500px', textAlign: 'center' }}>
+          <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: '1.6' }}>
+            <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>⚠️ NOTA DE PRECISÃO:</span><br />
+            O visualizador 3D é uma aproximação. Podes atualizar a visualização as vezes que quiseres até o design estar ao teu gosto. O ficheiro final será processado com máxima qualidade.
+          </p>
+        </div>
       </main>
     </div>
   );

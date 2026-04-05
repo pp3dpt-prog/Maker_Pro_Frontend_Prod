@@ -5,7 +5,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
-  // Lógica de Saldo corrigida para creditos_disponiveis
+  // Lê os créditos disponíveis do perfil
   const saldoDisponivel = perfil?.creditos_disponiveis ?? 0;
   const temCreditos = saldoDisponivel > 0;
 
@@ -53,7 +53,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   if (!produto || !produto.ui_schema) return null;
 
-  // FILTRO: Remove "GESTÃO" e garante grupos organizados
+  // Filtra secções, removendo "GESTÃO"
   const seccoesValidas = Array.from(new Set(
     produto.ui_schema
       .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
@@ -85,12 +85,19 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
           <span style={{ fontSize: '12px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoDisponivel} CRÉDITOS</span>
         </div>
+        
         <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-          {loading ? "A PROCESSAR..." : "ATUALIZAR 3D"}
+          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
         </button>
+
+        {/* MENSAGEM DE REFORÇO */}
+        <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '8px' }}>
+          ✨ Podes atualizar o 3D as vezes que quiseres.
+        </p>
+
         {stlUrl && temCreditos && (
           <a href={stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
-            DESCARREGAR STL
+            📥 DESCARREGAR STL (1 CRÉDITO)
           </a>
         )}
       </div>
