@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link'; // Adicionado para a navegação entre formas
+import Link from 'next/link';
 
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl, modelos, familiaURL }: any) {
   const [loading, setLoading] = useState(false);
@@ -12,8 +12,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   useEffect(() => {
     if (produto) {
-      // 1. VALORES PREDEFINIDOS DA BD
       const iniciais: any = {
+        // Mapeamento para o STLViewer.tsx
         xPos: produto.default_x_nome ?? 0,
         yPos: produto.default_y_nome ?? 0,
         fontSize: produto.default_size_nome ?? 7,
@@ -23,7 +23,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         fonte: produto.default_fonte || 'OpenSans',
         nome_pet: "NOME",
         telefone: "123 456 789",
-        forma: produto.nome?.split('-').pop()?.trim().toLowerCase(), // Identifica a forma pelo nome
+        forma: produto.id?.includes('coracao') ? 'coracao' : 'normal', // Lógica para o multiplicador do STLViewer
         ...(produto.parametros_default || {}),
       };
 
@@ -32,7 +32,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           if (c.name) iniciais[c.name] = iniciais[c.name] ?? (c.value ?? c.default);
         });
       }
-
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
@@ -53,27 +52,33 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* BLOCO DE ESCOLHA DE FORMAS (VINDO DA BD) */}
+      {/* SELETOR DE FORMAS - Agora com dados da BD */}
       <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
         <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>
           FORMA DO DESIGN
         </label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {modelos?.map((item: any) => (
-            <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
-              style={{
-                textDecoration: 'none', 
-                backgroundColor: item.id === produto?.id ? '#2563eb' : '#0f172a',
-                padding: '12px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', 
-                border: '1px solid #334155', fontWeight: 'bold', transition: '0.2s'
-              }}>
-              {item.nome.split('-').pop()?.trim().toUpperCase()}
-            </Link>
-          ))}
+          {modelos && modelos.length > 0 ? (
+            modelos.map((item: any) => (
+              <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
+                style={{
+                  textDecoration: 'none', 
+                  backgroundColor: item.id === produto?.id ? '#2563eb' : '#0f172a',
+                  padding: '12px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', 
+                  border: '1px solid #334155', fontWeight: 'bold'
+                }}>
+                {item.nome.toUpperCase()}
+              </Link>
+            ))
+          ) : (
+            <p style={{ color: '#64748b', fontSize: '10px', gridColumn: 'span 2', textAlign: 'center' }}>
+              Carregando formas...
+            </p>
+          )}
         </div>
       </div>
 
-      {/* BLOCOS DINÂMICOS (TIPOGRAFIA, NOME, CONTACTO) */}
+      {/* BLOCOS DE PERSONALIZAÇÃO (Mantidos conforme imagem da UI) */}
       {seccoes.map((seccao: any) => (
         <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>
@@ -104,7 +109,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* PAINEL DE SALDO E ACÇÕES */}
+      {/* PAINEL DE SALDO E DOWNLOAD (Mantido original) */}
       <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
@@ -112,7 +117,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
         <button onClick={() => onGerarSucesso(null)} disabled={loading || !temCreditos} 
           style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-          {loading ? "A PROCESSAR..." : "ATUALIZAR PREVIEW 3D"}
+          ATUALIZAR PREVIEW 3D
         </button>
         {stlUrl && temCreditos && (
           <button onClick={() => window.location.href = stlUrl} 

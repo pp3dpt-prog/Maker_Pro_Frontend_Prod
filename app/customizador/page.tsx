@@ -20,15 +20,23 @@ function CustomizadorConteudo() {
 
   useEffect(() => {
     async function fetchData() {
+      // 1. Obter sessão e perfil do utilizador
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: p } = await supabase.from('prod_perfis').select('*').eq('id', session.user.id).maybeSingle();
         setPerfil(p);
       }
+
+      // 2. Procurar todos os produtos que pertencem à mesma família (Formas)
       if (!familiaURL) return;
-      const { data: lista } = await supabase.from('prod_designs').select('*').eq('familia', familiaURL);
+      const { data: lista } = await supabase
+        .from('prod_designs')
+        .select('*')
+        .eq('familia', familiaURL);
+
       if (lista) {
-        setModelos(lista);
+        setModelos(lista); // Esta lista preenche os botões de formas no EditorControls
+        // Define qual o produto específico a carregar (pelo ID da URL ou o primeiro da lista)
         const selecionado = id ? lista.find(m => String(m.id) === String(id)) : lista[0];
         setProdutoAtual(selecionado);
       }
@@ -38,7 +46,11 @@ function CustomizadorConteudo() {
   }, [id, familiaURL]);
 
   const aoGerarStlComSucesso = (resultado: any) => {
-    setProdutoAtual((prev: any) => ({ ...prev, stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado }));
+    // Atualiza o caminho do ficheiro STL após a geração no servidor
+    setProdutoAtual((prev: any) => ({ 
+      ...prev, 
+      stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado 
+    }));
     setMostrarPreview(false); 
   };
 
@@ -46,28 +58,50 @@ function CustomizadorConteudo() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a' }}>
+      {/* BARRA LATERAL DE CONTROLOS */}
       <aside style={{ width: '380px', backgroundColor: '#1e293b', padding: '25px', overflowY: 'auto', borderRight: '1px solid #334155' }}>
-        <Link href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold' }}>← VOLTAR</Link>
-        <h1 style={{ fontSize: '20px', color: 'white', margin: '20px 0', fontWeight: '900' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
+        <Link href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold' }}>
+          ← VOLTAR PARA A GALERIA
+        </Link>
+        
+        <h1 style={{ fontSize: '20px', color: 'white', margin: '20px 0', fontWeight: '900' }}>
+          {produtoAtual?.nome?.toUpperCase()}
+        </h1>
 
-        {/* Botão de Preview Condicional */}
+        {/* Botão de Preview Condicional (só aparece se definido no ui_schema da BD) */}
         {produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true) && (
-          <button onClick={() => setMostrarPreview(!mostrarPreview)}
-            style={{ width: '100%', marginBottom: '20px', padding: '16px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '10px', fontWeight: '900', border: 'none', cursor: 'pointer' }}>
+          <button 
+            onClick={() => setMostrarPreview(!mostrarPreview)}
+            style={{ 
+              width: '100%', 
+              marginBottom: '20px', 
+              padding: '16px', 
+              backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', 
+              color: 'white', 
+              borderRadius: '10px', 
+              fontWeight: '900', 
+              border: 'none', 
+              cursor: 'pointer' 
+            }}
+          >
             {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
           </button>
         )}
 
+        {/* COMPONENTE DE CONTROLOS - Agora com as props obrigatórias passadas */}
         <EditorControls 
           produto={produtoAtual} 
           perfil={perfil}
+          modelos={modelos}          // LISTA DE FORMAS DA MESMA FAMÍLIA
+          familiaURL={familiaURL}    // NECESSÁRIO PARA OS LINKS DE TROCA DE FORMA
           onUpdate={(v: any) => setValores(v)} 
           onGerarSucesso={aoGerarStlComSucesso} 
           stlUrl={produtoAtual?.stl_file_path}
         />
       </aside>
 
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* ÁREA PRINCIPAL DO VISUALIZADOR 3D */}
+      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         {valores && (
           <STLViewer 
             key={`${produtoAtual?.id}-${valores.fonte}-${mostrarPreview}`} 
@@ -81,5 +115,9 @@ function CustomizadorConteudo() {
 }
 
 export default function CustomizadorPage() {
-  return <Suspense fallback={null}><CustomizadorConteudo /></Suspense>;
+  return (
+    <Suspense fallback={<div style={{ background: '#0f172a', height: '100vh' }} />}>
+      <CustomizadorConteudo />
+    </Suspense>
+  );
 }
