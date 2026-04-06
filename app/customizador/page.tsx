@@ -70,12 +70,14 @@ function CustomizadorConteudo() {
       </aside>
 
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <STLViewer 
-          key={`${produtoAtual?.id}-${valores?.fonte}-${mostrarPreview}`} 
-          produto={produtoAtual} 
-          // CORREÇÃO: Passa os valores integrais se o preview estiver ligado para o Text do Drei funcionar
-          valores={mostrarPreview ? valores : {}} 
-        />
+        {produtoAtual && (
+          <STLViewer 
+            // A key garante que o React recarrega o componente quando o texto ou a fonte mudam
+            key={`${produtoAtual.id}-${valores?.nome_pet}-${valores?.fonte}-${mostrarPreview}`} 
+            produto={produtoAtual} 
+            valores={mostrarPreview ? valores : { ...valores, nome_pet: '', telefone: '' }} 
+          />
+        )}
       </main>
     </div>
   );

@@ -7,17 +7,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>(null);
 
-  const saldoAtual = perfil?.creditos_disponiveis ?? 0;
-  const temCreditos = saldoAtual > 0;
-
   useEffect(() => {
     if (produto) {
-      // MAPEAMENTO PARA O VISUALIZADOR
       const iniciais: any = {
         xPos: produto.default_x_nome ?? 0,
         yPos: produto.default_y_nome ?? 0,
         fontSize: produto.default_size_nome ?? 7,
-        nome_pet: "NOME",
+        nome_pet: "NOME", // Este é o valor que o 3D lê
         xPosN: produto.default_x_num ?? 0,
         yPosN: produto.default_y_num ?? 0,
         fontSizeN: produto.default_size_num ?? 5,
@@ -29,6 +25,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
       if (produto.ui_schema) {
         produto.ui_schema.forEach((c: any) => {
+          // Garante que se o schema pedir "nome_pet", ele usa o valor inicial correto
           if (c.name && iniciais[c.name] === undefined) {
             iniciais[c.name] = c.value ?? c.default;
           }
@@ -42,6 +39,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleChange = (k: string, v: any) => {
     const novos = { ...localValores, [k]: v };
+    // Sincronização forçada: se o input mudar o campo do schema, atualiza a variável do 3D
+    if (k === 'nome_pet' || k === 'nome') novos.nome_pet = v;
+    if (k === 'telefone' || k === 'contacto') novos.telefone = v;
+    
     setLocalValores(novos);
     onUpdate(novos);
   };
@@ -98,20 +99,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
-          <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>{saldoAtual} CRÉDITOS</span>
-        </div>
-        <button onClick={() => onGerarSucesso(null)} disabled={loading || !temCreditos} 
-          style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        <button onClick={() => onGerarSucesso(null)} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', fontWeight: 'bold' }}>
           ATUALIZAR PREVIEW 3D
         </button>
-        {stlUrl && temCreditos && (
-          <button onClick={() => window.location.href = stlUrl} 
-            style={{ width: '100%', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>
-            DESCARREGAR STL (-1 CRÉDITO)
-          </button>
-        )}
       </div>
     </div>
   );
