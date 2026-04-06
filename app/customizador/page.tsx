@@ -15,7 +15,7 @@ function CustomizadorConteudo() {
   const [produtoAtual, setProdutoAtual] = useState<any>(null);
   const [modelos, setModelos] = useState<any[]>([]);
   const [perfil, setPerfil] = useState<any>(null);
-  const [valores, setValores] = useState<any>(null);
+  const [valores, setValores] = useState<any>({}); // Estado inicial vazio para não bloquear o Viewer
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +26,6 @@ function CustomizadorConteudo() {
         setPerfil(p);
       }
       if (!familiaURL) return;
-      
-      // Procura todos os designs da mesma família para o seletor de formas
       const { data: lista } = await supabase.from('prod_designs').select('*').eq('familia', familiaURL);
       if (lista) {
         setModelos(lista);
@@ -40,7 +38,10 @@ function CustomizadorConteudo() {
   }, [id, familiaURL]);
 
   const aoGerarStlComSucesso = (resultado: any) => {
-    setProdutoAtual((prev: any) => ({ ...prev, stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado }));
+    setProdutoAtual((prev: any) => ({ 
+      ...prev, 
+      stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado 
+    }));
     setMostrarPreview(false); 
   };
 
@@ -52,19 +53,16 @@ function CustomizadorConteudo() {
         <Link href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold' }}>← VOLTAR</Link>
         <h1 style={{ fontSize: '20px', color: 'white', margin: '20px 0', fontWeight: '900' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
 
-        {/* Botão de Preview Condicional */}
-        {produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true) && (
-          <button onClick={() => setMostrarPreview(!mostrarPreview)}
-            style={{ width: '100%', marginBottom: '20px', padding: '16px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '10px', fontWeight: '900', border: 'none', cursor: 'pointer' }}>
-            {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
-          </button>
-        )}
+        <button onClick={() => setMostrarPreview(!mostrarPreview)}
+          style={{ width: '100%', marginBottom: '20px', padding: '16px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '10px', fontWeight: '900', border: 'none', cursor: 'pointer' }}>
+          {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
+        </button>
 
         <EditorControls 
           produto={produtoAtual} 
           perfil={perfil}
-          modelos={modelos} // Passa a lista para o seletor de formas
-          familiaURL={familiaURL} // Passa a família para construir os links
+          modelos={modelos}
+          familiaURL={familiaURL}
           onUpdate={(v: any) => setValores(v)} 
           onGerarSucesso={aoGerarStlComSucesso} 
           stlUrl={produtoAtual?.stl_file_path}
@@ -72,16 +70,11 @@ function CustomizadorConteudo() {
       </aside>
 
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Só renderiza o visualizador quando existem valores mapeados */}
-        {produtoAtual && valores ? (
-          <STLViewer 
-            key={`${produtoAtual?.id}-${valores.fonte}-${mostrarPreview}`} 
-            produto={produtoAtual} 
-            valores={mostrarPreview ? valores : { ...valores, nome_pet: '', telefone: '' }} 
-          />
-        ) : (
-          <div style={{ color: 'white' }}>A carregar modelo 3D...</div>
-        )}
+        <STLViewer 
+          key={`${produtoAtual?.id}-${valores?.fonte}-${mostrarPreview}`} 
+          produto={produtoAtual} 
+          valores={mostrarPreview ? valores : {}} 
+        />
       </main>
     </div>
   );

@@ -12,26 +12,24 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   useEffect(() => {
     if (produto) {
-      // MAPEAMENTO DIRETO DA BASE DE DADOS PARA O VISUALIZADOR
+      // MAPEAMENTO PARA O STLVIEWER
       const iniciais: any = {
         // Nome
         xPos: produto.default_x_nome ?? 0,
         yPos: produto.default_y_nome ?? 0,
         fontSize: produto.default_size_nome ?? 7,
-        nome_pet: "NOME", // Valor inicial de texto
-        
-        // Número
+        nome_pet: "NOME",
+        // Telefone
         xPosN: produto.default_x_num ?? 0,
         yPosN: produto.default_y_num ?? 0,
         fontSizeN: produto.default_size_num ?? 5,
-        telefone: "123 456 789", // Valor inicial de telefone
-        
+        telefone: "123 456 789",
+        // Fonte
         fonte: produto.default_fonte || 'OpenSans',
         forma: produto.id?.includes('coracao') ? 'coracao' : 'normal',
         ...(produto.parametros_default || {}),
       };
 
-      // Sincroniza com o ui_schema para inputs dinâmicos
       if (produto.ui_schema) {
         produto.ui_schema.forEach((c: any) => {
           if (c.name && iniciais[c.name] === undefined) {
@@ -60,7 +58,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* SELETOR DE FORMAS DA FAMÍLIA */}
+      {/* SELETOR DE FORMAS */}
       <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
         <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>FORMA DO DESIGN</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -76,7 +74,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       </div>
 
-      {/* RENDERIZAÇÃO DOS BLOCOS (PERSONALIZAÇÃO, NOME, CONTACTO) */}
+      {/* RENDERIZAÇÃO DOS CAMPOS */}
       {seccoes.map((seccao: any) => (
         <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>{seccao.toUpperCase()}</label>
@@ -105,7 +103,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* SALDO E ACÇÕES */}
+      {/* SALDO E DOWNLOAD */}
       <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
