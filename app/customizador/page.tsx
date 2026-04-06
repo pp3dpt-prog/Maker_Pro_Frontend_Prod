@@ -18,9 +18,6 @@ function CustomizadorConteudo() {
   const [valores, setValores] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Verifica se o botão de preview deve aparecer
-  const mostrarBotaoPreview = produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true);
-
   useEffect(() => {
     async function fetchData() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -41,41 +38,22 @@ function CustomizadorConteudo() {
   }, [id, familiaURL]);
 
   const aoGerarStlComSucesso = (resultado: any) => {
-    setProdutoAtual((prev: any) => ({
-      ...prev,
-      stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado
-    }));
+    setProdutoAtual((prev: any) => ({ ...prev, stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado }));
     setMostrarPreview(false); 
   };
 
   if (loading) return <div style={{ background: '#0f172a', height: '100vh' }} />;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white' }}>
-      
-      <aside style={{ width: '380px', backgroundColor: '#1e293b', padding: '25px', borderRight: '1px solid #334155', overflowY: 'auto', height: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a' }}>
+      <aside style={{ width: '380px', backgroundColor: '#1e293b', padding: '25px', overflowY: 'auto', borderRight: '1px solid #334155' }}>
         <Link href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold' }}>← VOLTAR</Link>
-        <h1 style={{ fontSize: '22px', fontWeight: '900', margin: '20px 0' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
+        <h1 style={{ fontSize: '20px', color: 'white', margin: '20px 0', fontWeight: '900' }}>{produtoAtual?.nome?.toUpperCase()}</h1>
 
-        {/* Seleção de Formas */}
-        <div style={{ marginBottom: '25px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {modelos.map((item) => (
-              <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
-                style={{
-                  textDecoration: 'none', backgroundColor: item.id === produtoAtual?.id ? '#2563eb' : '#0f172a',
-                  padding: '12px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', border: '1px solid #334155', fontWeight: 'bold'
-                }}>
-                {item.nome.split('-').pop()?.trim().toUpperCase()}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* BOTÃO DE PREVIEW REPOSTO */}
-        {mostrarBotaoPreview && (
+        {/* Botão de Preview Condicional */}
+        {produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true) && (
           <button onClick={() => setMostrarPreview(!mostrarPreview)}
-            style={{ width: '100%', marginBottom: '25px', padding: '16px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '10px', fontWeight: '900', border: 'none', cursor: 'pointer' }}>
+            style={{ width: '100%', marginBottom: '20px', padding: '16px', backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', color: 'white', borderRadius: '10px', fontWeight: '900', border: 'none', cursor: 'pointer' }}>
             {mostrarPreview ? 'REMOVER PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
           </button>
         )}
@@ -89,11 +67,10 @@ function CustomizadorConteudo() {
         />
       </aside>
 
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617' }}>
-        {/* KEY FORÇA O REFRESH QUANDO A FONTE OU MODELO MUDAM */}
+      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {valores && (
           <STLViewer 
-            key={`${produtoAtual?.id}-${valores.fonte}`} 
+            key={`${produtoAtual?.id}-${valores.fonte}-${mostrarPreview}`} 
             produto={produtoAtual} 
             valores={mostrarPreview ? valores : {}} 
           />
