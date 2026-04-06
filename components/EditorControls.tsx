@@ -11,32 +11,32 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   useEffect(() => {
     if (produto) {
-      // MAPEAMENTO DIRETO DA TUA TABELA
-      const dadosIniciais: any = {
+      // 1. MAPEAMENTO TOTAL DOS CAMPOS DA BASE DE DADOS
+      const valoresIniciais: any = {
         ...(produto.parametros_default || {}),
-        // CAMPOS DO NOME
+        // Nome
         x_nome: produto.default_x_nome ?? 0,
         y_nome: produto.default_y_nome ?? 0,
         size_nome: produto.default_size_nome ?? 7,
-        // CAMPOS DO NÚMERO (Usando a mesma lógica da imagem)
+        // Número
         x_numero: produto.default_x_numero ?? 0,
         y_numero: produto.default_y_numero ?? 0,
         size_numero: produto.default_size_numero ?? 7,
-        // GERAL
+        // Fonte e Textos Padrão
         fonte: produto.fonte_default || 'OpenSans',
         texto_linha_1: "NOME",
         texto_linha_2: "123 456 789"
       };
 
-      // Injetar ui_schema
+      // 2. Injetar configurações do ui_schema (se existirem)
       if (produto.ui_schema) {
         produto.ui_schema.forEach((c: any) => {
-          if (c.name) dadosIniciais[c.name] = c.value ?? c.default;
+          if (c.name) valoresIniciais[c.name] = c.value ?? c.default;
         });
       }
 
-      setLocalValores(dadosIniciais);
-      onUpdate(dadosIniciais);
+      setLocalValores(valoresIniciais);
+      onUpdate(valoresIniciais); // Notifica o Viewer imediatamente
     }
   }, [produto?.id]);
 
@@ -50,7 +50,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     if (!temCreditos) return alert("Sem créditos!");
     const { error } = await supabase.rpc('baixar_credito', { user_id: perfil.id });
     if (error) return alert("Erro no crédito");
-    
     const link = document.createElement('a');
     link.href = stlUrl;
     link.download = `${produto.nome}.stl`;
@@ -75,9 +74,17 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   if (!localValores) return null;
 
+  // ORGANIZAÇÃO POR SEÇÕES
+  const seccoes = Array.from(new Set(
+    produto.ui_schema
+      ?.filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
+      .map((c: any) => c.section)
+  ));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-      {/* SELETOR DE FONTES - FORÇADO */}
+      
+      {/* BLOCO DE FONTE (Sempre Visível se houver texto) */}
       <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
         <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold' }}>TIPOGRAFIA</label>
         <select value={localValores.fonte} onChange={(e) => handleChange('fonte', e.target.value)}
@@ -89,26 +96,33 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </select>
       </div>
 
-      {/* RENDERIZAÇÃO DINÂMICA DO UI_SCHEMA */}
-      {produto.ui_schema?.filter((c: any) => c.type !== 'hidden').map((c: any) => (
-        <div key={c.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <label style={{ fontSize: '10px', color: '#94a3b8' }}>{c.label?.toUpperCase()}</label>
-            {c.type === 'slider' && <span style={{ fontSize: '10px', color: '#3b82f6' }}>{localValores[c.name]}mm</span>}
+      {/* BLOCOS DINÂMICOS POR SEÇÃO */}
+      {seccoes.map((seccao: any) => (
+        <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px' }}>
+          <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{seccao.toUpperCase()}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {produto.ui_schema.filter((c: any) => c.section === seccao && c.type !== 'hidden').map((c: any) => (
+              <div key={c.name}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '9px', color: '#64748b' }}>{c.label?.toUpperCase()}</label>
+                  {c.type === 'slider' && <span style={{ fontSize: '9px', color: '#3b82f6' }}>{localValores[c.name]}mm</span>}
+                </div>
+                <input 
+                  type={c.type === 'slider' ? 'range' : 'text'}
+                  min={c.min} max={c.max} step={0.1}
+                  value={localValores[c.name] ?? ''}
+                  onChange={(e) => handleChange(c.name, c.type === 'slider' ? parseFloat(e.target.value) : e.target.value)}
+                  style={{ width: '100%', marginTop: '5px' }}
+                />
+              </div>
+            ))}
           </div>
-          <input 
-            type={c.type === 'slider' ? 'range' : 'text'}
-            min={c.min} max={c.max} step={0.1}
-            value={localValores[c.name] ?? ''}
-            onChange={(e) => handleChange(c.name, c.type === 'slider' ? parseFloat(e.target.value) : e.target.value)}
-            style={{ width: '100%', marginTop: '8px' }}
-          />
         </div>
       ))}
 
-      {/* PAINEL DE DOWNLOAD */}
+      {/* PAINEL FINANCEIRO */}
       <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
           <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>{saldoAtual} CRÉDITOS</span>
         </div>
