@@ -12,26 +12,34 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   useEffect(() => {
     if (produto) {
+      // MAPEAMENTO DIRETO DA BASE DE DADOS PARA O VISUALIZADOR
       const iniciais: any = {
-        // Mapeamento para o STLViewer.tsx
+        // Nome
         xPos: produto.default_x_nome ?? 0,
         yPos: produto.default_y_nome ?? 0,
         fontSize: produto.default_size_nome ?? 7,
+        nome_pet: "NOME", // Valor inicial de texto
+        
+        // Número
         xPosN: produto.default_x_num ?? 0,
         yPosN: produto.default_y_num ?? 0,
         fontSizeN: produto.default_size_num ?? 5,
+        telefone: "123 456 789", // Valor inicial de telefone
+        
         fonte: produto.default_fonte || 'OpenSans',
-        nome_pet: "NOME",
-        telefone: "123 456 789",
-        forma: produto.id?.includes('coracao') ? 'coracao' : 'normal', // Lógica para o multiplicador do STLViewer
+        forma: produto.id?.includes('coracao') ? 'coracao' : 'normal',
         ...(produto.parametros_default || {}),
       };
 
+      // Sincroniza com o ui_schema para inputs dinâmicos
       if (produto.ui_schema) {
         produto.ui_schema.forEach((c: any) => {
-          if (c.name) iniciais[c.name] = iniciais[c.name] ?? (c.value ?? c.default);
+          if (c.name && iniciais[c.name] === undefined) {
+            iniciais[c.name] = c.value ?? c.default;
+          }
         });
       }
+
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
@@ -52,38 +60,26 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* SELETOR DE FORMAS - Agora com dados da BD */}
+      {/* SELETOR DE FORMAS DA FAMÍLIA */}
       <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-        <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>
-          FORMA DO DESIGN
-        </label>
+        <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>FORMA DO DESIGN</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {modelos && modelos.length > 0 ? (
-            modelos.map((item: any) => (
-              <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
-                style={{
-                  textDecoration: 'none', 
-                  backgroundColor: item.id === produto?.id ? '#2563eb' : '#0f172a',
-                  padding: '12px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', 
-                  border: '1px solid #334155', fontWeight: 'bold'
-                }}>
-                {item.nome.toUpperCase()}
-              </Link>
-            ))
-          ) : (
-            <p style={{ color: '#64748b', fontSize: '10px', gridColumn: 'span 2', textAlign: 'center' }}>
-              Carregando formas...
-            </p>
-          )}
+          {modelos?.map((item: any) => (
+            <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
+              style={{
+                textDecoration: 'none', backgroundColor: item.id === produto?.id ? '#2563eb' : '#0f172a',
+                padding: '12px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', border: '1px solid #334155', fontWeight: 'bold'
+              }}>
+              {item.nome.toUpperCase()}
+            </Link>
+          ))}
         </div>
       </div>
 
-      {/* BLOCOS DE PERSONALIZAÇÃO (Mantidos conforme imagem da UI) */}
+      {/* RENDERIZAÇÃO DOS BLOCOS (PERSONALIZAÇÃO, NOME, CONTACTO) */}
       {seccoes.map((seccao: any) => (
         <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>
-            {seccao.toUpperCase()}
-          </label>
+          <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>{seccao.toUpperCase()}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {produto.ui_schema.filter((c: any) => c.section === seccao && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
@@ -109,7 +105,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* PAINEL DE SALDO E DOWNLOAD (Mantido original) */}
+      {/* SALDO E ACÇÕES */}
       <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
