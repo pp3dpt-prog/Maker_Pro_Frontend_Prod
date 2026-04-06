@@ -73,8 +73,8 @@ function CustomizadorConteudo() {
         <STLViewer 
           key={`${produtoAtual?.id}-${valores?.fonte}-${mostrarPreview}`} 
           produto={produtoAtual} 
-          // CORREÇÃO: Mantemos todos os valores (coordenadas/fonte) e apenas limpamos o texto se o preview estiver desligado
-          valores={mostrarPreview ? valores : { ...valores, nome_pet: '', telefone: '' }} 
+          // CORREÇÃO: Passa os valores integrais se o preview estiver ligado para o Text do Drei funcionar
+          valores={mostrarPreview ? valores : {}} 
         />
       </main>
     </div>

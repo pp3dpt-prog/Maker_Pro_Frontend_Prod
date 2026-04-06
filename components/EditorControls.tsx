@@ -12,8 +12,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   useEffect(() => {
     if (produto) {
+      // MAPEAMENTO PARA O VISUALIZADOR
       const iniciais: any = {
-        // Coordenadas vindas da BD
         xPos: produto.default_x_nome ?? 0,
         yPos: produto.default_y_nome ?? 0,
         fontSize: produto.default_size_nome ?? 7,
