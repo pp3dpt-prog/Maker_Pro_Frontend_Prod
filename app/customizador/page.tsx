@@ -15,7 +15,7 @@ function CustomizadorConteudo() {
   const [produtoAtual, setProdutoAtual] = useState<any>(null);
   const [modelos, setModelos] = useState<any[]>([]);
   const [perfil, setPerfil] = useState<any>(null);
-  const [valores, setValores] = useState<any>({}); // Estado inicial vazio para não bloquear o Viewer
+  const [valores, setValores] = useState<any>({}); 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,7 +73,8 @@ function CustomizadorConteudo() {
         <STLViewer 
           key={`${produtoAtual?.id}-${valores?.fonte}-${mostrarPreview}`} 
           produto={produtoAtual} 
-          valores={mostrarPreview ? valores : {}} 
+          // CORREÇÃO: Mantemos todos os valores (coordenadas/fonte) e apenas limpamos o texto se o preview estiver desligado
+          valores={mostrarPreview ? valores : { ...valores, nome_pet: '', telefone: '' }} 
         />
       </main>
     </div>
