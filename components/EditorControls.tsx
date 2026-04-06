@@ -1,96 +1,78 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
 
-export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl, modelos, familiaURL }: any) {
+export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
-  const [localValores, setLocalValores] = useState<any>(null);
+  const [localValores, setLocalValores] = useState<any>({});
+
+  // Lê os créditos disponíveis do perfil
+  const saldoDisponivel = perfil?.creditos_disponiveis ?? 0;
+  const temCreditos = saldoDisponivel > 0;
+
+  useEffect(() => {
+    if (stlUrl) setLoading(false);
+  }, [stlUrl]);
 
   useEffect(() => {
     if (produto) {
-      const iniciais: any = {
-        xPos: produto.default_x_nome ?? 0,
-        yPos: produto.default_y_nome ?? 0,
-        fontSize: produto.default_size_nome ?? 7,
-        nome_pet: "NOME", // Este é o valor que o 3D lê
-        xPosN: produto.default_x_num ?? 0,
-        yPosN: produto.default_y_num ?? 0,
-        fontSizeN: produto.default_size_num ?? 5,
-        telefone: "123 456 789",
-        fonte: produto.default_fonte || 'OpenSans',
-        forma: produto.id?.includes('coracao') ? 'coracao' : 'normal',
-        ...(produto.parametros_default || {}),
-      };
-
-      if (produto.ui_schema) {
+      const iniciais: any = { ...(produto.parametros_default || {}) };
+      if (produto.ui_schema && Array.isArray(produto.ui_schema)) {
         produto.ui_schema.forEach((c: any) => {
-          // Garante que se o schema pedir "nome_pet", ele usa o valor inicial correto
-          if (c.name && iniciais[c.name] === undefined) {
-            iniciais[c.name] = c.value ?? c.default;
+          if (c && c.name) {
+            iniciais[c.name] = c.value !== undefined ? c.value : c.default;
           }
         });
       }
-
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
   }, [produto?.id]);
 
   const handleChange = (k: string, v: any) => {
-    const novos = { ...localValores, [k]: v };
-    // Sincronização forçada: se o input mudar o campo do schema, atualiza a variável do 3D
-    if (k === 'nome_pet' || k === 'nome') novos.nome_pet = v;
-    if (k === 'telefone' || k === 'contacto') novos.telefone = v;
-    
-    setLocalValores(novos);
-    onUpdate(novos);
+    const n = { ...localValores, [k]: v };
+    setLocalValores(n);
+    onUpdate(n);
   };
 
-  if (!localValores) return null;
+  const handleGerarSTL = async () => {
+    if (saldoDisponivel <= 0) return alert("Saldo insuficiente.");
+    setLoading(true);
+    try {
+      const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...localValores, id: produto.id }),
+      });
+      const d = await r.json();
+      if (d.urls || d.url) onGerarSucesso(d.urls || d.url);
+    } catch (err) {
+      alert("Erro ao gerar.");
+      setLoading(false);
+    }
+  };
 
-  const seccoes = Array.from(new Set(
-    produto.ui_schema?.filter((c: any) => c.section && c.type !== 'hidden').map((c: any) => c.section)
+  if (!produto || !produto.ui_schema) return null;
+
+  // Filtra secções, removendo "GESTÃO"
+  const seccoesValidas = Array.from(new Set(
+    produto.ui_schema
+      .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
+      .map((c: any) => c.section)
   ));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-        <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>FORMA DO DESIGN</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {modelos?.map((item: any) => (
-            <Link key={item.id} href={`/customizador?familia=${familiaURL}&id=${item.id}`}
-              style={{
-                textDecoration: 'none', backgroundColor: item.id === produto?.id ? '#2563eb' : '#0f172a',
-                padding: '12px', borderRadius: '8px', textAlign: 'center', fontSize: '10px', color: 'white', border: '1px solid #334155', fontWeight: 'bold'
-              }}>
-              {item.nome.toUpperCase()}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {seccoes.map((seccao: any) => (
-        <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px' }}>{seccao.toUpperCase()}</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {seccoesValidas.map((seccao: any) => (
+        <div key={seccao} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{seccao.toUpperCase()}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {produto.ui_schema.filter((c: any) => c.section === seccao && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '9px', color: '#94a3b8' }}>{c.label?.toUpperCase()}</label>
-                  {c.type === 'slider' && <span style={{ fontSize: '9px', color: '#3b82f6' }}>{localValores[c.name]}mm</span>}
-                </div>
-                {c.type === 'select' ? (
-                  <select value={localValores[c.name]} onChange={(e) => handleChange(c.name, e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', color: 'white', borderRadius: '8px', border: '1px solid #475569', marginTop: '5px' }}>
-                    {c.options?.map((o: any) => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
-                  </select>
-                ) : c.type === 'slider' ? (
-                  <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name]} 
-                    onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', marginTop: '8px' }} />
+                <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label}</label>
+                {c.type === 'slider' ? (
+                  <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%' }} />
                 ) : (
-                  <input type="text" value={localValores[c.name]} onChange={(e) => handleChange(c.name, e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', color: 'white', borderRadius: '8px', border: '1px solid #475569', marginTop: '5px' }} />
+                  <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '8px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px' }} />
                 )}
               </div>
             ))}
@@ -98,10 +80,26 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <button onClick={() => onGerarSucesso(null)} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', fontWeight: 'bold' }}>
-          ATUALIZAR PREVIEW 3D
+      <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
+          <span style={{ fontSize: '12px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoDisponivel} CRÉDITOS</span>
+        </div>
+        
+        <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
         </button>
+
+        {/* MENSAGEM DE REFORÇO */}
+        <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '8px' }}>
+          ✨ Podes atualizar o 3D as vezes que quiseres.
+        </p>
+
+        {stlUrl && temCreditos && (
+          <a href={stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
+            📥 DESCARREGAR STL (1 CRÉDITO)
+          </a>
+        )}
       </div>
     </div>
   );
