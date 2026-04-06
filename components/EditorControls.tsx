@@ -11,19 +11,19 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   useEffect(() => {
     if (produto) {
-      // MAPEAMENTO EXATO DA BASE DE DADOS
+      // MAPEAMENTO RIGOROSO COM A BASE DE DADOS
       const iniciais: any = {
         ...(produto.parametros_default || {}),
-        // Coordenadas Nome
-        x_nome: produto.default_x_nome,
-        y_nome: produto.default_y_nome,
-        size_nome: produto.default_size_nome,
-        // Coordenadas Número
-        x_num: produto.default_x_num,
-        y_num: produto.default_y_num,
-        size_num: produto.default_size_num,
-        // Fonte (Vem da coluna default_fonte)
-        fonte: produto.default_fonte || 'OpenSans',
+        // Nome
+        x_nome: produto.default_x_nome ?? 0,
+        y_nome: produto.default_y_nome ?? 0,
+        size_nome: produto.default_size_nome ?? 7,
+        // Número
+        x_num: produto.default_x_num ?? 0,
+        y_num: produto.default_y_num ?? 0,
+        size_num: produto.default_size_num ?? 7,
+        // Fonte e Textos
+        fonte: produto.default_fonte || 'OpenSans-Bold',
         texto_linha_1: "NOME",
         texto_linha_2: "123 456 789"
       };
@@ -60,19 +60,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     setLoading(false);
   };
 
-  const handleDownloadSeguro = async () => {
-    if (!temCreditos) return alert("Sem créditos!");
-    const { error } = await supabase.rpc('baixar_credito', { user_id: perfil.id });
-    if (error) return alert("Erro ao processar crédito.");
-    const link = document.createElement('a');
-    link.href = stlUrl;
-    link.download = `${produto.nome}.stl`;
-    link.click();
-  };
-
   if (!localValores) return null;
 
-  // ORGANIZAÇÃO EM BLOCOS POR SECÇÃO
   const seccoes = Array.from(new Set(
     produto.ui_schema?.filter((c: any) => c.section && c.type !== 'hidden').map((c: any) => c.section)
   ));
@@ -91,9 +80,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                   <label style={{ fontSize: '10px', color: '#94a3b8' }}>{c.label?.toUpperCase()}</label>
                   {c.type === 'slider' && <span style={{ fontSize: '10px', color: '#3b82f6' }}>{localValores[c.name]}mm</span>}
                 </div>
+                {/* Lógica de Campos: Select para fontes, Slider para medidas */}
                 {c.type === 'select' ? (
                   <select value={localValores[c.name]} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', color: 'white', borderRadius: '8px', border: '1px solid #475569', marginTop: '5px' }}>
-                    {c.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
+                    <option value="OpenSans-Bold">Open Sans Bold</option>
+                    <option value="BebasNeue-Regular">Bebas Neue</option>
+                    <option value="PlayfairDisplay-Bold">Playfair Display</option>
                   </select>
                 ) : c.type === 'slider' ? (
                   <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name]} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', marginTop: '8px' }} />
@@ -106,20 +98,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>CRÉDITOS:</span>
-          <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>{saldoAtual}</span>
-        </div>
-        <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-          {loading ? "GERANDO..." : "ATUALIZAR PREVIEW"}
-        </button>
-        {stlUrl && temCreditos && (
-          <button onClick={handleDownloadSeguro} style={{ width: '100%', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', border: 'none' }}>
-            DESCARREGAR STL
-          </button>
-        )}
-      </div>
+      <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>
+        {loading ? "A PROCESSAR..." : "ATUALIZAR MODELO 3D"}
+      </button>
     </div>
   );
 }
