@@ -1,167 +1,126 @@
 'use client';
-
-import { useEffect, useState, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
-import EditorControls from '@/components/EditorControls';
-import { useSearchParams } from 'next/navigation';
-import STLViewer from '@/components/STLViewer'; 
 
-function CustomizadorConteudo() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
-  const familiaURL = searchParams.get('familia');
-  
-  const [mostrarPreview, setMostrarPreview] = useState(false);
-  const [produtoAtual, setProdutoAtual] = useState<any>(null);
-  const [modelos, setModelos] = useState<any[]>([]);
-  const [perfil, setPerfil] = useState<any>(null);
-  const [valores, setValores] = useState<any>({}); // Inicia vazio para ser preenchido pelo Editor
-  const [loading, setLoading] = useState(true);
+export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
+  const [loading, setLoading] = useState(false);
+  const [localValores, setLocalValores] = useState<any>(null);
 
-  // Lógica de UI baseada na família
-  const textoForma = familiaURL?.toLowerCase().includes('caixa') ? 'FORMA DA CAIXA' : 'FORMA DA MEDALHA';
-  const mostrarBotaoPreview = produtoAtual?.ui_schema?.some((c: any) => c.name === 'show_preview_button' && c.value === true);
+  const saldoAtual = perfil?.creditos_disponiveis ?? 0;
+  const temCreditos = saldoAtual > 0;
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      
-      // 1. Obter Sessão e Perfil para Créditos
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: p } = await supabase.from('prod_perfis').select('*').eq('id', session.user.id).maybeSingle();
-        setPerfil(p);
+    if (produto) {
+      // MAPEAMENTO DIRETO DA TUA TABELA
+      const dadosIniciais: any = {
+        ...(produto.parametros_default || {}),
+        // CAMPOS DO NOME
+        x_nome: produto.default_x_nome ?? 0,
+        y_nome: produto.default_y_nome ?? 0,
+        size_nome: produto.default_size_nome ?? 7,
+        // CAMPOS DO NÚMERO (Usando a mesma lógica da imagem)
+        x_numero: produto.default_x_numero ?? 0,
+        y_numero: produto.default_y_numero ?? 0,
+        size_numero: produto.default_size_numero ?? 7,
+        // GERAL
+        fonte: produto.fonte_default || 'OpenSans',
+        texto_linha_1: "NOME",
+        texto_linha_2: "123 456 789"
+      };
+
+      // Injetar ui_schema
+      if (produto.ui_schema) {
+        produto.ui_schema.forEach((c: any) => {
+          if (c.name) dadosIniciais[c.name] = c.value ?? c.default;
+        });
       }
 
-      // 2. Obter Modelos da Família
-      if (!familiaURL) return;
-      const { data: lista } = await supabase
-        .from('prod_designs')
-        .select('*')
-        .eq('familia', familiaURL);
-
-      if (lista && lista.length > 0) {
-        setModelos(lista);
-        // Prioriza o ID do URL, senão usa o primeiro da lista
-        const selecionado = id ? lista.find(m => String(m.id) === String(id)) : lista[0];
-        setProdutoAtual(selecionado || lista[0]);
-      }
-      setLoading(false);
+      setLocalValores(dadosIniciais);
+      onUpdate(dadosIniciais);
     }
-    fetchData();
-  }, [id, familiaURL]);
+  }, [produto?.id]);
 
-  // Função chamada pelo Editor quando o motor termina de gerar o STL
-  const aoGerarStlComSucesso = (resultado: any) => {
-    setProdutoAtual((prev: any) => ({
-      ...prev,
-      stl_file_path: Array.isArray(resultado) ? resultado[0] : resultado,
-      stls_adicionais: Array.isArray(resultado) ? resultado : null
-    }));
-    setMostrarPreview(false); 
+  const handleChange = (k: string, v: any) => {
+    const novos = { ...localValores, [k]: v };
+    setLocalValores(novos);
+    onUpdate(novos);
   };
 
-  if (loading) return (
-    <div style={{ background: '#0f172a', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontFamily: 'sans-serif' }}>
-      A preparar o seu estúdio criativo...
-    </div>
-  );
+  const handleDownloadSeguro = async () => {
+    if (!temCreditos) return alert("Sem créditos!");
+    const { error } = await supabase.rpc('baixar_credito', { user_id: perfil.id });
+    if (error) return alert("Erro no crédito");
+    
+    const link = document.createElement('a');
+    link.href = stlUrl;
+    link.download = `${produto.nome}.stl`;
+    link.click();
+    setTimeout(() => window.location.reload(), 1000);
+  };
+
+  const handleGerarSTL = async () => {
+    if (!temCreditos) return alert("Saldo insuficiente.");
+    setLoading(true);
+    try {
+      const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...localValores, id: produto.id }),
+      });
+      const d = await r.json();
+      if (d.urls || d.url) onGerarSucesso(d.urls || d.url);
+    } catch (e) { alert("Erro ao gerar"); }
+    setLoading(false);
+  };
+
+  if (!localValores) return null;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>
-      
-      {/* BARRA LATERAL DE CONTROLOS */}
-      <aside style={{ width: '380px', backgroundColor: '#1e293b', padding: '25px', borderRight: '1px solid #334155', overflowY: 'auto', height: '100vh' }}>
-        <Link href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-          ← VOLTAR AO CATÁLOGO
-        </Link>
-        
-        <h1 style={{ fontSize: '22px', fontWeight: '900', margin: '20px 0', color: 'white' }}>
-          {produtoAtual?.nome?.toUpperCase()}
-        </h1>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {/* SELETOR DE FONTES - FORÇADO */}
+      <div style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+        <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold' }}>TIPOGRAFIA</label>
+        <select value={localValores.fonte} onChange={(e) => handleChange('fonte', e.target.value)}
+          style={{ width: '100%', marginTop: '8px', padding: '10px', background: '#0f172a', color: 'white', borderRadius: '8px', border: '1px solid #475569' }}>
+          <option value="OpenSans">Open Sans</option>
+          <option value="BebasNeue">Bebas Neue</option>
+          <option value="Roboto">Roboto</option>
+          <option value="Lobster">Lobster</option>
+        </select>
+      </div>
 
-        {/* SELETOR DE FORMA (SUB-MODELOS) */}
-        <div style={{ marginBottom: '30px' }}>
-          <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '12px', fontWeight: 'bold' }}>
-            1. {textoForma}:
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {modelos.map((item) => (
-              <Link 
-                key={item.id} 
-                href={`/customizador?familia=${familiaURL}&id=${item.id}`}
-                style={{
-                  textDecoration: 'none',
-                  backgroundColor: String(item.id) === String(produtoAtual?.id) ? '#2563eb' : '#0f172a',
-                  padding: '12px 5px', 
-                  borderRadius: '8px', 
-                  textAlign: 'center', 
-                  fontSize: '10px', 
-                  color: 'white', 
-                  border: '1px solid #334155', 
-                  fontWeight: 'bold',
-                  transition: '0.2s'
-                }}>
-                {item.nome.replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '').toUpperCase()}
-              </Link>
-            ))}
+      {/* RENDERIZAÇÃO DINÂMICA DO UI_SCHEMA */}
+      {produto.ui_schema?.filter((c: any) => c.type !== 'hidden').map((c: any) => (
+        <div key={c.name} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <label style={{ fontSize: '10px', color: '#94a3b8' }}>{c.label?.toUpperCase()}</label>
+            {c.type === 'slider' && <span style={{ fontSize: '10px', color: '#3b82f6' }}>{localValores[c.name]}mm</span>}
           </div>
+          <input 
+            type={c.type === 'slider' ? 'range' : 'text'}
+            min={c.min} max={c.max} step={0.1}
+            value={localValores[c.name] ?? ''}
+            onChange={(e) => handleChange(c.name, c.type === 'slider' ? parseFloat(e.target.value) : e.target.value)}
+            style={{ width: '100%', marginTop: '8px' }}
+          />
         </div>
+      ))}
 
-        {/* BOTÃO DE PREVIEW DE TEXTO (Se configurado no ui_schema) */}
-        {mostrarBotaoPreview && (
-          <div style={{ marginBottom: '25px' }}>
-            <button 
-              onClick={() => setMostrarPreview(!mostrarPreview)}
-              style={{ 
-                width: '100%', 
-                padding: '15px', 
-                backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e', 
-                color: 'white', 
-                borderRadius: '10px', 
-                fontWeight: '900', 
-                cursor: 'pointer', 
-                border: 'none',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.3)'
-              }}
-            >
-              {mostrarPreview ? 'OCULTAR PRÉ-VISUALIZAÇÃO' : 'VER TEXTO NA PEÇA'}
-            </button>
-          </div>
+      {/* PAINEL DE DOWNLOAD */}
+      <div style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
+          <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>{saldoAtual} CRÉDITOS</span>
+        </div>
+        <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+          {loading ? "A GERAR..." : "ATUALIZAR PREVIEW 3D"}
+        </button>
+        {stlUrl && temCreditos && (
+          <button onClick={handleDownloadSeguro} style={{ width: '100%', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>
+            DESCARREGAR STL (-1 CRÉDITO)
+          </button>
         )}
-        
-        {/* CONTROLOS DINÂMICOS (Sliders, Inputs, Fontes, Créditos) */}
-        <EditorControls 
-          produto={produtoAtual} 
-          perfil={perfil}
-          onUpdate={(novosValores: any) => setValores(novosValores)} 
-          onGerarSucesso={aoGerarStlComSucesso} 
-          stlUrl={produtoAtual?.stl_file_path}
-        />
-      </aside>
-
-      {/* ÁREA DE VISUALIZAÇÃO 3D */}
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617', position: 'relative' }}>
-        {/* Passa os valores em tempo real para o Viewer */}
-        <STLViewer 
-          produto={produtoAtual} 
-          valores={mostrarPreview ? valores : {}} 
-        />
-        
-        {/* Badge de Info */}
-        <div style={{ position: 'absolute', bottom: '20px', right: '20px', background: 'rgba(30, 41, 59, 0.7)', padding: '10px 20px', borderRadius: '20px', fontSize: '12px', color: '#94a3b8', border: '1px solid #334155' }}>
-          Modo de Edição Ativo
-        </div>
-      </main>
+      </div>
     </div>
-  );
-}
-
-export default function CustomizadorPage() {
-  return (
-    <Suspense fallback={<div style={{ background: '#0f172a', height: '100vh' }} />}>
-      <CustomizadorConteudo />
-    </Suspense>
   );
 }
