@@ -1,13 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
-  // Lê os créditos disponíveis do perfil
-  const saldoDisponivel = perfil?.creditos_disponiveis ?? 0;
-  const temCreditos = saldoDisponivel > 0;
+  // Usa creditos_disponiveis do perfil
+  const saldoAtual = perfil?.creditos_disponiveis ?? 0;
+  const temCreditos = saldoAtual > 0;
 
   useEffect(() => {
     if (stlUrl) setLoading(false);
@@ -34,8 +35,26 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     onUpdate(n);
   };
 
+  const handleDownloadSeguro = async () => {
+    if (!temCreditos) return alert("Saldo insuficiente.");
+    
+    // Chama a função RPC que criámos no Supabase
+    const { error } = await supabase.rpc('baixar_credito', { user_id: perfil.id });
+    
+    if (error) {
+      alert("Erro ao processar crédito: " + error.message);
+    } else {
+      const link = document.createElement('a');
+      link.href = stlUrl;
+      link.download = `${produto.nome || 'modelo'}.stl`;
+      link.click();
+      // Recarrega para atualizar o saldo na UI
+      window.location.reload();
+    }
+  };
+
   const handleGerarSTL = async () => {
-    if (saldoDisponivel <= 0) return alert("Saldo insuficiente.");
+    if (!temCreditos) return alert("Saldo insuficiente.");
     setLoading(true);
     try {
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
@@ -51,9 +70,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     }
   };
 
-  if (!produto || !produto.ui_schema) return null;
+  if (!produto?.ui_schema) return null;
 
-  // Filtra secções, removendo "GESTÃO"
   const seccoesValidas = Array.from(new Set(
     produto.ui_schema
       .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
@@ -62,43 +80,68 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
       {seccoesValidas.map((seccao: any) => (
-        <div key={seccao} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{seccao.toUpperCase()}</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div key={seccao} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '12px', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>
+            {seccao.toUpperCase()}
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {produto.ui_schema.filter((c: any) => c.section === seccao && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
-                <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label}</label>
-                {c.type === 'slider' ? (
-                  <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%' }} />
-                ) : (
-                  <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '8px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px' }} />
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{c.label?.toUpperCase()}</label>
+                  {/* Exibição da Medida */}
+                  {c.type === 'slider' && (
+                    <span style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name]}mm</span>
+                  )}
+                </div>
+
+                <div style={{ marginTop: '5px' }}>
+                  {c.type === 'slider' ? (
+                    <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default ?? 0} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
+                  ) : c.type === 'select' ? (
+                    <select 
+                      value={localValores[c.name] ?? c.default} 
+                      onChange={(e) => handleChange(c.name, e.target.value)}
+                      style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }}
+                    >
+                      {c.options?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #475569', color: 'white', borderRadius: '8px' }} />
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       ))}
 
+      {/* PAINEL DE SALDO E DOWNLOAD */}
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
-          <span style={{ fontSize: '12px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoDisponivel} CRÉDITOS</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>SALDO:</span>
+          <span style={{ fontSize: '13px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: '900' }}>
+            {saldoAtual} CRÉDITOS
+          </span>
         </div>
-        
-        <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+
+        <button 
+          onClick={handleGerarSTL} 
+          disabled={loading || !temCreditos}
+          style={{ width: '100%', padding: '16px', background: 'transparent', color: temCreditos ? '#3b82f6' : '#475569', border: `1px solid ${temCreditos ? '#3b82f6' : '#334155'}`, borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+        >
           {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
         </button>
 
-        {/* MENSAGEM DE REFORÇO */}
-        <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '8px' }}>
-          ✨ Podes atualizar o 3D as vezes que quiseres.
-        </p>
-
         {stlUrl && temCreditos && (
-          <a href={stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
+          <button 
+            onClick={handleDownloadSeguro}
+            style={{ width: '100%', marginTop: '10px', padding: '18px', background: '#3b82f6', color: 'white', borderRadius: '12px', fontWeight: '900', border: 'none', cursor: 'pointer' }}
+          >
             📥 DESCARREGAR STL (1 CRÉDITO)
-          </a>
+          </button>
         )}
       </div>
     </div>
