@@ -4,9 +4,7 @@ import { useState, useEffect } from 'react';
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
-
   const saldoDisponivel = perfil?.creditos_disponiveis ?? 0;
-  const temCreditos = saldoDisponivel > 0;
 
   useEffect(() => {
     if (stlUrl) setLoading(false);
@@ -15,14 +13,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
-      if (produto.ui_schema && Array.isArray(produto.ui_schema)) {
+      if (produto.ui_schema) {
         produto.ui_schema.forEach((c: any) => {
-          if (c && c.name) {
-            iniciais[c.name] = c.value !== undefined ? c.value : c.default;
-          }
+          if (c.name) iniciais[c.name] = c.value !== undefined ? c.value : c.default;
         });
       }
-      // Define fonte padrão se não existir
       if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
       setLocalValores(iniciais);
       onUpdate(iniciais);
@@ -47,70 +42,49 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       const d = await r.json();
       if (d.urls || d.url) onGerarSucesso(d.urls || d.url);
     } catch (err) {
-      alert("Erro ao gerar.");
+      alert("Erro na conexão.");
+    } finally {
       setLoading(false);
     }
   };
 
-  if (!produto || !produto.ui_schema) return null;
-
-  const seccoesValidas = Array.from(new Set(
-    produto.ui_schema
-      .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
-      .map((c: any) => c.section)
-  ));
+  const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section)));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {seccoesValidas.map((seccao: any) => (
-        <div key={seccao} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{seccao.toUpperCase()}</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {produto.ui_schema.filter((c: any) => c.section === seccao && c.type !== 'hidden').map((c: any) => (
-              <div key={c.name}>
-                <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label}</label>
-                {c.name === 'fonte' ? (
-                  <select 
-                    value={localValores[c.name] || 'Open Sans'} 
-                    onChange={(e) => handleChange(c.name, e.target.value)}
-                    style={{ width: '100%', padding: '8px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px', marginTop: '5px' }}
-                  >
-                    <option value="Open Sans">Open Sans</option>
-                    <option value="Bebas">Bebas Neue</option>
-                    <option value="Playfair">Playfair Display</option>
-                    <option value="BADABB">Badaboom</option>
-                  </select>
-                ) : c.type === 'slider' ? (
-                  <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%' }} />
-                ) : (
-                  <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '8px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px' }} />
-                )}
-              </div>
-            ))}
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {seccoes.map((s: any) => (
+        <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '10px' }}>
+          <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold' }}>{String(s).toUpperCase()}</label>
+          {produto.ui_schema.filter((c: any) => c.section === s).map((c: any) => (
+            <div key={c.name} style={{ marginTop: '10px' }}>
+              <label style={{ fontSize: '10px', color: '#94a3b8' }}>{c.label}</label>
+              {c.name === 'fonte' ? (
+                <select 
+                  value={localValores[c.name] || 'Open Sans'}
+                  onChange={(e) => handleChange(c.name, e.target.value)}
+                  style={{ width: '100%', padding: '8px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '5px' }}
+                >
+                  <option value="Open Sans">Open Sans</option>
+                  <option value="Bebas">Bebas Neue</option>
+                  <option value="Playfair">Playfair Display</option>
+                  <option value="BADABB">Badaboom</option>
+                </select>
+              ) : (
+                <input 
+                  type={c.type === 'slider' ? 'range' : 'text'}
+                  min={c.min} max={c.max} step={0.1}
+                  value={localValores[c.name] ?? ''}
+                  onChange={(e) => handleChange(c.name, c.type === 'slider' ? parseFloat(e.target.value) : e.target.value)}
+                  style={{ width: '100%', padding: '8px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '5px' }}
+                />
+              )}
+            </div>
+          ))}
         </div>
       ))}
-
-      <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
-          <span style={{ fontSize: '12px', color: temCreditos ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoDisponivel} CRÉDITOS</span>
-        </div>
-        
-        <button onClick={handleGerarSTL} disabled={loading || !temCreditos} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
-        </button>
-
-        <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '8px' }}>
-          ✨ Podes atualizar o 3D as vezes que quiseres.
-        </p>
-
-        {stlUrl && temCreditos && (
-          <a href={stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
-            📥 DESCARREGAR STL (1 CRÉDITO)
-          </a>
-        )}
-      </div>
+      <button onClick={handleGerarSTL} disabled={loading} style={{ padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        {loading ? "A GERAR..." : "ATUALIZAR MODELO 3D"}
+      </button>
     </div>
   );
 }
