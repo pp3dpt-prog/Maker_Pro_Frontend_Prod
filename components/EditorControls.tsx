@@ -5,7 +5,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [loading, setLoading] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
 
-  // Lê os créditos disponíveis do perfil
   const saldoDisponivel = perfil?.creditos_disponiveis ?? 0;
   const temCreditos = saldoDisponivel > 0;
 
@@ -23,6 +22,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           }
         });
       }
+      // Define fonte padrão se não existir
+      if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
@@ -53,7 +54,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   if (!produto || !produto.ui_schema) return null;
 
-  // Filtra secções, removendo "GESTÃO"
   const seccoesValidas = Array.from(new Set(
     produto.ui_schema
       .filter((c: any) => c.section && c.section.toUpperCase() !== 'GESTÃO' && c.type !== 'hidden')
@@ -69,7 +69,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
             {produto.ui_schema.filter((c: any) => c.section === seccao && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
                 <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label}</label>
-                {c.type === 'slider' ? (
+                {c.name === 'fonte' ? (
+                  <select 
+                    value={localValores[c.name] || 'Open Sans'} 
+                    onChange={(e) => handleChange(c.name, e.target.value)}
+                    style={{ width: '100%', padding: '8px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px', marginTop: '5px' }}
+                  >
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Bebas">Bebas Neue</option>
+                    <option value="Playfair">Playfair Display</option>
+                    <option value="BADABB">Badaboom</option>
+                  </select>
+                ) : c.type === 'slider' ? (
                   <input type="range" min={c.min} max={c.max} step={0.1} value={localValores[c.name] ?? c.default} onChange={(e) => handleChange(c.name, parseFloat(e.target.value))} style={{ width: '100%' }} />
                 ) : (
                   <input type="text" value={localValores[c.name] || ''} onChange={(e) => handleChange(c.name, e.target.value)} style={{ width: '100%', padding: '8px', background: '#1e293b', border: '1px solid #334155', color: 'white', borderRadius: '6px' }} />
@@ -90,7 +101,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
         </button>
 
-        {/* MENSAGEM DE REFORÇO */}
         <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '8px' }}>
           ✨ Podes atualizar o 3D as vezes que quiseres.
         </p>

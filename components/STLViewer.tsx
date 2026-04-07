@@ -8,23 +8,18 @@ import { Suspense, useMemo } from 'react';
 function ModeloSTL({ url, valores }: { url: string, valores: any }) {
   const geometry = useLoader(STLLoader, url);
 
-  // Mapeamento de fontes para garantir que o preview usa o mesmo estilo que o OpenSCAD
   const fontPath = useMemo(() => {
     let path = '/fonts/OpenSans-Bold.ttf';
     switch (valores?.fonte) {
       case 'Bebas': path = '/fonts/BebasNeue-Regular.ttf'; break;
       case 'Playfair': path = '/fonts/PlayfairDisplay-Bold.ttf'; break;
-      case 'Eindhoven': path = '/fonts/Eindhoven.ttf'; break;
       case 'BADABB': path = '/fonts/BADABB.ttf'; break;
       default: path = '/fonts/OpenSans-Bold.ttf';
     }
     return path;
   }, [valores?.fonte]);
 
-  // --- LÓGICA DE EXCLUSÃO INTELIGENTE ---
-  // O coração é mais compacto e usa mm reais no server, por isso precisa de menos "ajuda" visual.
-  // As outras peças (osso/circulo) mantêm o fator 1.6 que já tinhas calibrado.
-  const multiplicadorVisual = valores?.forma === 'coracao' ? 1.5 : 1.5;
+  const multiplicadorVisual = 1.5;
 
   return (
     <group>
@@ -33,7 +28,6 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
         <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.2} />
       </mesh>
 
-      {/* TEXTO NOME (FRENTE) */}
       {(valores?.nome_pet || valores?.nome) && (
         <group position={[valores.xPos || 0, valores.yPos || 0, 3.1]}>
           <Center>
@@ -51,7 +45,6 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
         </group>
       )}
 
-      {/* TEXTO TELEFONE (VERSO) */}
       {valores?.telefone && (
         <group position={[-(valores.xPosN || 0), valores.yPosN || 0, -0.1]} rotation={[0, Math.PI, 0]}>
           <Center>
@@ -73,7 +66,6 @@ function ModeloSTL({ url, valores }: { url: string, valores: any }) {
 }
 
 export default function STLViewer({ produto, valores = {} }: any) {
-  // Fallback para garantir que o componente não quebra sem ficheiro
   if (!produto?.stl_file_path) return (
     <div style={{ width: '100%', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', borderRadius: '8px' }}>
       <p style={{ color: '#94a3b8' }}>Carregando modelo 3D...</p>

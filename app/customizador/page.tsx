@@ -15,7 +15,7 @@ function CustomizadorConteudo() {
 
   const [produtoAtual, setProdutoAtual] = useState<any>(null);
   const [modelos, setModelos] = useState<any[]>([]);
-  const [valores, setValores] = useState<any>({ fonte: 'OpenSans' });
+  const [valores, setValores] = useState<any>({ fonte: 'Open Sans' });
   const [perfil, setPerfil] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +26,6 @@ function CustomizadorConteudo() {
     async function fetchData() {
       if (!id && !familiaURL) return;
       
-      // Carrega designs
       const { data: lista } = await supabase.from('prod_designs').select('*').eq('familia', familiaURL || '');
       if (lista && lista.length > 0) {
         setModelos(lista);
@@ -34,7 +33,6 @@ function CustomizadorConteudo() {
         setProdutoAtual(selecionado || lista[0]);
       }
 
-      // Carrega perfil para ter os créditos atualizados
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: perfilData } = await supabase
@@ -100,7 +98,6 @@ function CustomizadorConteudo() {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617' }}>
         <STLViewer produto={produtoAtual} valores={mostrarPreview ? valores : {}} />
         
-        {/* AVISO DE DESIGN ADICIONADO AQUI */}
         <div style={{ marginTop: '30px', padding: '15px 25px', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px solid #334155', maxWidth: '500px', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: '1.6' }}>
             <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>⚠️ NOTA DE PRECISÃO:</span><br />
