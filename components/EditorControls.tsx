@@ -44,7 +44,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       const d = await r.json();
       if (d.urls || d.url) onGerarSucesso(d.urls || d.url);
     } catch (err) {
-      alert("Erro na conexão.");
+      alert("Erro na conexão com o servidor de 3D.");
     } finally {
       setLoading(false);
     }
@@ -72,19 +72,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Playfair">Playfair Display</option>
                     <option value="BADABB">Badaboom</option>
                   </select>
-                ) : c.type === 'slider' || c.type === 'number' ? (
-                   <input 
-                    type={c.type === 'slider' ? 'range' : 'number'}
-                    min={c.min} max={c.max} step={0.1}
-                    value={localValores[c.name] ?? ''}
-                    onChange={(e) => handleChange(c.name, parseFloat(e.target.value))}
-                    style={{ width: '100%', marginTop: '5px' }}
-                  />
                 ) : (
                   <input 
-                    type="text"
-                    value={localValores[c.name] || ''}
-                    onChange={(e) => handleChange(c.name, e.target.value)}
+                    type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
+                    min={c.min} max={c.max} step={0.1}
+                    value={localValores[c.name] ?? ''}
+                    onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
                     style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}
                   />
                 )}
@@ -94,7 +87,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
-      {/* ZONA DE CRÉDITOS E BOTÕES RECUPERADA */}
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
@@ -105,9 +97,15 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
         </button>
 
+        {/* NOTA SOBRE CRÉDITOS E PREVISÃO REPOSTA */}
+        <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '12px', lineHeight: '1.4' }}>
+          ✨ Podes atualizar a pré-visualização as vezes que desejares.<br/>
+          <span style={{ color: '#94a3b8' }}>O crédito apenas será descontado quando fizeres o download do ficheiro final.</span>
+        </p>
+
         {stlUrl && temCreditos && (
-          <a href={stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '10px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
-            📥 DESCARREGAR STL
+          <a href={stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '15px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
+            📥 DESCARREGAR STL (1 CRÉDITO)
           </a>
         )}
       </div>
