@@ -1,21 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Certifica-te que o caminho está correto
+import { supabase } from '@/lib/supabase';
 
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
+  const [nomeProjeto, setNomeProjeto] = useState('');
   
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
   useEffect(() => {
     setSaldoAtual(perfil?.creditos_disponiveis ?? 0);
   }, [perfil]);
-
-  useEffect(() => {
-    if (stlUrl) setLoading(false);
-  }, [stlUrl]);
 
   useEffect(() => {
     if (produto) {
@@ -37,67 +34,78 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     onUpdate(n);
   };
 
+  // --- LOGICA ATUALIZADA: GERAR E DESCONTAR ---
   const handleGerarSTL = async () => {
-    if (saldoAtual <= 0) return alert("Não tens créditos suficientes para gerar modelos.");
+    if (saldoAtual <= 0) return alert("Não tens créditos suficientes.");
+    
+    const confirmar = confirm(`Isto irá consumir 1 crédito para gerar e guardar este design na tua conta. Continuar?`);
+    if (!confirmar) return;
+
     setLoading(true);
     try {
+      // 1. Chamar o servidor enviando user_id e nome_personalizado
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...localValores, id: produto.id }),
+        body: JSON.stringify({ 
+          ...localValores, 
+          id: produto.id,
+          user_id: perfil.id, // Enviando o ID do utilizador para o Vault
+          nome_personalizado: nomeProjeto || `Design ${produto.nome}`
+        }),
       });
+      
       const d = await r.json();
-      if (d.urls || d.url) onGerarSucesso(d.urls || d.url);
+
+      if (d.url || d.urls) {
+        // 2. Se o servidor teve sucesso, descontamos o crédito no Supabase
+        const { error } = await supabase
+          .from('prod_perfis')
+          .update({ creditos_disponiveis: saldoAtual - 1 })
+          .eq('id', perfil.id);
+
+        if (error) throw error;
+
+        setSaldoAtual(prev => prev - 1);
+        onGerarSucesso(d.urls || d.url);
+        alert("Design gerado e guardado na tua Área de Cliente!");
+      }
     } catch (err) {
-      alert("Erro na conexão com o servidor.");
+      console.error(err);
+      alert("Erro ao processar o modelo.");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- NOVA FUNÇÃO PARA DOWNLOAD COM DESCONTO ---
-  const handleDownloadComDesconto = async () => {
-    if (saldoAtual <= 0) return alert("Saldo insuficiente para download.");
+  // --- DOWNLOAD SIMPLES (Já está pago e no cofre) ---
+  const handleDownloadSimples = () => {
     if (!stlUrl) return;
-
-    const confirmar = confirm("Será descontado 1 crédito do teu saldo. Desejas continuar?");
-    if (!confirmar) return;
-
-    setBaixando(true);
-    try {
-      // 1. Descontar no Supabase
-      const { data, error } = await supabase
-        .from('prod_perfis') // Ajusta para o nome real da tua tabela de perfis
-        .update({ creditos_disponiveis: saldoAtual - 1 })
-        .eq('id', perfil.id)
-        .select();
-
-      if (error) throw error;
-
-      // 2. Atualizar estado local
-      setSaldoAtual(prev => prev - 1);
-
-      // 3. Forçar o download do ficheiro
-      const link = document.createElement('a');
-      link.href = stlUrl;
-      link.setAttribute('download', `modelo_${Date.now()}.stl`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      alert("Download iniciado! 1 crédito descontado.");
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao processar o desconto de créditos.");
-    } finally {
-      setBaixando(false);
-    }
+    const link = document.createElement('a');
+    link.href = stlUrl;
+    link.setAttribute('download', `${nomeProjeto || 'modelo'}.stl`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section)));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* NOVO CAMPO: NOME DO PROJETO */}
+      <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+        <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold' }}>NOME DO PROJETO (PARA A TUA ÁREA DE CLIENTE)</label>
+        <input 
+          type="text" 
+          placeholder="Ex: Chaveiro do Rex"
+          value={nomeProjeto}
+          onChange={(e) => setNomeProjeto(e.target.value)}
+          style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}
+        />
+      </div>
+
       {seccoes.map((s: any) => (
         <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{String(s).toUpperCase()}</label>
@@ -139,22 +147,20 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           <span style={{ fontSize: '12px', color: saldoAtual > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
         </div>
         
-        <button onClick={handleGerarSTL} disabled={loading || saldoAtual <= 0} style={{ width: '100%', padding: '15px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-          {loading ? "A PROCESSAR..." : "👁️ ATUALIZAR MODELO 3D"}
+        <button 
+          onClick={handleGerarSTL} 
+          disabled={loading || saldoAtual <= 0} 
+          style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          {loading ? "A PROCESSAR..." : "🔨 GERAR E GUARDAR DESIGN (1 CRÉDITO)"}
         </button>
-
-        <p style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', marginTop: '12px', lineHeight: '1.4' }}>
-          ✨ Podes atualizar a pré-visualização as vezes que desejares.<br/>
-          <span style={{ color: '#94a3b8' }}>O crédito apenas será descontado quando fizeres o download do ficheiro final.</span>
-        </p>
 
         {stlUrl && (
           <button 
-            onClick={handleDownloadComDesconto}
-            disabled={baixando || saldoAtual <= 0}
-            style={{ width: '100%', marginTop: '15px', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={handleDownloadSimples}
+            style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            {baixando ? "A DESCONTAR..." : "📥 DESCARREGAR STL (1 CRÉDITO)"}
+            📥 DESCARREGAR AGORA
           </button>
         )}
       </div>
