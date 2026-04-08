@@ -145,10 +145,23 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         
         <button 
           onClick={handleGerarSTL} 
-          disabled={loading || (saldoAtual <= 0 && produto.id !== 'caixa_gratuita')} 
-          style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+          disabled={loading || (saldoAtual < (produto.custo_creditos || 1) && produto.id !== 'caixa_gratuita')} 
+          style={{ 
+            width: '100%', 
+            padding: '15px', 
+            background: '#3b82f6', 
+            color: 'white', 
+            borderRadius: '10px', 
+            border: 'none', 
+            cursor: 'pointer', 
+            fontWeight: 'bold' 
+          }}
         >
-          {loading ? "A PROCESSAR..." : "🔨 GERAR E GUARDAR DESIGN"}
+          {loading ? "A PROCESSAR..." : (
+            produto.custo_creditos === 0 
+              ? "🔨 GERAR DESIGN (GRÁTIS)" 
+              : `🔨 GERAR E GUARDAR DESIGN (${produto.custo_creditos || 1} CRÉDITOS)`
+          )}
         </button>
 
         {stlUrl && (
