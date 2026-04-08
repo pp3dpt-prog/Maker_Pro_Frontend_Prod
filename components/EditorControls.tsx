@@ -114,7 +114,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
-                    <option value="BADABB">Badaboom</option>
+                    <option value="Beaver Punch">Beaver Punch</option>
+                    <option value="GABRWFER">GABRWFER</option>
+                    <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
                   <input 
