@@ -4,10 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
-  const [baixando, setBaixando] = useState(false);
   const [localValores, setLocalValores] = useState<any>({});
-  const [nomeProjeto, setNomeProjeto] = useState('');
-  
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
   useEffect(() => {
@@ -34,41 +31,53 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     onUpdate(n);
   };
 
-  // --- LOGICA ATUALIZADA: GERAR E DESCONTAR ---
   const handleGerarSTL = async () => {
-    if (saldoAtual <= 0) return alert("Não tens créditos suficientes.");
+    // 1. Verificar se o design é a caixa gratuita (exemplo de ID ou flag)
+    const isFree = produto.id === 'caixa_gratuita'; 
     
-    const confirmar = confirm(`Isto irá consumir 1 crédito para gerar e guardar este design na tua conta. Continuar?`);
+    if (!isFree && saldoAtual <= 0) {
+      return alert("Não tens créditos suficientes.");
+    }
+    
+    const confirmar = isFree 
+      ? confirm("Desejas gerar este design gratuito?")
+      : confirm("Isto irá consumir 1 crédito para gerar e guardar este design na tua conta. Continuar?");
+    
     if (!confirmar) return;
 
     setLoading(true);
     try {
-      // 1. Chamar o servidor enviando user_id e nome_personalizado
+      // Automação do nome: forma_petname
+      const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'objeto';
+      const nomeGerado = `${produto.id}_${petName}`;
+
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...localValores, 
           id: produto.id,
-          user_id: perfil.id, // Enviando o ID do utilizador para o Vault
-          nome_personalizado: nomeProjeto || `Design ${produto.nome}`
+          user_id: perfil.id,
+          nome_personalizado: nomeGerado 
         }),
       });
       
       const d = await r.json();
 
       if (d.url || d.urls) {
-        // 2. Se o servidor teve sucesso, descontamos o crédito no Supabase
-        const { error } = await supabase
-          .from('prod_perfis')
-          .update({ creditos_disponiveis: saldoAtual - 1 })
-          .eq('id', perfil.id);
+        // Se não for grátis, desconta o crédito no Supabase
+        if (!isFree) {
+          const { error } = await supabase
+            .from('prod_perfis')
+            .update({ creditos_disponiveis: saldoAtual - 1 })
+            .eq('id', perfil.id);
 
-        if (error) throw error;
+          if (error) throw error;
+          setSaldoAtual(prev => prev - 1);
+        }
 
-        setSaldoAtual(prev => prev - 1);
         onGerarSucesso(d.urls || d.url);
-        alert("Design gerado e guardado na tua Área de Cliente!");
+        alert(isFree ? "Design gerado com sucesso!" : "Design gerado e guardado na tua Área de Cliente!");
       }
     } catch (err) {
       console.error(err);
@@ -78,12 +87,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
     }
   };
 
-  // --- DOWNLOAD SIMPLES (Já está pago e no cofre) ---
   const handleDownloadSimples = () => {
     if (!stlUrl) return;
+    const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
     const link = document.createElement('a');
-    link.href = stlUrl;
-    link.setAttribute('download', `${nomeProjeto || 'modelo'}.stl`);
+    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
+    link.setAttribute('download', `${produto.id}_${petName}.stl`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -93,19 +102,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
-      {/* NOVO CAMPO: NOME DO PROJETO */}
-      <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
-        <label style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 'bold' }}>NOME DO PROJETO (PARA A TUA ÁREA DE CLIENTE)</label>
-        <input 
-          type="text" 
-          placeholder="Ex: Chaveiro do Rex"
-          value={nomeProjeto}
-          onChange={(e) => setNomeProjeto(e.target.value)}
-          style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}
-        />
-      </div>
-
       {seccoes.map((s: any) => (
         <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{String(s).toUpperCase()}</label>
@@ -149,10 +145,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         
         <button 
           onClick={handleGerarSTL} 
-          disabled={loading || saldoAtual <= 0} 
+          disabled={loading || (saldoAtual <= 0 && produto.id !== 'caixa_gratuita')} 
           style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
         >
-          {loading ? "A PROCESSAR..." : "🔨 GERAR E GUARDAR DESIGN (1 CRÉDITO)"}
+          {loading ? "A PROCESSAR..." : "🔨 GERAR E GUARDAR DESIGN"}
         </button>
 
         {stlUrl && (
