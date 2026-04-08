@@ -115,7 +115,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
                     <option value="Beaver Punch">Beaver Punch</option>
-                    <option value="GABRWFER">GABRWFER</option>
+                    <option value="GABRWFER">Gabriel Weiss' Friends</option>
                     <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
