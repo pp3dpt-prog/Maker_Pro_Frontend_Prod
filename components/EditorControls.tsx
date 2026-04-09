@@ -9,12 +9,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const custoDinamico = produto?.custo_creditos ?? 1;
 
-  // Sincroniza o saldo quando o perfil carrega
   useEffect(() => { 
     if (perfil) setSaldoAtual(perfil.creditos_disponiveis); 
   }, [perfil]);
 
-  // Inicializa os parâmetros do produto
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -35,13 +33,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (!perfil?.id) return alert("Erro: ID do perfil não encontrado.");
+    if (!perfil?.id) return alert("Erro: ID de perfil ausente.");
     if (saldoAtual < custoDinamico) return alert("Saldo insuficiente.");
-    if (!confirm(`Gastar ${custoDinamico} créditos?`)) return;
-
+    
     setLoading(true);
     setProgresso(10);
-    const interval = setInterval(() => { setProgresso(p => p < 90 ? p + 5 : p); }, 1500);
 
     try {
       const res = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
@@ -50,14 +46,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         body: JSON.stringify({ 
           ...localValores, 
           id: produto.id, 
-          user_id: perfil.id, // Envia o UUID exato da tabela
+          user_id: perfil.id, // O UUID da tua imagem
           custo: custoDinamico,
           nome_personalizado: `${produto.id}_${localValores.nome_pet || 'design'}`
         }),
       });
 
       const data = await res.json();
-
       if (res.ok && data.url) {
         setProgresso(100);
         if (data.novoSaldo !== undefined) setSaldoAtual(data.novoSaldo);
@@ -66,23 +61,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         alert(`Erro: ${data.error}`);
       }
     } catch (err) {
-      alert("Erro de comunicação com o servidor.");
+      alert("Erro na ligação ao servidor.");
     } finally {
-      clearInterval(interval);
       setLoading(false);
       setTimeout(() => setProgresso(0), 3000);
     }
   };
 
-  const handleDownload = () => {
-    if (!stlUrl) return;
-    const link = document.createElement('a');
-    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
-    link.download = "meu_design.stl";
-    link.click();
-  };
-
-  // Agrupamento por secções para não perder a tua organização visual
   const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section).map((c: any) => c.section))) as string[];
 
   return (
@@ -123,18 +108,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <p style={{ color: 'white', fontSize: '12px' }}>Saldo: {saldoAtual} Créditos</p>
+        <p style={{ color: 'white', fontSize: '12px', marginBottom: '10px' }}>Saldo: {saldoAtual} Créditos</p>
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico}
-          style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', fontWeight: 'bold' }}
+          style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
         >
-          {loading ? `PROCESSANDO (${progresso}%)` : `GERAR STL (${custoDinamico} CRÉD.)`}
+          {loading ? `PROCESSANDO...` : `GERAR STL (${custoDinamico} CRÉD.)`}
         </button>
         {stlUrl && (
-          <button onClick={handleDownload} style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#4ade80', borderRadius: '10px' }}>
+          <a href={Array.isArray(stlUrl) ? stlUrl[0] : stlUrl} download style={{ display: 'block', textAlign: 'center', marginTop: '10px', padding: '10px', background: '#4ade80', color: 'black', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold' }}>
             DESCARREGAR STL
-          </button>
+          </a>
         )}
       </div>
     </div>
