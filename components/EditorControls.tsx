@@ -7,7 +7,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
-  // Custo dinâmico vindo da BD
   const custoDinamico = produto.custo_creditos ?? 1;
 
   useEffect(() => {
@@ -106,11 +105,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {produto.ui_schema.filter((c: any) => c.section === s && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
-                {/* AQUI ESTÁ A CORREÇÃO: (mm) RESTAURADO PARA NÚMEROS E SLIDERS */}
+                
+                {/* --- AQUI ESTÁ A CORREÇÃO REAL --- */}
                 <label style={{ fontSize: '10px', color: '#64748b' }}>
                   {c.label || c.name} {(c.type === 'number' || c.type === 'slider') ? '(mm)' : ''}
                 </label>
-                
+                {/* ---------------------------------- */}
+
                 {c.name === 'fonte' ? (
                   <select 
                     value={localValores[c.name] || 'Open Sans'}
