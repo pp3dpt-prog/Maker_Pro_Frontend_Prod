@@ -1,29 +1,20 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Garante que este caminho está correto
 
-export default function EditorControls({ produto, onUpdate, onGerarSucesso, stlUrl }: any) {
+export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [localValores, setLocalValores] = useState<any>({});
-  const [perfilAtivo, setPerfilAtivo] = useState<any>(null);
+  const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
-  // 1. CARREGAR PERFIL REAL DO SUPABASE AO MONTAR
-  useEffect(() => {
-    async function getPerfil() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('prod_perfis')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        setPerfilAtivo(data);
-      }
-    }
-    getPerfil();
-  }, []);
+  const custoDinamico = produto?.custo_creditos ?? 1;
 
+  // Sincroniza o saldo quando o perfil carrega
+  useEffect(() => { 
+    if (perfil) setSaldoAtual(perfil.creditos_disponiveis); 
+  }, [perfil]);
+
+  // Inicializa os parâmetros do produto
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -32,18 +23,25 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso, stlU
           if (c.name) iniciais[c.name] = (c.value !== undefined) ? c.value : c.default;
         });
       }
-      if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
       setLocalValores(iniciais);
       onUpdate(iniciais);
     }
   }, [produto?.id]);
 
+  const handleChange = (k: string, v: any) => {
+    const n = { ...localValores, [k]: v };
+    setLocalValores(n);
+    onUpdate(n);
+  };
+
   const handleGerarSTL = async () => {
-    if (!perfilAtivo?.id) return alert("Erro: Perfil não carregado. Faz login novamente.");
-    if (perfilAtivo.creditos_disponiveis < (produto?.custo_creditos || 1)) return alert("Saldo insuficiente.");
+    if (!perfil?.id) return alert("Erro: ID do perfil não encontrado.");
+    if (saldoAtual < custoDinamico) return alert("Saldo insuficiente.");
+    if (!confirm(`Gastar ${custoDinamico} créditos?`)) return;
 
     setLoading(true);
     setProgresso(10);
+    const interval = setInterval(() => { setProgresso(p => p < 90 ? p + 5 : p); }, 1500);
 
     try {
       const res = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
@@ -52,70 +50,93 @@ export default function EditorControls({ produto, onUpdate, onGerarSucesso, stlU
         body: JSON.stringify({ 
           ...localValores, 
           id: produto.id, 
-          user_id: perfilAtivo.id, // UUID REAL DO SUPABASE
-          custo: produto?.custo_creditos || 1,
-          nome_personalizado: `${produto.id}_${localValores.nome_pet || 'objeto'}`
+          user_id: perfil.id, // Envia o UUID exato da tabela
+          custo: custoDinamico,
+          nome_personalizado: `${produto.id}_${localValores.nome_pet || 'design'}`
         }),
       });
 
       const data = await res.json();
-      if (res.ok) {
+
+      if (res.ok && data.url) {
         setProgresso(100);
-        setPerfilAtivo({ ...perfilAtivo, creditos_disponiveis: data.novoSaldo });
+        if (data.novoSaldo !== undefined) setSaldoAtual(data.novoSaldo);
         onGerarSucesso(data.url);
       } else {
-        alert(data.error);
+        alert(`Erro: ${data.error}`);
       }
     } catch (err) {
-      alert("Erro de conexão.");
+      alert("Erro de comunicação com o servidor.");
     } finally {
+      clearInterval(interval);
       setLoading(false);
+      setTimeout(() => setProgresso(0), 3000);
     }
   };
 
   const handleDownload = () => {
+    if (!stlUrl) return;
     const link = document.createElement('a');
     link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
-    link.download = "projeto.stl";
+    link.download = "meu_design.stl";
     link.click();
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: 'white' }}>
-      <div style={{ padding: '10px', background: '#1e293b', borderRadius: '8px' }}>
-        <p style={{ fontSize: '12px' }}>SALDO: <strong>{perfilAtivo?.creditos_disponiveis || 0} CRÉDITOS</strong></p>
-      </div>
+  // Agrupamento por secções para não perder a tua organização visual
+  const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section).map((c: any) => c.section))) as string[];
 
-      {produto?.ui_schema?.filter((c: any) => c.type !== 'hidden').map((c: any) => (
-        <div key={c.name}>
-          <label style={{ fontSize: '10px' }}>{c.label || c.name}</label>
-          <input 
-            type={c.type === 'slider' ? 'range' : 'text'}
-            value={localValores[c.name] ?? ''}
-            onChange={(e) => {
-              const val = c.type === 'slider' ? parseFloat(e.target.value) : e.target.value;
-              const n = { ...localValores, [c.name]: val };
-              setLocalValores(n);
-              onUpdate(n);
-            }}
-            style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '5px', color: 'white' }}
-          />
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {seccoes.map((s) => (
+        <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{s.toUpperCase()}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {produto.ui_schema.filter((c: any) => c.section === s).map((c: any) => (
+              <div key={c.name}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
+                  <span style={{ fontSize: '11px', color: '#3b82f6' }}>{localValores[c.name]}</span>
+                </div>
+                {c.name === 'fonte' ? (
+                  <select 
+                    value={localValores[c.name] || 'Open Sans'}
+                    onChange={(e) => handleChange(c.name, e.target.value)}
+                    style={{ width: '100%', padding: '8px', background: '#1e293b', color: 'white', borderRadius: '6px' }}
+                  >
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Bebas">Bebas Neue</option>
+                    <option value="Megadeth">Megadeth</option>
+                  </select>
+                ) : (
+                  <input 
+                    type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
+                    min={c.min} max={c.max} step={0.1}
+                    value={localValores[c.name] ?? ''}
+                    onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       ))}
 
-      <button 
-        onClick={handleGerarSTL} 
-        disabled={loading}
-        style={{ width: '100%', padding: '15px', background: '#3b82f6', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-      >
-        {loading ? `A PROCESSAR...` : `GERAR STL`}
-      </button>
-
-      {stlUrl && (
-        <button onClick={handleDownload} style={{ width: '100%', padding: '10px', background: '#10b981', borderRadius: '8px', marginTop: '10px' }}>
-          DESCARREGAR STL
+      <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        <p style={{ color: 'white', fontSize: '12px' }}>Saldo: {saldoAtual} Créditos</p>
+        <button 
+          onClick={handleGerarSTL} 
+          disabled={loading || saldoAtual < custoDinamico}
+          style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', fontWeight: 'bold' }}
+        >
+          {loading ? `PROCESSANDO (${progresso}%)` : `GERAR STL (${custoDinamico} CRÉD.)`}
         </button>
-      )}
+        {stlUrl && (
+          <button onClick={handleDownload} style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#4ade80', borderRadius: '10px' }}>
+            DESCARREGAR STL
+          </button>
+        )}
+      </div>
     </div>
   );
 }
