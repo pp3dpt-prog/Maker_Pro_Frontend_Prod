@@ -10,7 +10,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const custoDinamico = produto?.custo_creditos ?? 1;
 
-  useEffect(() => { setSaldoAtual(perfil?.creditos_disponiveis ?? 0); }, [perfil]);
+  useEffect(() => { 
+    setSaldoAtual(perfil?.creditos_disponiveis ?? 0); 
+  }, [perfil]);
 
   useEffect(() => {
     if (produto) {
@@ -34,14 +36,19 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleGerarSTL = async () => {
     if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente.`);
-    if (!confirm(`Consumir ${custoDinamico} crédito(s)?`)) return;
+    if (!confirm(`Confirmas o gasto de ${custoDinamico} crédito(s) para gerar este design?`)) return;
 
     setLoading(true);
-    setProgresso(10);
-    const interval = setInterval(() => { setProgresso((prev) => (prev < 90 ? prev + 5 : prev)); }, 2000);
+    setProgresso(5);
+
+    // Simulação de progresso enquanto o servidor processa
+    const interval = setInterval(() => { 
+      setProgresso((prev) => (prev < 90 ? prev + 3 : prev)); 
+    }, 1500);
 
     try {
       const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase().replace(/\s+/g, '_') : 'objeto';
+      
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -53,18 +60,30 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           custo: custoDinamico 
         }),
       });
+      
       const d = await r.json();
 
-      if (d.url || d.urls) {
+      if (r.ok && (d.url || d.urls)) {
         setProgresso(100);
+        // Atualiza o saldo com o valor exato retornado pelo servidor
         if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo);
+        
         onGerarSucesso(d.urls || d.url);
+        alert("Sucesso! Design gerado e créditos atualizados.");
+      } else {
+        alert("Erro: " + (d.error || "Erro desconhecido no servidor"));
+        setProgresso(0);
       }
-    } catch (err) { alert("Erro ao processar."); }
-    finally { clearInterval(interval); setLoading(false); setTimeout(() => setProgresso(0), 3000); }
+    } catch (err) { 
+      alert("Erro ao conectar com o servidor."); 
+      setProgresso(0);
+    } finally { 
+      clearInterval(interval); 
+      setLoading(false); 
+      setTimeout(() => setProgresso(0), 4000); 
+    }
   };
 
-  // FUNÇÃO DE DOWNLOAD RESTAURADA
   const handleDownloadSimples = () => {
     if (!stlUrl) return;
     const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
@@ -88,8 +107,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
               <div key={c.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
+                  {/* VALOR DINÂMICO EM MM */}
                   {(c.type === 'slider' || c.type === 'number') && (
-                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name] ?? 0} mm</span>
+                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', background: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>
+                      {localValores[c.name] ?? 0} mm
+                    </span>
                   )}
                 </div>
 
@@ -102,9 +124,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
-                    <option value="Beaver Punch">Beaver Punch</option>
-                    <option value="GABRWFER">Gabriel Weiss Friends</option>
-                    <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
                   <input 
@@ -122,30 +141,35 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        {/* BARRA DE PROGRESSO */}
         {loading && (
           <div style={{ marginBottom: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px' }}>
-              <span>A RENDERIZAR PEÇA...</span><span>{progresso}%</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px', fontWeight: 'bold' }}>
+              <span>A RENDERIZAR PEÇA...</span>
+              <span>{progresso}%</span>
             </div>
-            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
-              <div style={{ width: `${progresso}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s ease' }}></div>
+            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
+              <div style={{ width: `${progresso}%`, height: '100%', background: '#3b82f6', transition: 'width 0.4s ease' }}></div>
             </div>
           </div>
         )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
-          <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
+          <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+            {saldoAtual} CRÉDITOS
+          </span>
         </div>
         
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
-          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: loading ? 'default' : 'pointer' }}
         >
           {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
         </button>
 
-        {/* BOTÃO DE DOWNLOAD RESTAURADO E POSICIONADO AQUI */}
+        {/* BOTÃO DE DOWNLOAD */}
         {stlUrl && (
           <button 
             onClick={handleDownloadSimples}
