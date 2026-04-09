@@ -10,9 +10,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const custoDinamico = produto?.custo_creditos ?? 1;
 
-  useEffect(() => {
-    setSaldoAtual(perfil?.creditos_disponiveis ?? 0);
-  }, [perfil]);
+  useEffect(() => { setSaldoAtual(perfil?.creditos_disponiveis ?? 0); }, [perfil]);
 
   useEffect(() => {
     if (produto) {
@@ -36,20 +34,14 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleGerarSTL = async () => {
     if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente.`);
-    if (!confirm(`Consumir ${custoDinamico} crédito(s) para gerar este design?`)) return;
+    if (!confirm(`Consumir ${custoDinamico} crédito(s)?`)) return;
 
     setLoading(true);
-    setProgresso(10); // Começou o processo
-
-    // Simulação de progresso enquanto o servidor trabalha
-    const interval = setInterval(() => {
-      setProgresso((prev) => (prev < 90 ? prev + 5 : prev));
-    }, 2000);
+    setProgresso(10);
+    const interval = setInterval(() => { setProgresso((prev) => (prev < 90 ? prev + 5 : prev)); }, 2000);
 
     try {
       const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase().replace(/\s+/g, '_') : 'objeto';
-      const nomeGerado = `${produto.id}_${petName}`;
-
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,46 +49,25 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           ...localValores, 
           id: produto.id, 
           user_id: perfil?.id, 
-          nome_personalizado: nomeGerado 
+          nome_personalizado: `${produto.id}_${petName}`,
+          custo: custoDinamico 
         }),
       });
       const d = await r.json();
 
       if (d.url || d.urls) {
-        setProgresso(100); // Finalizado
-        clearInterval(interval);
-        
-        if (custoDinamico > 0) {
-          await supabase.from('prod_perfis').update({ creditos_disponiveis: saldoAtual - custoDinamico }).eq('id', perfil.id);
-          setSaldoAtual(prev => prev - custoDinamico);
-        }
+        setProgresso(100);
+        if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo); // SALDO ATUALIZADO PELO BACKEND
         onGerarSucesso(d.urls || d.url);
       }
-    } catch (err) {
-      alert("Erro ao processar.");
-      setProgresso(0);
-    } finally {
-      clearInterval(interval);
-      setLoading(false);
-      setTimeout(() => setProgresso(0), 3000); // Esconde a barra após 3s
-    }
-  };
-
-  const handleDownloadSimples = () => {
-    if (!stlUrl) return;
-    const link = document.createElement('a');
-    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
-    link.setAttribute('download', `design_${produto.id}.stl`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    } catch (err) { alert("Erro ao processar."); }
+    finally { clearInterval(interval); setLoading(false); setTimeout(() => setProgresso(0), 3000); }
   };
 
   const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section))) as string[];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* CAMPOS DE EDIÇÃO */}
       {seccoes.map((s) => (
         <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{s.toUpperCase()}</label>
@@ -106,61 +77,61 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
                   {(c.type === 'slider' || c.type === 'number') && (
-                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', background: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>
-                      {localValores[c.name] ?? 0} mm
-                    </span>
+                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name] ?? 0} mm</span> // MEDIDAS DINÂMICAS
                   )}
                 </div>
-                <input 
-                  type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
-                  min={c.min} max={c.max} step={0.1}
-                  value={localValores[c.name] ?? ''}
-                  onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
-                  style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
-                />
+
+                {/* CORREÇÃO: SELETOR DE FONTES VOLTOU A SER UM BOTÃO DE ESCOLHA */}
+                {c.name === 'fonte' ? (
+                  <select 
+                    value={localValores[c.name] || 'Open Sans'}
+                    onChange={(e) => handleChange(c.name, e.target.value)}
+                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
+                  >
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Bebas">Bebas Neue</option>
+                    <option value="Playfair">Playfair Display</option>
+                    <option value="Beaver Punch">Beaver Punch</option>
+                    <option value="GABRWFER">Gabriel Weiss Friends</option>
+                    <option value="Megadeth">Megadeth</option>
+                  </select>
+                ) : (
+                  <input 
+                    type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
+                    min={c.min} max={c.max} step={0.1}
+                    value={localValores[c.name] ?? ''}
+                    onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
+                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
+                  />
+                )}
               </div>
             ))}
           </div>
         </div>
       ))}
 
-      {/* ÁREA DE STATUS E GERAÇÃO */}
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        
-        {/* BARRA DE PROGRESSO */}
-        {loading && (
+        {loading && ( /* BARRA DE PROGRESSO MANTIDA */
           <div style={{ marginBottom: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px', fontWeight: 'bold' }}>
-              <span>A RENDERIZAR PEÇA...</span>
-              <span>{progresso}%</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px' }}>
+              <span>A RENDERIZAR PEÇA...</span><span>{progresso}%</span>
             </div>
-            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
+            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
               <div style={{ width: `${progresso}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s ease' }}></div>
             </div>
           </div>
         )}
-
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
           <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
         </div>
-        
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
-          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', cursor: loading ? 'default' : 'pointer', fontWeight: 'bold' }}
+          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold' }}
         >
           {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
         </button>
-
-        {stlUrl && (
-          <button 
-            onClick={handleDownloadSimples}
-            style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            📥 DESCARREGAR AGORA
-          </button>
-        )}
       </div>
     </div>
   );
