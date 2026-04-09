@@ -7,7 +7,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
-  const custoDinamico = produto.custo_creditos ?? 1;
+  const custoDinamico = produto?.custo_creditos ?? 1;
 
   useEffect(() => {
     setSaldoAtual(perfil?.creditos_disponiveis ?? 0);
@@ -34,18 +34,23 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente.`);
-    if (!confirm(`Confirmas o gasto de ${custoDinamico} crédito(s)?`)) return;
+    if (saldoAtual < custoDinamico) return alert("Saldo insuficiente.");
+    if (!confirm(`Consumir ${custoDinamico} crédito(s)?`)) return;
 
     setLoading(true);
     try {
       const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase().replace(/\s+/g, '_') : 'objeto';
-      const nomeProjeto = `${produto.id}_${petName}`;
+      const nomeGerado = `${produto.id}_${petName}`;
 
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...localValores, id: produto.id, user_id: perfil.id, nome_personalizado: nomeProjeto }),
+        body: JSON.stringify({ 
+          ...localValores, 
+          id: produto.id, 
+          user_id: perfil?.id, 
+          nome_personalizado: nomeGerado 
+        }),
       });
       const d = await r.json();
 
@@ -55,42 +60,32 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           setSaldoAtual(prev => prev - custoDinamico);
         }
         onGerarSucesso(d.urls || d.url);
-        alert("Design gerado!");
+        alert("Sucesso!");
       }
     } catch (err) {
-      alert("Erro ao processar.");
+      alert("Erro no servidor.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadSimples = () => {
-    if (!stlUrl) return;
-    const link = document.createElement('a');
-    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
-    link.setAttribute('download', `design_${produto.id}.stl`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
-  const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section)));
+  const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section))) as string[];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {seccoes.map((s: any) => (
-        <div key={s as string} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{String(s).toUpperCase()}</label>
+      {seccoes.map((s) => (
+        <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{s.toUpperCase()}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {produto.ui_schema.filter((c: any) => c.section === s && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
                   
-                  {/* EXIBIÇÃO DO VALOR ATUALIZADO (O QUE TU QUERES) */}
-                  {(c.type === 'number' || c.type === 'slider') && (
-                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', background: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>
-                      {localValores[c.name] || 0} mm
+                  {/* VALOR DINÂMICO EM TEMPO REAL */}
+                  {(c.type === 'slider' || c.type === 'number') && (
+                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>
+                      {localValores[c.name] ?? 0} mm
                     </span>
                   )}
                 </div>
@@ -99,7 +94,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                   <select 
                     value={localValores[c.name] || 'Open Sans'}
                     onChange={(e) => handleChange(c.name, e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}
+                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
                   >
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
@@ -114,7 +109,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     min={c.min} max={c.max} step={0.1}
                     value={localValores[c.name] ?? ''}
                     onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}
+                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
                   />
                 )}
               </div>
@@ -124,11 +119,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
-          <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
-        </div>
-        
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
@@ -136,8 +126,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         >
           {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
         </button>
-
-        {stlUrl && (
-          <button 
-            onClick={handleDownloadSimples}
-            style={{ width: '100%', marginTop: '15px', padding: '15px', background:
+      </div>
+    </div>
+  );
+}
