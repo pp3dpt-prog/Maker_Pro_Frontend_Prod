@@ -10,9 +10,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const custoDinamico = produto?.custo_creditos ?? 1;
 
-  useEffect(() => { 
-    setSaldoAtual(perfil?.creditos_disponiveis ?? 0); 
-  }, [perfil]);
+  useEffect(() => { setSaldoAtual(perfil?.creditos_disponiveis ?? 0); }, [perfil]);
 
   useEffect(() => {
     if (produto) {
@@ -35,15 +33,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (!perfil?.id) return alert("Erro: Perfil não carregado. Faz refresh à página.");
+    if (!perfil?.id) return alert("Erro: Utilizador não identificado.");
     if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente.`);
     if (!confirm(`Consumir ${custoDinamico} crédito(s)?`)) return;
 
     setLoading(true);
     setProgresso(10);
-    const interval = setInterval(() => { 
-      setProgresso((prev) => (prev < 90 ? prev + 5 : prev)); 
-    }, 2000);
+    const interval = setInterval(() => { setProgresso((prev) => (prev < 90 ? prev + 5 : prev)); }, 2000);
 
     try {
       const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase().replace(/\s+/g, '_') : 'objeto';
@@ -53,37 +49,35 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         body: JSON.stringify({ 
           ...localValores, 
           id: produto.id, 
-          user_id: perfil.id, // PASSAGEM CRÍTICA DO ID
+          user_id: perfil.id, 
           nome_personalizado: `${produto.id}_${petName}`,
           custo: custoDinamico 
         }),
       });
-      
       const d = await r.json();
 
-      if (r.ok && (d.url || d.urls)) {
+      if (r.ok && d.url) {
         setProgresso(100);
         if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo);
-        onGerarSucesso(d.urls || d.url);
+        onGerarSucesso(d.url);
       } else {
         alert(d.error || "Erro no servidor.");
       }
     } catch (err) { 
-      alert("Erro ao processar."); 
+        alert("Erro ao processar."); 
     } finally { 
-      clearInterval(interval); 
-      setLoading(false); 
-      setTimeout(() => setProgresso(0), 3000); 
+        clearInterval(interval); 
+        setLoading(false); 
+        setTimeout(() => setProgresso(0), 3000); 
     }
   };
 
   const handleDownloadSimples = () => {
     if (!stlUrl) return;
     const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
-    const link = document.createElement('a');
+    const link = document.body.appendChild(document.createElement('a'));
     link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
     link.setAttribute('download', `${produto.id}_${petName}.stl`);
-    document.body.appendChild(link);
     link.click();
     link.remove();
   };
@@ -104,7 +98,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name] ?? 0} mm</span>
                   )}
                 </div>
-
                 {c.name === 'fonte' ? (
                   <select 
                     value={localValores[c.name] || 'Open Sans'}
@@ -136,7 +129,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px' }}>
               <span>A RENDERIZAR PEÇA...</span><span>{progresso}%</span>
             </div>
-            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
+            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
               <div style={{ width: `${progresso}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s ease' }}></div>
             </div>
           </div>
