@@ -10,10 +10,12 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const custoDinamico = produto?.custo_creditos ?? 1;
 
+  // Atualiza saldo local quando o perfil vindo do pai mudar
   useEffect(() => { 
-    setSaldoAtual(perfil?.creditos_disponiveis ?? 0); 
+    if (perfil) setSaldoAtual(perfil.creditos_disponiveis); 
   }, [perfil]);
 
+  // Inicializa parâmetros do produto
   useEffect(() => {
     if (produto) {
       const iniciais: any = { ...(produto.parametros_default || {}) };
@@ -35,15 +37,23 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente.`);
+    // Verificação de Segurança para evitar o erro "Perfil não encontrado"
+    if (!perfil?.id) {
+      return alert("Erro: Sessão de utilizador não encontrada. Por favor, faz refresh à página.");
+    }
+
+    if (saldoAtual < custoDinamico) {
+      return alert(`Saldo insuficiente. Precisas de ${custoDinamico} créditos.`);
+    }
+
     if (!confirm(`Confirmas o gasto de ${custoDinamico} crédito(s) para gerar este design?`)) return;
 
     setLoading(true);
     setProgresso(5);
 
-    // Simulação de progresso enquanto o servidor processa
+    // Intervalo de progresso visual
     const interval = setInterval(() => { 
-      setProgresso((prev) => (prev < 90 ? prev + 3 : prev)); 
+      setProgresso((prev) => (prev < 92 ? prev + 2 : prev)); 
     }, 1500);
 
     try {
@@ -55,7 +65,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         body: JSON.stringify({ 
           ...localValores, 
           id: produto.id, 
-          user_id: perfil?.id, 
+          user_id: perfil.id, // Garantido pela verificação acima
           nome_personalizado: `${produto.id}_${petName}`,
           custo: custoDinamico 
         }),
@@ -65,21 +75,22 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
       if (r.ok && (d.url || d.urls)) {
         setProgresso(100);
-        // Atualiza o saldo com o valor exato retornado pelo servidor
+        // Atualiza o saldo local com o que o servidor descontou
         if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo);
         
         onGerarSucesso(d.urls || d.url);
-        alert("Sucesso! Design gerado e créditos atualizados.");
+        alert("Sucesso! O teu design foi gerado e guardado no cofre.");
       } else {
-        alert("Erro: " + (d.error || "Erro desconhecido no servidor"));
+        alert("Erro: " + (d.error || "Ocorreu um problema no servidor."));
         setProgresso(0);
       }
     } catch (err) { 
-      alert("Erro ao conectar com o servidor."); 
+      alert("Erro crítico: Não foi possível contactar o servidor de renderização."); 
       setProgresso(0);
     } finally { 
       clearInterval(interval); 
       setLoading(false); 
+      // Reset da barra após 4 segundos para limpeza visual
       setTimeout(() => setProgresso(0), 4000); 
     }
   };
@@ -87,8 +98,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const handleDownloadSimples = () => {
     if (!stlUrl) return;
     const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
+    const finalUrl = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
+    
     const link = document.createElement('a');
-    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
+    link.href = finalUrl;
     link.setAttribute('download', `${produto.id}_${petName}.stl`);
     document.body.appendChild(link);
     link.click();
@@ -99,6 +112,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* SEÇÕES DE PARÂMETROS */}
       {seccoes.map((s) => (
         <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{s.toUpperCase()}</label>
@@ -107,7 +121,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
               <div key={c.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
-                  {/* VALOR DINÂMICO EM MM */}
                   {(c.type === 'slider' || c.type === 'number') && (
                     <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', background: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>
                       {localValores[c.name] ?? 0} mm
@@ -124,6 +137,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
+                    <option value="Beaver Punch">Beaver Punch</option>
+                    <option value="GABRWFER">Gabriel Weiss Friends</option>
+                    <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
                   <input 
@@ -140,12 +156,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         </div>
       ))}
 
+      {/* PAINEL DE AÇÕES (PROGRESSO, SALDO, GERAÇÃO) */}
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        {/* BARRA DE PROGRESSO */}
+        
         {loading && (
           <div style={{ marginBottom: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px', fontWeight: 'bold' }}>
-              <span>A RENDERIZAR PEÇA...</span>
+              <span>PROCESSANDO MODELO 3D...</span>
               <span>{progresso}%</span>
             </div>
             <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
@@ -155,7 +172,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>TEU SALDO:</span>
           <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
             {saldoAtual} CRÉDITOS
           </span>
@@ -164,16 +181,35 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
-          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: loading ? 'default' : 'pointer' }}
+          style={{ 
+            width: '100%', 
+            padding: '15px', 
+            background: loading ? '#1e293b' : '#3b82f6', 
+            color: 'white', 
+            borderRadius: '10px', 
+            border: 'none', 
+            fontWeight: 'bold', 
+            cursor: loading ? 'default' : 'pointer',
+            transition: 'background 0.3s'
+          }}
         >
-          {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
+          {loading ? "A RENDERIZAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
         </button>
 
-        {/* BOTÃO DE DOWNLOAD */}
         {stlUrl && (
           <button 
             onClick={handleDownloadSimples}
-            style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ 
+              width: '100%', 
+              marginTop: '15px', 
+              padding: '15px', 
+              background: 'transparent', 
+              border: '1px solid #4ade80', 
+              color: '#4ade80', 
+              borderRadius: '10px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer' 
+            }}
           >
             📥 DESCARREGAR AGORA
           </button>
