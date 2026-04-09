@@ -7,7 +7,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
-  // O custo agora é dinâmico vindo da BD. Se não existir, assume 1.
   const custoDinamico = produto.custo_creditos ?? 1;
 
   useEffect(() => {
@@ -106,7 +105,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {produto.ui_schema.filter((c: any) => c.section === s && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
-                <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
+                {/* RESTAURADO O (mm) PARA CAMPOS NUMÉRICOS */}
+                <label style={{ fontSize: '10px', color: '#64748b' }}>
+                    {c.label || c.name} {(c.type === 'number' || c.type === 'slider') ? '(mm)' : ''}
+                </label>
+                
                 {c.name === 'fonte' ? (
                   <select 
                     value={localValores[c.name] || 'Open Sans'}
@@ -116,6 +119,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
+                    <option value="Beaver Punch">Beaver Punch</option>
+                    <option value="GABRWFER">Gabriel Weiss' Friends</option>
+                    <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
                   <input 
