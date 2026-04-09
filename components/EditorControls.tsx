@@ -7,6 +7,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
+  // O custo agora é dinâmico vindo da BD. Se não existir, assume 1.
+  const custoDinamico = produto.custo_creditos ?? 1;
+
   useEffect(() => {
     setSaldoAtual(perfil?.creditos_disponiveis ?? 0);
   }, [perfil]);
@@ -32,22 +35,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    // 1. Verificar se o design é a caixa gratuita (exemplo de ID ou flag)
-    const isFree = produto.id === 'caixa_gratuita'; 
-    
-    if (!isFree && saldoAtual <= 0) {
-      return alert("Não tens créditos suficientes.");
+    if (saldoAtual < custoDinamico) {
+      return alert(`Não tens créditos suficientes. Este design requer ${custoDinamico} créditos.`);
     }
     
-    const confirmar = isFree 
+    const confirmar = custoDinamico === 0 
       ? confirm("Desejas gerar este design gratuito?")
-      : confirm("Isto irá consumir 1 crédito para gerar e guardar este design na tua conta. Continuar?");
+      : confirm(`Isto irá consumir ${custoDinamico} crédito(s) para gerar e guardar este design na tua conta. Continuar?`);
     
     if (!confirmar) return;
 
     setLoading(true);
     try {
-      // Automação do nome: forma_petname
       const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'objeto';
       const nomeGerado = `${produto.id}_${petName}`;
 
@@ -65,19 +64,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       const d = await r.json();
 
       if (d.url || d.urls) {
-        // Se não for grátis, desconta o crédito no Supabase
-        if (!isFree) {
+        if (custoDinamico > 0) {
           const { error } = await supabase
             .from('prod_perfis')
-            .update({ creditos_disponiveis: saldoAtual - 1 })
+            .update({ creditos_disponiveis: saldoAtual - custoDinamico })
             .eq('id', perfil.id);
 
           if (error) throw error;
-          setSaldoAtual(prev => prev - 1);
+          setSaldoAtual(prev => prev - custoDinamico);
         }
 
         onGerarSucesso(d.urls || d.url);
-        alert(isFree ? "Design gerado com sucesso!" : "Design gerado e guardado na tua Área de Cliente!");
+        alert(custoDinamico === 0 ? "Design gerado com sucesso!" : "Design gerado e guardado na tua Área de Cliente!");
       }
     } catch (err) {
       console.error(err);
@@ -118,6 +116,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
+                    <option value="Beaver Punch">Beaver Punch</option>
+                    <option value="GABRWFER">Gabriel Weiss' Friends</option>
+                    <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
                   <input 
@@ -137,27 +138,18 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
-          <span style={{ fontSize: '12px', color: saldoAtual > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
+          <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
         </div>
         
         <button 
           onClick={handleGerarSTL} 
-          disabled={loading || (saldoAtual < (produto.custo_creditos || 1) && produto.id !== 'caixa_gratuita')} 
-          style={{ 
-            width: '100%', 
-            padding: '15px', 
-            background: '#3b82f6', 
-            color: 'white', 
-            borderRadius: '10px', 
-            border: 'none', 
-            cursor: 'pointer', 
-            fontWeight: 'bold' 
-          }}
+          disabled={loading || saldoAtual < custoDinamico} 
+          style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
         >
           {loading ? "A PROCESSAR..." : (
-            produto.custo_creditos === 0 
+            custoDinamico === 0 
               ? "🔨 GERAR DESIGN (GRÁTIS)" 
-              : `🔨 GERAR E GUARDAR DESIGN (${produto.custo_creditos || 1} CRÉDITOS)`
+              : `🔨 GERAR E GUARDAR DESIGN (${custoDinamico} CRÉDITO${custoDinamico > 1 ? 'S' : ''})`
           )}
         </button>
 
