@@ -34,8 +34,8 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (saldoAtual < custoDinamico) return alert("Saldo insuficiente.");
-    if (!confirm(`Consumir ${custoDinamico} crédito(s)?`)) return;
+    if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente. Precisas de ${custoDinamico} créditos.`);
+    if (!confirm(`Isto irá consumir ${custoDinamico} crédito(s). Continuar?`)) return;
 
     setLoading(true);
     try {
@@ -60,13 +60,24 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           setSaldoAtual(prev => prev - custoDinamico);
         }
         onGerarSucesso(d.urls || d.url);
-        alert("Sucesso!");
+        alert("Design gerado e guardado com sucesso!");
       }
     } catch (err) {
-      alert("Erro no servidor.");
+      alert("Erro ao processar o modelo.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadSimples = () => {
+    if (!stlUrl) return;
+    const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
+    const link = document.createElement('a');
+    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
+    link.setAttribute('download', `${produto.id}_${petName}.stl`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section))) as string[];
@@ -81,10 +92,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
               <div key={c.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
-                  
-                  {/* VALOR DINÂMICO EM TEMPO REAL */}
+                  {/* VALOR EM TEMPO REAL */}
                   {(c.type === 'slider' || c.type === 'number') && (
-                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>
+                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold', background: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>
                       {localValores[c.name] ?? 0} mm
                     </span>
                   )}
@@ -99,9 +109,6 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <option value="Open Sans">Open Sans</option>
                     <option value="Bebas">Bebas Neue</option>
                     <option value="Playfair">Playfair Display</option>
-                    <option value="Beaver Punch">Beaver Punch</option>
-                    <option value="GABRWFER">Gabriel Weiss' Friends</option>
-                    <option value="Megadeth">Megadeth</option>
                   </select>
                 ) : (
                   <input 
@@ -119,6 +126,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
+          <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+            {saldoAtual} CRÉDITOS
+          </span>
+        </div>
+        
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
@@ -126,6 +140,15 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         >
           {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
         </button>
+
+        {stlUrl && (
+          <button 
+            onClick={handleDownloadSimples}
+            style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            📥 DESCARREGAR AGORA
+          </button>
+        )}
       </div>
     </div>
   );
