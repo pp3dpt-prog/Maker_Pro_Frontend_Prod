@@ -57,11 +57,23 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
       if (d.url || d.urls) {
         setProgresso(100);
-        if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo); // SALDO ATUALIZADO PELO BACKEND
+        if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo);
         onGerarSucesso(d.urls || d.url);
       }
     } catch (err) { alert("Erro ao processar."); }
     finally { clearInterval(interval); setLoading(false); setTimeout(() => setProgresso(0), 3000); }
+  };
+
+  // FUNÇÃO DE DOWNLOAD RESTAURADA
+  const handleDownloadSimples = () => {
+    if (!stlUrl) return;
+    const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
+    const link = document.createElement('a');
+    link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
+    link.setAttribute('download', `${produto.id}_${petName}.stl`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section && c.section !== 'GESTÃO').map((c: any) => c.section))) as string[];
@@ -77,11 +89,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label style={{ fontSize: '10px', color: '#64748b' }}>{c.label || c.name}</label>
                   {(c.type === 'slider' || c.type === 'number') && (
-                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name] ?? 0} mm</span> // MEDIDAS DINÂMICAS
+                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name] ?? 0} mm</span>
                   )}
                 </div>
 
-                {/* CORREÇÃO: SELETOR DE FONTES VOLTOU A SER UM BOTÃO DE ESCOLHA */}
                 {c.name === 'fonte' ? (
                   <select 
                     value={localValores[c.name] || 'Open Sans'}
@@ -111,7 +122,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        {loading && ( /* BARRA DE PROGRESSO MANTIDA */
+        {loading && (
           <div style={{ marginBottom: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px' }}>
               <span>A RENDERIZAR PEÇA...</span><span>{progresso}%</span>
@@ -125,13 +136,24 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
           <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
         </div>
+        
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
-          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold' }}
+          style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
         >
           {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
         </button>
+
+        {/* BOTÃO DE DOWNLOAD RESTAURADO E POSICIONADO AQUI */}
+        {stlUrl && (
+          <button 
+            onClick={handleDownloadSimples}
+            style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            📥 DESCARREGAR AGORA
+          </button>
+        )}
       </div>
     </div>
   );
