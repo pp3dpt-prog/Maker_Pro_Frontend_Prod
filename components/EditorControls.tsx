@@ -1,16 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 
 export default function EditorControls({ produto, perfil, onUpdate, onGerarSucesso, stlUrl }: any) {
   const [loading, setLoading] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [localValores, setLocalValores] = useState<any>({});
+  // Usa a coluna exata da tua imagem: creditos_disponiveis
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
   const custoDinamico = produto?.custo_creditos ?? 1;
 
-  useEffect(() => { setSaldoAtual(perfil?.creditos_disponiveis ?? 0); }, [perfil]);
+  useEffect(() => { 
+    if (perfil) setSaldoAtual(perfil.creditos_disponiveis); 
+  }, [perfil]);
 
   useEffect(() => {
     if (produto) {
@@ -33,51 +35,50 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   };
 
   const handleGerarSTL = async () => {
-    if (!perfil?.id) return alert("Erro: Utilizador não identificado.");
-    if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente.`);
-    if (!confirm(`Consumir ${custoDinamico} crédito(s)?`)) return;
+    if (!perfil?.id) return alert("Erro: Perfil não identificado. Tenta sair e entrar novamente.");
+    if (saldoAtual < custoDinamico) return alert(`Saldo insuficiente (${saldoAtual} créditos).`);
+    
+    if (!confirm(`Confirmas o gasto de ${custoDinamico} créditos para gerar este ficheiro?`)) return;
 
     setLoading(true);
-    setProgresso(10);
-    const interval = setInterval(() => { setProgresso((prev) => (prev < 90 ? prev + 5 : prev)); }, 2000);
+    setProgresso(5);
 
     try {
-      const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase().replace(/\s+/g, '_') : 'objeto';
-      const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
+      const res = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...localValores, 
           id: produto.id, 
-          user_id: perfil.id, 
-          nome_personalizado: `${produto.id}_${petName}`,
-          custo: custoDinamico 
+          user_id: perfil.id, // O teu UUID do auth_uid()
+          custo: custoDinamico,
+          nome_personalizado: `${produto.id}_${localValores.nome_pet || 'design'}`
         }),
       });
-      const d = await r.json();
 
-      if (r.ok && d.url) {
+      const data = await res.json();
+
+      if (res.ok && data.url) {
         setProgresso(100);
-        if (d.novoSaldo !== undefined) setSaldoAtual(d.novoSaldo);
-        onGerarSucesso(d.url);
+        if (data.novoSaldo !== undefined) setSaldoAtual(data.novoSaldo);
+        onGerarSucesso(data.url);
       } else {
-        alert(d.error || "Erro no servidor.");
+        alert(`Erro do Servidor: ${data.error}`);
       }
-    } catch (err) { 
-        alert("Erro ao processar."); 
-    } finally { 
-        clearInterval(interval); 
-        setLoading(false); 
-        setTimeout(() => setProgresso(0), 3000); 
+    } catch (err) {
+      alert("Erro na ligação ao servidor de renderização.");
+    } finally {
+      setLoading(false);
+      setTimeout(() => setProgresso(0), 3000);
     }
   };
 
-  const handleDownloadSimples = () => {
+  const handleDownload = () => {
     if (!stlUrl) return;
-    const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
-    const link = document.body.appendChild(document.createElement('a'));
+    const link = document.createElement('a');
     link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
-    link.setAttribute('download', `${produto.id}_${petName}.stl`);
+    link.download = `meu_design_${Date.now()}.stl`;
+    document.body.appendChild(link);
     link.click();
     link.remove();
   };
@@ -98,25 +99,13 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 'bold' }}>{localValores[c.name] ?? 0} mm</span>
                   )}
                 </div>
-                {c.name === 'fonte' ? (
-                  <select 
-                    value={localValores[c.name] || 'Open Sans'}
-                    onChange={(e) => handleChange(c.name, e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
-                  >
-                    <option value="Open Sans">Open Sans</option>
-                    <option value="Bebas">Bebas Neue</option>
-                    <option value="Playfair">Playfair Display</option>
-                  </select>
-                ) : (
-                  <input 
-                    type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
-                    min={c.min} max={c.max} step={0.1}
-                    value={localValores[c.name] ?? ''}
-                    onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
-                  />
-                )}
+                <input 
+                  type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
+                  min={c.min} max={c.max} step={0.1}
+                  value={localValores[c.name] ?? ''}
+                  onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
+                  style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px' }}
+                />
               </div>
             ))}
           </div>
@@ -124,31 +113,23 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       ))}
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-        {loading && (
-          <div style={{ marginBottom: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#3b82f6', marginBottom: '5px' }}>
-              <span>A RENDERIZAR PEÇA...</span><span>{progresso}%</span>
-            </div>
-            <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
-              <div style={{ width: `${progresso}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s ease' }}></div>
-            </div>
-          </div>
-        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO DISPONÍVEL:</span>
           <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
         </div>
+        
         <button 
           onClick={handleGerarSTL} 
           disabled={loading || saldoAtual < custoDinamico} 
           style={{ width: '100%', padding: '15px', background: loading ? '#1e293b' : '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
         >
-          {loading ? "A PROCESSAR..." : `🔨 GERAR DESIGN (${custoDinamico} CRÉD.)`}
+          {loading ? `A PROCESSAR (${progresso}%)...` : `🔨 GERAR STL (${custoDinamico} CRÉDITOS)`}
         </button>
+
         {stlUrl && (
           <button 
-            onClick={handleDownloadSimples}
-            style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={handleDownload}
+            style={{ width: '100%', marginTop: '10px', padding: '12px', background: '#4ade80', color: 'black', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
           >
             📥 DESCARREGAR AGORA
           </button>
