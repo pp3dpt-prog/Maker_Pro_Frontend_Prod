@@ -7,6 +7,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   const [localValores, setLocalValores] = useState<any>({});
   const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
+  // Custo dinâmico vindo da BD (prod_designs)
   const custoDinamico = produto.custo_creditos ?? 1;
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
       const iniciais: any = { ...(produto.parametros_default || {}) };
       if (produto.ui_schema) {
         produto.ui_schema.forEach((c: any) => {
-          if (c.name) iniciais[c.name] = c.value !== undefined ? c.value : c.default;
+          if (c.name) iniciais[c.name] = (c.value !== undefined) ? c.value : c.default;
         });
       }
       if (!iniciais.fonte) iniciais.fonte = 'Open Sans';
@@ -35,19 +36,20 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleGerarSTL = async () => {
     if (saldoAtual < custoDinamico) {
-      return alert(`Não tens créditos suficientes. Este design requer ${custoDinamico} créditos.`);
+      return alert(`Saldo insuficiente. Precisas de ${custoDinamico} créditos.`);
     }
     
     const confirmar = custoDinamico === 0 
-      ? confirm("Desejas gerar este design gratuito?")
-      : confirm(`Isto irá consumir ${custoDinamico} crédito(s) para gerar e guardar este design na tua conta. Continuar?`);
+      ? confirm("Gerar este design gratuito?")
+      : confirm(`Confirmas o gasto de ${custoDinamico} crédito(s) para gerar e guardar este design?`);
     
     if (!confirmar) return;
 
     setLoading(true);
     try {
-      const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'objeto';
-      const nomeGerado = `${produto.id}_${petName}`;
+      // Nome automático: forma_petname (ex: osso_bobby)
+      const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase().replace(/\s+/g, '_') : 'objeto';
+      const nomeProjetoAutomático = `${produto.id}_${petName}`;
 
       const r = await fetch("https://maker-pro-docker-prod.onrender.com/gerar-stl-pro", {
         method: 'POST',
@@ -56,7 +58,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           ...localValores, 
           id: produto.id,
           user_id: perfil.id,
-          nome_personalizado: nomeGerado 
+          nome_personalizado: nomeProjetoAutomático 
         }),
       });
       
@@ -74,11 +76,11 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
         }
 
         onGerarSucesso(d.urls || d.url);
-        alert(custoDinamico === 0 ? "Design gerado com sucesso!" : "Design gerado e guardado na tua Área de Cliente!");
+        alert(custoDinamico === 0 ? "Concluído!" : "Design guardado no teu Cofre!");
       }
     } catch (err) {
       console.error(err);
-      alert("Erro ao processar o modelo.");
+      alert("Erro ao processar.");
     } finally {
       setLoading(false);
     }
@@ -86,10 +88,9 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
   const handleDownloadSimples = () => {
     if (!stlUrl) return;
-    const petName = localValores.nome_pet ? String(localValores.nome_pet).toLowerCase() : 'design';
     const link = document.createElement('a');
     link.href = Array.isArray(stlUrl) ? stlUrl[0] : stlUrl;
-    link.setAttribute('download', `${produto.id}_${petName}.stl`);
+    link.setAttribute('download', `design_${produto.id}.stl`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -100,18 +101,16 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {seccoes.map((s: any) => (
-        <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+        <div key={s as string} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
           <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{String(s).toUpperCase()}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {produto.ui_schema.filter((c: any) => c.section === s && c.type !== 'hidden').map((c: any) => (
               <div key={c.name}>
-                
-                {/* --- AQUI ESTÁ A CORREÇÃO REAL --- */}
-                <label style={{ fontSize: '10px', color: '#64748b' }}>
-                  {c.label || c.name} {(c.type === 'number' || c.type === 'slider') ? '(mm)' : ''}
+                <label style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>
+                  {/* MEDIDAS (mm) ADICIONADAS AQUI PARA TODOS OS CAMPOS DE NÚMERO/SLIDER */}
+                  {c.label || c.name} {(c.type === 'number' || c.type === 'slider' || typeof localValores[c.name] === 'number') ? '(mm)' : ''}
                 </label>
-                {/* ---------------------------------- */}
-
+                
                 {c.name === 'fonte' ? (
                   <select 
                     value={localValores[c.name] || 'Open Sans'}
@@ -130,7 +129,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
                     type={c.type === 'slider' ? 'range' : (c.type === 'number' ? 'number' : 'text')}
                     min={c.min} max={c.max} step={0.1}
                     value={localValores[c.name] ?? ''}
-                    onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number') ? parseFloat(e.target.value) : e.target.value)}
+                    onChange={(e) => handleChange(c.name, (c.type === 'slider' || c.type === 'number' || typeof localValores[c.name] === 'number') ? parseFloat(e.target.value) : e.target.value)}
                     style={{ width: '100%', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}
                   />
                 )}
@@ -142,7 +141,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
 
       <div style={{ background: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>SALDO:</span>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>TEU SALDO:</span>
           <span style={{ fontSize: '12px', color: saldoAtual >= custoDinamico ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>{saldoAtual} CRÉDITOS</span>
         </div>
         
@@ -151,10 +150,10 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
           disabled={loading || saldoAtual < custoDinamico} 
           style={{ width: '100%', padding: '15px', background: '#3b82f6', color: 'white', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
         >
-          {loading ? "A PROCESSAR..." : (
+          {loading ? "A PROCESSAR NO SERVIDOR..." : (
             custoDinamico === 0 
               ? "🔨 GERAR DESIGN (GRÁTIS)" 
-              : `🔨 GERAR E GUARDAR DESIGN (${custoDinamico} CRÉDITO${custoDinamico > 1 ? 'S' : ''})`
+              : `🔨 GERAR E GUARDAR NO COFRE (${custoDinamico} CRÉD.)`
           )}
         </button>
 
@@ -163,7 +162,7 @@ export default function EditorControls({ produto, perfil, onUpdate, onGerarSuces
             onClick={handleDownloadSimples}
             style={{ width: '100%', marginTop: '15px', padding: '15px', background: 'transparent', border: '1px solid #4ade80', color: '#4ade80', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            📥 DESCARREGAR AGORA
+            📥 DESCARREGAR STL
           </button>
         )}
       </div>
