@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialização segura do cliente Supabase para evitar erros de Build no Vercel
+// Inicialização segura do cliente Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
@@ -35,14 +35,12 @@ export default function EditorControls({
 
   const custo = produto?.custo_creditos ?? 1;
 
-  // Sincroniza o saldo inicial quando o perfil é carregado
   useEffect(() => {
     if (perfil?.creditos_disponiveis !== undefined) {
       setSaldoAtual(perfil.creditos_disponiveis);
     }
   }, [perfil]);
 
-  // Inicializa os parâmetros do OpenSCAD baseados no produto selecionado
   useEffect(() => {
     if (produto) {
       const iniciais = { ...(produto.parametros_default || {}) };
@@ -56,10 +54,8 @@ export default function EditorControls({
     }
   }, [produto?.id]);
 
-  // Função para Gerar o STL no Docker (Sem custos aqui)
   const handleGerarSTL = async () => {
     if (!perfil?.id) return alert("Utilizador não identificado.");
-    
     setLoading(true);
     setProgresso(20);
 
@@ -75,7 +71,6 @@ export default function EditorControls({
       });
 
       const data = await res.json();
-
       if (res.ok && data.url) {
         setProgresso(100);
         onGerarSucesso(data.url);
@@ -83,26 +78,22 @@ export default function EditorControls({
         alert(data.error || "Erro ao gerar ficheiro.");
       }
     } catch (e) {
-      console.error(e);
-      alert("Erro de ligação ao servidor de renderização.");
+      alert("Erro de ligação ao servidor.");
     } finally {
       setLoading(false);
       setTimeout(() => setProgresso(0), 2000);
     }
   };
 
-  // Função para Descontar Créditos e Iniciar Download
   const handleDownloadComPagamento = async () => {
     if (!supabase) return alert("Configuração do Supabase em falta.");
-    if (saldoAtual < custo) return alert("Saldo insuficiente para descarregar.");
+    if (saldoAtual < custo) return alert("Saldo insuficiente.");
     if (!stlUrl) return alert("Gere o ficheiro primeiro.");
 
     setPagando(true);
-
     try {
       const novoSaldo = saldoAtual - custo;
 
-      // 1. Atualiza créditos na tabela prod_perfis
       const { error: upErr } = await supabase
         .from('prod_perfis')
         .update({ creditos_disponiveis: novoSaldo })
@@ -110,11 +101,77 @@ export default function EditorControls({
 
       if (upErr) throw upErr;
 
-      // 2. Regista a geração na tabela de assets do utilizador
-      const { error: assetErr } = await supabase
-        .from('prod_user_assets')
-        .insert([{
-          user_id: perfil.id,
-          design_id: produto.id,
-          stl_url: stlUrl,
-          nome_personalizado: localValores.nome_pet || localValores.texto || 'meu_design_3d'
+      await supabase.from('prod_user_assets').insert([{
+        user_id: perfil.id,
+        design_id: produto.id,
+        stl_url: stlUrl,
+        nome_personalizado: localValores.nome_pet || localValores.texto || 'meu_design_3d'
+      }]);
+
+      setSaldoAtual(novoSaldo);
+      const link = document.createElement('a');
+      link.href = stlUrl;
+      link.setAttribute('download', `design_${Date.now()}.stl`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (e: any) {
+      alert("Erro no pagamento: " + (e.message || "Tente novamente."));
+    } finally {
+      setPagando(false);
+    }
+  };
+
+  const seccoes = Array.from(new Set(produto?.ui_schema?.filter((c: any) => c.section).map((c: any) => c.section))) as string[];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {seccoes.map((s) => (
+        <div key={s} style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <label style={{ color: '#3b82f6', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>{s.toUpperCase()}</label>
+          {produto.ui_schema.filter((c: any) => c.section === s).map((c: any) => (
+            <div key={c.name} style={{ marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '11px', color: '#94a3b8' }}>{c.label || c.name}</label>
+                <span style={{ fontSize: '11px', color: '#3b82f6' }}>{localValores[c.name]}</span>
+              </div>
+              <input 
+                type={c.type === 'slider' ? 'range' : 'text'}
+                min={c.min} max={c.max} step={c.step || 0.1}
+                value={localValores[c.name] ?? ''}
+                onChange={(e) => {
+                  const val = c.type === 'slider' ? parseFloat(e.target.value) : e.target.value;
+                  const n = { ...localValores, [c.name]: val };
+                  setLocalValores(n); onUpdate(n);
+                }}
+                style={{ width: '100%', marginTop: '5px' }}
+              />
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', border: '1px solid #334155' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+          <span style={{ color: '#94a3b8', fontSize: '13px' }}>Saldo:</span>
+          <span style={{ color: 'white', fontWeight: 'bold' }}>{saldoAtual} Créditos</span>
+        </div>
+        
+        {!stlUrl ? (
+          <button onClick={handleGerarSTL} disabled={loading} style={{ width: '100%', padding: '16px', background: '#3b82f6', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
+            {loading ? `A GERAR... ${progresso}%` : 'GERAR PRÉ-VISUALIZAÇÃO'}
+          </button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button onClick={handleGerarSTL} disabled={loading} style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid #475569', color: '#94a3b8', borderRadius: '10px' }}>
+              ATUALIZAR MODELO
+            </button>
+            <button onClick={handleDownloadComPagamento} disabled={pagando || saldoAtual < custo} style={{ width: '100%', padding: '16px', background: saldoAtual >= custo ? '#10b981' : '#475569', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
+              {pagando ? 'A PROCESSAR...' : `DESCARREGAR STL (-${custo} CRÉD.)`}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
