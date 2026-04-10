@@ -1,6 +1,7 @@
 'use client';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Center, Stage, Text } from '@react-three/drei';
+// @ts-ignore
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { Suspense, useMemo } from 'react';
 
