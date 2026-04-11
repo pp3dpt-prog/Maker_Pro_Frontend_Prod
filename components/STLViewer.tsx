@@ -4,29 +4,67 @@ import { useState } from 'react';
 import { gerarStl } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
-type STLViewerProps = {
+/**
+ * Modo 1: STLViewer gera STL a partir de um produto (customizador)
+ */
+type STLViewerProdutoMode = {
   produto: {
-    id: string;           // ex: "pet_tag_01"
-    nome?: string;        // opcional
+    id: string;
+    nome?: string;
   };
   valores: Record<string, string | number | boolean>;
+  url?: never;
 };
 
-export default function STLViewer({ produto, valores }: STLViewerProps) {
+/**
+ * Modo 2: STLViewer apenas faz preview/download de um STL existente
+ */
+type STLViewerUrlMode = {
+  url: string;
+  valores?: Record<string, string | number | boolean>;
+  produto?: never;
+};
+
+type STLViewerProps = STLViewerProdutoMode | STLViewerUrlMode;
+
+export default function STLViewer(props: STLViewerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleGenerate() {
+  async function handleGenerateOrDownload() {
     setLoading(true);
     setError(null);
 
     try {
-      // 1️⃣ Chamar backend com produto.id
-      const result = await gerarStl(produto.id, valores);
+      // ─────────────────────────────────────────
+      // MODO URL → apenas download
+      // ─────────────────────────────────────────
+      if ('url' in props) {
+        const response = await fetch(props.url);
+        if (!response.ok) {
+          throw new Error('Erro ao descarregar STL');
+        }
 
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = 'modelo.stl';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+
+        return;
+      }
+
+      // ─────────────────────────────────────────
+      // MODO PRODUTO → gerar STL
+      // ─────────────────────────────────────────
+      const result = await gerarStl(props.produto.id, props.valores);
       const storagePath = result.storagePath;
 
-      // 2️⃣ Download directo do bucket privado
       const { data, error } = await supabase
         .storage
         .from('designs-vault')
@@ -34,14 +72,14 @@ export default function STLViewer({ produto, valores }: STLViewerProps) {
 
       if (error) throw error;
 
-      const url = URL.createObjectURL(data);
+      const objectUrl = URL.createObjectURL(data);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${produto.id}.stl`;
+      a.href = objectUrl;
+      a.download = `${props.produto.id}.stl`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
 
     } catch (err: any) {
       setError(err.message);
@@ -52,8 +90,8 @@ export default function STLViewer({ produto, valores }: STLViewerProps) {
 
   return (
     <div>
-      <button onClick={handleGenerate} disabled={loading}>
-        {loading ? 'A gerar STL…' : 'Gerar STL'}
+      <button onClick={handleGenerateOrDownload} disabled={loading}>
+        {loading ? 'A processar…' : 'Obter STL'}
       </button>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
