@@ -2,30 +2,29 @@
 
 import { supabase } from '@/lib/supabaseClient';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL!;
-
-if (!API_URL) {
-  throw new Error('NEXT_PUBLIC_API_URL não definida');
-}
-
 export type GerarStlParams = Record<string, string | number | boolean>;
 
-export async function gerarStl(
-  produtoId: string,
-  params: GerarStlParams
-) {
-  // 1️⃣ Obter sessão do Supabase (browser only)
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
+function getApiUrl(): string {
+  // NEXT_PUBLIC_* são inlined no build; se não existirem no build, isto vem vazio.
+  return (process.env.NEXT_PUBLIC_API_URL ?? '').trim();
+}
 
-  if (error || !session) {
-    throw new Error('Utilizador não autenticado');
+export async function gerarStl(produtoId: string, params: GerarStlParams) {
+  const apiUrl = getApiUrl();
+
+  // IMPORTANTÍSSIMO: isto só pode acontecer quando a função é chamada,
+  // não no topo do módulo (senão rebenta o build/prerender só por importar).
+  if (!apiUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL não definida');
   }
 
-  // 2️⃣ Pedido ao backend com Authorization Bearer
-  const response = await fetch(`${API_URL}/gerar-stl-pro`, {
+  const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+
+  if (sessErr || !session?.access_token) {
+    throw new Error('Utilizador não autenticado (sem sessão).');
+  }
+
+  const res = await fetch(`${apiUrl}/gerar-stl-pro`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,17 +36,11 @@ export async function gerarStl(
     }),
   });
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || 'Erro ao gerar STL');
+  const data = await res.json().catch(() => ({} as any));
+
+  if (!res.ok) {
+    throw new Error((data as any)?.error || 'Erro ao gerar STL');
   }
 
-  /**
-   * Esperado:
-   * {
-   *   success: true,
-   *   storagePath: "users/<uid>/produto_hash.stl"
-   * }
-   */
-  return response.json();
+  return data;
 }
