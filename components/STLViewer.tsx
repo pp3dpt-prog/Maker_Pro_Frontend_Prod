@@ -5,7 +5,7 @@ import { gerarStl } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
 type STLViewerProdutoMode = {
-  mode: 'produto';
+  mode: "produto";
   produto: {
     id: string;
     nome?: string;
