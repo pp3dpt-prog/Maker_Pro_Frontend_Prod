@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 
 function FamilyCard({ familia, produtos }: { familia: string, produtos: any[] }) {

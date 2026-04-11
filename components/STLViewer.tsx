@@ -1,72 +1,62 @@
 'use client';
-import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Center, Stage, Text } from '@react-three/drei';
-// @ts-ignore
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-import { Suspense, useMemo } from 'react';
 
-function ModeloSTL({ url, valores }: { url: string, valores: any }) {
-  const geometry = useLoader(STLLoader, url);
-  const fontPath = useMemo(() => {
-    switch (valores?.fonte) {
-      case 'Bebas': return '/fonts/BebasNeue-Regular.ttf';
-      case 'Playfair': return '/fonts/PlayfairDisplay-Bold.ttf';
-      case 'BADABB': return '/fonts/BADABB.ttf';
-      default: return '/fonts/OpenSans-Bold.ttf';
+import { useState } from 'react';
+import { gerarStl } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
+
+type Props = {
+  produtoId: string;
+};
+
+export default function STLViewer({ produtoId }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1️⃣ Chamar backend
+      const result = await gerarStl(produtoId, {
+        texto: 'Bobby',
+        telefone: '912345678',
+        tamanho: 30,
+      });
+
+      const storagePath = result.storagePath;
+
+      // 2️⃣ Download directo do bucket privado
+      const { data, error } = await supabase
+        .storage
+        .from('designs-vault')
+        .download(storagePath);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'modelo.stl';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }, [valores?.fonte]);
-
-  const mult = 1.5;
+  }
 
   return (
-    <group>
-      <mesh geometry={geometry} castShadow receiveShadow>
-        <meshStandardMaterial color="#ffffff" metalness={0.2} roughness={0.4} />
-      </mesh>
-      
-      {/* NOME NA FRENTE */}
-      {(valores?.nome_pet || valores?.nome) && (
-        <group position={[valores.xPos || 0, valores.yPos || 0, 3.1]}>
-          <Center>
-            <Text font={fontPath} fontSize={(valores.fontSize || 7) * mult} color="#1e293b">
-                {String(valores.nome_pet || valores.nome).toUpperCase()}
-            </Text>
-          </Center>
-        </group>
-      )}
+    <div>
+      <button onClick={handleGenerate} disabled={loading}>
+        {loading ? 'A gerar STL...' : 'Gerar STL'}
+      </button>
 
-      {/* TELEFONE NO VERSO RECUPERADO */}
-      {valores?.telefone && (
-        <group position={[-(valores.xPosN || 0), valores.yPosN || 0, -0.1]} rotation={[0, Math.PI, 0]}>
-          <Center>
-            <Text font={fontPath} fontSize={(valores.fontSizeN || 5) * mult} color="#475569">
-                {String(valores.telefone)}
-            </Text>
-          </Center>
-        </group>
-      )}
-    </group>
-  );
-}
-
-export default function STLViewer({ produto, valores }: any) {
-  if (!produto?.stl_file_path) return (
-     <div style={{ width: '100%', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', borderRadius: '8px' }}>
-      <p style={{ color: '#94a3b8' }}>Carregando modelo 3D...</p>
-    </div>
-  );
-  return (
-    <div style={{ width: '100%', height: '500px' }}>
-      <Canvas shadows camera={{ position: [0, 0, 150], fov: 45 }}>
-        <Suspense fallback={null}>
-          <Stage environment="city" intensity={0.5}>
-            <Center>
-                <ModeloSTL url={produto.stl_file_path} valores={valores} />
-            </Center>
-          </Stage>
-        </Suspense>
-        <OrbitControls makeDefault />
-      </Canvas>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
     </div>
   );
 }

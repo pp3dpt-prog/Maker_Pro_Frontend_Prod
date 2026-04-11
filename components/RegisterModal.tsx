@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { Mail, Lock, User, Ticket, X } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function RegisterModal({ isOpen, onClose, onSuccess }) {
   if (!isOpen) return null;
