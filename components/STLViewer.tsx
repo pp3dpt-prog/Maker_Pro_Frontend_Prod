@@ -4,11 +4,15 @@ import { useState } from 'react';
 import { gerarStl } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
-type Props = {
-  produtoId: string;
+type STLViewerProps = {
+  produto: {
+    id: string;           // ex: "pet_tag_01"
+    nome?: string;        // opcional
+  };
+  valores: Record<string, string | number | boolean>;
 };
 
-export default function STLViewer({ produtoId }: Props) {
+export default function STLViewer({ produto, valores }: STLViewerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,12 +21,8 @@ export default function STLViewer({ produtoId }: Props) {
     setError(null);
 
     try {
-      // 1️⃣ Chamar backend
-      const result = await gerarStl(produtoId, {
-        texto: 'Bobby',
-        telefone: '912345678',
-        tamanho: 30,
-      });
+      // 1️⃣ Chamar backend com produto.id
+      const result = await gerarStl(produto.id, valores);
 
       const storagePath = result.storagePath;
 
@@ -37,7 +37,7 @@ export default function STLViewer({ produtoId }: Props) {
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'modelo.stl';
+      a.download = `${produto.id}.stl`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -53,7 +53,7 @@ export default function STLViewer({ produtoId }: Props) {
   return (
     <div>
       <button onClick={handleGenerate} disabled={loading}>
-        {loading ? 'A gerar STL...' : 'Gerar STL'}
+        {loading ? 'A gerar STL…' : 'Gerar STL'}
       </button>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
