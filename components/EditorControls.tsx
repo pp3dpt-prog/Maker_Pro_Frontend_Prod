@@ -1,49 +1,57 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 
+/* ──────────────────────────────────────────────
+ TIPOS
+────────────────────────────────────────────── */
 export type ValoresProduto = Record<string, string | number | boolean>;
+
+type UISchemaField = {
+  name: string;
+  label?: string;
+  type?: 'text' | 'slider';
+  min?: number;
+  max?: number;
+  step?: number;
+  default?: string | number | boolean;
+  unit?: string;      // ex: "mm"
+  section?: string;
+};
 
 type ProdutoAtual = {
   id: string | number;
-  ui_schema?: any[];
+  ui_schema?: UISchemaField[];
   parametros_default?: Record<string, any>;
 };
 
-type Perfil = {
-  id: string;
-  creditos_disponiveis: number;
-};
-
-interface Props {
+interface EditorControlsProps {
   produto: ProdutoAtual;
-  perfil: Perfil | null;
   valores: ValoresProduto;
-  onUpdate: (v: ValoresProduto) => void;
-  onGerarSucesso: (path: string) => void;
-  stlUrl: string | null;
-  textoAplicado: boolean;
+  onUpdate: (valores: ValoresProduto) => void;
 }
 
-/* ✅ NORMALIZADOR CRÍTICO */
+/* ──────────────────────────────────────────────
+ UTILITÁRIO: valor seguro para <input>
+────────────────────────────────────────────── */
 function inputValue(
   v: string | number | boolean | undefined
 ): string | number {
-  if (typeof v === 'boolean') return v ? '1' : '0';
+  if (typeof v === 'boolean') return v ? 1 : 0;
   return v ?? '';
 }
 
-export default function EditorControls({
+/* ──────────────────────────────────────────────
+ COMPONENTE
+────────────────────────────────────────────── */
+function EditorControls({
   produto,
   valores,
   onUpdate,
-  onGerarSucesso,
-  textoAplicado,
-}: Props) {
+}: EditorControlsProps) {
   const [localValores, setLocalValores] = useState<ValoresProduto>({});
 
-  /* ✅ Inicialização a partir das presets da BD */
+  /* Inicializar a partir das presets da BD */
   useEffect(() => {
     if (!produto?.ui_schema) return;
 
@@ -51,65 +59,43 @@ export default function EditorControls({
       ...(produto.parametros_default ?? {}),
     };
 
-    produto.ui_schema.forEach((c: any) => {
-      iniciais[c.name] =
-        c.value !== undefined ? c.value : c.default ?? '';
+    produto.ui_schema.forEach((campo) => {
+      iniciais[campo.name] =
+        campo.default !== undefined ? campo.default : '';
     });
 
     setLocalValores(iniciais);
     onUpdate(iniciais);
   }, [produto?.id]);
 
-  /* ✅ Gerar preview exacto */
-  const handleGerarSTL = async () => {
-    if (!textoAplicado) {
-      alert('Ativa primeiro "Mostrar texto na peça".');
-      return;
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return;
-
-    const res = await fetch('/api/gerar-stl-pro', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        id: produto.id,
-        mode: 'preview',
-        ...localValores,
-      }),
-    });
-
-    const data = await res.json();
-    if (res.ok && data.storagePath) {
-      onGerarSucesso(data.storagePath);
-    }
-  };
-
-  /* ✅ Secções do UI */
+  /* Agrupar campos por secção */
   const seccoes = Array.from(
     new Set(
       produto.ui_schema
-        ?.map((c: any) => c.section)
+        ?.map((c) => c.section)
         .filter(Boolean)
     )
-  );
+  ) as string[];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {seccoes.map((sec) => (
         <div key={sec}>
           <strong>{sec}</strong>
 
           {produto.ui_schema
-            ?.filter((c: any) => c.section === sec)
-            .map((c: any) => (
+            ?.filter((c) => c.section === sec)
+            .map((c) => (
               <div key={c.name} style={{ marginTop: 8 }}>
-                <label style={{ fontSize: 12 }}>
+                <label
+                  style={{
+                    fontSize: 12,
+                    display: 'block',
+                    marginBottom: 4,
+                  }}
+                >
                   {c.label ?? c.name}
+                  {c.unit ? ` (${c.unit})` : ''}
                 </label>
 
                 <input
@@ -119,14 +105,18 @@ export default function EditorControls({
                   step={c.step ?? 1}
                   value={inputValue(localValores[c.name])}
                   onChange={(e) => {
-                    const v =
+                    const novoValor =
                       c.type === 'slider'
                         ? Number(e.target.value)
                         : e.target.value;
 
-                    const n = { ...localValores, [c.name]: v };
-                    setLocalValores(n);
-                    onUpdate(n);
+                    const novos = {
+                      ...localValores,
+                      [c.name]: novoValor,
+                    };
+
+                    setLocalValores(novos);
+                    onUpdate(novos);
                   }}
                   style={{ width: '100%' }}
                 />
@@ -134,10 +124,11 @@ export default function EditorControls({
             ))}
         </div>
       ))}
-
-      <button onClick={handleGerarSTL}>
-        GERAR PRÉ‑VISUALIZAÇÃO EXACTA
-      </button>
     </div>
   );
 }
+
+/* ──────────────────────────────────────────────
+ EXPORT (ESTA LINHA FALTAVA)
+────────────────────────────────────────────── */
+export default EditorControls;

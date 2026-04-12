@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import STLViewer from '@/components/STLViewer';
-import EditorControls from '@/components/EditorControls';
+import EditorControls, { ValoresProduto } from '@/components/EditorControls';
 
 /* ──────────────────────────────────────────────
  TIPOS
@@ -16,11 +16,8 @@ type ProdutoAtual = {
   nome?: string;
   familia?: string;
   ui_schema?: any[];
-  custo_creditos?: number;
   parametros_default?: Record<string, any>;
 };
-
-type ValoresProduto = Record<string, string | number | boolean>;
 
 type Perfil = {
   id: string;
@@ -38,12 +35,10 @@ function CustomizadorConteudo() {
   const [loading, setLoading] = useState(true);
   const [produtoAtual, setProdutoAtual] = useState<ProdutoAtual | null>(null);
   const [modelos, setModelos] = useState<any[]>([]);
-  const [valores, setValores] = useState<ValoresProduto>({ fonte: 'Open Sans' });
   const [perfil, setPerfil] = useState<Perfil>(null);
 
+  const [valores, setValores] = useState<ValoresProduto>({});
   const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [textoAplicado, setTextoAplicado] = useState(false);
-  const [controlsOpen, setControlsOpen] = useState(true);
 
   /* ──────────────────────────────────────────────
    FETCH DADOS
@@ -55,7 +50,7 @@ function CustomizadorConteudo() {
         return;
       }
 
-      // PRODUTOS (formas)
+      // FORMAS / DESIGNS
       const { data: lista, error } = await supabase
         .from('prod_designs')
         .select('*')
@@ -69,13 +64,15 @@ function CustomizadorConteudo() {
 
       if (lista && lista.length > 0) {
         setModelos(lista);
+
         const selecionado = id
           ? lista.find((m) => String(m.id) === String(id))
           : lista[0];
+
         setProdutoAtual(selecionado ?? lista[0]);
       }
 
-      // PERFIL
+      // PERFIL (opcional)
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
 
@@ -97,20 +94,42 @@ function CustomizadorConteudo() {
     fetchData();
   }, [id, familiaURL]);
 
+  /* ──────────────────────────────────────────────
+   AUTO‑PREVIEW REAL (DEBOUNCE)
+  ────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!produtoAtual) return;
+    if (!Object.keys(valores).length) return;
+
+    const timer = setTimeout(async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch('/api/gerar-stl-pro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id: produtoAtual.id,
+          mode: 'preview',
+          ...valores,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.storagePath) {
+        setPreviewPath(data.storagePath);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [valores, produtoAtual]);
+
   if (loading) return <div>Iniciando…</div>;
   if (!produtoAtual) return <div>Produto não encontrado.</div>;
-
-  /* ──────────────────────────────────────────────
-   BLANKS (PREVIEW RÁPIDO)
-  ────────────────────────────────────────────── */
-  const blankMap: Record<string, string> = {
-    'tag-redonda': '/models/blank_redondo.stl',
-    'tag-osso': '/models/blank_osso.stl',
-    'tag-coracao': '/models/blank_coracao.stl',
-    'tag-hexagono': '/models/blank_hexagono.stl',
-  };
-
-  const blankUrl = blankMap[String(produtoAtual.id)] ?? null;
 
   /* ──────────────────────────────────────────────
    RENDER
@@ -123,7 +142,7 @@ function CustomizadorConteudo() {
         {produtoAtual.nome?.toUpperCase()}
       </h2>
 
-      {/* ✅ ESCOLHA DA FORMA (ISTO É O QUE TE FALTAVA) */}
+      {/* ✅ ESCOLHA DE FORMAS */}
       {modelos.length > 0 && (
         <>
           <h3 style={{ marginTop: 25 }}>FORMA:</h3>
@@ -155,60 +174,18 @@ function CustomizadorConteudo() {
         </>
       )}
 
-      {/* ✅ BOTÃO MOSTRAR / REMOVER TEXTO */}
-      <button
-        onClick={() => {
-          if (!textoAplicado) setPreviewPath(null);
-          setTextoAplicado((v) => !v);
-        }}
-        style={{
-          width: '100%',
-          marginTop: 20,
-          marginBottom: 20,
-          padding: 15,
-          backgroundColor: textoAplicado ? '#ef4444' : '#22c55e',
-          color: 'white',
-          borderRadius: 10,
-          fontWeight: 900,
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        {textoAplicado ? 'REMOVER TEXTO DA PEÇA' : 'MOSTRAR TEXTO NA PEÇA'}
-      </button>
-
-      {/* ✅ TOGGLE CONTROLOS (DESKTOP) */}
-      <button
-        className="toggle-controls-btn"
-        onClick={() => setControlsOpen((v) => !v)}
-      >
-        {controlsOpen ? 'ESCONDER CONTROLOS' : 'MOSTRAR CONTROLOS'}
-      </button>
-
       {/* ✅ LAYOUT */}
-      <div className={`customizador-layout ${controlsOpen ? '' : 'controls-hidden'}`}>
+      <div className="customizador-layout">
         <aside className="customizador-controls">
           <EditorControls
-            produto={produtoAtual as any}
-            perfil={perfil as any}
+            produto={produtoAtual}
             valores={valores}
             onUpdate={setValores}
-            onGerarSucesso={setPreviewPath}
-            stlUrl={previewPath}
-            textoAplicado={textoAplicado}
           />
         </aside>
 
         <main className="customizador-viewer">
-          <STLViewer
-            blankUrl={blankUrl}
-            storagePath={previewPath}
-            overlayText={valores.nome as string}
-            overlayX={(valores.xPos as number) ?? 0}
-            overlayY={(valores.yPos as number) ?? 0}
-            overlaySize={((valores.fontSize as number) ?? 7) * 3}
-            filename={`${String(produtoAtual.id)}.stl`}
-          />
+          <STLViewer storagePath={previewPath} />
         </main>
       </div>
     </div>
