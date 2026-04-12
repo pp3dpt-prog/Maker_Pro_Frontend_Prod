@@ -121,3 +121,142 @@ body {
     gap: 30px !important;
   }
 }
+/* ──────────────────────────────────────────────
+ CUSTOMIZADOR LAYOUT
+────────────────────────────────────────────── */
+.customizador-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 20px;
+}
+
+.customizador-controls {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 160px);
+}
+
+.customizador-viewer {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 8px;
+  min-height: 420px;
+}
+
+/* ───── MOBILE / TABLET ───── */
+@media (max-width: 768px) {
+  .customizador-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .customizador-viewer {
+    order: 1;
+    min-height: 320px;
+  }
+
+  .customizador-controls {
+    order: 2;
+    max-height: none;
+  }
+}
+/* ──────────────────────────────────────────────
+ BOTÃO TOGGLE (DESKTOP)
+────────────────────────────────────────────── */
+.toggle-controls-btn {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #cbd5e1;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.toggle-controls-btn:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: white;
+}
+
+/* ──────────────────────────────────────────────
+ LAYOUT BASE
+────────────────────────────────────────────── */
+.customizador-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 20px;
+  transition: grid-template-columns 0.25s ease;
+}
+
+/* ──────────────────────────────────────────────
+ CONTROLOS
+────────────────────────────────────────────── */
+.customizador-controls {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* ──────────────────────────────────────────────
+ VIEWER
+────────────────────────────────────────────── */
+.customizador-viewer {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 8px;
+  min-height: 420px;
+  transition: all 0.25s ease;
+}
+
+/* ──────────────────────────────────────────────
+ CONTROLOS ESCONDIDOS (DESKTOP)
+────────────────────────────────────────────── */
+.controls-hidden {
+  grid-template-columns: 1fr;
+}
+
+.controls-hidden .customizador-controls {
+  opacity: 0;
+  transform: translateX(-20px);
+  pointer-events: none;
+  position: absolute;
+}
+
+/* ──────────────────────────────────────────────
+ MOBILE / TABLET
+────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .customizador-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .customizador-viewer {
+    order: 1;
+    min-height: 300px;
+  }
+
+  .customizador-controls {
+    order: 2;
+    max-height: none;
+    transform: none !important;
+    opacity: 1 !important;
+    position: relative;
+  }
+
+  .toggle-controls-btn {
+    display: none; /* Em mobile usamos scroll natural */
+  }
+}

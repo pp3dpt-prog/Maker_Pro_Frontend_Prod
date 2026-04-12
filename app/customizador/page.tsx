@@ -4,10 +4,13 @@ import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+
 import STLViewer from '@/components/STLViewer';
 import EditorControls from '@/components/EditorControls';
 
-/* Tipos mínimos (sem inventar demasiado) */
+/* ──────────────────────────────────────────────
+ TIPOS
+────────────────────────────────────────────── */
 type ProdutoAtual = {
   id: string | number;
   nome?: string;
@@ -18,39 +21,35 @@ type ProdutoAtual = {
 };
 
 type ValoresProduto = Record<string, string | number | boolean>;
-const EMPTY_VALORES: ValoresProduto = {};
 
 type Perfil = {
   id: string;
   creditos_disponiveis: number;
 } | null;
 
+/* ──────────────────────────────────────────────
+ COMPONENTE PRINCIPAL
+────────────────────────────────────────────── */
 function CustomizadorConteudo() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const familiaURL = searchParams.get('familia');
 
   const [loading, setLoading] = useState(true);
-  const [mostrarPreview, setMostrarPreview] = useState(false);
-
   const [produtoAtual, setProdutoAtual] = useState<ProdutoAtual | null>(null);
   const [modelos, setModelos] = useState<any[]>([]);
   const [valores, setValores] = useState<ValoresProduto>({ fonte: 'Open Sans' });
-
   const [perfil, setPerfil] = useState<Perfil>(null);
 
-  // ✅ STL “preview/gerado” (no teu EditorControls chama-se stlUrl, mas pode ser storagePath)
-  const [stlUrl, setStlUrl] = useState<string | null>(null);
+  // ✅ STL preview exacto (storagePath devolvido pelo backend)
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
 
-  const textoForma = familiaURL?.toLowerCase().includes('caixa')
-    ? 'FORMA DA CAIXA'
-    : 'FORMA DA MEDALHA';
+  // ✅ Toggle desktop (esconder/mostrar controlos)
+  const [controlsOpen, setControlsOpen] = useState(true);
 
-  const mostrarBotaoPreview =
-    produtoAtual?.ui_schema?.some(
-      (c: any) => c.name === 'show_preview_button' && c.value === true
-    ) ?? false;
-
+  /* ──────────────────────────────────────────────
+   FETCH DADOS
+  ────────────────────────────────────────────── */
   useEffect(() => {
     async function fetchData() {
       if (!familiaURL) {
@@ -58,7 +57,7 @@ function CustomizadorConteudo() {
         return;
       }
 
-      // 1) Designs
+      // 1) Produtos
       const { data: lista, error } = await supabase
         .from('prod_designs')
         .select('*')
@@ -72,11 +71,9 @@ function CustomizadorConteudo() {
 
       if (lista && lista.length > 0) {
         setModelos(lista);
-
         const selecionado = id
           ? lista.find((m) => String(m.id) === String(id))
           : lista[0];
-
         setProdutoAtual(selecionado ?? lista[0]);
       }
 
@@ -85,13 +82,12 @@ function CustomizadorConteudo() {
       const session = sessionData?.session;
 
       if (session?.user?.id) {
-        const { data: perfilData, error: perfilErr } = await supabase
+        const { data: perfilData } = await supabase
           .from('prod_perfis')
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
 
-        if (perfilErr) console.error('Erro prod_perfis:', perfilErr);
         setPerfil((perfilData as any) ?? null);
       } else {
         setPerfil(null);
@@ -104,105 +100,69 @@ function CustomizadorConteudo() {
   }, [id, familiaURL]);
 
   if (loading) return <div>Iniciando…</div>;
+  if (!produtoAtual) return <div>Produto não encontrado.</div>;
 
+  /* ──────────────────────────────────────────────
+   BLANKS (PREVIEW RÁPIDO)
+  ────────────────────────────────────────────── */
+  const blankMap: Record<string, string> = {
+    'tag-redonda': '/models/blank_redondo.stl',
+    'tag-osso': '/models/blank_osso.stl',
+    'tag-coracao': '/models/blank_coracao.stl',
+    'tag-hexagono': '/models/blank_hexagono.stl',
+  };
+
+  const blankUrl = blankMap[String(produtoAtual.id)] ?? null;
+
+  /* ──────────────────────────────────────────────
+   RENDER
+  ────────────────────────────────────────────── */
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
       <Link href="/dashboard">← VOLTAR</Link>
 
-      <h2 style={{ marginTop: '20px' }}>
-        {produtoAtual?.nome?.toUpperCase()}
+      <h2 style={{ marginTop: 20 }}>
+        {produtoAtual.nome?.toUpperCase()}
       </h2>
 
-      <h3 style={{ marginTop: '25px' }}>
-        1. {textoForma.toUpperCase()}:
-      </h3>
+      {/* ✅ Toggle desktop */}
+      <button
+        className="toggle-controls-btn"
+        onClick={() => setControlsOpen(v => !v)}
+      >
+        {controlsOpen ? 'ESCONDER CONTROLOS' : 'MOSTRAR CONTROLOS'}
+      </button>
 
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {modelos.map((item) => (
-          <Link
-            key={item.id}
-            href={`/customizador?id=${item.id}&familia=${familiaURL}`}
-            style={{
-              padding: '10px 12px',
-              borderRadius: '10px',
-              background:
-                String(item.id) === String(produtoAtual?.id) ? '#2563eb' : '#e5e7eb',
-              color:
-                String(item.id) === String(produtoAtual?.id) ? 'white' : 'black',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            {String(item.nome ?? '')
-              .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
-              .toUpperCase()}
-          </Link>
-        ))}
+      {/* ✅ LAYOUT PRINCIPAL */}
+      <div className={`customizador-layout ${controlsOpen ? '' : 'controls-hidden'}`}>
+        {/* ───── CONTROLOS ───── */}
+        <aside className="customizador-controls">
+          <EditorControls
+            produto={produtoAtual as any}
+            perfil={perfil as any}
+            valores={valores}
+            onUpdate={setValores}
+            onGerarSucesso={(path) => setPreviewPath(path)}
+            stlUrl={previewPath}
+          />
+        </aside>
+
+        {/* ───── VIEWER ───── */}
+        <main className="customizador-viewer">
+          <STLViewer
+            blankUrl={blankUrl}
+            storagePath={previewPath}
+            filename={`${String(produtoAtual.id)}.stl`}
+          />
+        </main>
       </div>
-
-      {mostrarBotaoPreview && (
-        <button
-          onClick={() => setMostrarPreview(!mostrarPreview)}
-          style={{
-            width: '100%',
-            marginTop: '25px',
-            marginBottom: '25px',
-            padding: '15px',
-            backgroundColor: mostrarPreview ? '#ef4444' : '#22c55e',
-            color: 'white',
-            borderRadius: '8px',
-            fontWeight: 900,
-            cursor: 'pointer',
-            border: 'none',
-          }}
-        >
-          {mostrarPreview ? 'REMOVER TEXTO' : 'VER TEXTO NA PEÇA'}
-        </button>
-      )}
-
-      <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.6' }}>
-        ⚠️ NOTA DE PRECISÃO:
-        <br />
-        O visualizador 3D é uma aproximação. O ficheiro final será processado com máxima qualidade.
-      </p>
-
-      {/* ✅ EditorControls: props alinhadas com o ficheiro que enviaste (não existe setValores) */}
-      {produtoAtual && (
-        <EditorControls
-          produto={produtoAtual as any}
-          perfil={perfil as any}
-          valores={valores}
-          onUpdate={setValores}               // ✅ substitui setValores
-          onGerarSucesso={(pathOrUrl: string) => {
-            setStlUrl(pathOrUrl);             // guarda o caminho/URL devolvido
-          }}
-          stlUrl={stlUrl}
-        />
-      )}
-
-      {/* STLViewer: mantém o teu modo actual */}
-      
-      
-      {produtoAtual && (
-        <STLViewer
-          blankUrl={
-            {
-              'tag-redonda': '/models/blank_redondo.stl',
-              'tag-osso': '/models/blank_osso.stl',
-              'tag-coracao': '/models/blank_coracao.stl',
-              'tag-hexagono': '/models/blank_hexagono.stl',
-            }[String(produtoAtual.id)] ?? null
-          }
-          storagePath={stlUrl}     // vem do EditorControls (preview exacto)
-          filename={`${String(produtoAtual.id)}.stl`}
-        />
-
-
-      )}
     </div>
   );
 }
 
+/* ──────────────────────────────────────────────
+ EXPORT COM SUSPENSE
+────────────────────────────────────────────── */
 export default function CustomizadorPage() {
   return (
     <Suspense fallback={<div>Carregando…</div>}>
