@@ -8,6 +8,9 @@ import { useSearchParams } from 'next/navigation';
 import STLViewer from '@/components/STLViewer';
 import EditorControls from '@/components/EditorControls';
 
+/* ──────────────────────────────────────────────
+ TIPOS
+────────────────────────────────────────────── */
 type ProdutoAtual = {
   id: string | number;
   nome?: string;
@@ -24,6 +27,9 @@ type Perfil = {
   creditos_disponiveis: number;
 } | null;
 
+/* ──────────────────────────────────────────────
+ COMPONENTE
+────────────────────────────────────────────── */
 function CustomizadorConteudo() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
@@ -39,6 +45,9 @@ function CustomizadorConteudo() {
   const [textoAplicado, setTextoAplicado] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(true);
 
+  /* ──────────────────────────────────────────────
+   FETCH DADOS
+  ────────────────────────────────────────────── */
   useEffect(() => {
     async function fetchData() {
       if (!familiaURL) {
@@ -46,10 +55,17 @@ function CustomizadorConteudo() {
         return;
       }
 
-      const { data: lista } = await supabase
+      // PRODUTOS (formas)
+      const { data: lista, error } = await supabase
         .from('prod_designs')
         .select('*')
         .eq('familia', familiaURL);
+
+      if (error) {
+        console.error('Erro prod_designs:', error);
+        setLoading(false);
+        return;
+      }
 
       if (lista && lista.length > 0) {
         setModelos(lista);
@@ -59,6 +75,7 @@ function CustomizadorConteudo() {
         setProdutoAtual(selecionado ?? lista[0]);
       }
 
+      // PERFIL
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
 
@@ -68,6 +85,7 @@ function CustomizadorConteudo() {
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
+
         setPerfil((perfilData as any) ?? null);
       } else {
         setPerfil(null);
@@ -82,6 +100,9 @@ function CustomizadorConteudo() {
   if (loading) return <div>Iniciando…</div>;
   if (!produtoAtual) return <div>Produto não encontrado.</div>;
 
+  /* ──────────────────────────────────────────────
+   BLANKS (PREVIEW RÁPIDO)
+  ────────────────────────────────────────────── */
   const blankMap: Record<string, string> = {
     'tag-redonda': '/models/blank_redondo.stl',
     'tag-osso': '/models/blank_osso.stl',
@@ -91,6 +112,9 @@ function CustomizadorConteudo() {
 
   const blankUrl = blankMap[String(produtoAtual.id)] ?? null;
 
+  /* ──────────────────────────────────────────────
+   RENDER
+  ────────────────────────────────────────────── */
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
       <Link href="/dashboard">← VOLTAR</Link>
@@ -99,40 +123,43 @@ function CustomizadorConteudo() {
         {produtoAtual.nome?.toUpperCase()}
       </h2>
 
-      {/* ✅ SELEÇÃO DE FORMAS */}
-      <h3 style={{ marginTop: 25 }}>FORMA:</h3>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {modelos.map((item) => (
-          <Link
-            key={item.id}
-            href={`/customizador?id=${item.id}&familia=${familiaURL}`}
-            style={{
-              padding: '10px 12px',
-              borderRadius: 10,
-              background:
-                String(item.id) === String(produtoAtual.id)
-                  ? '#2563eb'
-                  : '#e5e7eb',
-              color:
-                String(item.id) === String(produtoAtual.id)
-                  ? 'white'
-                  : 'black',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            {String(item.nome ?? '')
-              .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
-              .toUpperCase()}
-          </Link>
-        ))}
-      </div>
+      {/* ✅ ESCOLHA DA FORMA (ISTO É O QUE TE FALTAVA) */}
+      {modelos.length > 0 && (
+        <>
+          <h3 style={{ marginTop: 25 }}>FORMA:</h3>
 
-      {/* ✅ BOTÃO TEXTO */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {modelos.map((item) => {
+              const ativo = String(item.id) === String(produtoAtual.id);
+
+              return (
+                <Link
+                  key={item.id}
+                  href={`/customizador?id=${item.id}&familia=${familiaURL}`}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: ativo ? '#2563eb' : '#e5e7eb',
+                    color: ativo ? 'white' : 'black',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                  }}
+                >
+                  {String(item.nome ?? '')
+                    .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
+                    .toUpperCase()}
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ✅ BOTÃO MOSTRAR / REMOVER TEXTO */}
       <button
         onClick={() => {
           if (!textoAplicado) setPreviewPath(null);
-          setTextoAplicado(v => !v);
+          setTextoAplicado((v) => !v);
         }}
         style={{
           width: '100%',
@@ -150,13 +177,15 @@ function CustomizadorConteudo() {
         {textoAplicado ? 'REMOVER TEXTO DA PEÇA' : 'MOSTRAR TEXTO NA PEÇA'}
       </button>
 
+      {/* ✅ TOGGLE CONTROLOS (DESKTOP) */}
       <button
         className="toggle-controls-btn"
-        onClick={() => setControlsOpen(v => !v)}
+        onClick={() => setControlsOpen((v) => !v)}
       >
         {controlsOpen ? 'ESCONDER CONTROLOS' : 'MOSTRAR CONTROLOS'}
       </button>
 
+      {/* ✅ LAYOUT */}
       <div className={`customizador-layout ${controlsOpen ? '' : 'controls-hidden'}`}>
         <aside className="customizador-controls">
           <EditorControls
@@ -186,6 +215,9 @@ function CustomizadorConteudo() {
   );
 }
 
+/* ──────────────────────────────────────────────
+ EXPORT
+────────────────────────────────────────────── */
 export default function CustomizadorPage() {
   return (
     <Suspense fallback={<div>Carregando…</div>}>
