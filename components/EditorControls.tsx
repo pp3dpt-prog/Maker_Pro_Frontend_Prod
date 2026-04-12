@@ -1,11 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-/* ──────────────────────────────────────────────
-   TIPOS PARTILHADOS
-────────────────────────────────────────────── */
+import { supabase } from '@/lib/supabaseClient';
 
 export type ValoresProduto = Record<string, string | number | boolean>;
 
@@ -21,45 +17,19 @@ type Perfil = {
   creditos_disponiveis: number;
 };
 
-/* ──────────────────────────────────────────────
-   SUPABASE (CLIENTE)
-────────────────────────────────────────────── */
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
-const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
-
-/* ──────────────────────────────────────────────
-   PROPS
-────────────────────────────────────────────── */
-
 interface EditorControlsProps {
   produto: ProdutoAtual;
   perfil: Perfil | null;
   valores: ValoresProduto;
   onUpdate: (valores: ValoresProduto) => void;
   onGerarSucesso: (storagePath: string) => void;
-  stlUrl: string | null;
+  stlUrl: string | null; // neste novo fluxo: guarda storagePath
 }
 
-/* ──────────────────────────────────────────────
-   UTILITÁRIO CRÍTICO (resolve o erro do input)
-────────────────────────────────────────────── */
-
-function inputValue(
-  v: string | number | boolean | undefined
-): string | number {
+function inputValue(v: string | number | boolean | undefined): string | number {
   if (typeof v === 'boolean') return v ? 'true' : 'false';
   return v ?? '';
 }
-
-/* ──────────────────────────────────────────────
-   COMPONENTE
-────────────────────────────────────────────── */
 
 export default function EditorControls({
   produto,
@@ -73,156 +43,150 @@ export default function EditorControls({
   const [pagando, setPagando] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [localValores, setLocalValores] = useState<ValoresProduto>({});
-  const [saldoAtual, setSaldoAtual] = useState(
-    perfil?.creditos_disponiveis ?? 0
-  );
+  const [saldoAtual, setSaldoAtual] = useState(perfil?.creditos_disponiveis ?? 0);
 
   const custo = produto?.custo_creditos ?? 1;
-
-  /* ──────────────────────────────────────────────
-     SYNC PERFIL
-  ────────────────────────────────────────────── */
 
   useEffect(() => {
     if (perfil) setSaldoAtual(perfil.creditos_disponiveis);
   }, [perfil]);
 
-  /* ──────────────────────────────────────────────
-     INIT VALORES (a partir do produto)
-  ────────────────────────────────────────────── */
-
   useEffect(() => {
     if (!produto) return;
 
-    const iniciais: ValoresProduto = {
-      ...(produto.parametros_default ?? {}),
-    };
-
+    const iniciais: ValoresProduto = { ...(produto.parametros_default ?? {}) };
     produto.ui_schema?.forEach((c: any) => {
-      iniciais[c.name] =
-        c.value !== undefined ? c.value : c.default;
+      iniciais[c.name] = c.value !== undefined ? c.value : c.default;
     });
 
     setLocalValores(iniciais);
     onUpdate(iniciais);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produto?.id]);
 
-  /* ──────────────────────────────────────────────
-     GERAR STL (PRÉ‑VISUALIZAÇÃO)
-  ────────────────────────────────────────────── */
-
   const handleGerarSTL = async () => {
-    if (!perfil?.id) return alert('Perfil não carregado.');
-
     setLoading(true);
-    setProgresso(30);
+    setProgresso(25);
 
     try {
-      const res = await fetch(
-        'https://maker-pro-docker-prod.onrender.com/gerar-stl-pro',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...localValores,
-            id: produto.id,
-            user_id: perfil.id,
-          }),
-        }
-      );
+      const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+      if (sessErr || !session?.access_token) {
+        alert('Sem sessão válida. Faz login novamente.');
+        return;
+      }
 
-      const data = await res.json();
+      setProgresso(40);
 
-      if (res.ok && data.storagePath) {
+      const res = await fetch('/api/gerar-stl-pro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          id: produto.id,
+          mode: 'preview',
+          ...localValores,
+        }),
+      });
+
+      setProgresso(70);
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data?.error ?? 'Erro ao gerar STL');
+        return;
+      }
+
+      if (data.storagePath) {
         setProgresso(100);
         onGerarSucesso(data.storagePath);
       } else {
-        alert(data.error ?? 'Erro ao gerar STL');
+        alert('Servidor não devolveu storagePath.');
       }
     } catch {
       alert('Erro de ligação ao gerador 3D.');
     } finally {
       setLoading(false);
-      setTimeout(() => setProgresso(0), 1500);
+      setTimeout(() => setProgresso(0), 1200);
     }
   };
 
-  /* ──────────────────────────────────────────────
-     PAGAMENTO + DOWNLOAD
-  ────────────────────────────────────────────── */
-
   const handleDownloadComPagamento = async () => {
-    if (!supabase || !perfil?.id) return alert('Erro de autenticação.');
+    if (!perfil?.id) return alert('Perfil não carregado.');
     if (saldoAtual < custo) return alert('Saldo insuficiente.');
+    if (!stlUrl) return alert('Sem STL para descarregar.');
 
     setPagando(true);
 
     try {
       const novoSaldo = saldoAtual - custo;
 
-      await supabase
+      const { error: upErr } = await supabase
         .from('prod_perfis')
         .update({ creditos_disponiveis: novoSaldo })
         .eq('id', perfil.id);
 
+      if (upErr) throw upErr;
+
       setSaldoAtual(novoSaldo);
 
-      const link = document.createElement('a');
-      link.href = stlUrl!;
-      link.download = `design_${Date.now()}.stl`;
-      link.click();
+      // registo do asset (mantém o campo stl_url, mas agora guarda storagePath)
+      await supabase.from('prod_user_assets').insert([{
+        user_id: perfil.id,
+        design_id: produto.id,
+        stl_url: stlUrl,
+        nome_personalizado: (localValores as any).nome ?? (localValores as any).texto ?? 'meu_modelo',
+      }]);
+
+      // download via storage (porque stlUrl agora é storagePath)
+      const { data, error } = await supabase.storage.from('designs-vault').download(stlUrl);
+      if (error) throw error;
+      if (!data) throw new Error('Download vazio.');
+
+      const objectUrl = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `design_${Date.now()}.stl`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
     } catch (e: any) {
-      alert('Erro no pagamento: ' + e.message);
+      alert('Erro no pagamento/download: ' + e.message);
     } finally {
       setPagando(false);
     }
   };
 
-  /* ──────────────────────────────────────────────
-     RENDER
-  ────────────────────────────────────────────── */
-
   const seccoes = Array.from(
     new Set(
-      produto?.ui_schema
-        ?.filter((c: any) => c.section)
-        .map((c: any) => c.section)
+      produto?.ui_schema?.filter((c: any) => c.section).map((c: any) => c.section)
     )
   ) as string[];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
       {seccoes.map((s) => (
         <div
           key={s}
           style={{
             background: '#0f172a',
-            padding: '15px',
-            borderRadius: '10px',
+            padding: 15,
+            borderRadius: 10,
             border: '1px solid #334155',
           }}
         >
-          <span
-            style={{
-              color: '#3b82f6',
-              fontSize: '10px',
-              fontWeight: 'bold',
-            }}
-          >
+          <span style={{ color: '#3b82f6', fontSize: 10, fontWeight: 'bold' }}>
             {s.toUpperCase()}
           </span>
 
           {produto.ui_schema
             ?.filter((c: any) => c.section === s)
             .map((c: any) => (
-              <div key={c.name} style={{ marginTop: '10px' }}>
-                <label
-                  style={{
-                    fontSize: '11px',
-                    color: '#94a3b8',
-                    display: 'block',
-                  }}
-                >
+              <div key={c.name} style={{ marginTop: 10 }}>
+                <label style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>
                   {c.label ?? c.name}
                 </label>
 
@@ -233,20 +197,12 @@ export default function EditorControls({
                   step={c.step ?? 1}
                   value={inputValue(localValores[c.name])}
                   onChange={(e) => {
-                    const val =
-                      c.type === 'slider'
-                        ? Number(e.target.value)
-                        : e.target.value;
-
-                    const n: ValoresProduto = {
-                      ...localValores,
-                      [c.name]: val,
-                    };
-
+                    const val = c.type === 'slider' ? Number(e.target.value) : e.target.value;
+                    const n: ValoresProduto = { ...localValores, [c.name]: val };
                     setLocalValores(n);
                     onUpdate(n);
                   }}
-                  style={{ width: '100%', marginTop: '5px' }}
+                  style={{ width: '100%', marginTop: 5 }}
                 />
               </div>
             ))}
@@ -254,13 +210,36 @@ export default function EditorControls({
       ))}
 
       {!stlUrl ? (
-        <button onClick={handleGerarSTL} disabled={loading}>
-          {loading ? `GERANDO… ${progresso}%` : 'GERAR PRÉ‑VISUALIZAÇÃO'}
+        <button
+          onClick={handleGerarSTL}
+          disabled={loading}
+          style={{
+            padding: 12,
+            borderRadius: 10,
+            border: 'none',
+            background: '#3b82f6',
+            color: 'white',
+            fontWeight: 900,
+            cursor: 'pointer',
+            minHeight: 44,
+          }}
+        >
+          {loading ? `GERANDO… ${progresso}%` : 'GERAR PRÉ‑VISUALIZAÇÃO EXACTA'}
         </button>
       ) : (
         <button
           onClick={handleDownloadComPagamento}
           disabled={pagando || saldoAtual < custo}
+          style={{
+            padding: 12,
+            borderRadius: 10,
+            border: 'none',
+            background: '#10b981',
+            color: 'white',
+            fontWeight: 900,
+            cursor: 'pointer',
+            minHeight: 44,
+          }}
         >
           {pagando ? 'PAGANDO…' : 'PAGAR E DESCARREGAR STL'}
         </button>

@@ -5,18 +5,17 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
-import Image from 'next/image';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Menu, X } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const checkUser = async () => {
-      // Forçamos a limpeza de estados antes de verificar
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error || !session) {
@@ -25,21 +24,22 @@ export default function Navbar() {
         return;
       }
 
-      const currentUser = session.user;
-      setUser(currentUser);
-      setIsAdmin(currentUser?.email === 'pp3d.pt@gmail.com');
+      setUser(session.user);
+      setIsAdmin(session.user.email === 'pp3d.pt@gmail.com');
     };
 
     checkUser();
 
-    // Este listener é crucial para quando o login/logout acontece noutras janelas ou modais
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         setUser(session.user);
-        setIsAdmin(session.user?.email === 'pp3d.pt@gmail.com');
-      } else if (event === 'SIGNED_OUT') {
+        setIsAdmin(session.user.email === 'pp3d.pt@gmail.com');
+      }
+
+      if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsAdmin(false);
+        setMobileOpen(false);
         router.push('/');
       }
     });
@@ -51,54 +51,88 @@ export default function Navbar() {
     await supabase.auth.signOut();
     setUser(null);
     setIsAdmin(false);
+    setMobileOpen(false);
     router.push('/');
     router.refresh();
   };
 
   return (
-    <nav className={styles.navbar}>
-      <div className={styles.left}>
-        <Link href="/" className={styles.brand}>
-          MakerPro
-        </Link>
-      </div>
+    <header className={styles.header}>
+      <nav className={styles.navbar}>
+        <div className={styles.brand}>
+          <Link href="/">MakerPro</Link>
+        </div>
 
-      <div className={styles.center}>
-        <Link href="/precario" className={styles.link}>
-          Preçário
-        </Link>
-      </div>
+        {/* Links desktop */}
+        <div className={styles.desktopLinks}>
+          <Link href="/precario">Preçário</Link>
 
-      <div className={styles.right}>
-        {user ? (
-          <>
-            {/* BOTÃO ADMIN - Verifica se o isAdmin está true */}
-            {isAdmin && (
-              <Link href="/admin" className={styles.adminBtn}>
-                <ShieldCheck size={16} />
-                Admin
-              </Link>
-            )}
+          {user ? (
+            <>
+              {isAdmin && (
+                <Link href="/admin">
+                  <span className={styles.inline}>
+                    <ShieldCheck size={16} />
+                    Admin
+                  </span>
+                </Link>
+              )}
 
-            <Link href="/dashboard" className={styles.link}>
-              Dashboard
-            </Link>
+              <Link href="/dashboard">Dashboard</Link>
 
-            <button onClick={handleLogout} className={styles.logoutBtn}>
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link href="/login" className={styles.link}>
-              Login
-            </Link>
-            <Link href="/registo" className={styles.link}>
-              Registo
-            </Link>
-          </>
-        )}
-      </div>
-    </nav>
+              <button className={styles.btnGhost} onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">Login</Link>
+              <Link href="/registo">Registo</Link>
+            </>
+          )}
+        </div>
+
+        {/* Toggle mobile */}
+        <button
+          className={styles.mobileToggle}
+          onClick={() => setMobileOpen(v => !v)}
+          aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </nav>
+
+      {/* Menu mobile */}
+      {mobileOpen && (
+        <div className={styles.mobileMenu} role="menu">
+          <Link href="/precario" onClick={() => setMobileOpen(false)}>Preçário</Link>
+
+          {user ? (
+            <>
+              {isAdmin && (
+                <Link href="/admin" onClick={() => setMobileOpen(false)}>
+                  <span className={styles.inline}>
+                    <ShieldCheck size={16} />
+                    Admin
+                  </span>
+                </Link>
+              )}
+
+              <Link href="/dashboard" onClick={() => setMobileOpen(false)}>Dashboard</Link>
+
+              <button className={styles.btnPrimary} onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setMobileOpen(false)}>Login</Link>
+              <Link href="/registo" onClick={() => setMobileOpen(false)}>Registo</Link>
+            </>
+          )}
+        </div>
+      )}
+    </header>
   );
 }
