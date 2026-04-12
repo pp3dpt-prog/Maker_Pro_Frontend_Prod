@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-// Lazy imports para reduzir bundle e evitar SSR issues
+/* Lazy load three.js (evita SSR issues) */
 async function loadThree() {
   const THREE = await import('three');
   const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
@@ -11,23 +11,20 @@ async function loadThree() {
   return { THREE, OrbitControls, STLLoader };
 }
 
-type ValoresProduto = Record<string, string | number | boolean>;
-
+/* ──────────────────────────────────────────────
+ PROPS
+────────────────────────────────────────────── */
 type Props = {
-  /** URL do blank rápido (ex: /models/blank_redondo.stl) */
   blankUrl?: string | null;
-
-  /** storagePath do preview exacto ou final (privado) */
   storagePath?: string | null;
-
-  /** signed url (opcional) */
   url?: string | null;
-
-  /** nome do ficheiro ao descarregar (opcional) */
   filename?: string;
 
-  /** se quiseres esconder botões */
-  showButtons?: boolean;
+  /* ✅ Overlay imediato */
+  overlayText?: string;
+  overlayX?: number;
+  overlayY?: number;
+  overlaySize?: number;
 };
 
 export default function STLViewer({
@@ -35,9 +32,14 @@ export default function STLViewer({
   storagePath = null,
   url = null,
   filename = 'modelo.stl',
-  showButtons = true,
+
+  overlayText = '',
+  overlayX = 0,
+  overlayY = 0,
+  overlaySize = 24,
 }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+
   const rendererRef = useRef<any>(null);
   const sceneRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -47,15 +49,20 @@ export default function STLViewer({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  // Escolha de fonte: prioridade -> storagePath -> url -> blankUrl
+  /* ✅ Toggle overlay */
+  const [showOverlay, setShowOverlay] = useState(true);
+
+  /* Fonte do STL */
   const source = useMemo(() => {
-    if (storagePath) return { kind: 'storagePath' as const, value: storagePath };
-    if (url) return { kind: 'url' as const, value: url };
-    if (blankUrl) return { kind: 'url' as const, value: blankUrl };
+    if (storagePath) return { kind: 'storage', value: storagePath };
+    if (url) return { kind: 'url', value: url };
+    if (blankUrl) return { kind: 'url', value: blankUrl };
     return null;
   }, [storagePath, url, blankUrl]);
 
-  // init three
+  /* ──────────────────────────────────────────────
+ INIT THREE
+────────────────────────────────────────────── */
   useEffect(() => {
     let disposed = false;
 
@@ -69,38 +76,31 @@ export default function STLViewer({
       const height = mountRef.current.clientHeight;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#0b1220');
+      scene.background = new THREE.Color('#020617');
 
       const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
       camera.position.set(0, 0, 120);
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(width, height);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-      // light
-      const ambient = new THREE.AmbientLight(0xffffff, 0.9);
-      scene.add(ambient);
+      /* Luz */
+      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
       const dir = new THREE.DirectionalLight(0xffffff, 1.0);
-      dir.position.set(50, 80, 120);
+      dir.position.set(80, 100, 120);
       scene.add(dir);
 
-      // controls (touch friendly)
+      /* Controles (touch friendly) */
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
       controls.rotateSpeed = 0.6;
       controls.zoomSpeed = 0.8;
       controls.panSpeed = 0.6;
+      controls.touches = { ONE: 0, TWO: 2 };
 
-      // touch mapping
-      controls.touches = {
-        ONE: 0,      // ROTATE
-        TWO: 2,      // DOLLY_PAN
-      };
-
-      // mount
       mountRef.current.innerHTML = '';
       mountRef.current.appendChild(renderer.domElement);
 
@@ -128,10 +128,6 @@ export default function STLViewer({
       };
 
       animate();
-
-      return () => {
-        window.removeEventListener('resize', onResize);
-      };
     })();
 
     return () => {
@@ -143,48 +139,36 @@ export default function STLViewer({
     };
   }, []);
 
-  // load STL whenever source changes
+  /* ──────────────────────────────────────────────
+ LOAD STL
+────────────────────────────────────────────── */
   useEffect(() => {
     let cancelled = false;
 
     async function clearMesh() {
-      const scene = sceneRef.current;
-      const mesh = meshRef.current;
-      if (scene && mesh) {
-        scene.remove(mesh);
-        mesh.geometry?.dispose?.();
-        mesh.material?.dispose?.();
+      if (sceneRef.current && meshRef.current) {
+        sceneRef.current.remove(meshRef.current);
+        meshRef.current.geometry?.dispose?.();
+        meshRef.current.material?.dispose?.();
         meshRef.current = null;
       }
     }
 
-    async function loadStlFromUrl(stlUrl: string) {
+    async function loadFromUrl(stlUrl: string) {
       const { THREE, STLLoader } = await loadThree();
-      if (cancelled) return;
-
       const loader = new STLLoader();
+
       return new Promise<any>((resolve, reject) => {
-        loader.load(
-          stlUrl,
-          (geometry: any) => resolve({ THREE, geometry }),
-          undefined,
-          (err: any) => reject(err)
-        );
+        loader.load(stlUrl, (geometry: any) => resolve({ THREE, geometry }), undefined, reject);
       });
     }
 
-    async function loadStlFromStorage(pathInBucket: string) {
-      const { data, error } = await supabase.storage
-        .from('designs-vault')
-        .download(pathInBucket);
-
-      if (error) throw error;
-      if (!data) throw new Error('Download vazio (storagePath).');
-
+    async function loadFromStorage(path: string) {
+      const { data, error } = await supabase.storage.from('designs-vault').download(path);
+      if (error || !data) throw error;
       const blobUrl = URL.createObjectURL(data);
       try {
-        const out = await loadStlFromUrl(blobUrl);
-        return out;
+        return await loadFromUrl(blobUrl);
       } finally {
         URL.revokeObjectURL(blobUrl);
       }
@@ -194,43 +178,36 @@ export default function STLViewer({
       setError(null);
 
       if (!source) {
-        await clearMesh();
         setStatus('idle');
         return;
       }
 
       setStatus('loading');
+      await clearMesh();
 
       try {
-        await clearMesh();
-
-        let loaded;
-        if (source.kind === 'storagePath') {
-          loaded = await loadStlFromStorage(source.value);
-        } else {
-          loaded = await loadStlFromUrl(source.value);
-        }
+        const result =
+          source.kind === 'storage'
+            ? await loadFromStorage(source.value)
+            : await loadFromUrl(source.value);
 
         if (cancelled) return;
 
-        const { THREE, geometry } = loaded;
+        const { THREE, geometry } = result;
         geometry.computeBoundingBox();
 
         const material = new THREE.MeshStandardMaterial({
           color: 0x93c5fd,
-          metalness: 0.1,
           roughness: 0.6,
         });
 
         const mesh = new THREE.Mesh(geometry, material);
 
-        // centrar
         const box = geometry.boundingBox;
         const center = new THREE.Vector3();
         box.getCenter(center);
         mesh.position.sub(center);
 
-        // ajustar camera
         const size = new THREE.Vector3();
         box.getSize(size);
         const maxDim = Math.max(size.x, size.y, size.z);
@@ -245,7 +222,7 @@ export default function STLViewer({
         setStatus('ready');
       } catch (e: any) {
         setStatus('error');
-        setError(e?.message || 'Falha ao carregar STL.');
+        setError('Erro ao carregar STL.');
       }
     })();
 
@@ -254,90 +231,69 @@ export default function STLViewer({
     };
   }, [source]);
 
-  async function handleDownload() {
-    try {
-      if (storagePath) {
-        const { data, error } = await supabase.storage.from('designs-vault').download(storagePath);
-        if (error) throw error;
-        if (!data) throw new Error('Download vazio.');
-
-        const objectUrl = URL.createObjectURL(data);
-        const a = document.createElement('a');
-        a.href = objectUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(objectUrl);
-        return;
-      }
-
-      if (url) {
-        const r = await fetch(url);
-        if (!r.ok) throw new Error('Falha ao descarregar (url).');
-        const blob = await r.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = objectUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(objectUrl);
-      }
-    } catch (e: any) {
-      setError(e?.message || 'Erro no download.');
-      setStatus('error');
-    }
-  }
-
+  /* ──────────────────────────────────────────────
+ RENDER
+────────────────────────────────────────────── */
   return (
     <section style={{ marginTop: 16 }}>
+      {/* Viewer container */}
       <div
-        ref={mountRef}
         style={{
+          position: 'relative',
           width: '100%',
           height: 'min(60vh, 520px)',
+          minHeight: 300,
           borderRadius: 12,
           border: '1px solid #334155',
           overflow: 'hidden',
-          touchAction: 'none', // crítico para touch orbit
+          touchAction: 'none',
         }}
-      />
+      >
+        <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
 
-      {status === 'loading' && (
-        <p style={{ color: '#cbd5e1', marginTop: 10 }}>A carregar modelo 3D…</p>
-      )}
-
-      {status === 'idle' && (
-        <p style={{ color: '#94a3b8', marginTop: 10 }}>Sem modelo para mostrar.</p>
-      )}
-
-      {status === 'error' && (
-        <p style={{ color: '#fca5a5', marginTop: 10 }}>
-          {error || 'Erro no viewer.'}
-        </p>
-      )}
-
-      {showButtons && (storagePath || url) && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-          <button
-            onClick={handleDownload}
+        {/* ✅ OVERLAY DE TEXTO IMEDIATO */}
+        {showOverlay && overlayText && (
+          <div
             style={{
-              padding: '12px 14px',
-              borderRadius: 10,
-              border: 'none',
-              background: '#10b981',
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: `translate(${overlayX}px, ${overlayY}px) translate(-50%, -50%)`,
+              fontSize: overlaySize,
+              fontWeight: 700,
               color: 'white',
-              fontWeight: 900,
-              cursor: 'pointer',
-              minHeight: 44,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              textShadow: '0 0 6px rgba(0,0,0,0.7)',
             }}
           >
-            Descarregar STL
-          </button>
-        </div>
+            {overlayText}
+          </div>
+        )}
+      </div>
+
+      {/* ✅ BOTÃO OVERLAY ON/OFF */}
+      {overlayText && (
+        <button
+          onClick={() => setShowOverlay(v => !v)}
+          style={{
+            marginTop: 12,
+            padding: '10px 14px',
+            borderRadius: 10,
+            border: '1px solid #334155',
+            background: showOverlay ? '#22c55e' : '#020617',
+            color: 'white',
+            fontWeight: 800,
+            cursor: 'pointer',
+            minHeight: 44,
+          }}
+        >
+          {showOverlay ? 'OCULTAR TEXTO' : 'MOSTRAR TEXTO'}
+        </button>
       )}
+
+      {status === 'loading' && <p style={{ color: '#94a3b8' }}>A carregar modelo…</p>}
+      {status === 'error' && <p style={{ color: '#fca5a5' }}>{error}</p>}
     </section>
   );
 }
