@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -10,6 +10,9 @@ import { supabase } from '@/lib/supabaseClient';
 import STLViewer from '@/components/STLViewer';
 import EditorControls, { ValoresProduto } from '@/components/EditorControls';
 
+/* ──────────────────────────────────────────────
+ TIPOS
+────────────────────────────────────────────── */
 type ProdutoAtual = {
   id: string | number;
   nome?: string;
@@ -18,7 +21,10 @@ type ProdutoAtual = {
   parametros_default?: Record<string, any>;
 };
 
-export default function CustomizadorPage() {
+/* ──────────────────────────────────────────────
+ COMPONENTE CLIENTE (USA useSearchParams)
+────────────────────────────────────────────── */
+function CustomizadorClient() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const familiaURL = searchParams.get('familia');
@@ -84,27 +90,26 @@ export default function CustomizadorPage() {
       {/* ESCOLHA DA FORMA */}
       <h3 style={{ marginTop: 25 }}>FORMA</h3>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {modelos.map((item) => {
-          const ativo = String(item.id) === String(produtoAtual.id);
-          return (
-            <Link
-              key={item.id}
-              href={`/customizador?id=${item.id}&familia=${familiaURL}`}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 8,
-                background: ativo ? '#3b82f6' : '#0f172a',
-                color: 'white',
-                textDecoration: 'none',
-                fontWeight: 600,
-              }}
-            >
-              {String(item.nome ?? '')
-                .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
-                .toUpperCase()}
-            </Link>
-          );
-        })}
+        {modelos.map((item) => (
+          <Link
+            key={item.id}
+            href={`/customizador?id=${item.id}&familia=${familiaURL}`}
+            style={{
+              padding: '10px',
+              borderRadius: '8px',
+              background:
+                String(item.id) === String(produtoAtual.id)
+                  ? '#3b82f6'
+                  : '#0f172a',
+              color: 'white',
+              textDecoration: 'none',
+            }}
+          >
+            {String(item.nome ?? '')
+              .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
+              .toUpperCase()}
+          </Link>
+        ))}
       </div>
 
       {/* LAYOUT */}
@@ -138,5 +143,16 @@ export default function CustomizadorPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
+ EXPORT DA PÁGINA (COM SUSPENSE)
+────────────────────────────────────────────── */
+export default function CustomizadorPage() {
+  return (
+    <Suspense fallback={<div>A carregar configurador…</div>}>
+      <CustomizadorClient />
+    </Suspense>
   );
 }
