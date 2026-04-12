@@ -1,4 +1,3 @@
-
 'use client';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +41,7 @@ export default function CustomizadorPage() {
         .eq('familia', familiaURL);
 
       if (error) {
-        console.error(error);
+        console.error('Erro prod_designs:', error);
         setLoading(false);
         return;
       }
@@ -97,6 +96,7 @@ export default function CustomizadorPage() {
                 background: ativo ? '#3b82f6' : '#0f172a',
                 color: 'white',
                 textDecoration: 'none',
+                fontWeight: 600,
               }}
             >
               {String(item.nome ?? '')
@@ -112,7 +112,7 @@ export default function CustomizadorPage() {
         style={{
           display: 'grid',
           gridTemplateColumns: '360px 1fr',
-          gap: 20,
+          gap: 24,
           marginTop: 30,
         }}
       >
