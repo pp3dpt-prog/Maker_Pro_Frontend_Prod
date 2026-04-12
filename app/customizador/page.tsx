@@ -181,12 +181,23 @@ function CustomizadorConteudo() {
       )}
 
       {/* STLViewer: mantém o teu modo actual */}
+      
+      
       {produtoAtual && (
         <STLViewer
-          mode="produto"
-          produto={{ id: String(produtoAtual.id), nome: produtoAtual.nome }}
-          valores={mostrarPreview ? valores : EMPTY_VALORES}
+          blankUrl={
+            {
+              'tag-redonda': '/models/blank_redondo.stl',
+              'tag-osso': '/models/blank_osso.stl',
+              'tag-coracao': '/models/blank_coracao.stl',
+              'tag-hexagono': '/models/blank_hexagono.stl',
+            }[String(produtoAtual.id)] ?? null
+          }
+          storagePath={stlUrl}     // vem do EditorControls (preview exacto)
+          filename={`${String(produtoAtual.id)}.stl`}
         />
+
+
       )}
     </div>
   );
