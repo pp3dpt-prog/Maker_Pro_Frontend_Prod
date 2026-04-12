@@ -74,10 +74,12 @@ export default function STLMakerPro() {
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {stlUrl && (
-          <STLViewer 
-            url={stlUrl} 
-            valores={mostrarPreview ? { nome_pet: name, telefone: phone, fonte: font } : {}} 
-          />
+          
+        <STLViewer
+          url={stlUrl}
+          filename="pet-tag.stl"
+        />
+
         )}
       </div>
     </div>
