@@ -13,11 +13,14 @@ type Props = {
   relevo?: boolean;
 };
 
+
 const FONT_MAP: Record<string, string> = {
-  'Open Sans': '/fonts/OpenSans-Regular.json',
-  'Open Sans Bold': '/fonts/OpenSans-Bold.json',
-  'Roboto': '/fonts/Roboto-Regular.json',
+  'Aladin': '/fonts/Aladin.json',
+  'Amarante': '/fonts/amarante.json',
+  'Baloo 2': '/fonts/baloo2.json',
+  'Benne': '/fonts/benne.json',
 };
+
 
 export default function STLViewer({
   baseStlUrl,
