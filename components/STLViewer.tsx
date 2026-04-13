@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Props = {
   baseStlUrl: string;
@@ -36,12 +36,13 @@ export default function STLViewer({
   const rendererRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
-
-  const zFrontRef = useRef<number>(0);
-  const loadedFontRef = useRef<any>(null);
   const textGroupRef = useRef<any>(null);
 
-  // init + load STL once per baseStlUrl
+  // ✅ estados reativos (isto é o fix)
+  const [zFront, setZFront] = useState<number | null>(null);
+  const [loadedFont, setLoadedFont] = useState<any>(null);
+
+  // init + load base STL (quando muda baseStlUrl)
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -78,18 +79,31 @@ export default function STLViewer({
       dir.position.set(80, 100, 120);
       scene.add(dir);
 
-      // load base STL
+      sceneRef.current = scene;
+      rendererRef.current = renderer;
+      cameraRef.current = camera;
+      controlsRef.current = controls;
+
+      // limpar texto antigo (se existir)
+      if (textGroupRef.current) {
+        scene.remove(textGroupRef.current);
+        textGroupRef.current = null;
+      }
+      setZFront(null);
+
       const loader = new STLLoader();
       loader.load(
         baseStlUrl,
         (geometry: any) => {
+          if (disposed) return;
+
           geometry.computeBoundingBox();
           const box = geometry.boundingBox!;
           const center = new THREE.Vector3();
           box.getCenter(center);
 
-          // front face Z relative to centered mesh
-          zFrontRef.current = box.max.z - center.z;
+          const zF = box.max.z - center.z;
+          setZFront(zF);
 
           const mat = new THREE.MeshStandardMaterial({
             color: 0x93c5fd,
@@ -100,17 +114,19 @@ export default function STLViewer({
           mesh.position.sub(center);
           scene.add(mesh);
 
-          // camera distance based on size
+          // ajustar camera
           const size = new THREE.Vector3();
           box.getSize(size);
           const maxDim = Math.max(size.x, size.y, size.z);
           camera.position.set(0, 0, Math.max(90, maxDim * 2));
           controls.target.set(0, 0, 0);
           controls.update();
+
+          console.log('[STLViewer] STL carregado. zFront=', zF);
         },
         undefined,
-        () => {
-          // ignore
+        (err: any) => {
+          console.error('[STLViewer] Erro STLLoader:', err);
         }
       );
 
@@ -120,11 +136,6 @@ export default function STLViewer({
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
       };
-
-      sceneRef.current = scene;
-      rendererRef.current = renderer;
-      cameraRef.current = camera;
-      controlsRef.current = controls;
 
       animate();
     })();
@@ -140,14 +151,12 @@ export default function STLViewer({
     };
   }, [baseStlUrl]);
 
-  // load font when `font` changes
+  // load font (quando muda `font`)
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       const { FontLoader } = await import('three/examples/jsm/loaders/FontLoader.js');
-      if (cancelled) return;
-
       const fontUrl = FONT_MAP[font] ?? FONT_MAP['Open Sans'];
       const loader = new FontLoader();
 
@@ -155,11 +164,18 @@ export default function STLViewer({
         fontUrl,
         (f: any) => {
           if (cancelled) return;
-          loadedFontRef.current = f;
+          setLoadedFont(f);
+          console.log('[STLViewer] Fonte carregada:', fontUrl);
         },
         undefined,
-        () => {
-          // fallback: keep previous font if any
+        (err: any) => {
+          console.error('[STLViewer] Erro FontLoader:', err, 'URL:', fontUrl);
+          // fallback: tenta Open Sans
+          if (fontUrl !== FONT_MAP['Open Sans']) {
+            loader.load(FONT_MAP['Open Sans'], (f2: any) => {
+              if (!cancelled) setLoadedFont(f2);
+            });
+          }
         }
       );
     })();
@@ -169,44 +185,35 @@ export default function STLViewer({
     };
   }, [font]);
 
-  // rebuild text whenever inputs change
+  // build/rebuild text (quando muda qualquer parâmetro)
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    const THREEPromise = import('three');
-    const geomPromise = import('three/examples/jsm/geometries/TextGeometry.js');
+    // só desenha texto quando temos STL (zFront) e fonte carregada
+    if (zFront === null || !loadedFont) return;
 
     let cancelled = false;
 
     (async () => {
-      const THREE = await THREEPromise;
-      const { TextGeometry } = await geomPromise;
-
+      const THREE = await import('three');
+      const { TextGeometry } = await import('three/examples/jsm/geometries/TextGeometry.js');
       if (cancelled) return;
-      const loadedFont = loadedFontRef.current;
 
-      // if font not loaded yet, wait a tick and retry on next effect tick
-      if (!loadedFont) return;
-
-      // remove previous group
+      // remove grupo anterior
       if (textGroupRef.current) {
         scene.remove(textGroupRef.current);
         textGroupRef.current = null;
       }
 
-      // if both empty, nothing to draw
       const n = (nome ?? '').trim();
       const t = (telefone ?? '').trim();
       if (!n && !t) return;
 
       const group = new THREE.Group();
-
       const depth = relevo ? 1.2 : 0.3;
-      const zFront = zFrontRef.current || 0;
-      const zF = zFront + depth + 0.2;
+      const z = zFront + depth + 0.3;
 
-      // helpers: center geometry in X/Y so xPos/yPos are intuitive mm offsets
       const centerXY = (geo: any) => {
         geo.computeBoundingBox();
         const box = geo.boundingBox!;
@@ -215,10 +222,7 @@ export default function STLViewer({
         geo.translate(-cx, -cy, 0);
       };
 
-      const materialFront = new THREE.MeshStandardMaterial({ color: 0xffffff });
-      const materialBack = new THREE.MeshStandardMaterial({ color: 0xffffff });
-
-      const addText = (txt: string, invert: boolean, yOffset: number) => {
+      const add = (txt: string, invert: boolean, yOffset: number) => {
         const geo = new TextGeometry(txt, {
           font: loadedFont,
           size: fontSize,
@@ -228,40 +232,40 @@ export default function STLViewer({
 
         centerXY(geo);
 
-        const mesh = new THREE.Mesh(geo, invert ? materialBack : materialFront);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const mesh = new THREE.Mesh(geo, mat);
 
         if (invert) mesh.rotation.y = Math.PI;
 
         mesh.position.set(
           xPos,
           yPos + yOffset,
-          invert ? -zF : zF
+          invert ? -z : z
         );
 
         group.add(mesh);
       };
 
-      // We draw BOTH strings on BOTH faces: name top, phone bottom
-      const yName = 0;
-      const yPhone = -fontSize * 1.5;
-
+      // nome no centro, telefone abaixo
       if (n) {
-        addText(n, false, yName); // front
-        addText(n, true, yName);  // back
+        add(n, false, 0);
+        add(n, true, 0);
       }
       if (t) {
-        addText(t, false, yPhone); // front
-        addText(t, true, yPhone);  // back
+        add(t, false, -fontSize * 1.5);
+        add(t, true, -fontSize * 1.5);
       }
 
       scene.add(group);
       textGroupRef.current = group;
+
+      console.log('[STLViewer] Texto desenhado. nome=', !!n, 'telefone=', !!t, 'z=', z);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [nome, telefone, fontSize, xPos, yPos, relevo, font]);
+  }, [nome, telefone, fontSize, xPos, yPos, relevo, zFront, loadedFont]);
 
   return (
     <div
