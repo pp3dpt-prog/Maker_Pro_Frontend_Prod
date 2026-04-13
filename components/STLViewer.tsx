@@ -4,16 +4,31 @@ import { useEffect, useRef, useState } from 'react';
 
 type Props = {
   baseStlUrl: string;
+
+  // Frente
   nome?: string;
+
+  // Verso
   telefone?: string;
+
+  // Fonte (tem de ser uma key do FONT_MAP)
   font?: string;
-  fontSize?: number; // mm
-  xPos?: number;     // mm
-  yPos?: number;     // mm
+
+  // mm
+  fontSize?: number;
+  xPos?: number;
+  yPos?: number;
+
+  // relevo apenas para o NOME (frente)
   relevo?: boolean;
 };
 
-
+/**
+ * IMPORTANTÍSSIMO: paths EXACTOS (case-sensitive em Vercel/Linux)
+ * Estes ficheiros têm de existir em: public/fonts/...
+ * e ficam acessíveis via /fonts/...
+ * (Next.js serve /public a partir da raiz) [1](https://nextjs.org/docs/pages/api-reference/file-conventions/public-folder)[2](https://nextjs.org/docs/14/app/building-your-application/optimizing/static-assets)
+ */
 const FONT_MAP: Record<string, string> = {
   'Aladin': '/fonts/Aladin.json',
   'Amarante': '/fonts/amarante.json',
@@ -21,31 +36,35 @@ const FONT_MAP: Record<string, string> = {
   'Benne': '/fonts/benne.json',
 };
 
-
 export default function STLViewer({
   baseStlUrl,
   nome = '',
   telefone = '',
-  font = 'Open Sans',
+  font = 'Amarante',
   fontSize = 7,
   xPos = 0,
   yPos = 0,
-  relevo = false,
+  relevo = true,
 }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
-  // runtime refs
+  // Runtime refs
   const sceneRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
+
+  // Texto atual (grupo)
   const textGroupRef = useRef<any>(null);
 
-  // ✅ estados reativos (isto é o fix)
+  // Estados reativos para garantir ordem correta:
+  // só desenhamos texto quando STL e fonte estiverem prontos.
   const [zFront, setZFront] = useState<number | null>(null);
   const [loadedFont, setLoadedFont] = useState<any>(null);
 
-  // init + load base STL (quando muda baseStlUrl)
+  /**
+   * 1) INIT + LOAD STL base (quando muda baseStlUrl)
+   */
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -77,6 +96,7 @@ export default function STLViewer({
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
 
+      // Luz
       scene.add(new THREE.AmbientLight(0xffffff, 0.9));
       const dir = new THREE.DirectionalLight(0xffffff, 1);
       dir.position.set(80, 100, 120);
@@ -87,13 +107,16 @@ export default function STLViewer({
       cameraRef.current = camera;
       controlsRef.current = controls;
 
-      // limpar texto antigo (se existir)
+      // Reset do estado dependente do STL
+      setZFront(null);
+
+      // Remove texto anterior, se existir
       if (textGroupRef.current) {
         scene.remove(textGroupRef.current);
         textGroupRef.current = null;
       }
-      setZFront(null);
 
+      // Load STL base
       const loader = new STLLoader();
       loader.load(
         baseStlUrl,
@@ -105,6 +128,7 @@ export default function STLViewer({
           const center = new THREE.Vector3();
           box.getCenter(center);
 
+          // Face frontal em Z (no espaço depois de centrar)
           const zF = box.max.z - center.z;
           setZFront(zF);
 
@@ -117,15 +141,13 @@ export default function STLViewer({
           mesh.position.sub(center);
           scene.add(mesh);
 
-          // ajustar camera
+          // Ajustar camera ao tamanho da peça
           const size = new THREE.Vector3();
           box.getSize(size);
           const maxDim = Math.max(size.x, size.y, size.z);
           camera.position.set(0, 0, Math.max(90, maxDim * 2));
           controls.target.set(0, 0, 0);
           controls.update();
-
-          console.log('[STLViewer] STL carregado. zFront=', zF);
         },
         undefined,
         (err: any) => {
@@ -154,13 +176,17 @@ export default function STLViewer({
     };
   }, [baseStlUrl]);
 
-  // load font (quando muda `font`)
+  /**
+   * 2) LOAD FONT (quando muda font)
+   * FontLoader usa Typeface JSON (não TTF) [3](https://threejs.org/docs/pages/FontLoader.html)[4](https://threejs-journey.com/lessons/3d-text)
+   */
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       const { FontLoader } = await import('three/examples/jsm/loaders/FontLoader.js');
-      const fontUrl = FONT_MAP[font] ?? FONT_MAP['Open Sans'];
+
+      const fontUrl = FONT_MAP[font] ?? FONT_MAP['Amarante'];
       const loader = new FontLoader();
 
       loader.load(
@@ -168,14 +194,13 @@ export default function STLViewer({
         (f: any) => {
           if (cancelled) return;
           setLoadedFont(f);
-          console.log('[STLViewer] Fonte carregada:', fontUrl);
         },
         undefined,
         (err: any) => {
           console.error('[STLViewer] Erro FontLoader:', err, 'URL:', fontUrl);
-          // fallback: tenta Open Sans
-          if (fontUrl !== FONT_MAP['Open Sans']) {
-            loader.load(FONT_MAP['Open Sans'], (f2: any) => {
+          // fallback para Amarante
+          if (fontUrl !== FONT_MAP['Amarante']) {
+            loader.load(FONT_MAP['Amarante'], (f2: any) => {
               if (!cancelled) setLoadedFont(f2);
             });
           }
@@ -188,12 +213,17 @@ export default function STLViewer({
     };
   }, [font]);
 
-  // build/rebuild text (quando muda qualquer parâmetro)
+  /**
+   * 3) BUILD/REBUILD TEXT (quando muda qualquer input)
+   * Regras:
+   * - NOME: só na FRENTE (pode ter relevo)
+   * - TELEFONE: só no VERSO e PLANO (sem relevo)
+   */
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // só desenha texto quando temos STL (zFront) e fonte carregada
+    // só desenhar quando temos STL e fonte
     if (zFront === null || !loadedFont) return;
 
     let cancelled = false;
@@ -201,9 +231,10 @@ export default function STLViewer({
     (async () => {
       const THREE = await import('three');
       const { TextGeometry } = await import('three/examples/jsm/geometries/TextGeometry.js');
+
       if (cancelled) return;
 
-      // remove grupo anterior
+      // Remove grupo anterior
       if (textGroupRef.current) {
         scene.remove(textGroupRef.current);
         textGroupRef.current = null;
@@ -211,12 +242,15 @@ export default function STLViewer({
 
       const n = (nome ?? '').trim();
       const t = (telefone ?? '').trim();
+
       if (!n && !t) return;
 
       const group = new THREE.Group();
-      const depth = relevo ? 1.2 : 0.3;
-      const z = zFront + depth + 0.3;
 
+      // Distância da superfície para evitar z-fighting
+      const surfaceGap = 0.25;
+
+      // ===== Helpers
       const centerXY = (geo: any) => {
         geo.computeBoundingBox();
         const box = geo.boundingBox!;
@@ -225,50 +259,78 @@ export default function STLViewer({
         geo.translate(-cx, -cy, 0);
       };
 
-      const add = (txt: string, invert: boolean, yOffset: number) => {
-        const geo = new TextGeometry(txt, {
+      // ===== NOME (FRENTE) - relevo opcional
+      if (n) {
+        const depthName = relevo ? 1.0 : 0.25;
+
+        const geoName = new TextGeometry(n, {
           font: loadedFont,
           size: fontSize,
-          depth,
+          depth: depthName,
           curveSegments: 8,
         });
 
-        centerXY(geo);
+        centerXY(geoName);
 
-        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-        const mesh = new THREE.Mesh(geo, mat);
+        const matName = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.6,
+        });
 
-        if (invert) mesh.rotation.y = Math.PI;
+        const meshName = new THREE.Mesh(geoName, matName);
 
-        mesh.position.set(
-          xPos,
-          yPos + yOffset,
-          invert ? -z : z
-        );
+        // Frente: Z positivo (fora da face)
+        const zName = zFront + surfaceGap;
 
-        group.add(mesh);
-      };
-
-      // nome no centro, telefone abaixo
-      if (n) {
-        add(n, false, 0);
-        add(n, true, 0);
+        meshName.position.set(xPos, yPos, zName);
+        group.add(meshName);
       }
+
+      // ===== TELEFONE (VERSO) - PLANO (sem relevo)
       if (t) {
-        add(t, false, -fontSize * 1.5);
-        add(t, true, -fontSize * 1.5);
+        // 2D shapes (plano) gerado pela fonte
+        const shapes = loadedFont.generateShapes(t, fontSize);
+        const geo2d = new THREE.ShapeGeometry(shapes);
+
+        // centrar
+        geo2d.computeBoundingBox();
+        const box2d = geo2d.boundingBox!;
+        const cx = (box2d.min.x + box2d.max.x) / 2;
+        const cy = (box2d.min.y + box2d.max.y) / 2;
+        geo2d.translate(-cx, -cy, 0);
+
+        // material plano, com polygonOffset para não “piscar” na superfície
+        const matFlat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.8,
+          metalness: 0,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+        });
+
+        const meshFlat = new THREE.Mesh(geo2d, matFlat);
+
+        // Verso: rodar 180º para ler corretamente
+        meshFlat.rotation.y = Math.PI;
+
+        const yPhone = yPos - fontSize * 1.5;
+
+        // Verso: Z negativo (ligeiramente fora)
+        const zPhone = -(zFront + surfaceGap);
+
+        meshFlat.position.set(xPos, yPhone, zPhone);
+        group.add(meshFlat);
       }
 
       scene.add(group);
       textGroupRef.current = group;
-
-      console.log('[STLViewer] Texto desenhado. nome=', !!n, 'telefone=', !!t, 'z=', z);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [nome, telefone, fontSize, xPos, yPos, relevo, zFront, loadedFont]);
+  }, [nome, telefone, font, fontSize, xPos, yPos, relevo, zFront, loadedFont]);
 
   return (
     <div
