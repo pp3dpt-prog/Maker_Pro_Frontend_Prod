@@ -10,9 +10,6 @@ import { supabase } from '@/lib/supabaseClient';
 import STLViewer from '@/components/STLViewer';
 import EditorControls, { ValoresProduto } from '@/components/EditorControls';
 
-/* ──────────────────────────────────────────────
- TIPOS
-────────────────────────────────────────────── */
 type ProdutoAtual = {
   id: string | number;
   nome?: string;
@@ -33,6 +30,7 @@ function CustomizadorClient() {
   const [produtoAtual, setProdutoAtual] = useState<ProdutoAtual | null>(null);
   const [modelos, setModelos] = useState<any[]>([]);
   const [valores, setValores] = useState<ValoresProduto>({});
+  const [mostrarTexto, setMostrarTexto] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -47,7 +45,7 @@ function CustomizadorClient() {
         .eq('familia', familiaURL);
 
       if (error) {
-        console.error('Erro prod_designs:', error);
+        console.error(error);
         setLoading(false);
         return;
       }
@@ -90,27 +88,47 @@ function CustomizadorClient() {
       {/* ESCOLHA DA FORMA */}
       <h3 style={{ marginTop: 25 }}>FORMA</h3>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {modelos.map((item) => (
-          <Link
-            key={item.id}
-            href={`/customizador?id=${item.id}&familia=${familiaURL}`}
-            style={{
-              padding: '10px',
-              borderRadius: '8px',
-              background:
-                String(item.id) === String(produtoAtual.id)
-                  ? '#3b82f6'
-                  : '#0f172a',
-              color: 'white',
-              textDecoration: 'none',
-            }}
-          >
-            {String(item.nome ?? '')
-              .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
-              .toUpperCase()}
-          </Link>
-        ))}
+        {modelos.map((item) => {
+          const ativo = String(item.id) === String(produtoAtual.id);
+          return (
+            <Link
+              key={item.id}
+              href={`/customizador?id=${item.id}&familia=${familiaURL}`}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 8,
+                background: ativo ? '#3b82f6' : '#0f172a',
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: 700,
+              }}
+            >
+              {String(item.nome ?? '')
+                .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
+                .toUpperCase()}
+            </Link>
+          );
+        })}
       </div>
+
+      {/* BOTÃO MOSTRAR / LIMPAR TEXTO */}
+      <button
+        onClick={() => setMostrarTexto((v) => !v)}
+        style={{
+          width: '100%',
+          marginTop: 25,
+          marginBottom: 25,
+          padding: 15,
+          borderRadius: 8,
+          border: 'none',
+          background: mostrarTexto ? '#ef4444' : '#22c55e',
+          color: 'white',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+        }}
+      >
+        {mostrarTexto ? 'VER PEÇA LIMPA' : 'VISUALIZAR PERSONALIZAÇÃO'}
+      </button>
 
       {/* LAYOUT */}
       <div
@@ -118,7 +136,6 @@ function CustomizadorClient() {
           display: 'grid',
           gridTemplateColumns: '360px 1fr',
           gap: 24,
-          marginTop: 30,
         }}
       >
         <aside>
@@ -132,8 +149,8 @@ function CustomizadorClient() {
         <main>
           <STLViewer
             baseStlUrl={blankUrl}
-            nome={String(valores.nome_pet ?? '')}
-            telefone={String(valores.telefone ?? '')}
+            nome={mostrarTexto ? String(valores.nome_pet ?? '') : ''}
+            telefone={mostrarTexto ? String(valores.telefone ?? '') : ''}
             font={String(valores.fonte ?? 'Open Sans')}
             fontSize={Number(valores.fontSize ?? 7)}
             xPos={Number(valores.xPos ?? 0)}
@@ -147,7 +164,7 @@ function CustomizadorClient() {
 }
 
 /* ──────────────────────────────────────────────
- EXPORT DA PÁGINA (COM SUSPENSE)
+ EXPORT DA PÁGINA (OBRIGATÓRIO PARA useSearchParams)
 ────────────────────────────────────────────── */
 export default function CustomizadorPage() {
   return (

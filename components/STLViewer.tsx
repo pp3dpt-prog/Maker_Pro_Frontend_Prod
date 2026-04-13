@@ -6,17 +6,24 @@ type Props = {
   baseStlUrl: string;
   nome?: string;
   telefone?: string;
-  font?: string; 
-  fontSize?: number; // mm
-  xPos?: number;     // mm
-  yPos?: number;     // mm
+  font?: string;
+  fontSize?: number;
+  xPos?: number;
+  yPos?: number;
   relevo?: boolean;
+};
+
+const FONT_MAP: Record<string, string> = {
+  'Open Sans': '/fonts/OpenSans-Regular.json',
+  'Open Sans Bold': '/fonts/OpenSans-Bold.json',
+  'Roboto': '/fonts/Roboto-Regular.json',
 };
 
 export default function STLViewer({
   baseStlUrl,
   nome = '',
   telefone = '',
+  font = 'Open Sans',
   fontSize = 7,
   xPos = 0,
   yPos = 0,
@@ -35,7 +42,6 @@ export default function STLViewer({
     let textGroup: any;
 
     (async () => {
-      // ✅ imports dinâmicos (Next-safe)
       const THREE = await import('three');
       const { OrbitControls } = await import(
         'three/examples/jsm/controls/OrbitControls.js'
@@ -52,7 +58,6 @@ export default function STLViewer({
 
       if (disposed) return;
 
-      // Scene
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#020617');
 
@@ -70,15 +75,13 @@ export default function STLViewer({
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
 
-      // Lights
       scene.add(new THREE.AmbientLight(0xffffff, 0.9));
       const dir = new THREE.DirectionalLight(0xffffff, 1);
       dir.position.set(80, 100, 120);
       scene.add(dir);
 
-      // Base STL
-      const stlLoader = new STLLoader();
-      stlLoader.load(baseStlUrl, (geometry: any) => {
+      const loader = new STLLoader();
+      loader.load(baseStlUrl, (geometry: any) => {
         const mat = new THREE.MeshStandardMaterial({
           color: 0x93c5fd,
           roughness: 0.6,
@@ -94,9 +97,10 @@ export default function STLViewer({
         scene.add(mesh);
       });
 
-      // Texto 3D
       const fontLoader = new FontLoader();
-      fontLoader.load('/fonts/OpenSans-Regular.json', (font: any) => {
+      const fontUrl = FONT_MAP[font] ?? FONT_MAP['Open Sans'];
+
+      fontLoader.load(fontUrl, (loadedFont: any) => {
         if (textGroup) scene.remove(textGroup);
         textGroup = new THREE.Group();
 
@@ -104,9 +108,9 @@ export default function STLViewer({
 
         const makeText = (txt: string, invert: boolean, yOffset = 0) => {
           const geo = new TextGeometry(txt, {
-            font,
+            font: loadedFont,
             size: fontSize,
-            depth: depth,
+            depth,
             curveSegments: 8,
           });
 
@@ -120,8 +124,8 @@ export default function STLViewer({
         };
 
         if (nome) {
-          textGroup.add(makeText(nome, false, 0)); // frente
-          textGroup.add(makeText(nome, true, 0));  // verso
+          textGroup.add(makeText(nome, false, 0));
+          textGroup.add(makeText(nome, true, 0));
         }
 
         if (telefone) {
@@ -148,7 +152,7 @@ export default function STLViewer({
         mountRef.current.removeChild(mountRef.current.firstChild);
       }
     };
-  }, [baseStlUrl, nome, telefone, fontSize, xPos, yPos, relevo]);
+  }, [baseStlUrl, nome, telefone, font, fontSize, xPos, yPos, relevo]);
 
   return (
     <div
