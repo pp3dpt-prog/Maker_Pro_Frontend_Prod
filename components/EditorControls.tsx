@@ -7,12 +7,12 @@ export type ValoresProduto = Record<string, string | number | boolean>;
 type UISchemaField = {
   name: string;
   label?: string;
-  type?: 'text' | 'slider';
+  type?: 'text' | 'slider' | 'number';
   min?: number;
   max?: number;
   step?: number;
   default?: string | number | boolean;
-  unit?: string;      // ex: "mm"
+  unit?: string;       // ex: "mm"
   section?: string;
 };
 
@@ -22,36 +22,26 @@ type ProdutoAtual = {
   parametros_default?: Record<string, any>;
 };
 
-interface Props {
+interface EditorControlsProps {
   produto: ProdutoAtual;
   valores: ValoresProduto;
   onUpdate: (valores: ValoresProduto) => void;
 }
 
-/** ✅ Fontes disponíveis (as que tens em public/fonts/*.json) */
-const FONT_OPTIONS = ['Aladin', 'Amarante', 'Baloo 2', 'Benne'] as const;
-type FontOption = typeof FONT_OPTIONS[number];
-
-function isFontOption(v: unknown): v is FontOption {
-  return typeof v === 'string' && (FONT_OPTIONS as readonly string[]).includes(v);
-}
-
-/** Normaliza valores para inputs controlados */
-function inputValue(v: string | number | boolean | undefined): string | number {
+function asInputValue(v: string | number | boolean | undefined): string | number {
   if (typeof v === 'boolean') return v ? 1 : 0;
   return v ?? '';
 }
 
-/** Garantir que a fonte nunca fica “OpenSans”/valor inválido */
-function normalizeFont(v: unknown): FontOption {
-  if (isFontOption(v)) return v;
-  return 'Amarante'; // fallback seguro
+function asNumber(v: any, fallback = 0): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-export default function EditorControls({ produto, valores, onUpdate }: Props) {
+export default function EditorControls({ produto, valores, onUpdate }: EditorControlsProps) {
   const [localValores, setLocalValores] = useState<ValoresProduto>({});
 
-  /** Inicializar a partir das presets da BD */
+  // presets (BD) -> estado local
   useEffect(() => {
     if (!produto?.ui_schema) return;
 
@@ -59,104 +49,134 @@ export default function EditorControls({ produto, valores, onUpdate }: Props) {
       ...(produto.parametros_default ?? {}),
     };
 
-    produto.ui_schema.forEach((c) => {
-      // defaults do schema
-      iniciais[c.name] = c.default !== undefined ? c.default : '';
+    produto.ui_schema.forEach((campo) => {
+      iniciais[campo.name] = campo.default !== undefined ? campo.default : '';
     });
-
-    // ✅ se existir campo "fonte", normaliza já para uma opção válida
-    if ('fonte' in iniciais) {
-      iniciais.fonte = normalizeFont(iniciais.fonte);
-    }
 
     setLocalValores(iniciais);
     onUpdate(iniciais);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produto?.id]);
 
-  /** Agrupar por secções */
   const seccoes = Array.from(
-    new Set((produto.ui_schema ?? []).map((c) => c.section).filter(Boolean))
+    new Set(produto.ui_schema?.map((c) => c.section).filter(Boolean))
   ) as string[];
 
+  const updateField = (name: string, value: string | number | boolean) => {
+    const novos = { ...localValores, [name]: value };
+    setLocalValores(novos);
+    onUpdate(novos);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {seccoes.map((sec) => (
-        <div
-          key={sec}
-          style={{
-            padding: 12,
-            border: '1px solid #334155',
-            borderRadius: 10,
-            background: '#0b1220',
-          }}
-        >
-          <strong style={{ color: 'white' }}>{sec}</strong>
+        <div key={sec}>
+          <strong>{sec}</strong>
 
-          {(produto.ui_schema ?? [])
-            .filter((c) => c.section === sec)
+          {produto.ui_schema
+            ?.filter((c) => c.section === sec)
             .map((c) => {
-              const val = localValores[c.name];
-              const unitLabel = c.unit ? ` (${c.unit})` : '';
+              const label = `${c.label ?? c.name}${c.unit ? ` (${c.unit})` : ''}`;
 
-              const isSlider = c.type === 'slider';
-              const isFontField = c.name === 'fonte';
+              // Slider (range) com valor numérico e input de precisão
+              if (c.type === 'slider') {
+                const min = c.min ?? -20;
+                const max = c.max ?? 20;
+                const step = c.step ?? 0.5;
 
-              // Mostra valor actual nos sliders (com unidade se houver)
-              const sliderValueLabel =
-                isSlider
-                  ? ` — ${Number(val ?? 0).toFixed(1)}${c.unit ?? ''}`
-                  : '';
+                const current = asNumber(localValores[c.name], asNumber(c.default, 0));
 
-              return (
-                <div key={c.name} style={{ marginTop: 10 }}>
-                  <label style={{ display: 'block', fontSize: 12, color: '#cbd5e1' }}>
-                    {(c.label ?? c.name) + unitLabel}
-                    {sliderValueLabel}
-                  </label>
+                return (
+                  <div key={c.name} style={{ marginTop: 10 }}>
+                    <label style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                      {label}
+                    </label>
 
-                  {/* ✅ Campo especial: fonte */}
-                  {isFontField ? (
-                    <select
-                      value={normalizeFont(val)}
-                      onChange={(e) => {
-                        const novos = { ...localValores, [c.name]: e.target.value };
-                        setLocalValores(novos);
-                        onUpdate(novos);
-                      }}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 10, alignItems: 'center' }}>
+                      <input
+                        type="range"
+                        min={min}
+                        max={max}
+                        step={step}
+                        value={current}
+                        onChange={(e) => updateField(c.name, Number(e.target.value))}
+                        style={{ width: '100%' }}
+                      />
+
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={min}
+                        max={max}
+                        step={step}
+                        value={current}
+                        onChange={(e) => updateField(c.name, Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: 10,
+                          border: '1px solid #334155',
+                          background: '#0f172a',
+                          color: 'white',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#94a3b8' }}>
+                      {current} {c.unit ?? ''}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Campo numérico (não slider)
+              if (c.type === 'number') {
+                const current = asNumber(localValores[c.name], asNumber(c.default, 0));
+                return (
+                  <div key={c.name} style={{ marginTop: 10 }}>
+                    <label style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                      {label}
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={current}
+                      onChange={(e) => updateField(c.name, Number(e.target.value))}
                       style={{
                         width: '100%',
-                        marginTop: 6,
-                        padding: 10,
-                        borderRadius: 8,
+                        padding: '10px 12px',
+                        borderRadius: 10,
                         border: '1px solid #334155',
                         background: '#0f172a',
                         color: 'white',
                       }}
-                    >
-                      {FONT_OPTIONS.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type={isSlider ? 'range' : 'text'}
-                      min={c.min}
-                      max={c.max}
-                      step={c.step ?? 1}
-                      value={inputValue(localValores[c.name])}
-                      onChange={(e) => {
-                        const novo =
-                          isSlider ? Number(e.target.value) : e.target.value;
-
-                        const novos = { ...localValores, [c.name]: novo };
-                        setLocalValores(novos);
-                        onUpdate(novos);
-                      }}
-                      style={{ width: '100%', marginTop: 6 }}
                     />
-                  )}
+                  </div>
+                );
+              }
+
+              // Texto (inclui telefone — aceita números e +)
+              const currentText = String(asInputValue(localValores[c.name]) ?? '');
+              return (
+                <div key={c.name} style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                    {label}
+                  </label>
+                  <input
+                    type="text"
+                    inputMode={c.name.toLowerCase().includes('tel') || c.name.toLowerCase().includes('phone') ? 'tel' : 'text'}
+                    value={currentText}
+                    onChange={(e) => updateField(c.name, e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: '1px solid #334155',
+                      background: '#0f172a',
+                      color: 'white',
+                    }}
+                  />
                 </div>
               );
             })}
