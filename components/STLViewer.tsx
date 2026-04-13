@@ -7,9 +7,9 @@ type Props = {
   nome?: string;
   telefone?: string;
   font?: string;
-  fontSize?: number;
-  xPos?: number;
-  yPos?: number;
+  fontSize?: number; // mm
+  xPos?: number;     // mm
+  yPos?: number;     // mm
   relevo?: boolean;
 };
 
@@ -40,6 +40,7 @@ export default function STLViewer({
     let camera: any;
     let controls: any;
     let textGroup: any;
+    let zFront = 0;
 
     (async () => {
       const THREE = await import('three');
@@ -80,23 +81,27 @@ export default function STLViewer({
       dir.position.set(80, 100, 120);
       scene.add(dir);
 
+      /* STL BASE */
       const loader = new STLLoader();
       loader.load(baseStlUrl, (geometry: any) => {
+        geometry.computeBoundingBox();
+        const box = geometry.boundingBox!;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        zFront = box.max.z - center.z;
+
         const mat = new THREE.MeshStandardMaterial({
           color: 0x93c5fd,
           roughness: 0.6,
         });
 
-        geometry.computeBoundingBox();
         const mesh = new THREE.Mesh(geometry, mat);
-
-        const center = new THREE.Vector3();
-        geometry.boundingBox?.getCenter(center);
         mesh.position.sub(center);
-
         scene.add(mesh);
       });
 
+      /* TEXTO 3D */
       const fontLoader = new FontLoader();
       const fontUrl = FONT_MAP[font] ?? FONT_MAP['Open Sans'];
 
@@ -114,18 +119,26 @@ export default function STLViewer({
             curveSegments: 8,
           });
 
-          const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0xff0000, // contraste forte
+          });
+
           const mesh = new THREE.Mesh(geo, mat);
 
           if (invert) mesh.rotation.y = Math.PI;
-          mesh.position.set(xPos, yPos + yOffset, invert ? -depth : depth);
+
+          mesh.position.set(
+            xPos,
+            yPos + yOffset,
+            invert ? -(zFront + depth) : (zFront + depth)
+          );
 
           return mesh;
         };
 
         if (nome) {
-          textGroup.add(makeText(nome, false, 0));
-          textGroup.add(makeText(nome, true, 0));
+          textGroup.add(makeText(nome, false, 0)); // frente
+          textGroup.add(makeText(nome, true, 0));  // verso
         }
 
         if (telefone) {
