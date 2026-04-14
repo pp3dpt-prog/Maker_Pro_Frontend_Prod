@@ -21,9 +21,29 @@ type ProdutoAtual = {
 
 type Perfil = {
   id: string;
-  creditos: number;              // usados
-  creditos_disponiveis: number;  // saldo
+  creditos: number; // usados
+  creditos_disponiveis: number; // saldo
 } | null;
+
+/**
+ * ✅ Envia para o backend apenas:
+ * - chaves que existam no ui_schema (whitelist)
+ * - valores primitvos (string/number/boolean)
+ * Isto evita “Tipo inválido em options” (arrays/objects são removidos). [1](https://amplifon-my.sharepoint.com/personal/pedro_pomar_amplifon_com/Documents/Ficheiros%20do%20Microsoft%20Copilot%20Chat/page.tsx)
+ */
+function sanitizePayload(
+  valores: Record<string, any>,
+  allowedKeys: Set<string>
+): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(valores || {})) {
+    if (!allowedKeys.has(k)) continue;
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 function CustomizadorClient() {
   const searchParams = useSearchParams();
@@ -128,6 +148,15 @@ function CustomizadorClient() {
   // ✅ Congelar id (evita TS vermelho em handlers)
   const produtoId = produtoAtual.id;
 
+  // ✅ whitelist de params permitidos (vem do ui_schema)
+  const allowedKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const f of produtoAtual.ui_schema ?? []) {
+      if (f?.name && typeof f.name === 'string') s.add(f.name);
+    }
+    return s;
+  }, [produtoAtual.ui_schema]);
+
   // blanks (mantém)
   const blankMap: Record<string, string> = {
     'tag-redonda': '/models/blank_redondo.stl',
@@ -141,8 +170,7 @@ function CustomizadorClient() {
   async function gerarSTLFinal() {
     setLoadingFinal(true);
     try {
-      // ✅ mantém a regra: precisa estar logado para gerar
-      // mas evita falso negativo: se token em memória estiver vazio, tenta ler sessão 1 vez
+      // mantém a regra: precisa estar logado para gerar
       let token = accessToken;
       if (!token) {
         const { data } = await supabase.auth.getSession();
@@ -155,6 +183,9 @@ function CustomizadorClient() {
         return;
       }
 
+      // ✅ FILTRO: remove arrays/objects (ex.: options)
+      const safeValores = sanitizePayload(valores as any, allowedKeys);
+
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: {
@@ -163,8 +194,8 @@ function CustomizadorClient() {
         },
         body: JSON.stringify({
           id: produtoId,
-          mode: 'final', // final no backend
-          ...valores,
+          mode: 'final',
+          ...safeValores,
         }),
       });
 
@@ -392,15 +423,15 @@ function CustomizadorClient() {
         <main>
           <STLViewer
             baseStlUrl={blankUrl}
-            nome={mostrarTexto ? String(valores.nome ?? '') : ''}
-            telefone={mostrarTexto ? String(valores.telefone ?? '') : ''}
-            font={String(valores.fonte ?? 'Aladin')}
-            fontSize={Number(valores.fontSize ?? 10)}
-            xPos={Number(valores.xPos ?? 0)}
-            yPos={Number(valores.yPos ?? 0)}
-            fontSizeN={Number(valores.fontSizeN ?? 8)}
-            xPosN={Number(valores.xPosN ?? 0)}
-            yPosN={Number(valores.yPosN ?? -10)}
+            nome={mostrarTexto ? String((valores as any).nome ?? '') : ''}
+            telefone={mostrarTexto ? String((valores as any).telefone ?? '') : ''}
+            font={String((valores as any).fonte ?? 'Aladin')}
+            fontSize={Number((valores as any).fontSize ?? 10)}
+            xPos={Number((valores as any).xPos ?? 0)}
+            yPos={Number((valores as any).yPos ?? 0)}
+            fontSizeN={Number((valores as any).fontSizeN ?? 8)}
+            xPosN={Number((valores as any).xPosN ?? 0)}
+            yPosN={Number((valores as any).yPosN ?? -10)}
             relevo={true}
           />
         </main>
@@ -408,7 +439,7 @@ function CustomizadorClient() {
 
       <style jsx>{`
         @media (max-width: 900px) {
-          div[style*="grid-template-columns: 360px 1fr"] {
+          div[style*='grid-template-columns: 360px 1fr'] {
             grid-template-columns: 1fr !important;
           }
         }
