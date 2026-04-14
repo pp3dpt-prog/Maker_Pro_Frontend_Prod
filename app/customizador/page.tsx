@@ -71,34 +71,28 @@ function CustomizadorClient() {
     'tag-hexagono': '/models/blank_hexagono.stl',
   };
 
-  const blankUrl =
-    blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
+  const blankUrl = blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
       <Link href="/dashboard">← VOLTAR</Link>
 
-      <h2 style={{ marginTop: 20 }}>
-        {produtoAtual.nome?.toUpperCase()}
-      </h2>
+      <h2 style={{ marginTop: 20 }}>{produtoAtual.nome?.toUpperCase()}</h2>
 
-      {/* ✅ SELETOR DE FORMAS (JSX CORRECTO) */}
       <h3 style={{ marginTop: 25 }}>FORMA</h3>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {modelos.map((item) => {
           const ativo = String(item.id) === String(produtoAtual.id);
           return (
             <Link
-              key={String(item.id)}
+              key={item.id}
               href={`/customizador?id=${item.id}&familia=${familiaURL}`}
               style={{
                 padding: '10px 12px',
                 borderRadius: 10,
                 background: ativo ? '#2563eb' : '#0f172a',
                 color: 'white',
-                fontWeight: 800,
                 textDecoration: 'none',
-                border: '1px solid #334155',
               }}
             >
               {String(item.nome ?? '')
@@ -109,15 +103,14 @@ function CustomizadorClient() {
         })}
       </div>
 
-      {/* ✅ BOTÃO MOSTRAR / OCULTAR TEXTO (como estava antes) */}
       <button
         onClick={() => setMostrarTexto((v) => !v)}
         style={{
           width: '100%',
-          marginTop: 20,
-          marginBottom: 20,
+          marginTop: 25,
+          marginBottom: 25,
           padding: 15,
-          borderRadius: 10,
+          borderRadius: 8,
           border: 'none',
           background: mostrarTexto ? '#ef4444' : '#22c55e',
           color: 'white',
@@ -128,15 +121,7 @@ function CustomizadorClient() {
         {mostrarTexto ? 'VER PEÇA LIMPA' : 'VISUALIZAR PERSONALIZAÇÃO'}
       </button>
 
-      {/* ✅ LAYOUT LATERAL */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '360px 1fr',
-          gap: 24,
-          alignItems: 'start',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24 }}>
         <aside>
           <EditorControls
             produto={produtoAtual}
@@ -148,26 +133,28 @@ function CustomizadorClient() {
         <main>
           <STLViewer
             baseStlUrl={blankUrl}
-            // ✅ Mostra texto só quando o botão está activo
-            nome={mostrarTexto ? String(valores.nome_pet ?? valores.nome ?? '') : ''}
+
+            // textos do teu schema
+            nome={mostrarTexto ? String(valores.nome ?? '') : ''}
             telefone={mostrarTexto ? String(valores.telefone ?? '') : ''}
-            font={String(valores.fonte ?? 'Open Sans')}
-            fontSize={Number(valores.fontSize ?? 7)}
+
+            // fonte do teu schema
+            font={String(valores.fonte ?? 'Aladin')}
+
+            // NOME (frente)
+            fontSize={Number(valores.fontSize ?? 10)}
             xPos={Number(valores.xPos ?? 0)}
             yPos={Number(valores.yPos ?? 0)}
+
+            // CONTACTO (verso)
+            fontSizeN={Number(valores.fontSizeN ?? 8)}
+            xPosN={Number(valores.xPosN ?? 0)}
+            yPosN={Number(valores.yPosN ?? -10)}
+
             relevo={true}
           />
         </main>
       </div>
-
-      {/* Responsivo simples */}
-      <style jsx>{`
-        @media (max-width: 900px) {
-          div[style*="grid-template-columns: 360px 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

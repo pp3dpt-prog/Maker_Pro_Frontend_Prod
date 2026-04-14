@@ -5,31 +5,28 @@ import { useEffect, useRef } from 'react';
 type Props = {
   baseStlUrl: string;
 
-  // textos
   nome?: string;
   telefone?: string;
 
-  // fonte escolhida no UI (ex.: "Aladin", "Amarante", "Baloo2", "Benne")
   font?: string;
 
   // NOME (frente)
-  fontSize?: number; // mm
-  xPos?: number;     // mm
-  yPos?: number;     // mm
+  fontSize?: number;
+  xPos?: number;
+  yPos?: number;
 
   // CONTACTO (verso)
-  fontSizeN?: number; // mm
-  xPosN?: number;     // mm
-  yPosN?: number;     // mm
+  fontSizeN?: number;
+  xPosN?: number;
+  yPosN?: number;
 
   relevo?: boolean;
 };
 
-function tryFontCandidates(fontName: string) {
+function fontCandidates(fontName: string) {
   const f = (fontName || '').trim();
   const lower = f.toLowerCase();
-
-  // caminhos candidatos (case-insensitive). Ajusta se usares outros nomes.
+  // tenta várias combinações porque em produção (Linux) é case-sensitive
   return [
     `/fonts/${f}.json`,
     `/fonts/${lower}.json`,
@@ -39,18 +36,14 @@ function tryFontCandidates(fontName: string) {
 
 export default function STLViewer({
   baseStlUrl,
-
   nome = '',
   telefone = '',
-
   font = 'Aladin',
 
-  // nome
   fontSize = 10,
   xPos = 0,
   yPos = 0,
 
-  // contacto
   fontSizeN = 8,
   xPosN = 0,
   yPosN = -10,
@@ -59,7 +52,6 @@ export default function STLViewer({
 }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
-  // refs para não recriar a cena toda a cada keystroke
   const sceneRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -71,9 +63,8 @@ export default function STLViewer({
   const zFrontRef = useRef<number>(0);
   const loadedFontRef = useRef<any>(null);
   const textGroupRef = useRef<any>(null);
-  const currentFontUrlRef = useRef<string>('');
 
-  // init (base STL + camera + lights + controls)
+  // init
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -90,14 +81,14 @@ export default function STLViewer({
       const scene = new THREE.Scene();
       scene.background = new THREE.Color('#020617');
 
-      const width = mountRef.current!.clientWidth;
-      const height = mountRef.current!.clientHeight;
+      const w = mountRef.current!.clientWidth;
+      const h = mountRef.current!.clientHeight;
 
-      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
+      const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 2000);
       camera.position.set(0, 0, 120);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(width, height);
+      renderer.setSize(w, h);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       mountRef.current!.innerHTML = '';
       mountRef.current!.appendChild(renderer.domElement);
@@ -110,7 +101,7 @@ export default function STLViewer({
       dir.position.set(80, 100, 120);
       scene.add(dir);
 
-      // carregar STL base
+      // STL
       const loader = new STLLoader();
       loader.load(
         baseStlUrl,
@@ -122,7 +113,6 @@ export default function STLViewer({
           const center = new THREE.Vector3();
           box.getCenter(center);
 
-          // z da face frontal depois de centrar o mesh
           zFrontRef.current = box.max.z - center.z;
 
           const mat = new THREE.MeshStandardMaterial({
@@ -134,11 +124,8 @@ export default function STLViewer({
           mesh.position.sub(center);
           scene.add(mesh);
 
-          // quando o STL chega, se já houver fonte, reconstroi texto
-          if (loadedFontRef.current) {
-            // trigger rebuild via estado (chamamos diretamente)
-            rebuildText();
-          }
+          // se já houver fonte carregada, reconstrói texto
+          if (loadedFontRef.current) rebuildText();
         },
         undefined,
         (err: any) => console.error('Erro STLLoader:', err)
@@ -149,27 +136,14 @@ export default function STLViewer({
       cameraRef.current = camera;
       controlsRef.current = controls;
 
-      const onResize = () => {
-        if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
-        const w = mountRef.current.clientWidth;
-        const h = mountRef.current.clientHeight;
-        rendererRef.current.setSize(w, h);
-        cameraRef.current.aspect = w / h;
-        cameraRef.current.updateProjectionMatrix();
-      };
-      window.addEventListener('resize', onResize);
-
       const animate = () => {
         if (disposed) return;
         controls.update();
         renderer.render(scene, camera);
         animationId = requestAnimationFrame(animate);
       };
-      animate();
 
-      return () => {
-        window.removeEventListener('resize', onResize);
-      };
+      animate();
     })();
 
     return () => {
@@ -184,41 +158,35 @@ export default function STLViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseStlUrl]);
 
-  // carregar fonte + TextGeometry (dinâmico, Next-safe)
+  // load font (on change)
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      const THREE = THREERef.current ?? (await import('three'));
-      THREERef.current = THREE;
-
       const { FontLoader } = await import('three/examples/jsm/loaders/FontLoader.js');
       const { TextGeometry } = await import('three/examples/jsm/geometries/TextGeometry.js');
       TextGeometryRef.current = TextGeometry;
 
-      const candidates = tryFontCandidates(font);
       const loader = new FontLoader();
+      const candidates = fontCandidates(font);
 
-      // tenta candidatos até um carregar
-      const tryLoad = (idx: number) => {
-        if (idx >= candidates.length) {
-          console.error('❌ Nenhuma fonte carregou para:', font, 'candidatos:', candidates);
+      const tryLoad = (i: number) => {
+        if (i >= candidates.length) {
+          console.error('❌ Falha a carregar fonte (todas as tentativas):', font, candidates);
           return;
         }
-
-        const url = candidates[idx];
+        const url = candidates[i];
         loader.load(
           url,
           (f: any) => {
             if (cancelled) return;
             loadedFontRef.current = f;
-            currentFontUrlRef.current = url;
             rebuildText();
           },
           undefined,
           (err: any) => {
             console.warn('Falha a carregar fonte:', url, err);
-            tryLoad(idx + 1);
+            tryLoad(i + 1);
           }
         );
       };
@@ -232,7 +200,7 @@ export default function STLViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [font]);
 
-  // rebuild do texto sempre que mudam props relevantes
+  // rebuild on prop changes
   useEffect(() => {
     rebuildText();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -246,20 +214,18 @@ export default function STLViewer({
 
     if (!scene || !THREE || !TextGeometry || !loadedFont) return;
 
-    // remove texto anterior
     if (textGroupRef.current) {
       scene.remove(textGroupRef.current);
       textGroupRef.current = null;
     }
 
-    // se não há texto, não desenha nada
     if (!nome && !telefone) return;
 
     const group = new THREE.Group();
     const depth = relevo ? 1.2 : 0.3;
     const zFront = zFrontRef.current || 0;
 
-    const makeText = (txt: string, invert: boolean, x: number, y: number, size: number) => {
+    const makeText = (txt: string, invert: boolean, x: number, y: number, size: number, z: number) => {
       const geo = new TextGeometry(txt, {
         font: loadedFont,
         size,
@@ -272,24 +238,18 @@ export default function STLViewer({
 
       if (invert) mesh.rotation.y = Math.PI;
 
-      mesh.position.set(
-        x,
-        y,
-        invert ? -(zFront + depth) : (zFront + depth)
-      );
-
+      mesh.position.set(x, y, z);
       return mesh;
     };
 
-    // NOME: frente + verso (para veres nas duas faces)
+    // NOME: só frente
     if (nome) {
-      group.add(makeText(nome, false, xPos, yPos, fontSize));
-      group.add(makeText(nome, true, xPos, yPos, fontSize));
+      group.add(makeText(nome, false, xPos, yPos, fontSize, zFront + depth));
     }
 
-    // TELEFONE: só verso (normal) – com controlo separado (*N)
+    // TELEFONE: só verso (espelhado)
     if (telefone) {
-      group.add(makeText(telefone, true, xPosN, yPosN, fontSizeN));
+      group.add(makeText(telefone, true, xPosN, yPosN, fontSizeN, -(zFront + depth)));
     }
 
     scene.add(group);
