@@ -39,6 +39,9 @@ function CustomizadorClient() {
   // Perfil e créditos
   const [perfil, setPerfil] = useState<Perfil>(null);
 
+  // ✅ Sessão/token (para evitar falsos “não estás logado”)
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
   // STL final
   const [finalPath, setFinalPath] = useState<string | null>(null);
   const [loadingFinal, setLoadingFinal] = useState(false);
@@ -48,6 +51,26 @@ function CustomizadorClient() {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
     return Number.isFinite(c) && c > 0 ? c : 1;
   }, [produtoAtual?.custo_creditos]);
+
+  // ✅ Inicializa token e mantém sincronizado
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      setAccessToken(data?.session?.access_token ?? null);
+
+      const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+        setAccessToken(session?.access_token ?? null);
+      });
+
+      unsub = () => sub.subscription.unsubscribe();
+    })();
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -102,10 +125,10 @@ function CustomizadorClient() {
   if (loading) return <div>Iniciando…</div>;
   if (!produtoAtual) return <div>Produto não encontrado.</div>;
 
-  // ✅ Congelar ids após o guard para evitar TS “produtoAtual possivelmente null” em handlers
+  // ✅ Congelar id (evita TS vermelho em handlers)
   const produtoId = produtoAtual.id;
 
-  // blanks (mantém o teu comportamento)
+  // blanks (mantém)
   const blankMap: Record<string, string> = {
     'tag-redonda': '/models/blank_redondo.stl',
     'tag-osso': '/models/blank_osso.stl',
@@ -118,9 +141,17 @@ function CustomizadorClient() {
   async function gerarSTLFinal() {
     setLoadingFinal(true);
     try {
-      const { data: sessionData, error } = await supabase.auth.getSession();
-      if (error || !sessionData?.session?.access_token) {
-        alert('Precisas de estar autenticado para gerar o STL final.');
+      // ✅ mantém a regra: precisa estar logado para gerar
+      // mas evita falso negativo: se token em memória estiver vazio, tenta ler sessão 1 vez
+      let token = accessToken;
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token ?? null;
+        setAccessToken(token);
+      }
+
+      if (!token) {
+        alert('Sessão não disponível neste momento. Faz refresh à página ou faz logout/login.');
         return;
       }
 
@@ -128,7 +159,7 @@ function CustomizadorClient() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionData.session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           id: produtoId,
@@ -193,8 +224,14 @@ function CustomizadorClient() {
 
     setDownloading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
+      // aqui sim: tem mesmo de estar logado
+      let token = accessToken;
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token ?? null;
+        setAccessToken(token);
+      }
+      if (!token) {
         alert('Precisas de estar autenticado para descarregar.');
         return;
       }
@@ -230,7 +267,6 @@ function CustomizadorClient() {
 
       <h2 style={{ marginTop: 20 }}>{produtoAtual.nome?.toUpperCase()}</h2>
 
-      {/* Selector de formas (mantém) */}
       <h3 style={{ marginTop: 25 }}>FORMA</h3>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {modelos.map((item) => {
@@ -256,7 +292,6 @@ function CustomizadorClient() {
         })}
       </div>
 
-      {/* Botão preview (mantém) */}
       <button
         onClick={() => setMostrarTexto((v) => !v)}
         style={{
@@ -275,7 +310,6 @@ function CustomizadorClient() {
         {mostrarTexto ? 'VER PEÇA LIMPA' : 'VISUALIZAR PERSONALIZAÇÃO'}
       </button>
 
-      {/* Mensagem de precisão */}
       <div
         style={{
           padding: 12,
@@ -293,7 +327,6 @@ function CustomizadorClient() {
         O <b>download</b> consome <b>{custo}</b> crédito(s).
       </div>
 
-      {/* Layout */}
       <div
         style={{
           display: 'grid',
@@ -305,7 +338,6 @@ function CustomizadorClient() {
         <aside>
           <EditorControls produto={produtoAtual} valores={valores} onUpdate={setValores} />
 
-          {/* Ações finais */}
           <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #334155' }}>
             <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 10 }}>
               <b>Saldo:</b> {perfil ? perfil.creditos_disponiveis : '—'}{' '}
