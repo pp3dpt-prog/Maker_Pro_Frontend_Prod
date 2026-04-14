@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -16,7 +16,14 @@ type ProdutoAtual = {
   familia?: string;
   ui_schema?: any[];
   parametros_default?: Record<string, any>;
+  custo_creditos?: number;
 };
+
+type Perfil = {
+  id: string;
+  creditos: number;              // usados
+  creditos_disponiveis: number;  // saldo
+} | null;
 
 function CustomizadorClient() {
   const searchParams = useSearchParams();
@@ -29,6 +36,19 @@ function CustomizadorClient() {
   const [valores, setValores] = useState<ValoresProduto>({});
   const [mostrarTexto, setMostrarTexto] = useState(false);
 
+  // Perfil e créditos
+  const [perfil, setPerfil] = useState<Perfil>(null);
+
+  // STL final
+  const [finalPath, setFinalPath] = useState<string | null>(null);
+  const [loadingFinal, setLoadingFinal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const custo = useMemo(() => {
+    const c = Number(produtoAtual?.custo_creditos ?? 1);
+    return Number.isFinite(c) && c > 0 ? c : 1;
+  }, [produtoAtual?.custo_creditos]);
+
   useEffect(() => {
     async function fetchData() {
       if (!familiaURL) {
@@ -36,6 +56,7 @@ function CustomizadorClient() {
         return;
       }
 
+      // Designs / Modelos
       const { data, error } = await supabase
         .from('prod_designs')
         .select('*')
@@ -55,6 +76,23 @@ function CustomizadorClient() {
         setProdutoAtual(selecionado ?? data[0]);
       }
 
+      // Perfil (se autenticado)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+
+      if (session?.user?.id) {
+        const { data: perfilData, error: perfilErr } = await supabase
+          .from('prod_perfis')
+          .select('id, creditos, creditos_disponiveis')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (perfilErr) console.error('Erro prod_perfis:', perfilErr);
+        setPerfil((perfilData as any) ?? null);
+      } else {
+        setPerfil(null);
+      }
+
       setLoading(false);
     }
 
@@ -64,6 +102,10 @@ function CustomizadorClient() {
   if (loading) return <div>Iniciando…</div>;
   if (!produtoAtual) return <div>Produto não encontrado.</div>;
 
+  // ✅ Congelar ids após o guard para evitar TS “produtoAtual possivelmente null” em handlers
+  const produtoId = produtoAtual.id;
+
+  // blanks (mantém o teu comportamento)
   const blankMap: Record<string, string> = {
     'tag-redonda': '/models/blank_redondo.stl',
     'tag-osso': '/models/blank_osso.stl',
@@ -73,12 +115,122 @@ function CustomizadorClient() {
 
   const blankUrl = blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
 
+  async function gerarSTLFinal() {
+    setLoadingFinal(true);
+    try {
+      const { data: sessionData, error } = await supabase.auth.getSession();
+      if (error || !sessionData?.session?.access_token) {
+        alert('Precisas de estar autenticado para gerar o STL final.');
+        return;
+      }
+
+      const res = await fetch('/api/gerar-stl-pro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({
+          id: produtoId,
+          mode: 'final', // final no backend
+          ...valores,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error ?? 'Erro ao gerar STL final.');
+        return;
+      }
+
+      if (!data.storagePath) {
+        alert('Servidor não devolveu storagePath.');
+        return;
+      }
+
+      setFinalPath(data.storagePath);
+      alert('STL final gerado. Podes gerar novamente as vezes que quiseres.');
+    } finally {
+      setLoadingFinal(false);
+    }
+  }
+
+  async function cobrarDownload() {
+    if (!perfil?.id) throw new Error('Perfil não carregado.');
+
+    const disponiveis = Number(perfil.creditos_disponiveis ?? 0);
+    const usados = Number(perfil.creditos ?? 0);
+
+    if (disponiveis < custo) {
+      throw new Error(`Saldo insuficiente. Necessitas de ${custo} crédito(s).`);
+    }
+
+    const novoDisponiveis = disponiveis - custo;
+    const novoUsados = usados + custo;
+
+    const { error } = await supabase
+      .from('prod_perfis')
+      .update({
+        creditos_disponiveis: novoDisponiveis,
+        creditos: novoUsados,
+      })
+      .eq('id', perfil.id);
+
+    if (error) throw error;
+
+    setPerfil({
+      ...perfil,
+      creditos_disponiveis: novoDisponiveis,
+      creditos: novoUsados,
+    });
+  }
+
+  async function descarregarSTLFinal() {
+    if (!finalPath) {
+      alert('Primeiro gera o STL final.');
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        alert('Precisas de estar autenticado para descarregar.');
+        return;
+      }
+
+      // cobra só no download
+      await cobrarDownload();
+
+      const { data, error } = await supabase.storage
+        .from('designs-vault')
+        .download(finalPath);
+
+      if (error) throw error;
+      if (!data) throw new Error('Download vazio.');
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `design_${String(produtoId)}_${Date.now()}.stl`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(e?.message ?? 'Erro no download/pagamento.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
       <Link href="/dashboard">← VOLTAR</Link>
 
       <h2 style={{ marginTop: 20 }}>{produtoAtual.nome?.toUpperCase()}</h2>
 
+      {/* Selector de formas (mantém) */}
       <h3 style={{ marginTop: 25 }}>FORMA</h3>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {modelos.map((item) => {
@@ -92,6 +244,7 @@ function CustomizadorClient() {
                 borderRadius: 10,
                 background: ativo ? '#2563eb' : '#0f172a',
                 color: 'white',
+                fontWeight: 800,
                 textDecoration: 'none',
               }}
             >
@@ -103,12 +256,13 @@ function CustomizadorClient() {
         })}
       </div>
 
+      {/* Botão preview (mantém) */}
       <button
         onClick={() => setMostrarTexto((v) => !v)}
         style={{
           width: '100%',
           marginTop: 25,
-          marginBottom: 25,
+          marginBottom: 12,
           padding: 15,
           borderRadius: 8,
           border: 'none',
@@ -121,40 +275,112 @@ function CustomizadorClient() {
         {mostrarTexto ? 'VER PEÇA LIMPA' : 'VISUALIZAR PERSONALIZAÇÃO'}
       </button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24 }}>
+      {/* Mensagem de precisão */}
+      <div
+        style={{
+          padding: 12,
+          borderRadius: 10,
+          border: '1px solid #334155',
+          background: '#0b1220',
+          color: '#cbd5e1',
+          fontSize: 13,
+          marginBottom: 20,
+          lineHeight: 1.4,
+        }}
+      >
+        <b>Nota:</b> a pré‑visualização é apenas aproximada do ficheiro final.
+        Podes <b>gerar o STL final as vezes que quiseres</b> até ficar como queres.
+        O <b>download</b> consome <b>{custo}</b> crédito(s).
+      </div>
+
+      {/* Layout */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '360px 1fr',
+          gap: 24,
+          alignItems: 'start',
+        }}
+      >
         <aside>
-          <EditorControls
-            produto={produtoAtual}
-            valores={valores}
-            onUpdate={setValores}
-          />
+          <EditorControls produto={produtoAtual} valores={valores} onUpdate={setValores} />
+
+          {/* Ações finais */}
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #334155' }}>
+            <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 10 }}>
+              <b>Saldo:</b> {perfil ? perfil.creditos_disponiveis : '—'}{' '}
+              <b>Usados:</b> {perfil ? perfil.creditos : '—'}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={gerarSTLFinal}
+                disabled={loadingFinal}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#3b82f6',
+                  color: 'white',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  minHeight: 44,
+                }}
+              >
+                {loadingFinal ? 'A GERAR STL FINAL…' : 'GERAR STL FINAL'}
+              </button>
+
+              <button
+                onClick={descarregarSTLFinal}
+                disabled={!finalPath || downloading}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: finalPath ? '#10b981' : '#334155',
+                  color: 'white',
+                  fontWeight: 900,
+                  cursor: finalPath ? 'pointer' : 'not-allowed',
+                  minHeight: 44,
+                }}
+                title={!finalPath ? 'Gera primeiro o STL final.' : ''}
+              >
+                {downloading ? 'A DESCARREGAR…' : `DESCARREGAR STL (-${custo})`}
+              </button>
+            </div>
+
+            {finalPath && (
+              <div style={{ marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
+                STL final pronto: <code>{finalPath}</code>
+              </div>
+            )}
+          </div>
         </aside>
 
         <main>
           <STLViewer
             baseStlUrl={blankUrl}
-
-            // textos do teu schema
             nome={mostrarTexto ? String(valores.nome ?? '') : ''}
             telefone={mostrarTexto ? String(valores.telefone ?? '') : ''}
-
-            // fonte do teu schema
             font={String(valores.fonte ?? 'Aladin')}
-
-            // NOME (frente)
             fontSize={Number(valores.fontSize ?? 10)}
             xPos={Number(valores.xPos ?? 0)}
             yPos={Number(valores.yPos ?? 0)}
-
-            // CONTACTO (verso)
             fontSizeN={Number(valores.fontSizeN ?? 8)}
             xPosN={Number(valores.xPosN ?? 0)}
             yPosN={Number(valores.yPosN ?? -10)}
-
             relevo={true}
           />
         </main>
       </div>
+
+      <style jsx>{`
+        @media (max-width: 900px) {
+          div[style*="grid-template-columns: 360px 1fr"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
