@@ -25,7 +25,6 @@ type Perfil = {
   creditos_disponiveis: number;  // saldo
 } | null;
 
-// ✅ remove arrays/objects (ex.: options) e só permite keys do ui_schema
 function sanitizePayload(
   valores: Record<string, any>,
   allowedKeys: Set<string>
@@ -38,6 +37,35 @@ function sanitizePayload(
     }
   }
   return out;
+}
+
+/**
+ * ✅ token robusto:
+ * - tenta getSession()
+ * - se não houver sessão, tenta refreshSession()
+ * - só falha no fim
+ *
+ * getSession() pode devolver null por depender do storage do cliente. [1](https://supabase.com/docs/reference/javascript/auth-getsession)
+ * refreshSession() força uma nova sessão se houver refresh_token válido. [2](https://supabase.com/docs/reference/javascript/auth-refreshsession)
+ */
+async function getTokenOrRefresh(setAccessToken: (t: string | null) => void) {
+  const s1 = await supabase.auth.getSession();
+  const t1 = s1.data?.session?.access_token ?? null;
+  if (t1) {
+    setAccessToken(t1);
+    return t1;
+  }
+
+  const r = await supabase.auth.refreshSession();
+  const t2 = r.data?.session?.access_token ?? null;
+
+  if (t2) {
+    setAccessToken(t2);
+    return t2;
+  }
+
+  setAccessToken(null);
+  return null;
 }
 
 function CustomizadorClient() {
@@ -53,15 +81,12 @@ function CustomizadorClient() {
 
   const [perfil, setPerfil] = useState<Perfil>(null);
 
-  // sessão/token (mantém)
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  // STL final
   const [finalPath, setFinalPath] = useState<string | null>(null);
   const [loadingFinal, setLoadingFinal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // ✅ hooks sempre no topo (mesmo quando produtoAtual ainda é null)
   const custo = useMemo(() => {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
     return Number.isFinite(c) && c > 0 ? c : 1;
@@ -75,7 +100,7 @@ function CustomizadorClient() {
     return s;
   }, [produtoAtual?.ui_schema]);
 
-  // token sync (mantém)
+  // mantém token sincronizado (não é suficiente sozinho, mas ajuda)
   useEffect(() => {
     let unsub: (() => void) | null = null;
 
@@ -95,7 +120,6 @@ function CustomizadorClient() {
     };
   }, []);
 
-  // fetch modelos + perfil (mantém)
   useEffect(() => {
     async function fetchData() {
       if (!familiaURL) {
@@ -144,7 +168,6 @@ function CustomizadorClient() {
     fetchData();
   }, [id, familiaURL]);
 
-  // ✅ returns depois de todos os hooks
   if (loading) return <div>Iniciando…</div>;
   if (!produtoAtual) return <div>Produto não encontrado.</div>;
 
@@ -162,19 +185,14 @@ function CustomizadorClient() {
   async function gerarSTLFinal() {
     setLoadingFinal(true);
     try {
-      let token = accessToken;
-      if (!token) {
-        const { data } = await supabase.auth.getSession();
-        token = data?.session?.access_token ?? null;
-        setAccessToken(token);
-      }
+      // ✅ token robusto (getSession -> refreshSession)
+      const token = await getTokenOrRefresh(setAccessToken);
 
       if (!token) {
-        alert('Sessão não disponível neste momento. Faz refresh ou logout/login.');
+        alert('Sessão não disponível. Faz logout/login (ou abre o /login) e tenta de novo.');
         return;
       }
 
-      // ✅ filtro que impede "options" (array) ir para o backend [2](https://amplifon-my.sharepoint.com/personal/pedro_pomar_amplifon_com/Documents/Ficheiros%20do%20Microsoft%20Copilot%20Chat/page.tsx)
       const safeValores = sanitizePayload(valores as any, allowedKeys);
 
       const res = await fetch('/api/gerar-stl-pro', {
@@ -246,13 +264,7 @@ function CustomizadorClient() {
 
     setDownloading(true);
     try {
-      let token = accessToken;
-      if (!token) {
-        const { data } = await supabase.auth.getSession();
-        token = data?.session?.access_token ?? null;
-        setAccessToken(token);
-      }
-
+      const token = await getTokenOrRefresh(setAccessToken);
       if (!token) {
         alert('Precisas de estar autenticado para descarregar.');
         return;
@@ -348,14 +360,7 @@ function CustomizadorClient() {
         <b>download</b> consome <b>{custo}</b> crédito(s).
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '360px 1fr',
-          gap: 24,
-          alignItems: 'start',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24, alignItems: 'start' }}>
         <aside>
           <EditorControls produto={produtoAtual} valores={valores} onUpdate={setValores} />
 
