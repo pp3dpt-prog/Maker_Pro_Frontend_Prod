@@ -21,16 +21,10 @@ type ProdutoAtual = {
 
 type Perfil = {
   id: string;
-  creditos: number; // usados
-  creditos_disponiveis: number; // saldo
+  creditos: number;              // usados
+  creditos_disponiveis: number;  // saldo
 } | null;
 
-/**
- * Envia apenas:
- *  - keys do ui_schema (whitelist)
- *  - valores primitvos (string|number|boolean)
- * Evita enviar arrays/objects (ex.: options) para o backend.
- */
 function sanitizePayload(
   valores: Record<string, any>,
   allowedKeys: Set<string>
@@ -45,12 +39,6 @@ function sanitizePayload(
   return out;
 }
 
-/**
- * Token robusto:
- * - tenta getSession()
- * - se não houver session, tenta refreshSession()
- * - só falha no fim
- */
 async function getTokenOrRefresh(setAccessToken: (t: string | null) => void) {
   try {
     const s1 = await supabase.auth.getSession();
@@ -59,9 +47,7 @@ async function getTokenOrRefresh(setAccessToken: (t: string | null) => void) {
       setAccessToken(t1);
       return t1;
     }
-  } catch {
-    // continua para refresh
-  }
+  } catch {}
 
   try {
     const r = await supabase.auth.refreshSession();
@@ -70,9 +56,7 @@ async function getTokenOrRefresh(setAccessToken: (t: string | null) => void) {
       setAccessToken(t2);
       return t2;
     }
-  } catch {
-    // falha final abaixo
-  }
+  } catch {}
 
   setAccessToken(null);
   return null;
@@ -97,7 +81,7 @@ function CustomizadorClient() {
   const [loadingFinal, setLoadingFinal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // Hooks sempre no topo (para não quebrar regras de hooks)
+  // hooks sempre no topo (evita problemas de hooks)
   const custo = useMemo(() => {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
     return Number.isFinite(c) && c > 0 ? c : 1;
@@ -111,7 +95,7 @@ function CustomizadorClient() {
     return s;
   }, [produtoAtual?.ui_schema]);
 
-  // manter token atualizado (listener correto do supabase-js v2)
+  // listener correto do supabase-js v2
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setAccessToken(session?.access_token ?? null);
@@ -129,7 +113,6 @@ function CustomizadorClient() {
         return;
       }
 
-      // Modelos (formas)
       const { data: designs, error: designsErr } = await supabase
         .from('prod_designs')
         .select('*')
@@ -145,15 +128,12 @@ function CustomizadorClient() {
 
       if (designs && designs.length > 0) {
         setModelos(designs);
-
         const selecionado = id
           ? designs.find((d) => String(d.id) === String(id))
           : designs[0];
-
         setProdutoAtual(selecionado ?? designs[0]);
       }
 
-      // Perfil (se autenticado)
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
 
@@ -174,7 +154,6 @@ function CustomizadorClient() {
     }
 
     fetchData();
-
     return () => {
       alive = false;
     };
@@ -193,13 +172,13 @@ function CustomizadorClient() {
     'tag-hexagono': '/models/blank_hexagono.stl',
   };
 
-  const blankUrl = blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
+  const blankUrl =
+    blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
 
   async function gerarSTLFinal() {
     setLoadingFinal(true);
     try {
       const token = await getTokenOrRefresh(setAccessToken);
-
       if (!token) {
         alert('Sessão não disponível. Faz logout/login e tenta novamente.');
         return;
@@ -309,7 +288,7 @@ function CustomizadorClient() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
-      /dashboard← VOLTAR</Link>
+      <Link href="/dashboard">← VOLTAR</Link>
 
       <h2 style={{ marginTop: 20 }}>{produtoAtual.nome?.toUpperCase()}</h2>
 
@@ -318,7 +297,18 @@ function CustomizadorClient() {
         {modelos.map((item) => {
           const ativo = String(item.id) === String(produtoAtual.id);
           return (
-            {`/customizador?id=${item.id}&familia=${familiaURL}`}
+            <Link
+              key={item.id}
+              href={`/customizador?id=${item.id}&familia=${familiaURL}`}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: ativo ? '#2563eb' : '#0f172a',
+                color: 'white',
+                fontWeight: 800,
+                textDecoration: 'none',
+              }}
+            >
               {String(item.nome ?? '')
                 .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
                 .toUpperCase()}
