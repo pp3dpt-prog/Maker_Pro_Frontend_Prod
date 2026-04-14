@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
 
+import { supabase } from '@/lib/supabaseClient';
 import STLViewer from '@/components/STLViewer';
 import EditorControls, { ValoresProduto } from '@/components/EditorControls';
 
@@ -21,10 +21,16 @@ type ProdutoAtual = {
 
 type Perfil = {
   id: string;
-  creditos: number;              // usados
-  creditos_disponiveis: number;  // saldo
+  creditos: number; // usados
+  creditos_disponiveis: number; // saldo
 } | null;
 
+/**
+ * Envia apenas:
+ *  - keys do ui_schema (whitelist)
+ *  - valores primitvos (string|number|boolean)
+ * Evita enviar arrays/objects (ex.: options) para o backend.
+ */
 function sanitizePayload(
   valores: Record<string, any>,
   allowedKeys: Set<string>
@@ -40,28 +46,32 @@ function sanitizePayload(
 }
 
 /**
- * ✅ token robusto:
+ * Token robusto:
  * - tenta getSession()
- * - se não houver sessão, tenta refreshSession()
+ * - se não houver session, tenta refreshSession()
  * - só falha no fim
- *
- * getSession() pode devolver null por depender do storage do cliente. [1](https://supabase.com/docs/reference/javascript/auth-getsession)
- * refreshSession() força uma nova sessão se houver refresh_token válido. [2](https://supabase.com/docs/reference/javascript/auth-refreshsession)
  */
 async function getTokenOrRefresh(setAccessToken: (t: string | null) => void) {
-  const s1 = await supabase.auth.getSession();
-  const t1 = s1.data?.session?.access_token ?? null;
-  if (t1) {
-    setAccessToken(t1);
-    return t1;
+  try {
+    const s1 = await supabase.auth.getSession();
+    const t1 = s1.data?.session?.access_token ?? null;
+    if (t1) {
+      setAccessToken(t1);
+      return t1;
+    }
+  } catch {
+    // continua para refresh
   }
 
-  const r = await supabase.auth.refreshSession();
-  const t2 = r.data?.session?.access_token ?? null;
-
-  if (t2) {
-    setAccessToken(t2);
-    return t2;
+  try {
+    const r = await supabase.auth.refreshSession();
+    const t2 = r.data?.session?.access_token ?? null;
+    if (t2) {
+      setAccessToken(t2);
+      return t2;
+    }
+  } catch {
+    // falha final abaixo
   }
 
   setAccessToken(null);
@@ -87,6 +97,7 @@ function CustomizadorClient() {
   const [loadingFinal, setLoadingFinal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // Hooks sempre no topo (para não quebrar regras de hooks)
   const custo = useMemo(() => {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
     return Number.isFinite(c) && c > 0 ? c : 1;
@@ -100,52 +111,49 @@ function CustomizadorClient() {
     return s;
   }, [produtoAtual?.ui_schema]);
 
-  // mantém token sincronizado (não é suficiente sozinho, mas ajuda)
+  // manter token atualizado (listener correto do supabase-js v2)
   useEffect(() => {
-    let unsub: (() => void) | null = null;
-
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      setAccessToken(data?.session?.access_token ?? null);
-
-      const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-        setAccessToken(session?.access_token ?? null);
-      });
-
-      unsub = () => sub.subscription.unsubscribe();
-    })();
-
-    return () => {
-      if (unsub) unsub();
-    };
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccessToken(session?.access_token ?? null);
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
+  // carregar modelos + perfil
   useEffect(() => {
+    let alive = true;
+
     async function fetchData() {
       if (!familiaURL) {
-        setLoading(false);
+        if (alive) setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
+      // Modelos (formas)
+      const { data: designs, error: designsErr } = await supabase
         .from('prod_designs')
         .select('*')
         .eq('familia', familiaURL);
 
-      if (error) {
-        console.error('Erro prod_designs:', error);
+      if (!alive) return;
+
+      if (designsErr) {
+        console.error('Erro prod_designs:', designsErr);
         setLoading(false);
         return;
       }
 
-      if (data && data.length > 0) {
-        setModelos(data);
+      if (designs && designs.length > 0) {
+        setModelos(designs);
+
         const selecionado = id
-          ? data.find((d) => String(d.id) === String(id))
-          : data[0];
-        setProdutoAtual(selecionado ?? data[0]);
+          ? designs.find((d) => String(d.id) === String(id))
+          : designs[0];
+
+        setProdutoAtual(selecionado ?? designs[0]);
       }
 
+      // Perfil (se autenticado)
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
 
@@ -166,6 +174,10 @@ function CustomizadorClient() {
     }
 
     fetchData();
+
+    return () => {
+      alive = false;
+    };
   }, [id, familiaURL]);
 
   if (loading) return <div>Iniciando…</div>;
@@ -173,6 +185,7 @@ function CustomizadorClient() {
 
   const produtoId = produtoAtual.id;
 
+  // blanks (mantém)
   const blankMap: Record<string, string> = {
     'tag-redonda': '/models/blank_redondo.stl',
     'tag-osso': '/models/blank_osso.stl',
@@ -185,11 +198,10 @@ function CustomizadorClient() {
   async function gerarSTLFinal() {
     setLoadingFinal(true);
     try {
-      // ✅ token robusto (getSession -> refreshSession)
       const token = await getTokenOrRefresh(setAccessToken);
 
       if (!token) {
-        alert('Sessão não disponível. Faz logout/login (ou abre o /login) e tenta de novo.');
+        alert('Sessão não disponível. Faz logout/login e tenta novamente.');
         return;
       }
 
@@ -209,6 +221,7 @@ function CustomizadorClient() {
       });
 
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         alert(data?.error ?? 'Erro ao gerar STL final.');
         return;
@@ -296,7 +309,7 @@ function CustomizadorClient() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
-      <Link href="/dashboard">← VOLTAR</Link>
+      /dashboard← VOLTAR</Link>
 
       <h2 style={{ marginTop: 20 }}>{produtoAtual.nome?.toUpperCase()}</h2>
 
@@ -305,18 +318,7 @@ function CustomizadorClient() {
         {modelos.map((item) => {
           const ativo = String(item.id) === String(produtoAtual.id);
           return (
-            <Link
-              key={item.id}
-              href={`/customizador?id=${item.id}&familia=${familiaURL}`}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                background: ativo ? '#2563eb' : '#0f172a',
-                color: 'white',
-                fontWeight: 800,
-                textDecoration: 'none',
-              }}
-            >
+            {`/customizador?id=${item.id}&familia=${familiaURL}`}
               {String(item.nome ?? '')
                 .replace(/(Pet Tag - |Caixa Paramétrica - )/gi, '')
                 .toUpperCase()}
@@ -360,7 +362,14 @@ function CustomizadorClient() {
         <b>download</b> consome <b>{custo}</b> crédito(s).
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24, alignItems: 'start' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '360px 1fr',
+          gap: 24,
+          alignItems: 'start',
+        }}
+      >
         <aside>
           <EditorControls produto={produtoAtual} valores={valores} onUpdate={setValores} />
 
