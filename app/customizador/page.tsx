@@ -21,16 +21,11 @@ type ProdutoAtual = {
 
 type Perfil = {
   id: string;
-  creditos: number; // usados
-  creditos_disponiveis: number; // saldo
+  creditos: number;              // usados
+  creditos_disponiveis: number;  // saldo
 } | null;
 
-/**
- * ✅ Envia para o backend apenas:
- * - chaves que existam no ui_schema (whitelist)
- * - valores primitvos (string/number/boolean)
- * Isto evita “Tipo inválido em options” (arrays/objects são removidos). [1](https://amplifon-my.sharepoint.com/personal/pedro_pomar_amplifon_com/Documents/Ficheiros%20do%20Microsoft%20Copilot%20Chat/page.tsx)
- */
+// ✅ remove arrays/objects (ex.: options) e só permite keys do ui_schema
 function sanitizePayload(
   valores: Record<string, any>,
   allowedKeys: Set<string>
@@ -56,10 +51,9 @@ function CustomizadorClient() {
   const [valores, setValores] = useState<ValoresProduto>({});
   const [mostrarTexto, setMostrarTexto] = useState(false);
 
-  // Perfil e créditos
   const [perfil, setPerfil] = useState<Perfil>(null);
 
-  // ✅ Sessão/token (para evitar falsos “não estás logado”)
+  // sessão/token (mantém)
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // STL final
@@ -67,12 +61,21 @@ function CustomizadorClient() {
   const [loadingFinal, setLoadingFinal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // ✅ hooks sempre no topo (mesmo quando produtoAtual ainda é null)
   const custo = useMemo(() => {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
     return Number.isFinite(c) && c > 0 ? c : 1;
   }, [produtoAtual?.custo_creditos]);
 
-  // ✅ Inicializa token e mantém sincronizado
+  const allowedKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const f of produtoAtual?.ui_schema ?? []) {
+      if (f?.name && typeof f.name === 'string') s.add(f.name);
+    }
+    return s;
+  }, [produtoAtual?.ui_schema]);
+
+  // token sync (mantém)
   useEffect(() => {
     let unsub: (() => void) | null = null;
 
@@ -92,6 +95,7 @@ function CustomizadorClient() {
     };
   }, []);
 
+  // fetch modelos + perfil (mantém)
   useEffect(() => {
     async function fetchData() {
       if (!familiaURL) {
@@ -99,7 +103,6 @@ function CustomizadorClient() {
         return;
       }
 
-      // Designs / Modelos
       const { data, error } = await supabase
         .from('prod_designs')
         .select('*')
@@ -119,7 +122,6 @@ function CustomizadorClient() {
         setProdutoAtual(selecionado ?? data[0]);
       }
 
-      // Perfil (se autenticado)
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData?.session;
 
@@ -142,22 +144,12 @@ function CustomizadorClient() {
     fetchData();
   }, [id, familiaURL]);
 
+  // ✅ returns depois de todos os hooks
   if (loading) return <div>Iniciando…</div>;
   if (!produtoAtual) return <div>Produto não encontrado.</div>;
 
-  // ✅ Congelar id (evita TS vermelho em handlers)
   const produtoId = produtoAtual.id;
 
-  // ✅ whitelist de params permitidos (vem do ui_schema)
-  const allowedKeys = useMemo(() => {
-    const s = new Set<string>();
-    for (const f of produtoAtual.ui_schema ?? []) {
-      if (f?.name && typeof f.name === 'string') s.add(f.name);
-    }
-    return s;
-  }, [produtoAtual.ui_schema]);
-
-  // blanks (mantém)
   const blankMap: Record<string, string> = {
     'tag-redonda': '/models/blank_redondo.stl',
     'tag-osso': '/models/blank_osso.stl',
@@ -170,7 +162,6 @@ function CustomizadorClient() {
   async function gerarSTLFinal() {
     setLoadingFinal(true);
     try {
-      // mantém a regra: precisa estar logado para gerar
       let token = accessToken;
       if (!token) {
         const { data } = await supabase.auth.getSession();
@@ -179,11 +170,11 @@ function CustomizadorClient() {
       }
 
       if (!token) {
-        alert('Sessão não disponível neste momento. Faz refresh à página ou faz logout/login.');
+        alert('Sessão não disponível neste momento. Faz refresh ou logout/login.');
         return;
       }
 
-      // ✅ FILTRO: remove arrays/objects (ex.: options)
+      // ✅ filtro que impede "options" (array) ir para o backend [2](https://amplifon-my.sharepoint.com/personal/pedro_pomar_amplifon_com/Documents/Ficheiros%20do%20Microsoft%20Copilot%20Chat/page.tsx)
       const safeValores = sanitizePayload(valores as any, allowedKeys);
 
       const res = await fetch('/api/gerar-stl-pro', {
@@ -255,19 +246,18 @@ function CustomizadorClient() {
 
     setDownloading(true);
     try {
-      // aqui sim: tem mesmo de estar logado
       let token = accessToken;
       if (!token) {
         const { data } = await supabase.auth.getSession();
         token = data?.session?.access_token ?? null;
         setAccessToken(token);
       }
+
       if (!token) {
         alert('Precisas de estar autenticado para descarregar.');
         return;
       }
 
-      // cobra só no download
       await cobrarDownload();
 
       const { data, error } = await supabase.storage
@@ -353,9 +343,9 @@ function CustomizadorClient() {
           lineHeight: 1.4,
         }}
       >
-        <b>Nota:</b> a pré‑visualização é apenas aproximada do ficheiro final.
-        Podes <b>gerar o STL final as vezes que quiseres</b> até ficar como queres.
-        O <b>download</b> consome <b>{custo}</b> crédito(s).
+        <b>Nota:</b> a pré‑visualização é apenas aproximada do ficheiro final. Podes{' '}
+        <b>gerar o STL final as vezes que quiseres</b> até ficar como queres. O{' '}
+        <b>download</b> consome <b>{custo}</b> crédito(s).
       </div>
 
       <div
