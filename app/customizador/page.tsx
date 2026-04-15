@@ -413,7 +413,7 @@ function CustomizadorClient() {
             yPos={Number((valores as any).yPos ?? 0)}
             fontSizeN={Number((valores as any).fontSizeN ?? 8)}
             xPosN={Number((valores as any).xPosN ?? 0)}
-            yPosN={Number((valores as any).yPosN ?? -10)}
+            yPosN={Number((valores as any).yPosN ?? -1)}
             relevo={true}
           />
         </main>
