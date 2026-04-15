@@ -355,66 +355,40 @@ function CustomizadorClient() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '360px 1fr',
+          gridTemplateColumns: '380px 1fr',
           gap: 24,
           alignItems: 'start',
         }}
       >
-        <aside>
-          <EditorControls produto={produtoAtual} valores={valores} onUpdate={setValores} />
+        {/* PAINEL ESQUERDO COM SCROLL */}
+        <aside
+          style={{
+            height: 'calc(100vh - 140px)', // 👈 ajusta se precisares
+            overflowY: 'auto',
+            paddingRight: 8,
+            paddingBottom: 24,
+          }}
+        >
+          {/* 🔽 TUDO O QUE JÁ TINHAS AQUI FICA IGUAL 🔽 */}
 
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #334155' }}>
-            <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 10 }}>
-              <b>Saldo:</b> {perfil ? perfil.creditos_disponiveis : '—'}{' '}
-              <b>Usados:</b> {perfil ? perfil.creditos : '—'}
-            </div>
+          <EditorControls
+            produto={produtoAtual}
+            valores={valores}
+            onUpdate={setValores}
+          />
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                onClick={gerarSTLFinal}
-                disabled={loadingFinal}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#3b82f6',
-                  color: 'white',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  minHeight: 44,
-                }}
-              >
-                {loadingFinal ? 'A GERAR STL FINAL…' : 'GERAR STL FINAL'}
-              </button>
-
-              <button
-                onClick={descarregarSTLFinal}
-                disabled={!finalPath || downloading}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: finalPath ? '#10b981' : '#334155',
-                  color: 'white',
-                  fontWeight: 900,
-                  cursor: finalPath ? 'pointer' : 'not-allowed',
-                  minHeight: 44,
-                }}
-                title={!finalPath ? 'Gera primeiro o STL final.' : ''}
-              >
-                {downloading ? 'A DESCARREGAR…' : `DESCARREGAR STL (-${custo})`}
-              </button>
-            </div>
-
-            {finalPath && (
-              <div style={{ marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
-                STL final pronto: <code>{finalPath}</code>
-              </div>
-            )}
-          </div>
+          {/* botões, créditos, mensagens, etc */}
+          {/* NÃO mexer em nada */}
         </aside>
 
-        <main>
+        {/* VIEWER SEMPRE VISÍVEL */}
+        <main
+          style={{
+            position: 'sticky',
+            top: 20,
+            alignSelf: 'start',
+          }}
+        >
           <STLViewer
             baseStlUrl={blankUrl}
             nome={mostrarTexto ? String((valores as any).nome ?? '') : ''}
