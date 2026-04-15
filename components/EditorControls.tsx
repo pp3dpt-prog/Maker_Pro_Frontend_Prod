@@ -134,7 +134,7 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                       style={{
                         display: 'grid',
                         gridTemplateColumns: '1fr 90px',
-                        gap: 10,
+                        gap: 8,
                         alignItems: 'center',
                       }}
                     >
