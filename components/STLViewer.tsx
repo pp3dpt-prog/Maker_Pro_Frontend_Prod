@@ -222,39 +222,83 @@ export default function STLViewer({
     if (!nome && !telefone) return;
 
     const group = new THREE.Group();
-    const depth = relevo ? 1.2 : 0.3;
+
+    // ✅ gaps mínimos para não "flutuar"
+    const surfaceGapNome = 0.08;
+    const surfaceGapNumero = 0.05;
+
     const zFront = zFrontRef.current || 0;
 
-    const makeText = (txt: string, invert: boolean, x: number, y: number, size: number, z: number) => {
-      const geo = new TextGeometry(txt, {
+    // helper para centrar texto em X/Y
+    const centerXY = (geo: any) => {
+      geo.computeBoundingBox();
+      const box = geo.boundingBox!;
+      const cx = (box.min.x + box.max.x) / 2;
+      const cy = (box.min.y + box.max.y) / 2;
+      geo.translate(-cx, -cy, 0);
+    };
+
+    // ===== MATERIALS
+    const matNome = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+    const matNumeroPlano = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.8,
+      metalness: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+
+    // ===== NOME (FRENTE, COM EXTRUSÃO)
+    if (nome) {
+      const geoNome = new TextGeometry(nome, {
         font: loadedFont,
-        size,
-        depth,
+        size: fontSize,
+        depth: relevo ? 1.2 : 0.3,
         curveSegments: 8,
       });
 
-      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-      const mesh = new THREE.Mesh(geo, mat);
+      centerXY(geoNome);
 
-      if (invert) mesh.rotation.y = Math.PI;
+      const meshNome = new THREE.Mesh(geoNome, matNome);
 
-      mesh.position.set(x, y, z);
-      return mesh;
-    };
+      // ✅ mais próximo da face
+      meshNome.position.set(
+        xPos,
+        yPos,
+        zFront + surfaceGapNome
+      );
 
-    // NOME: só frente
-    if (nome) {
-      group.add(makeText(nome, false, xPos, yPos, fontSize, zFront + depth));
+      group.add(meshNome);
     }
 
-    // TELEFONE: só verso (espelhado)
-    if (telefone) {
-      group.add(makeText(telefone, true, xPosN, yPosN, fontSizeN, -(zFront + depth)));
-    }
+  // ===== TELEFONE (VERSO, PLANO – SEM EXTRUSÃO)
+  if (telefone) {
+    // gerar formas 2D
+    const shapes = loadedFont.generateShapes(telefone, fontSizeN);
+    const geoNum2D = new THREE.ShapeGeometry(shapes);
 
-    scene.add(group);
-    textGroupRef.current = group;
+    centerXY(geoNum2D);
+
+    const meshNumero = new THREE.Mesh(geoNum2D, matNumeroPlano);
+
+    // espelhar para verso
+    meshNumero.rotation.y = Math.PI;
+
+    // ✅ colado à face do verso
+    meshNumero.position.set(
+      xPosN,
+      yPosN,
+      -(zFront + surfaceGapNumero)
+    );
+
+    group.add(meshNumero);
   }
+
+  scene.add(group);
+  textGroupRef.current = group;
+}
 
   return (
     <div
