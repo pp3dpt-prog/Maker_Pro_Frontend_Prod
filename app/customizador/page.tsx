@@ -363,22 +363,36 @@ function CustomizadorClient() {
         {/* PAINEL ESQUERDO COM SCROLL */}
         <aside
           style={{
-            height: 'calc(100vh - 140px)', // 👈 ajusta se precisares
+            height: 'calc(100vh - 140px)',
             overflowY: 'auto',
             paddingRight: 8,
             paddingBottom: 24,
           }}
         >
-          {/* 🔽 TUDO O QUE JÁ TINHAS AQUI FICA IGUAL 🔽 */}
-
           <EditorControls
             produto={produtoAtual}
             valores={valores}
             onUpdate={setValores}
           />
 
-          {/* botões, créditos, mensagens, etc */}
-          {/* NÃO mexer em nada */}
+          {/* ✅ BOTÕES VOLTAM A APARECER */}
+          <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={gerarSTLFinal}
+              disabled={loadingFinal}
+              style={{ minHeight: 44 }}
+            >
+              {loadingFinal ? 'A GERAR STL…' : 'GERAR STL FINAL'}
+            </button>
+
+            <button
+              onClick={descarregarSTLFinal}
+              disabled={!finalPath || downloading}
+              style={{ minHeight: 44 }}
+            >
+              {downloading ? 'A DESCARREGAR…' : 'DESCARREGAR STL'}
+            </button>
+          </div>
         </aside>
 
         {/* VIEWER SEMPRE VISÍVEL */}
