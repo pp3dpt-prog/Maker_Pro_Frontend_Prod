@@ -190,7 +190,7 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                     onChange={(e) => updateField(c.name, e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '10px 12px',
+                      padding: '10px 10px',
                       borderRadius: 10,
                       border: '1px solid #334155',
                       background: '#0f172a',
