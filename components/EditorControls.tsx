@@ -157,7 +157,7 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                         value={cur}
                         onChange={(e) => updateField(c.name, Number(e.target.value))}
                         style={{
-                          width: '90%',
+                          width: '80%',
                           padding: '10px 12px',
                           borderRadius: 10,
                           border: '1px solid #334155',
