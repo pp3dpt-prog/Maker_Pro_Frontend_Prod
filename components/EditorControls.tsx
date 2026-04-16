@@ -145,7 +145,7 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                         step={step}
                         value={cur}
                         onChange={(e) => updateField(c.name, Number(e.target.value))}
-                        style={{ width: '100%' }}
+                        style={{ width: '90%' }}
                       />
 
                       <input
