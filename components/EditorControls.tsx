@@ -133,7 +133,7 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '1fr 90px',
+                        gridTemplateColumns: '1fr 60px',
                         gap: 8,
                         alignItems: 'center',
                       }}
@@ -190,7 +190,7 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                     onChange={(e) => updateField(c.name, e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '10px 10px',
+                      padding: '10px 12px',
                       borderRadius: 10,
                       border: '1px solid #334155',
                       background: '#0f172a',
