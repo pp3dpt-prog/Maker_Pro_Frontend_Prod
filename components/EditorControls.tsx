@@ -133,8 +133,8 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '1fr 60px',
-                        gap: 8,
+                        gridTemplateColumns: '1fr 110px',
+                        gap: 6,
                         alignItems: 'center',
                       }}
                     >
