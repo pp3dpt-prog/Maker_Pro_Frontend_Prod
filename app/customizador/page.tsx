@@ -81,6 +81,11 @@ function CustomizadorClient() {
   const [loadingFinal, setLoadingFinal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+
+const [viewerMode, setViewerMode] = useState<'preview' | 'loading' | 'final'>('preview');
+const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
+
+
   // hooks sempre no topo (evita problemas de hooks)
   const custo = useMemo(() => {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
@@ -176,46 +181,73 @@ function CustomizadorClient() {
     blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
 
   async function gerarSTLFinal() {
-    setLoadingFinal(true);
-    try {
-      const token = await getTokenOrRefresh(setAccessToken);
-      if (!token) {
-        alert('Sessão não disponível. Faz logout/login e tenta novamente.');
-        return;
-      }
+  setViewerMode('loading');
+  setLoadingFinal(true);
 
-      const safeValores = sanitizePayload(valores as any, allowedKeys);
+  try {
+    const token = await getTokenOrRefresh(setAccessToken);
 
-      const res = await fetch('/api/gerar-stl-pro', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          id: produtoId,
-          mode: 'final',
-          ...safeValores,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        alert(data?.error ?? 'Erro ao gerar STL final.');
-        return;
-      }
-
-      if (!data.storagePath) {
-        alert('Servidor não devolveu storagePath.');
-        return;
-      }
-
-      setFinalPath(data.storagePath);
-      alert('STL final gerado. Podes gerar novamente as vezes que quiseres.');
-    } finally {
-      setLoadingFinal(false);
+    if (!token) {
+      setViewerMode('preview');
+      alert('Sessão não disponível. Faz logout/login e tenta novamente.');
+      return;
     }
+
+    const safeValores = sanitizePayload(valores as any, allowedKeys);
+
+    const res = await fetch('/api/gerar-stl-pro', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id: produtoId,
+        mode: 'final',
+        ...safeValores,
+      }),
+    });
+
+    // ✅ NÃO usar "data" aqui
+    const result: { storagePath?: string; error?: string } = await res.json();
+
+    if (!res.ok) {
+      setViewerMode('preview');
+      alert(result?.error ?? 'Erro ao gerar STL final.');
+      return;
+    }
+
+    if (!result.storagePath) {
+      setViewerMode('preview');
+      alert('Servidor não devolveu storagePath.');
+      return;
+    }
+
+    setFinalPath(result.storagePath);
+
+    // ✅ criar URL assinada para mostrar no viewer
+    const { data: signed, error: signErr } = await supabase
+      .storage
+      .from('designs-vault')
+      .createSignedUrl(result.storagePath, 60 * 10); // 10 min
+
+    if (signErr || !signed?.signedUrl) {
+      setViewerMode('preview');
+      alert('Não foi possível carregar o STL final no viewer.');
+      return;
+    }
+
+    setFinalStlUrl(signed.signedUrl);
+    setViewerMode('final');
+  } catch (e: any) {
+    console.error(e);
+    setViewerMode('preview');
+    alert('Erro inesperado ao gerar STL.');
+  } finally {
+    setLoadingFinal(false);
+  }
+
+
   }
 
   async function cobrarDownload() {
@@ -403,19 +435,48 @@ function CustomizadorClient() {
             alignSelf: 'start',
           }}
         >
-          <STLViewer
-            baseStlUrl={blankUrl}
-            nome={mostrarTexto ? String((valores as any).nome ?? '') : ''}
-            telefone={mostrarTexto ? String((valores as any).telefone ?? '') : ''}
-            font={String((valores as any).fonte ?? 'Aladin')}
-            fontSize={Number((valores as any).fontSize ?? 10)}
-            xPos={Number((valores as any).xPos ?? 0)}
-            yPos={Number((valores as any).yPos ?? 0)}
-            fontSizeN={Number((valores as any).fontSizeN ?? 8)}
-            xPosN={Number((valores as any).xPosN ?? 0)}
-            yPosN={Number((valores as any).yPosN ?? -1)}
-            relevo={true}
-          />
+          <div style={{ position: 'relative' }}>
+            <STLViewer
+              baseStlUrl={
+                viewerMode === 'final' && finalStlUrl
+                  ? finalStlUrl
+                  : blankUrl
+              }
+              nome={mostrarTexto ? String((valores as any).nome ?? '') : ''}
+              telefone={mostrarTexto ? String((valores as any).telefone ?? '') : ''}
+              font={String((valores as any).fonte ?? 'Aladin')}
+              fontSize={Number((valores as any).fontSize ?? 10)}
+              xPos={Number((valores as any).xPos ?? 0)}
+              yPos={Number((valores as any).yPos ?? 0)}
+              fontSizeN={Number((valores as any).fontSizeN ?? 8)}
+              xPosN={Number((valores as any).xPosN ?? 0)}
+              yPosN={Number((valores as any).yPosN ?? -10)}
+              relevo
+            />
+
+            {viewerMode === 'loading' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(2,6,23,0.75)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: 900,
+                  fontSize: 16,
+                  zIndex: 10,
+                }}
+              >
+                <div style={{ marginBottom: 10 }}>⏳ A gerar STL final…</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                  Isto pode demorar alguns segundos
+                </div>
+              </div>
+            )}
+          </div>
         </main>
       </div>
 
