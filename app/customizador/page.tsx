@@ -437,11 +437,10 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
         >
           <div style={{ position: 'relative' }}>
             <STLViewer
-              baseStlUrl={
-                viewerMode === 'final' && finalStlUrl
-                  ? finalStlUrl
-                  : blankUrl
-              }
+              key={viewerMode === 'final' ? finalStlUrl : blankUrl} // ✅ força reload
+              baseStlUrl={viewerMode === 'final' && finalStlUrl ? finalStlUrl : blankUrl}
+              
+            
               nome={mostrarTexto ? String((valores as any).nome ?? '') : ''}
               telefone={mostrarTexto ? String((valores as any).telefone ?? '') : ''}
               font={String((valores as any).fonte ?? 'Aladin')}
