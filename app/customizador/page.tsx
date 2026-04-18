@@ -228,7 +228,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
     // ✅ criar URL assinada para mostrar no viewer
     const { data: signed, error: signErr } = await supabase
       .storage
-      .from('designs-vault')
+      .from('makers_pro_stl_prod')
       .createSignedUrl(result.storagePath, 60 * 10); // 10 min
 
     if (signErr || !signed?.signedUrl) {
@@ -297,7 +297,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
       await cobrarDownload();
 
       const { data, error } = await supabase.storage
-        .from('designs-vault')
+        .from('makers_pro_stl_prod')
         .download(finalPath);
 
       if (error) throw error;
