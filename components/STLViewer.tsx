@@ -40,13 +40,13 @@ export default function STLViewer({
   telefone = '',
   font = 'Aladin',
 
-  fontSize = 10,
+  fontSize = 9,
   xPos = 0,
   yPos = 0,
 
-  fontSizeN = 8,
+  fontSizeN = 7,
   xPosN = 0,
-  yPosN = -10,
+  yPosN = -1,
 
   relevo = true,
 }: Props) {
