@@ -103,7 +103,8 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                       }}
                     >
                       {c.options.map((opt) => (
-                        <option key={opt} value={opt}>
+ 
+ <option key={opt} value={opt}>
                           {opt}
                         </option>
                       ))}
