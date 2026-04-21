@@ -468,33 +468,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
                   fontSize: 16,
                   zIndex: 10,
                 }}
-
               >
-                <div
-                  style={{
-                    marginTop: 12,
-                    marginBottom: 10,
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #334155',
-                    background: '#0b1220',
-                    color: '#cbd5e1',
-                    fontSize: 13,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div>
-                    <b>Créditos disponíveis:</b> {perfil ? perfil.creditos_disponiveis : '—'}
-                  </div>
-
-                  <div>
-                    <b>Créditos usados:</b> {perfil ? perfil.creditos : '—'}
-                  </div>
-                </div>
-
                 <div style={{ marginBottom: 10 }}>⏳ A gerar STL final…</div>
                 <div style={{ fontSize: 12, opacity: 0.8 }}>
                   Isto pode demorar alguns segundos
