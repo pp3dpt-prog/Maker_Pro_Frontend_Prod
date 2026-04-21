@@ -447,9 +447,9 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
               fontSize={Number((valores as any).fontSize ?? 10)}
               xPos={Number((valores as any).xPos ?? 0)}
               yPos={Number((valores as any).yPos ?? 0)}
-              fontSizeN={Number((valores as any).fontSizeN ?? 7)}
+              fontSizeN={Number((valores as any).fontSizeN ?? 8)}
               xPosN={Number((valores as any).xPosN ?? 0)}
-              yPosN={Number((valores as any).yPosN ?? -1)}
+              yPosN={Number((valores as any).yPosN ?? -10)}
               relevo
             />
 
