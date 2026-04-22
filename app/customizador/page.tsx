@@ -195,7 +195,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
 
     const safeValores = sanitizePayload(valores as any, allowedKeys);
 
-    const res = await fetch('/api/gerar-stl-pro', {
+    const res = await fetch('https://maker-pro-docker-prod.onrender.com/gerar-stl-pro', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
