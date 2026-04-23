@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-
 import { supabase } from '@/lib/supabaseClient';
 import STLViewer from '@/components/STLViewer';
 import EditorControls, { ValoresProduto } from '@/components/EditorControls';
@@ -19,18 +18,20 @@ type ProdutoAtual = {
   custo_creditos?: number;
 };
 
-type Perfil = {
-  id: string;
-  creditos: number;              // usados
-  creditos_disponiveis: number;  // saldo
-} | null;
+type Perfil =
+  | {
+      id: string;
+      creditos: number; // usados
+      creditos_disponiveis: number; // saldo
+    }
+  | null;
 
 function sanitizePayload(
   valores: Record<string, any>,
   allowedKeys: Set<string>
 ): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
-  for (const [k, v] of Object.entries(valores || {})) {
+  for (const [k, v] of Object.entries(valores ?? {})) {
     if (!allowedKeys.has(k)) continue;
     if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
       out[k] = v;
@@ -74,19 +75,21 @@ function CustomizadorClient() {
   const [mostrarTexto, setMostrarTexto] = useState(false);
 
   const [perfil, setPerfil] = useState<Perfil>(null);
-
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const [finalPath, setFinalPath] = useState<string | null>(null);
   const [loadingFinal, setLoadingFinal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  const [viewerMode, setViewerMode] = useState<'preview' | 'loading' | 'final'>('preview');
+  const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
 
-const [viewerMode, setViewerMode] = useState<'preview' | 'loading' | 'final'>('preview');
-const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
+  // Mantidos (mesmo que ainda não uses tudo)
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [previewStlUrl, setPreviewStlUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
-
-  // hooks sempre no topo (evita problemas de hooks)
+  // hooks sempre no topo
   const custo = useMemo(() => {
     const c = Number(produtoAtual?.custo_creditos ?? 1);
     return Number.isFinite(c) && c > 0 ? c : 1;
@@ -100,7 +103,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
     return s;
   }, [produtoAtual?.ui_schema]);
 
-  // listener correto do supabase-js v2
+  // listener supabase
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setAccessToken(session?.access_token ?? null);
@@ -133,9 +136,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
 
       if (designs && designs.length > 0) {
         setModelos(designs);
-        const selecionado = id
-          ? designs.find((d) => String(d.id) === String(id))
-          : designs[0];
+        const selecionado = id ? designs.find((d) => String(d.id) === String(id)) : designs[0];
         setProdutoAtual(selecionado ?? designs[0]);
       }
 
@@ -177,77 +178,93 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
     'tag-hexagono': '/models/blank_hexagono.stl',
   };
 
-  const blankUrl =
-    blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
+  const blankUrl = blankMap[String(produtoAtual.id)] ?? '/models/blank_redondo.stl';
+
+  // ✅ Backend URL configurável (mantém default atual)
+  const BACKEND_BASE =
+    (process.env.NEXT_PUBLIC_BACKEND_URL ?? 'https://maker-pro-docker-prod.onrender.com').replace(
+      /\/$/,
+      ''
+    );
 
   async function gerarSTLFinal() {
-  setViewerMode('loading');
-  setLoadingFinal(true);
+    setViewerMode('loading');
+    setLoadingFinal(true);
 
-  try {
-    const token = await getTokenOrRefresh(setAccessToken);
+    try {
+      const token = await getTokenOrRefresh(setAccessToken);
+      if (!token) {
+        setViewerMode('preview');
+        alert('Sessão não disponível. Faz logout/login e tenta novamente.');
+        return;
+      }
 
-    if (!token) {
+      const safeValores = sanitizePayload(valores as any, allowedKeys);
+
+      // ✅ Timeout controlado no fetch (evita ficar preso)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 295_000); // ~4m55s (menos que 5m)
+
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_BASE}/gerar-stl-pro`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            id: produtoId,
+            mode: 'final',
+            ...safeValores,
+          }),
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const result: { storagePath?: string; error?: string; details?: string } = await res.json();
+
+      if (!res.ok) {
+        setViewerMode('preview');
+        alert(result?.details ? `${result.error}\n\n${result.details}` : result?.error ?? 'Erro ao gerar STL final.');
+        return;
+      }
+
+      if (!result.storagePath) {
+        setViewerMode('preview');
+        alert('Servidor não devolveu storagePath.');
+        return;
+      }
+
+      setFinalPath(result.storagePath);
+
+      const { data: signed, error: signErr } = await supabase.storage
+        .from('makers_pro_stl_prod')
+        .createSignedUrl(result.storagePath, 60 * 10);
+
+      if (signErr || !signed?.signedUrl) {
+        setViewerMode('preview');
+        alert('Não foi possível carregar o STL final no viewer.');
+        return;
+      }
+
+      setFinalStlUrl(signed.signedUrl);
+      setViewerMode('final');
+    } catch (e: any) {
+      console.error(e);
       setViewerMode('preview');
-      alert('Sessão não disponível. Faz logout/login e tenta novamente.');
-      return;
+
+      // Timeout por AbortController
+      if (e?.name === 'AbortError') {
+        alert('Timeout ao contactar backend.');
+      } else {
+        alert('Erro inesperado ao gerar STL.');
+      }
+    } finally {
+      setLoadingFinal(false);
     }
-
-    const safeValores = sanitizePayload(valores as any, allowedKeys);
-
-    const res = await fetch('https://maker-pro-docker-prod.onrender.com/gerar-stl-pro', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        id: produtoId,
-        mode: 'final',
-        ...safeValores,
-      }),
-    });
-
-    // ✅ NÃO usar "data" aqui
-    const result: { storagePath?: string; error?: string } = await res.json();
-
-    if (!res.ok) {
-      setViewerMode('preview');
-      alert(result?.error ?? 'Erro ao gerar STL final.');
-      return;
-    }
-
-    if (!result.storagePath) {
-      setViewerMode('preview');
-      alert('Servidor não devolveu storagePath.');
-      return;
-    }
-
-    setFinalPath(result.storagePath);
-
-    // ✅ criar URL assinada para mostrar no viewer
-    const { data: signed, error: signErr } = await supabase
-      .storage
-      .from('makers_pro_stl_prod')
-      .createSignedUrl(result.storagePath, 60 * 10); // 10 min
-
-    if (signErr || !signed?.signedUrl) {
-      setViewerMode('preview');
-      alert('Não foi possível carregar o STL final no viewer.');
-      return;
-    }
-
-    setFinalStlUrl(signed.signedUrl);
-    setViewerMode('final');
-  } catch (e: any) {
-    console.error(e);
-    setViewerMode('preview');
-    alert('Erro inesperado ao gerar STL.');
-  } finally {
-    setLoadingFinal(false);
-  }
-
-
   }
 
   async function cobrarDownload() {
@@ -265,19 +282,12 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
 
     const { error } = await supabase
       .from('prod_perfis')
-      .update({
-        creditos_disponiveis: novoDisponiveis,
-        creditos: novoUsados,
-      })
+      .update({ creditos_disponiveis: novoDisponiveis, creditos: novoUsados })
       .eq('id', perfil.id);
 
     if (error) throw error;
 
-    setPerfil({
-      ...perfil,
-      creditos_disponiveis: novoDisponiveis,
-      creditos: novoUsados,
-    });
+    setPerfil({ ...perfil, creditos_disponiveis: novoDisponiveis, creditos: novoUsados });
   }
 
   async function descarregarSTLFinal() {
@@ -296,10 +306,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
 
       await cobrarDownload();
 
-      const { data, error } = await supabase.storage
-        .from('makers_pro_stl_prod')
-        .download(finalPath);
-
+      const { data, error } = await supabase.storage.from('makers_pro_stl_prod').download(finalPath);
       if (error) throw error;
       if (!data) throw new Error('Download vazio.');
 
@@ -325,6 +332,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
       <h2 style={{ marginTop: 20 }}>{produtoAtual.nome?.toUpperCase()}</h2>
 
       <h3 style={{ marginTop: 25 }}>FORMA</h3>
+
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {modelos.map((item) => {
           const ativo = String(item.id) === String(produtoAtual.id);
@@ -380,8 +388,8 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
         }}
       >
         <b>Nota:</b> a pré‑visualização é apenas aproximada do ficheiro final. Podes{' '}
-        <b>gerar o STL final as vezes que quiseres</b> até ficar como queres. O{' '}
-        <b>download</b> consome <b>{custo}</b> crédito(s).
+        <b>gerar o STL final as vezes que quiseres</b> até ficar como queres. O <b>download</b> consome{' '}
+        <b>{custo}</b> crédito(s).
       </div>
 
       <div
@@ -401,12 +409,8 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
             paddingBottom: 24,
           }}
         >
-          <EditorControls
-            produto={produtoAtual}
-            valores={valores}
-            onUpdate={setValores}
-          />
-          
+          <EditorControls produto={produtoAtual} valores={valores} onUpdate={setValores} />
+
           <div
             style={{
               marginTop: 12,
@@ -436,21 +440,13 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
             </div>
           </div>
 
-          {/* ✅ BOTÕES VOLTAM A APARECER */}
+          {/* BOTÕES */}
           <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              onClick={gerarSTLFinal}
-              disabled={loadingFinal}
-              style={{ minHeight: 44 }}
-            >
+            <button onClick={gerarSTLFinal} disabled={loadingFinal} style={{ minHeight: 44 }}>
               {loadingFinal ? 'A GERAR STL…' : 'GERAR STL FINAL'}
             </button>
 
-            <button
-              onClick={descarregarSTLFinal}
-              disabled={!finalPath || downloading}
-              style={{ minHeight: 44 }}
-            >
+            <button onClick={descarregarSTLFinal} disabled={!finalPath || downloading} style={{ minHeight: 44 }}>
               {downloading ? 'A DESCARREGAR…' : 'DESCARREGAR STL'}
             </button>
           </div>
@@ -466,10 +462,8 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
         >
           <div style={{ position: 'relative' }}>
             <STLViewer
-              key={viewerMode === 'final' ? finalStlUrl : blankUrl} // ✅ força reload
+              key={viewerMode === 'final' ? finalStlUrl : blankUrl}
               baseStlUrl={viewerMode === 'final' && finalStlUrl ? finalStlUrl : blankUrl}
-              
-            
               nome={mostrarTexto ? String((valores as any).nome ?? '') : ''}
               telefone={mostrarTexto ? String((valores as any).telefone ?? '') : ''}
               font={String((valores as any).fonte ?? 'Aladin')}
@@ -499,9 +493,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
                 }}
               >
                 <div style={{ marginBottom: 10 }}>⏳ A gerar STL final…</div>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>
-                  Isto pode demorar alguns segundos
-                </div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>Isto pode demorar alguns segundos</div>
               </div>
             )}
           </div>
@@ -510,7 +502,7 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
 
       <style jsx>{`
         @media (max-width: 900px) {
-          div[style*='grid-template-columns: 360px 1fr'] {
+          div[style*='grid-template-columns: 380px 1fr'] {
             grid-template-columns: 1fr !important;
           }
         }

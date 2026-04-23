@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type ValoresProduto = Record<string, string | number | boolean>;
 
 type UISchemaField = {
   name: string;
   label?: string;
-  type?: 'text' | 'slider' | 'select' | 'hidden';
+  type?: 'text' | 'slider' | 'select' | 'hidden' | 'checkbox';
   options?: string[];
   min?: number;
   max?: number;
@@ -38,21 +38,23 @@ function asNumber(v: unknown, fallback = 0): number {
 export default function EditorControls({ produto, valores, onUpdate }: EditorControlsProps) {
   const [localValores, setLocalValores] = useState<ValoresProduto>({});
 
+  // inicializa quando muda o produto
   useEffect(() => {
-    if (!produto?.ui_schema) return;
+    const schema = produto?.ui_schema ?? [];
+    const iniciais: ValoresProduto = { ...(produto.parametros_default ?? {}) };
 
-    const iniciais: ValoresProduto = {
-      ...(produto.parametros_default ?? {}),
-    };
-
-    // aplica defaults por campo
-    for (const c of produto.ui_schema) {
+    for (const c of schema) {
+      if (!c?.name) continue;
       if (c.type === 'hidden') continue;
 
       if (iniciais[c.name] === undefined) {
-        if (c.value !== undefined) iniciais[c.name] = c.value;
-        else if (c.default !== undefined) iniciais[c.name] = c.default;
-        else iniciais[c.name] = '';
+        if (c.value !== undefined && (typeof c.value === 'string' || typeof c.value === 'number' || typeof c.value === 'boolean')) {
+          iniciais[c.name] = c.value;
+        } else if (c.default !== undefined && (typeof c.default === 'string' || typeof c.default === 'number' || typeof c.default === 'boolean')) {
+          iniciais[c.name] = c.default;
+        } else {
+          iniciais[c.name] = c.type === 'slider' ? 0 : c.type === 'checkbox' ? false : '';
+        }
       }
     }
 
@@ -61,36 +63,155 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produto?.id]);
 
+  // sincroniza se o pai atualizar valores externamente
+  useEffect(() => {
+    if (!valores) return;
+    const a = JSON.stringify(localValores);
+    const b = JSON.stringify(valores);
+    if (a !== b) setLocalValores(valores);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valores]);
+
   const updateField = (name: string, value: string | number | boolean) => {
-    const novos = { ...localValores, [name]: value };
+    const novos: ValoresProduto = { ...localValores, [name]: value };
     setLocalValores(novos);
     onUpdate(novos);
   };
 
-  const seccoes = Array.from(
-    new Set((produto.ui_schema ?? []).map((c) => c.section).filter(Boolean))
-  ) as string[];
+  const fields = useMemo(() => (produto.ui_schema ?? []).filter((c) => c && c.name), [produto.ui_schema]);
+
+  const seccoes = useMemo(() => {
+    return Array.from(new Set(fields.map((c) => c.section).filter(Boolean))) as string[];
+  }, [fields]);
+
+  const seccoesParaRender = seccoes.length ? seccoes : ['Geral'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {seccoes.map((sec) => (
-        <div key={sec}>
-          <strong style={{ display: 'block', marginBottom: 8 }}>{sec}</strong>
+    <div>
+      {seccoesParaRender.map((sec) => {
+        const campos =
+          sec === 'Geral' && seccoes.length === 0
+            ? fields.filter((c) => c.type !== 'hidden')
+            : fields.filter((c) => c.section === sec && c.type !== 'hidden');
 
-          {(produto.ui_schema ?? [])
-            .filter((c) => c.section === sec && c.type !== 'hidden')
-            .map((c) => {
-              const label = c.label ?? c.name;
+        if (campos.length === 0) return null;
 
-              // SELECT (FONTE)
-              if (c.type === 'select' && Array.isArray(c.options)) {
+        return (
+          <div key={sec} style={{ marginBottom: 18 }}>
+            <div style={{ fontWeight: 900, margin: '8px 0 10px', color: 'white' }}>{sec}</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {campos.map((c) => {
+                const label = c.label ?? c.name;
+
+                // SELECT
+                if (c.type === 'select' && Array.isArray(c.options)) {
+                  const cur = String(localValores[c.name] ?? c.default ?? '');
+                  return (
+                    <div key={c.name}>
+                      <div style={{ color: '#cbd5e1', fontSize: 13, marginBottom: 6, fontWeight: 800 }}>{label}</div>
+                      <select
+                        value={cur}
+                        onChange={(e) => updateField(c.name, e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: '1px solid #334155',
+                          background: '#0f172a',
+                          color: 'white',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {c.options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+
+                // CHECKBOX
+                if (c.type === 'checkbox') {
+                  const cur = Boolean(localValores[c.name] ?? c.default ?? false);
+                  return (
+                    <label key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#cbd5e1' }}>
+                      <input
+                        type="checkbox"
+                        checked={cur}
+                        onChange={(e) => updateField(c.name, e.target.checked)}
+                        style={{ transform: 'scale(1.1)' }}
+                      />
+                      <span style={{ fontWeight: 800 }}>{label}</span>
+                    </label>
+                  );
+                }
+
+                // SLIDER
+                if (c.type === 'slider') {
+                  const min = c.min ?? 0;
+                  const max = c.max ?? 100;
+                  const step = c.step ?? 1;
+                  const cur = asNumber(localValores[c.name], asNumber(c.default, 0));
+
+                  const unit = c.unit ?? (/(^xPos$|^yPos$|^xPosN$|^yPosN$)/.test(c.name) ? 'mm' : '');
+
+                  return (
+                    <div key={c.name}>
+                      <div style={{ color: '#cbd5e1', fontSize: 13, marginBottom: 6, fontWeight: 800 }}>
+                        {label} {unit ? `(${unit})` : ''}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px', gap: 6, alignItems: 'center' }}>
+                        <input
+                          type="range"
+                          min={min}
+                          max={max}
+                          step={step}
+                          value={cur}
+                          onChange={(e) => updateField(c.name, Number(e.target.value))}
+                          style={{ width: '100%', height: 18, margin: 0 }}
+                        />
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <input
+                            type="number"
+                            value={cur}
+                            min={min}
+                            max={max}
+                            step={step}
+                            onChange={(e) => updateField(c.name, Number(e.target.value))}
+                            style={{
+                              width: '100%',
+                              height: 30,
+                              fontSize: 13,
+                              padding: '4px 6px',
+                              borderRadius: 10,
+                              border: '1px solid #334155',
+                              background: '#0f172a',
+                              color: 'white',
+                              boxSizing: 'border-box',
+                              fontWeight: 800,
+                            }}
+                          />
+                          {unit ? (
+                            <span style={{ fontSize: 12, opacity: 0.75, whiteSpace: 'nowrap', color: '#cbd5e1' }}>{unit}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // TEXT (default)
                 const cur = String(localValores[c.name] ?? c.default ?? '');
                 return (
-                  <div key={c.name} style={{ marginTop: 10 }}>
-                    <label style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
-                      {label}
-                    </label>
-                    <select
+                  <div key={c.name}>
+                    <div style={{ color: '#cbd5e1', fontSize: 13, marginBottom: 6, fontWeight: 800 }}>{label}</div>
+                    <input
+                      type="text"
                       value={cur}
                       onChange={(e) => updateField(c.name, e.target.value)}
                       style={{
@@ -100,109 +221,16 @@ export default function EditorControls({ produto, valores, onUpdate }: EditorCon
                         border: '1px solid #334155',
                         background: '#0f172a',
                         color: 'white',
+                        fontWeight: 800,
                       }}
-                    >
-                      {c.options.map((opt) => (
- 
- <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 );
-              }
-
-              // SLIDER (numérico)
-              if (c.type === 'slider') {
-                const min = c.min ?? 0;
-                const max = c.max ?? 100;
-                const step = c.step ?? 1;
-                const cur = asNumber(localValores[c.name], asNumber(c.default, 0));
-
-                // unidade: usa unit do schema; se não existir, assume mm para x/y
-                const unit =
-                  c.unit ??
-                  (/(^xPos$|^yPos$|^xPosN$|^yPosN$)/.test(c.name) ? 'mm' : '');
-
-                return (
-                  <div key={c.name} style={{ marginTop: 10 }}>
-                    <label style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
-                      {label} {unit ? `(${unit})` : ''}
-                    </label>
-
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 110px',
-                        gap: 6,
-                        alignItems: 'center',
-                      }}
-                    >
-                      <input
-                        type="range"
-                        min={min}
-                        max={max}
-                        step={step}
-                        value={cur}
-                        onChange={(e) => updateField(c.name, Number(e.target.value))}
-                        style={{ width: '90%' }}
-                      />
-
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min={min}
-                        max={max}
-                        step={step}
-                        value={cur}
-                        onChange={(e) => updateField(c.name, Number(e.target.value))}
-                        style={{
-                          width: '70%',
-                          padding: '10px 12px',
-                          borderRadius: 10,
-                          border: '1px solid #334155',
-                          background: '#0f172a',
-                          color: 'white',
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#94a3b8' }}>
-                      Valor: <b>{cur}</b> {unit}
-                    </div>
-                  </div>
-                );
-              }
-
-              // TEXT (nome, telefone, etc.)
-              const cur = String(localValores[c.name] ?? c.default ?? '');
-              const isPhone = c.name === 'telefone';
-
-              return (
-                <div key={c.name} style={{ marginTop: 10 }}>
-                  <label style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
-                    {label}
-                  </label>
-                  <input
-                    type="text"
-                    inputMode={isPhone ? 'tel' : 'text'}
-                    value={cur}
-                    onChange={(e) => updateField(c.name, e.target.value)}
-                    style={{
-                      width: '90%',
-                      padding: '10px 12px',
-                      borderRadius: 10,
-                      border: '1px solid #334155',
-                      background: '#0f172a',
-                      color: 'white',
-                    }}
-                  />
-                </div>
-              );
-            })}
-        </div>
-      ))}
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
