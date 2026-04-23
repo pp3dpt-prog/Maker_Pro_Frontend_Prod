@@ -406,6 +406,35 @@ const [finalStlUrl, setFinalStlUrl] = useState<string | null>(null);
             valores={valores}
             onUpdate={setValores}
           />
+          
+          <div
+            style={{
+              marginTop: 12,
+              marginBottom: 10,
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: '1px solid #334155',
+              background: '#0b1220',
+              color: '#cbd5e1',
+              fontSize: 13,
+              display: 'grid',
+              gridTemplateColumns: '1fr',
+              gap: 6,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <b>Créditos disponíveis:</b> {perfil ? perfil.creditos_disponiveis : '—'}
+              </div>
+              <div>
+                <b>Créditos usados:</b> {perfil ? perfil.creditos : '—'}
+              </div>
+            </div>
+
+            <div style={{ opacity: 0.9 }}>
+              <b>Custo do download:</b> {custo} crédito(s)
+            </div>
+          </div>
 
           {/* ✅ BOTÕES VOLTAM A APARECER */}
           <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
