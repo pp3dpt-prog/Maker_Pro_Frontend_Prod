@@ -1,40 +1,48 @@
-type GenerationSchema = {
-  parameters: Record<string, any>;
-};
+'use client';
 
 type Props = {
-  schema: GenerationSchema;
+  schema: any;
   values: Record<string, any>;
-  onChange: (next: Record<string, any>) => void;
+  onChange: (v: Record<string, any>) => void;
 };
 
-export default function GeneratedEditor({ schema, values, onChange }: Props) {
+export default function GeneratedEditor({
+  schema,
+  values,
+  onChange,
+}: Props) {
   return (
     <>
-      {Object.entries(schema.parameters).map(([key, def]) => {
-        const ui = def.ui ?? {};
-        const label = ui.label ?? key;
-        const value = values[key];
+      {Object.entries(schema.parameters).map(([k, def]: any) => {
+        const ui = def.ui || {};
+        const label = ui.label || k;
+        const value = values[k];
 
         if (ui.widget === 'slider') {
           return (
-            <div key={key}>
+            <div key={k}>
               <label>{label}</label>
               <input
                 type="range"
                 min={def.min}
                 max={def.max}
-                step={ui.step ?? 1}
+                step={ui.step || 1}
                 value={value}
                 onChange={e =>
-                  onChange({ ...values, [key]: Number(e.target.value) })
+                  onChange({
+                    ...values,
+                    [k]: Number(e.target.value),
+                  })
                 }
               />
               <input
                 type="number"
                 value={value}
                 onChange={e =>
-                  onChange({ ...values, [key]: Number(e.target.value) })
+                  onChange({
+                    ...values,
+                    [k]: Number(e.target.value),
+                  })
                 }
               />
             </div>
@@ -43,12 +51,15 @@ export default function GeneratedEditor({ schema, values, onChange }: Props) {
 
         if (ui.widget === 'checkbox') {
           return (
-            <label key={key}>
+            <label key={k}>
               <input
                 type="checkbox"
-                checked={Boolean(value)}
+                checked={!!value}
                 onChange={e =>
-                  onChange({ ...values, [key]: e.target.checked })
+                  onChange({
+                    ...values,
+                    [k]: e.target.checked,
+                  })
                 }
               />
               {label}
@@ -57,13 +68,16 @@ export default function GeneratedEditor({ schema, values, onChange }: Props) {
         }
 
         return (
-          <div key={key}>
+          <div key={k}>
             <label>{label}</label>
             <input
               type="text"
               value={value}
               onChange={e =>
-                onChange({ ...values, [key]: e.target.value })
+                onChange({
+                  ...values,
+                  [k]: e.target.value,
+                })
               }
             />
           </div>

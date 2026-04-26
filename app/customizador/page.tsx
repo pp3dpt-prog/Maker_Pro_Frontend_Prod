@@ -1,37 +1,26 @@
-import { useState } from 'react';
-import GeneratedEditor from 'components/GeneratedEditor';
+// app/customizador/page.tsx
 
-export default function Page({ produto }: any) {
-  const schema = produto.generation_schema;
+import { supabase } from '@/lib/supabaseClient';
+import CustomizadorClient from 'app/customizador/CustomizadorClient';
 
-  const [values, setValues] = useState(() => {
-    const o: any = {};
-    Object.entries(schema.parameters).forEach(
-      ([k, d]: any) => (o[k] = d.default)
-    );
-    return o;
-  });
-
-  async function gerar() {
-    await fetch('/gerar-stl-pro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: produto.id,
-        mode: 'final',
-        params: values
-      })
-    });
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: { id?: string };
+}) {
+  if (!searchParams?.id) {
+    return <div>Produto não definido</div>;
   }
 
-  return (
-    <>
-      <GeneratedEditor
-        schema={schema}
-        values={values}
-        onChange={setValues}
-      />
-      <button onClick={gerar}>Gerar STL</button>
-    </>
-  );
+  const { data: produto, error } = await supabase
+    .from('prod_designs')
+    .select('id, nome, generation_schema')
+    .eq('id', searchParams.id)
+    .maybeSingle();
+
+  if (error || !produto) {
+    return <div>Produto não encontrado</div>;
+  }
+
+  return <CustomizadorClient produto={produto} />;
 }
