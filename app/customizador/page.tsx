@@ -1,22 +1,20 @@
-// app/customizador/page.tsx
-
 import { supabase } from '@/lib/supabaseClient';
 import CustomizadorClient from './CustomizadorClient';
 
-type Props = {
+export default async function Page({
+  searchParams,
+}: {
   searchParams?: {
     id?: string;
     familia?: string;
   };
-};
-
-export default async function Page({ searchParams }: Props) {
-  const id = searchParams?.id ?? null;
-  const familia = searchParams?.familia ?? null;
+}) {
+  const id = searchParams?.id;
+  const familia = searchParams?.familia;
 
   let produto = null;
 
-  // ✅ CASO 1: id explícito
+  // ✅ 1. Se vier ID explícito (caso normal do teu URL)
   if (id) {
     const { data, error } = await supabase
       .from('prod_designs')
@@ -31,7 +29,7 @@ export default async function Page({ searchParams }: Props) {
     produto = data;
   }
 
-  // ✅ CASO 2: apenas família → escolher primeiro produto
+  // ✅ 2. Fallback: só família (se no futuro acontecer)
   else if (familia) {
     const { data, error } = await supabase
       .from('prod_designs')
@@ -48,7 +46,7 @@ export default async function Page({ searchParams }: Props) {
     produto = data;
   }
 
-  // ❌ CASO 3: nem id nem família
+  // ❌ 3. Nem id nem família
   else {
     return <div>Produto não definido</div>;
   }
