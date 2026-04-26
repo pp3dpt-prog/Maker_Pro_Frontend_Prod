@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import STLViewer, { type ViewerSchema } from '@/components/STLViewer';
 
 /* ======================================================
-   VIEWER SCHEMA BUILDER (TIPADO)
+   VIEWER SCHEMA (BD‑DRIVEN — aqui emulado)
 ====================================================== */
 
 function buildViewerSchema(
@@ -20,7 +20,7 @@ function buildViewerSchema(
 
   return {
     base_geometry: {
-      mode: 'static', // ✅ literal compatível com ViewerSchema
+      mode: 'static',
       stl: `/models/blank_${map[shape]}.stl`,
     },
     camera: {
@@ -50,21 +50,25 @@ function buildViewerSchema(
    PAGE
 ====================================================== */
 
-export default function STLMakerPro() {
-  const [shape, setShape] = useState('Osso');
+export default function PetTagsPage() {
+  const [shape, setShape] = useState<'Osso' | 'Redondo' | 'Hexagono' | 'Coração'>(
+    'Osso'
+  );
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [font, setFont] = useState('Open Sans');
   const [mostrarPreview, setMostrarPreview] = useState(false);
 
-  // ✅ viewerSchema tipado corretamente
+  /* ======================================================
+     SCHEMA + VALORES (TIPADOS E MEMOIZADOS)
+  ======================================================= */
+
   const viewerSchema = useMemo(
     () => buildViewerSchema(shape, font),
     [shape, font]
   );
 
-  // ✅ valores apenas para preview do texto
-  const previewValues = useMemo(
+  const valoresPreview = useMemo(
     () => ({
       nome: mostrarPreview ? name : '',
       telefone: mostrarPreview ? phone : '',
@@ -72,9 +76,13 @@ export default function STLMakerPro() {
     [mostrarPreview, name, phone]
   );
 
+  /* ======================================================
+     UI
+  ======================================================= */
+
   return (
     <div style={{ padding: 30, maxWidth: 1100, margin: '0 auto' }}>
-      <h2>CONFIGURADOR</h2>
+      <h2>CONFIGURADOR · PET TAGS</h2>
 
       {/* 1. FORMA */}
       <h3>1. FORMA</h3>
@@ -82,9 +90,9 @@ export default function STLMakerPro() {
         {['Osso', 'Redondo', 'Hexagono', 'Coração'].map((s) => (
           <button
             key={s}
-            onClick={() => setShape(s)}
+            onClick={() => setShape(s as any)}
             style={{
-              padding: 10,
+              padding: '10px',
               borderRadius: 8,
               cursor: 'pointer',
               border: 'none',
@@ -170,7 +178,7 @@ export default function STLMakerPro() {
       <div style={{ marginTop: 30 }}>
         <STLViewer
           viewerSchema={viewerSchema}
-          valores={previewValues}
+          valores={valoresPreview}
           stlUrl={null}
           state="idle"
         />
@@ -178,3 +186,4 @@ export default function STLMakerPro() {
     </div>
   );
 }
+``
