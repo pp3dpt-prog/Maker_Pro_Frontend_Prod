@@ -1,25 +1,56 @@
 // app/customizador/page.tsx
 
 import { supabase } from '@/lib/supabaseClient';
-import CustomizadorClient from 'app/customizador/CustomizadorClient';
+import CustomizadorClient from './CustomizadorClient';
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: { id?: string };
-}) {
-  if (!searchParams?.id) {
-    return <div>Produto não definido</div>;
+type Props = {
+  searchParams?: {
+    id?: string;
+    familia?: string;
+  };
+};
+
+export default async function Page({ searchParams }: Props) {
+  const id = searchParams?.id ?? null;
+  const familia = searchParams?.familia ?? null;
+
+  let produto = null;
+
+  // ✅ CASO 1: id explícito
+  if (id) {
+    const { data, error } = await supabase
+      .from('prod_designs')
+      .select('id, nome, generation_schema')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      return <div>Produto não encontrado</div>;
+    }
+
+    produto = data;
   }
 
-  const { data: produto, error } = await supabase
-    .from('prod_designs')
-    .select('id, nome, generation_schema')
-    .eq('id', searchParams.id)
-    .maybeSingle();
+  // ✅ CASO 2: apenas família → escolher primeiro produto
+  else if (familia) {
+    const { data, error } = await supabase
+      .from('prod_designs')
+      .select('id, nome, generation_schema')
+      .eq('familia', familia)
+      .order('id', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-  if (error || !produto) {
-    return <div>Produto não encontrado</div>;
+    if (error || !data) {
+      return <div>Nenhum produto encontrado nesta família</div>;
+    }
+
+    produto = data;
+  }
+
+  // ❌ CASO 3: nem id nem família
+  else {
+    return <div>Produto não definido</div>;
   }
 
   return <CustomizadorClient produto={produto} />;
