@@ -1,7 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import STLViewer from '@/components/STLViewer';
+import { useState, useMemo } from 'react';
+import STLViewer, { type ViewerSchema } from '@/components/STLViewer';
+
+/* ======================================================
+   VIEWER SCHEMA BUILDER (TIPADO)
+====================================================== */
+
+function buildViewerSchema(
+  shape: string,
+  font: string
+): ViewerSchema {
+  const map: Record<string, string> = {
+    Osso: 'osso',
+    Redondo: 'redondo',
+    Hexagono: 'hexagono',
+    Coração: 'coracao',
+  };
+
+  return {
+    base_geometry: {
+      mode: 'static', // ✅ literal compatível com ViewerSchema
+      stl: `/models/blank_${map[shape]}.stl`,
+    },
+    camera: {
+      mode: 'fixed',
+      distance: 120,
+    },
+    text: {
+      enabled: true,
+      font,
+      front: {
+        source: 'nome',
+        size: 9,
+        depth: 1.2,
+        offset: [0, 0, 0.08],
+      },
+      back: {
+        source: 'telefone',
+        size: 7,
+        depth: 0.3,
+        offset: [0, 0, -0.05],
+      },
+    },
+  };
+}
+
+/* ======================================================
+   PAGE
+====================================================== */
 
 export default function STLMakerPro() {
   const [shape, setShape] = useState('Osso');
@@ -9,37 +56,36 @@ export default function STLMakerPro() {
   const [phone, setPhone] = useState('');
   const [font, setFont] = useState('Open Sans');
   const [mostrarPreview, setMostrarPreview] = useState(false);
-  const [stlUrl, setStlUrl] = useState('');
 
-  useEffect(() => {
-    const map: Record<string, string> = {
-      Osso: 'osso',
-      Redondo: 'redondo',
-      Hexagono: 'hexagono',
-      Coração: 'coracao',
-    };
+  // ✅ viewerSchema tipado corretamente
+  const viewerSchema = useMemo(
+    () => buildViewerSchema(shape, font),
+    [shape, font]
+  );
 
-    const novaUrl = `/models/blank_${map[shape]}.stl`;
-    setStlUrl(novaUrl);
-
-    // Sempre que muda a forma, voltamos à peça limpa
-    setMostrarPreview(false);
-  }, [shape]);
+  // ✅ valores apenas para preview do texto
+  const previewValues = useMemo(
+    () => ({
+      nome: mostrarPreview ? name : '',
+      telefone: mostrarPreview ? phone : '',
+    }),
+    [mostrarPreview, name, phone]
+  );
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: 20 }}>
+    <div style={{ padding: 30, maxWidth: 1100, margin: '0 auto' }}>
       <h2>CONFIGURADOR</h2>
 
       {/* 1. FORMA */}
       <h3>1. FORMA</h3>
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 30 }}>
         {['Osso', 'Redondo', 'Hexagono', 'Coração'].map((s) => (
           <button
             key={s}
             onClick={() => setShape(s)}
             style={{
-              padding: '10px',
-              borderRadius: '8px',
+              padding: 10,
+              borderRadius: 8,
               cursor: 'pointer',
               border: 'none',
               background: shape === s ? '#3b82f6' : '#0f172a',
@@ -52,17 +98,17 @@ export default function STLMakerPro() {
       </div>
 
       {/* 2. FONTE */}
-      <h3 style={{ marginTop: 20 }}>2. FONTE</h3>
+      <h3>2. FONTE</h3>
       <select
         value={font}
         onChange={(e) => setFont(e.target.value)}
         style={{
           width: '100%',
-          padding: '12px',
+          padding: 12,
           background: '#0f172a',
           color: 'white',
-          borderRadius: '8px',
-          marginBottom: '20px',
+          borderRadius: 8,
+          marginBottom: 20,
           border: '1px solid #334155',
         }}
       >
@@ -79,12 +125,12 @@ export default function STLMakerPro() {
         onChange={(e) => setName(e.target.value)}
         style={{
           width: '100%',
-          padding: '12px',
+          padding: 12,
           background: '#0f172a',
-          borderRadius: '8px',
+          borderRadius: 8,
           border: '1px solid #334155',
           color: 'white',
-          marginBottom: '10px',
+          marginBottom: 10,
         }}
       />
 
@@ -94,9 +140,9 @@ export default function STLMakerPro() {
         onChange={(e) => setPhone(e.target.value)}
         style={{
           width: '100%',
-          padding: '12px',
+          padding: 12,
           background: '#0f172a',
-          borderRadius: '8px',
+          borderRadius: 8,
           border: '1px solid #334155',
           color: 'white',
         }}
@@ -107,9 +153,9 @@ export default function STLMakerPro() {
         onClick={() => setMostrarPreview((v) => !v)}
         style={{
           width: '100%',
-          padding: '15px',
-          marginTop: '30px',
-          borderRadius: '8px',
+          padding: 15,
+          marginTop: 30,
+          borderRadius: 8,
           border: 'none',
           background: mostrarPreview ? '#ef4444' : '#22c55e',
           color: 'white',
@@ -121,20 +167,14 @@ export default function STLMakerPro() {
       </button>
 
       {/* VIEWER */}
-      {stlUrl && (
-        <div style={{ marginTop: 30 }}>
-          <STLViewer
-            baseStlUrl={stlUrl}
-            nome={mostrarPreview ? name : ''}
-            telefone={mostrarPreview ? phone : ''}
-            font={font}
-            fontSize={7}
-            xPos={0}
-            yPos={0}
-            relevo={true}
-          />
-        </div>
-      )}
+      <div style={{ marginTop: 30 }}>
+        <STLViewer
+          viewerSchema={viewerSchema}
+          valores={previewValues}
+          stlUrl={null}
+          state="idle"
+        />
+      </div>
     </div>
   );
 }
