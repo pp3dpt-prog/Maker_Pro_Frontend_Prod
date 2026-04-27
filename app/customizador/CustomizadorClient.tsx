@@ -3,15 +3,20 @@
 import { useState } from 'react';
 import GeneratedEditor from '@/components/GeneratedEditor';
 
+type Produto = {
+  id: string;
+  nome: string;
+  generation_schema: any;
+};
+
 type Props = {
-  produto: {
-    id: string;
-    nome: string;
-    generation_schema: any;
-  };
+  produto: Produto;
 };
 
 export default function CustomizadorClient({ produto }: Props) {
+  // ✅ NÃO validar produto aqui
+  // ✅ Se este componente renderiza, o produto é válido
+
   const schema = produto.generation_schema;
 
   const [values, setValues] = useState<Record<string, any>>(() => {
@@ -27,7 +32,7 @@ export default function CustomizadorClient({ produto }: Props) {
   async function gerarSTL() {
     setLoading(true);
     try {
-      const res = await fetch('/gerar-stl-pro', {
+      const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,6 +45,7 @@ export default function CustomizadorClient({ produto }: Props) {
       });
 
       const json = await res.json();
+
       if (!res.ok) {
         throw new Error(json.error || 'Erro ao gerar STL');
       }
