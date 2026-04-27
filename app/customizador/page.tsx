@@ -1,69 +1,80 @@
-import { supabase } from '@/lib/supabaseClient';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import CustomizadorClient from './CustomizadorClient';
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = {
-  id?: string;
-  familia?: string;
-};
-
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: {
+    id?: string;
+    familia?: string;
+  };
 }) {
+  const cookieStore = cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
+
   const id = searchParams?.id ?? null;
   const familia = searchParams?.familia ?? null;
 
   let produto = null;
 
   /* =====================================================
-     1. TENTAR POR ID (prioritário)
+     1. TENTAR POR ID
   ===================================================== */
   if (id) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('prod_designs')
       .select('id, nome, generation_schema')
       .eq('id', id)
       .maybeSingle();
 
-    if (!error && data) {
+    if (data) {
       produto = data;
     }
   }
 
   /* =====================================================
-     2. FALLBACK: PRIMEIRO PRODUTO DA FAMÍLIA
-        (caso id falhe ou não exista)
+     2. FALLBACK POR FAMÍLIA
   ===================================================== */
   if (!produto && familia) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('prod_designs')
       .select('id, nome, generation_schema')
       .eq('familia', familia)
-      .order('id', { ascending: true })
+      .order('id')
       .limit(1)
       .maybeSingle();
 
-    if (!error && data) {
+    if (data) {
       produto = data;
     }
   }
 
   /* =====================================================
-     3. ERRO REAL (não existe mesmo produto)
+     3. ERRO REAL
   ===================================================== */
   if (!produto) {
     return (
       <div style={{ padding: 24 }}>
         <h2>Produto não definido</h2>
-        <p>
-          Não foi possível encontrar um produto com:
-        </p>
+        <p>O produto existe na base de dados,</p>
+        <p>mas não é acessível com a sessão atual.</p>
         <ul>
-          {id && <li><strong>id:</strong> {id}</li>}
-          {familia && <li><strong>família:</strong> {familia}</li>}
+          {id && <li><strong>ID:</strong> {id}</li>}
+          {familia && <li><strong>Família:</strong> {familia}</li>}
         </ul>
       </div>
     );
