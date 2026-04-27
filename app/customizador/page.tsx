@@ -1,22 +1,26 @@
 import { supabase } from '@/lib/supabaseClient';
 import CustomizadorClient from './CustomizadorClient';
 
-export const dynamic = 'force-dynamic'; // ✅ evita cache em produção
+export const dynamic = 'force-dynamic';
+
+type SearchParams = {
+  id?: string;
+  familia?: string;
+};
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: {
-    id?: string;
-    familia?: string;
-  };
+  searchParams?: SearchParams;
 }) {
   const id = searchParams?.id ?? null;
   const familia = searchParams?.familia ?? null;
 
   let produto = null;
 
-  // ✅ prioridade: ID explícito (teu URL atual)
+  /* =====================================================
+     1. TENTAR POR ID (prioritário)
+  ===================================================== */
   if (id) {
     const { data, error } = await supabase
       .from('prod_designs')
@@ -24,14 +28,16 @@ export default async function Page({
       .eq('id', id)
       .maybeSingle();
 
-    if (error || !data) {
-      return <div>Produto não encontrado</div>;
+    if (!error && data) {
+      produto = data;
     }
-
-    produto = data;
   }
-  // ✅ fallback: apenas família
-  else if (familia) {
+
+  /* =====================================================
+     2. FALLBACK: PRIMEIRO PRODUTO DA FAMÍLIA
+        (caso id falhe ou não exista)
+  ===================================================== */
+  if (!produto && familia) {
     const { data, error } = await supabase
       .from('prod_designs')
       .select('id, nome, generation_schema')
@@ -40,16 +46,31 @@ export default async function Page({
       .limit(1)
       .maybeSingle();
 
-    if (error || !data) {
-      return <div>Nenhum produto nesta família</div>;
+    if (!error && data) {
+      produto = data;
     }
-
-    produto = data;
-  }
-  // ❌ erro real
-  else {
-    return <div>Produto não definido</div>;
   }
 
+  /* =====================================================
+     3. ERRO REAL (não existe mesmo produto)
+  ===================================================== */
+  if (!produto) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>Produto não definido</h2>
+        <p>
+          Não foi possível encontrar um produto com:
+        </p>
+        <ul>
+          {id && <li><strong>id:</strong> {id}</li>}
+          {familia && <li><strong>família:</strong> {familia}</li>}
+        </ul>
+      </div>
+    );
+  }
+
+  /* =====================================================
+     4. SUCESSO
+  ===================================================== */
   return <CustomizadorClient produto={produto} />;
 }
