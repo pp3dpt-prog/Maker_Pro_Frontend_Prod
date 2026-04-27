@@ -1,3 +1,7 @@
+
+console.log('SUPABASE URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+console.log('SUPABASE ANON:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10));
+
 import { createClient } from '@supabase/supabase-js';
 import CustomizadorClient from './CustomizadorClient';
 
