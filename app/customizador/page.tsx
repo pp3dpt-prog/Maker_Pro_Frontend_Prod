@@ -1,8 +1,12 @@
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import CustomizadorClient from './CustomizadorClient';
 
 export const dynamic = 'force-dynamic';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default async function Page({
   searchParams,
@@ -12,43 +16,29 @@ export default async function Page({
     familia?: string;
   };
 }) {
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-
   const id = searchParams?.id ?? null;
   const familia = searchParams?.familia ?? null;
 
   let produto = null;
 
-  /* =====================================================
-     1. TENTAR POR ID
-  ===================================================== */
+  // 1️⃣ tentar por ID
   if (id) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('prod_designs')
       .select('id, nome, generation_schema')
       .eq('id', id)
       .maybeSingle();
+
+    if (error) {
+      console.error('Erro Supabase:', error);
+    }
 
     if (data) {
       produto = data;
     }
   }
 
-  /* =====================================================
-     2. FALLBACK POR FAMÍLIA
-  ===================================================== */
+  // 2️⃣ fallback por família
   if (!produto && familia) {
     const { data } = await supabase
       .from('prod_designs')
@@ -63,25 +53,20 @@ export default async function Page({
     }
   }
 
-  /* =====================================================
-     3. ERRO REAL
-  ===================================================== */
+  // 3️⃣ erro real
   if (!produto) {
     return (
       <div style={{ padding: 24 }}>
         <h2>Produto não definido</h2>
-        <p>O produto existe na base de dados,</p>
-        <p>mas não é acessível com a sessão atual.</p>
+        <p>Não foi possível carregar o produto solicitado.</p>
         <ul>
-          {id && <li><strong>ID:</strong> {id}</li>}
-          {familia && <li><strong>Família:</strong> {familia}</li>}
+          {id && <li>ID: {id}</li>}
+          {familia && <li>Família: {familia}</li>}
         </ul>
       </div>
     );
   }
 
-  /* =====================================================
-     4. SUCESSO
-  ===================================================== */
+  // 4️⃣ sucesso
   return <CustomizadorClient produto={produto} />;
 }
