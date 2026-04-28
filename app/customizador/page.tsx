@@ -1,5 +1,8 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CustomizadorClient from './CustomizadorClient';
@@ -16,7 +19,7 @@ export default function Page() {
       .then(async (r) => {
         if (!r.ok) {
           const text = await r.text();
-          throw new Error(`API error ${r.status}: ${text}`);
+          throw new Error(`API ${r.status}: ${text}`);
         }
         return r.json();
       })
@@ -34,13 +37,8 @@ export default function Page() {
   }
 
   if (!produto) {
-    return (
-      <div style={{ padding: 24 }}>
-        <p>A carregar produto…</p>
-      </div>
-    );
+    return <div style={{ padding: 24 }}>A carregar produto…</div>;
   }
 
   return <CustomizadorClient produto={produto} />;
 }
-``
