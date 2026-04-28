@@ -9,49 +9,73 @@ type Produto = {
   familia?: string;
 };
 
-function FamilyCard({ familia, produtos }: { familia: string; produtos: Produto[] }) {
+function FamilyCard({
+  familia,
+  produtos,
+}: {
+  familia: string;
+  produtos: Produto[];
+}) {
   const principal = produtos[0];
 
   const href = `/customizador?id=${encodeURIComponent(
     String(principal.id)
   )}&familia=${encodeURIComponent(familia)}`;
 
+  // Ícone simples por família (placeholder visual)
+  const icon =
+    familia.toLowerCase().includes('caixa') ? '🧰'
+    : familia.toLowerCase().includes('pet') ? '🐾'
+    : '🔧';
+
   return (
     <Link href={href} className="group">
-      <div className="
-        rounded-xl border border-neutral-800
-        bg-neutral-900
-        p-6
-        h-full
-        transition
-        hover:border-blue-500
-        hover:bg-neutral-800
-      ">
-        <div className="text-sm text-neutral-400">
-          ✨ Coleção Premium
-        </div>
+      <div
+        className="
+          h-full rounded-xl border border-neutral-800
+          bg-neutral-900 p-6
+          transition-all duration-200
+          hover:-translate-y-1
+          hover:border-indigo-500
+          hover:bg-neutral-800
+          hover:shadow-lg
+        "
+      >
+        {/* ÍCONE */}
+        <div className="text-3xl mb-4">{icon}</div>
 
-        <div className="text-xs text-neutral-500 mb-3">
-          {produtos.length} Opções
-        </div>
-
-        <h3 className="text-lg font-semibold text-white mb-2 capitalize">
+        {/* TÍTULO */}
+        <h3 className="text-lg font-semibold text-white mb-1 capitalize">
           {familia.replace(/-/g, ' ')}
         </h3>
 
+        {/* DESCRIÇÃO CURTA */}
         <p className="text-sm text-neutral-400 mb-4">
-          Modelos de {familia.toLowerCase()} configuráveis em tempo real.
+          {familia.toLowerCase().includes('caixa')
+            ? 'Caixas paramétricas com dimensões ajustáveis.'
+            : familia.toLowerCase().includes('pet')
+            ? 'Placas personalizáveis para identificação.'
+            : 'Modelos configuráveis em tempo real.'}
         </p>
 
-        <span className="
-          inline-block
-          mt-auto
-          font-medium
-          text-blue-400
-          group-hover:text-blue-300
-        ">
-          PERSONALIZAR →
-        </span>
+        {/* META INFO */}
+        <div className="text-xs text-neutral-500 mb-6">
+          {produtos.length} modelos disponíveis
+        </div>
+
+        {/* CTA */}
+        <div
+          className="
+            inline-flex items-center gap-2
+            font-medium text-indigo-400
+            group-hover:text-indigo-300
+          "
+        >
+          Personalizar
+          <span className="transition-transform group-hover:translate-x-1">
+            →
+          </span>
+        </div>
       </div>
     </Link>
   );
@@ -66,9 +90,13 @@ export default async function Page() {
 
   if (error) {
     return (
-      <main className="p-8">
-        <h2>MakerPro Catalog</h2>
-        <p>Erro a carregar produtos: {error.message}</p>
+      <main className="p-10 max-w-7xl mx-auto">
+        <h2 className="text-xl font-semibold text-white mb-2">
+          MakerPro Catalog
+        </h2>
+        <p className="text-red-400">
+          Erro ao carregar produtos: {error.message}
+        </p>
       </main>
     );
   }
@@ -86,15 +114,19 @@ export default async function Page() {
   );
 
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold mb-2">Configurador 3D</h1>
-      <h2 className="text-xl mb-6">MakerPro Catalog</h2>
+    <main className="p-10 max-w-7xl mx-auto">
+      {/* HEADER */}
+      <header className="mb-10">
+        <h1 className="text-3xl font-bold text-white">
+          Configurador 3D MakerPro
+        </h1>
+        <p className="mt-2 text-neutral-400 max-w-2xl">
+          Crie produtos personalizados ajustando dimensões e opções em tempo real.
+        </p>
+      </header>
 
-      <p className="mb-6">
-        Selecione a família de produtos para iniciar a configuração.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* GRID DE FAMÍLIAS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.keys(familias).map((nome) => (
           <FamilyCard
             key={nome}
