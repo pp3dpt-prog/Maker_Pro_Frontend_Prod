@@ -1,41 +1,64 @@
+import { createClient } from '@supabase/supabase-js';
+import CustomizadorClient from './CustomizadorClient';
+
 export const dynamic = 'force-dynamic';
 
-export default async function Page() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  const res = await fetch(
-    `${url}/rest/v1/prod_designs?id=eq.caixa-parametrica&select=id,nome`,
-    {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-      // força request no runtime
-      cache: 'no-store',
-    }
-  );
-  
-await fetch(
-  `${url}/rest/v1/prod_designs?id=eq.caixa-parametrica&select=id,nome`,
-  {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-    cache: 'no-store',
-  }
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: {
+    id?: string;
+    familia?: string;
+  };
+}) {
+  const id = searchParams?.id ?? null;
+  const familia = searchParams?.familia ?? null;
 
-  const text = await res.text();
+  let produto = null;
 
-  return (
-    <pre style={{ whiteSpace: 'pre-wrap', padding: 24 }}>
-      STATUS: {res.status}
+  // 1️⃣ Primeira tentativa: por id
+  if (id) {
+    const { data } = await supabase
+      .from('prod_designs')
+      .select('id, nome, generation_schema')
+      .eq('id', id)
+      .maybeSingle();
 
-      RESPONSE:
-      {text}
-    </pre>
-  );
+    if (data) produto = data;
+  }
+
+  // 2️⃣ Fallback: primeiro da família
+  if (!produto && familia) {
+    const { data } = await supabase
+      .from('prod_designs')
+      .select('id, nome, generation_schema')
+      .eq('familia', familia)
+      .order('id')
+      .limit(1)
+      .maybeSingle();
+
+    if (data) produto = data;
+  }
+
+  // 3️⃣ Erro real
+  if (!produto) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>Produto não definido</h2>
+        <p>Não foi possível carregar o produto solicitado.</p>
+        <ul>
+          {id && <li>ID: {id}</li>}
+          {familia && <li>Família: {familia}</li>}
+        </ul>
+      </div>
+    );
+  }
+
+  // 4️⃣ Sucesso
+  return <CustomizadorClient produto={produto} />;
 }
