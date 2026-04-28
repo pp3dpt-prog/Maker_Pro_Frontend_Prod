@@ -9,35 +9,47 @@ type Produto = {
   familia?: string;
 };
 
-function FamilyCard({
-  familia,
-  produtos,
-}: {
-  familia: string;
-  produtos: Produto[];
-}) {
+function FamilyCard({ familia, produtos }: { familia: string; produtos: Produto[] }) {
   const principal = produtos[0];
 
-  // ✅ URL CORRETO, COM id E familia
   const href = `/customizador?id=${encodeURIComponent(
     String(principal.id)
   )}&familia=${encodeURIComponent(familia)}`;
 
   return (
-    <Link href={href} className="block">
-      <div className="rounded-xl border p-6 hover:bg-neutral-900 transition">
-        <div className="text-sm opacity-80">✨ Coleção Premium</div>
-        <div className="text-xs opacity-60">{produtos.length} Opções</div>
+    <Link href={href} className="group">
+      <div className="
+        rounded-xl border border-neutral-800
+        bg-neutral-900
+        p-6
+        h-full
+        transition
+        hover:border-blue-500
+        hover:bg-neutral-800
+      ">
+        <div className="text-sm text-neutral-400">
+          ✨ Coleção Premium
+        </div>
 
-        <h5 className="mt-2 font-semibold">
+        <div className="text-xs text-neutral-500 mb-3">
+          {produtos.length} Opções
+        </div>
+
+        <h3 className="text-lg font-semibold text-white mb-2 capitalize">
           {familia.replace(/-/g, ' ')}
-        </h5>
+        </h3>
 
-        <p className="text-sm opacity-70 mt-1">
+        <p className="text-sm text-neutral-400 mb-4">
           Modelos de {familia.toLowerCase()} configuráveis em tempo real.
         </p>
 
-        <span className="mt-4 inline-block text-blue-400 font-medium">
+        <span className="
+          inline-block
+          mt-auto
+          font-medium
+          text-blue-400
+          group-hover:text-blue-300
+        ">
           PERSONALIZAR →
         </span>
       </div>
