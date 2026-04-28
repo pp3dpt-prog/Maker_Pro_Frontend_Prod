@@ -9,7 +9,7 @@ export default async function Page({
 }) {
   const qs = new URLSearchParams(searchParams as any).toString();
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/produto?${qs}`, {
+  const res = await fetch(`/api/produto?${qs}`, {
     cache: 'no-store',
   });
 
@@ -17,7 +17,7 @@ export default async function Page({
     return (
       <div style={{ padding: 24 }}>
         <h2>Produto não definido</h2>
-        <p>Não foi possível carregar o produto.</p>
+        <p>Erro ao comunicar com o servidor.</p>
       </div>
     );
   }
