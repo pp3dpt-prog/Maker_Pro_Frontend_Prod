@@ -1,16 +1,8 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
 
-export const dynamic = 'force-dynamic';
-
-type Produto = {
-  id: string | number;
-  nome?: string;
-  familia?: string;
-};
-
-function FamilyCard({ familia, produtos }: { familia: string; produtos: Produto[] }) {
+function FamilyCard({ familia, produtos }) {
   const principal = produtos[0];
+
   const href = `/customizador?id=${encodeURIComponent(
     String(principal.id)
   )}&familia=${encodeURIComponent(familia)}`;
@@ -36,51 +28,3 @@ function FamilyCard({ familia, produtos }: { familia: string; produtos: Produto[
     </Link>
   );
 }
-
-export default async function Catalogo() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('prod_designs')
-    .select('*');
-
-  if (error) {
-    return (
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
-        <h1>MakerPro Catalog</h1>
-        <p style={{ color: '#ef4444' }}>
-          Erro a carregar produtos: {error.message}
-        </p>
-      </div>
-    );
-  }
-
-  const produtos = (data ?? []) as Produto[];
-
-  const familias = produtos.reduce<Record<string, Produto[]>>((acc, obj) => {
-    const key = obj.familia ?? 'Geral';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(obj);
-    return acc;
-  }, {});
-
-  return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
-      <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 900, letterSpacing: 0.4 }}>
-        Configurador 3D
-      </div>
-      <h1 style={{ marginTop: 6 }}>MakerPro Catalog</h1>
-
-      <p style={{ color: '#cbd5e1' }}>
-        Selecione a família de produtos para iniciar a configuração.
-      </p>
-
-      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-        {Object.keys(familias).map((nome) => (
-          <FamilyCard key={nome} familia={nome} produtos={familias[nome]} />
-        ))}
-      </div>
-    </div>
-  );
-}
-``
