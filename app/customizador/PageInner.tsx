@@ -10,19 +10,37 @@ export default function PageInner() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const qs = searchParams.toString();
+    const id = searchParams.get('id');
+    const familia = searchParams.get('familia');
 
-    fetch(`/api/produto?${qs}`)
-      .then(r => {
-        if (!r.ok) throw new Error('Erro ao carregar produto');
+    // ✅ NÃO chamar a API sem parâmetros válidos
+    if (!id && !familia) {
+      return;
+    }
+
+    const qs = new URLSearchParams();
+    if (id) qs.set('id', id);
+    if (familia) qs.set('familia', familia);
+
+    fetch(`/api/produto?${qs.toString()}`)
+      .then(async (r) => {
+        if (!r.ok) {
+          const text = await r.text();
+          throw new Error(`API ${r.status}: ${text}`);
+        }
         return r.json();
       })
       .then(setProduto)
-      .catch(e => setError(e.message));
+      .catch((e) => setError(e.message));
   }, [searchParams]);
 
   if (error) {
-    return <div style={{ padding: 24 }}>{error}</div>;
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>Erro</h2>
+        <pre>{error}</pre>
+      </div>
+    );
   }
 
   if (!produto) {
