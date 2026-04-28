@@ -1,22 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CustomizadorClient from './CustomizadorClient';
 
 export default function PageInner() {
   const searchParams = useSearchParams();
+
+  // ✅ valores estáveis
+  const id = useMemo(() => searchParams.get('id'), [searchParams]);
+  const familia = useMemo(() => searchParams.get('familia'), [searchParams]);
+
   const [produto, setProduto] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const id = searchParams.get('id');
-    const familia = searchParams.get('familia');
-
-    // ✅ NÃO chamar a API sem parâmetros válidos
-    if (!id && !familia) {
-      return;
-    }
+    // ✅ só avançar quando houver parâmetros
+    if (!id && !familia) return;
 
     const qs = new URLSearchParams();
     if (id) qs.set('id', id);
@@ -26,13 +26,13 @@ export default function PageInner() {
       .then(async (r) => {
         if (!r.ok) {
           const text = await r.text();
-          throw new Error(`API ${r.status}: ${text}`);
+          throw new Error(text || 'Erro ao carregar produto');
         }
         return r.json();
       })
       .then(setProduto)
       .catch((e) => setError(e.message));
-  }, [searchParams]);
+  }, [id, familia]); // ✅ dependências corretas
 
   if (error) {
     return (
