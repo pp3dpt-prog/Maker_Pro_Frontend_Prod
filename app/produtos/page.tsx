@@ -11,67 +11,27 @@ type Produto = {
 
 function FamilyCard({ familia, produtos }: { familia: string; produtos: Produto[] }) {
   const principal = produtos[0];
-
-  const href = `/customizador?id=${encodeURIComponent(String(principal.id))}&familia=${encodeURIComponent(
-    familia
-  )}`;
+  const href = `/customizador?id=${encodeURIComponent(
+    String(principal.id)
+  )}&familia=${encodeURIComponent(familia)}`;
 
   return (
-    <Link
-      href={href}
-      style={{
-        display: 'block',
-        padding: 18,
-        borderRadius: 14,
-        border: '1px solid #1f2937',
-        background: 'linear-gradient(135deg, #0b1220 0%, #0b2a4a 100%)',
-        color: 'white',
-        textDecoration: 'none',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 12, color: '#93c5fd', fontWeight: 900 }}>
-            ✨ Coleção Premium
-          </div>
-          <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 4 }}>
-            {produtos.length} Opções
-          </div>
-        </div>
+    <Link href={href} className="block">
+      <div className="rounded-xl border p-6 hover:bg-neutral-900 transition">
+        <div className="text-sm opacity-80">✨ Coleção Premium</div>
+        <div className="text-xs opacity-60">{produtos.length} Opções</div>
 
-        <div
-          style={{
-            height: 36,
-            width: 36,
-            borderRadius: 12,
-            display: 'grid',
-            placeItems: 'center',
-            background: 'rgba(59, 130, 246, 0.18)',
-            border: '1px solid rgba(59, 130, 246, 0.35)',
-            fontSize: 18,
-          }}
-        >
-          ✨
-        </div>
-      </div>
+        <h5 className="mt-2 font-semibold">
+          {familia.replace(/-/g, ' ')}
+        </h5>
 
-      <h4 style={{ marginTop: 14, marginBottom: 6 }}>
-        {familia.replace(/-/g, ' ')}
-      </h4>
+        <p className="text-sm opacity-70 mt-1">
+          Modelos de {familia.toLowerCase()} configuráveis em tempo real.
+        </p>
 
-      <p style={{ margin: 0, color: '#cbd5e1', fontSize: 13, lineHeight: 1.5 }}>
-        Modelos de {familia.toLowerCase()} configuráveis em tempo real.
-      </p>
-
-      <div
-        style={{
-          marginTop: 14,
-          fontWeight: 900,
-          color: '#93c5fd',
-          letterSpacing: 0.5,
-        }}
-      >
-        PERSONALIZAR →
+        <span className="mt-4 inline-block text-blue-400 font-medium">
+          PERSONALIZAR →
+        </span>
       </div>
     </Link>
   );
