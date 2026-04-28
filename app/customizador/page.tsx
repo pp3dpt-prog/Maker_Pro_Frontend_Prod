@@ -1,22 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import CustomizadorClient from './CustomizadorClient';
 
-export default function Page({
-  searchParams,
-}: {
-  searchParams?: { id?: string; familia?: string };
-}) {
+export default function Page() {
+  const searchParams = useSearchParams();
   const [produto, setProduto] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const qs = new URLSearchParams(searchParams as any).toString();
+    const qs = searchParams.toString();
 
     fetch(`/api/produto?${qs}`)
-      .then((r) => {
-        if (!r.ok) throw new Error('Erro ao carregar produto');
+      .then(async (r) => {
+        if (!r.ok) {
+          const text = await r.text();
+          throw new Error(`API error ${r.status}: ${text}`);
+        }
         return r.json();
       })
       .then(setProduto)
@@ -27,7 +28,7 @@ export default function Page({
     return (
       <div style={{ padding: 24 }}>
         <h2>Erro</h2>
-        <p>{error}</p>
+        <pre>{error}</pre>
       </div>
     );
   }
@@ -42,3 +43,4 @@ export default function Page({
 
   return <CustomizadorClient produto={produto} />;
 }
+``
