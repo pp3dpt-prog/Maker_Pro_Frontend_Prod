@@ -1,27 +1,16 @@
-import CustomizadorClient from './CustomizadorClient';
-
 export const dynamic = 'force-dynamic';
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams?: { id?: string; familia?: string };
-}) {
-  const qs = new URLSearchParams(searchParams as any).toString();
-
-  const res = await fetch(`/api/produto?${qs}`, {
+export default async function Page() {
+  const res = await fetch('/api/produto?id=caixa-parametrica', {
     cache: 'no-store',
   });
 
-  if (!res.ok) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h2>Produto não definido</h2>
-        <p>Erro ao comunicar com o servidor.</p>
-      </div>
-    );
-  }
+  const data = await res.json();
 
-  const produto = await res.json();
-  return <CustomizadorClient produto={produto} />;
+  return (
+    <pre style={{ whiteSpace: 'pre-wrap', padding: 24 }}>
+      PAGE OK
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
 }
