@@ -24,14 +24,18 @@ function FamilyCard({
   return (
     <Link href={href}>
       <div
-        style={{
-          border: '1px solid #1e3a8a',
-          borderRadius: 12,
-          padding: 24,
-          background: '#000',
-          height: '100%',
-        }}
-        className="transition hover:border-blue-500 hover:bg-slate-950"
+        
+      style={{
+        border: '1px solid #1e3a8a',
+        borderRadius: 12,
+        padding: 24,
+        background: '#000',
+        height: '100%',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      }}
+
+        //className="transition hover:border-blue-500 hover:bg-slate-950"
+        className="hover:-translate-y-1 hover:shadow-lg"
       >
       <div
         style={{
@@ -45,7 +49,8 @@ function FamilyCard({
 
         <h3
           style={{
-            fontSize: 20,
+            fontSize: 22,
+            letterSpacing: '-0.01em',
             color: '#60a5fa',
             marginBottom: 8,
             textTransform: 'capitalize',
@@ -77,8 +82,11 @@ function FamilyCard({
 
           <span
             style={{
-              fontSize: 14,
+              padding: '6px 14px',
+              borderRadius: 999,
+              border: '1px solid #3b82f6',
               color: '#3b82f6',
+              fontSize: 13,
               fontWeight: 500,
             }}
           >
