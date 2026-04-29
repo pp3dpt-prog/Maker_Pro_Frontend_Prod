@@ -22,25 +22,25 @@ function FamilyCard({
   )}&familia=${encodeURIComponent(familia)}`;
 
   return (
-    <Link href={href} className="group">
+    <Link href={href} className="group block">
       <div
         className="
-          rounded-lg
+          h-full rounded-xl
           border border-purple-800/40
           bg-black
-          px-8 py-6
-          transition
+          p-8
+          transition-all
           hover:border-purple-500
           hover:bg-zinc-950
         "
       >
         {/* TÍTULO */}
-        <h3 className="text-xl font-semibold text-purple-400 mb-2">
+        <h3 className="text-xl font-semibold text-purple-400 mb-3 capitalize">
           {familia}
         </h3>
 
         {/* DESCRIÇÃO */}
-        <p className="text-sm text-neutral-400 mb-6 max-w-xl">
+        <p className="text-sm text-neutral-400 mb-10">
           Modelos configuráveis em tempo real, ajustáveis às suas necessidades.
         </p>
 
@@ -88,7 +88,7 @@ export default async function Page() {
   );
 
   return (
-    <main className="p-10 max-w-6xl mx-auto">
+    <main className="p-10 max-w-7xl mx-auto">
       {/* HEADER */}
       <header className="mb-14">
         <h1 className="text-3xl font-bold text-white">
@@ -102,8 +102,8 @@ export default async function Page() {
         </p>
       </header>
 
-      {/* LISTA DE FAMÍLIAS */}
-      <div className="space-y-8">
+      {/* ✅ GRID REAL DE CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {Object.keys(familias).map((nome) => (
           <FamilyCard
             key={nome}
