@@ -17,31 +17,21 @@ function FamilyCard({
 }) {
   const principal = produtos[0]
 
+  const href = `/customizador?id=${encodeURIComponent(
+    String(principal.id)
+  )}&familia=${encodeURIComponent(familia)}`
+
   return (
-    <Link
-      href={`/customizador?id=${principal.id}&familia=${familia}`}
-      style={{
-        display: 'block',
-        textDecoration: 'none',
-      }}
-    >
+    <Link href={href}>
       <div
         style={{
           border: '1px solid #1e3a8a',
           borderRadius: 12,
           padding: 24,
           background: '#000',
-          transition: 'all 0.2s ease',
           height: '100%',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = '#3b82f6'
-          e.currentTarget.style.background = '#020617'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = '#1e3a8a'
-          e.currentTarget.style.background = '#000'
-        }}
+        className="transition hover:border-blue-500 hover:bg-slate-950"
       >
         <h3
           style={{
@@ -98,7 +88,11 @@ export default async function Page() {
     .select('id, familia')
 
   if (error) {
-    return <p style={{ color: 'white' }}>Erro ao carregar catálogo</p>
+    return (
+      <p style={{ color: 'white', padding: 40 }}>
+        Erro ao carregar catálogo
+      </p>
+    )
   }
 
   const produtos = (data ?? []) as Produto[]
