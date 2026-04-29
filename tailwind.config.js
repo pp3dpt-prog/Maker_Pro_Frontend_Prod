@@ -1,13 +1,13 @@
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
- // tailwind.config.ts
-content: [
-  "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-  "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-  "./src/app/**/*.{js,ts,jsx,tsx,mdx}", // Garante que esta linha existe!
-],
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",        // ✅ ESTE É O ESSENCIAL
+    "./components/**/*.{js,ts,jsx,tsx,mdx}", // se aplicável
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",      // opcional
+  ],
   theme: {
     extend: {},
   },
   plugins: [],
-}
+};
