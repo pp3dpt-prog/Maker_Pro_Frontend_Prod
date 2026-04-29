@@ -1,23 +1,146 @@
-export default function Page() {
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+
+export const dynamic = 'force-dynamic'
+
+type Produto = {
+  id: string | number
+  familia?: string
+}
+
+function FamilyCard({
+  familia,
+  produtos,
+}: {
+  familia: string
+  produtos: Produto[]
+}) {
+  const principal = produtos[0]
+
   return (
-    <main style={{ padding: 40 }}>
+    <Link
+      href={`/customizador?id=${principal.id}&familia=${familia}`}
+      style={{
+        display: 'block',
+        textDecoration: 'none',
+      }}
+    >
+      <div
+        style={{
+          border: '1px solid #1e3a8a',
+          borderRadius: 12,
+          padding: 24,
+          background: '#000',
+          transition: 'all 0.2s ease',
+          height: '100%',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#3b82f6'
+          e.currentTarget.style.background = '#020617'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#1e3a8a'
+          e.currentTarget.style.background = '#000'
+        }}
+      >
+        <h3
+          style={{
+            fontSize: 20,
+            color: '#60a5fa',
+            marginBottom: 8,
+            textTransform: 'capitalize',
+          }}
+        >
+          {familia}
+        </h3>
+
+        <p
+          style={{
+            fontSize: 14,
+            color: '#94a3b8',
+            marginBottom: 32,
+          }}
+        >
+          Produtos configuráveis em tempo real com parâmetros ajustáveis.
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ fontSize: 13, color: '#64748b' }}>
+            {produtos.length} modelos
+          </span>
+
+          <span
+            style={{
+              fontSize: 14,
+              color: '#3b82f6',
+              fontWeight: 500,
+            }}
+          >
+            Personalizar →
+          </span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+export default async function Page() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('prod_designs')
+    .select('id, familia')
+
+  if (error) {
+    return <p style={{ color: 'white' }}>Erro ao carregar catálogo</p>
+  }
+
+  const produtos = (data ?? []) as Produto[]
+
+  const familias = produtos.reduce<Record<string, Produto[]>>(
+    (acc, item) => {
+      const key = item.familia ?? 'geral'
+      acc[key] ??= []
+      acc[key].push(item)
+      return acc
+    },
+    {}
+  )
+
+  return (
+    <main style={{ padding: 40, maxWidth: 1200, margin: '0 auto' }}>
       <h1 style={{ color: 'white', fontSize: 32 }}>
-        TESTE DE GRID
+        Configurador 3D
       </h1>
+      <h2 style={{ color: '#cbd5f5', fontSize: 20, marginTop: 4 }}>
+        Catálogo MakerPro
+      </h2>
+      <p style={{ color: '#94a3b8', marginTop: 16 }}>
+        Selecione a família de produtos para iniciar a configuração.
+      </p>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
           gap: 24,
-          marginTop: 40,
+          marginTop: 48,
         }}
       >
-        <div style={{ background: 'red', height: 150 }} />
-        <div style={{ background: 'green', height: 150 }} />
-        <div style={{ background: 'blue', height: 150 }} />
+        {Object.keys(familias).map((nome) => (
+          <FamilyCard
+            key={nome}
+            familia={nome}
+            produtos={familias[nome]}
+          />
+        ))}
       </div>
     </main>
-  );
+  )
 }
-``
