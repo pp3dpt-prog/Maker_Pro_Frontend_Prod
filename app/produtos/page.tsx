@@ -33,6 +33,16 @@ function FamilyCard({
         }}
         className="transition hover:border-blue-500 hover:bg-slate-950"
       >
+      <div
+        style={{
+          height: 8,
+          width: '100%',
+          borderRadius: 4,
+          background: 'linear-gradient(90deg, #2563eb, #60a5fa)',
+          marginBottom: 20,
+        }}
+      />
+
         <h3
           style={{
             fontSize: 20,
