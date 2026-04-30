@@ -57,7 +57,7 @@ export default function CustomizadorClient({ produto }: Props) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: '380px 1fr',
         gap: 32,
         alignItems: 'start',
       }}
