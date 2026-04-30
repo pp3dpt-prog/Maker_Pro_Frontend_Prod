@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import Preview3D from './Preview3D';
+import { createClient } from '@/lib/supabase/client';
 
 type Produto = {
   id: string;
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export default function CustomizadorClient({ produto }: Props) {
+  const supabase = createClient();
   const schema = produto.generation_schema;
 
   const [values, setValues] = useState<Record<string, any>>(() => {
@@ -29,10 +31,25 @@ export default function CustomizadorClient({ produto }: Props) {
 
   async function gerarSTL() {
     setLoading(true);
+
     try {
+      // ✅ Obter sessão autenticada
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        alert('Precisas de estar autenticado para gerar STL.');
+        return;
+      }
+
+      // ✅ Enviar token no header Authorization
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           id: produto.id,
           mode: 'final',
@@ -41,6 +58,7 @@ export default function CustomizadorClient({ produto }: Props) {
       });
 
       const json = await res.json();
+
       if (!res.ok) {
         throw new Error(json.error || 'Erro ao gerar STL');
       }
