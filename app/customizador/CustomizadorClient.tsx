@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import GeneratedEditor from '@/components/GeneratedEditor';
+import Preview3D from './Preview3D';
 
 type Produto = {
   id: string;
@@ -14,9 +15,6 @@ type Props = {
 };
 
 export default function CustomizadorClient({ produto }: Props) {
-  // ✅ NÃO validar produto aqui
-  // ✅ Se este componente renderiza, o produto é válido
-
   const schema = produto.generation_schema;
 
   const [values, setValues] = useState<Record<string, any>>(() => {
@@ -34,9 +32,7 @@ export default function CustomizadorClient({ produto }: Props) {
     try {
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: produto.id,
           mode: 'final',
@@ -45,7 +41,6 @@ export default function CustomizadorClient({ produto }: Props) {
       });
 
       const json = await res.json();
-
       if (!res.ok) {
         throw new Error(json.error || 'Erro ao gerar STL');
       }
@@ -59,18 +54,56 @@ export default function CustomizadorClient({ produto }: Props) {
   }
 
   return (
-    <div>
-      <h1>{produto.nome}</h1>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 24,
+        alignItems: 'start',
+      }}
+    >
+      {/* COLUNA ESQUERDA – PARÂMETROS */}
+      <div>
+        <GeneratedEditor
+          schema={schema}
+          values={values}
+          onChange={setValues}
+        />
 
-      <GeneratedEditor
-        schema={schema}
-        values={values}
-        onChange={setValues}
-      />
+        <div style={{ marginTop: 24 }}>
+          <button
+            onClick={gerarSTL}
+            disabled={loading}
+            style={{
+              padding: '10px 18px',
+              borderRadius: 8,
+              border: '1px solid #3b82f6',
+              background: loading ? '#020617' : '#000',
+              color: '#3b82f6',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {loading ? 'A gerar…' : 'Gerar STL'}
+          </button>
+        </div>
+      </div>
 
-      <button onClick={gerarSTL} disabled={loading}>
-        {loading ? 'A gerar…' : 'Gerar STL'}
-      </button>
+      {/* COLUNA DIREITA – PREVIEW 3D */}
+      <div
+        style={{
+          height: 420,
+          border: '1px dashed #334155',
+          borderRadius: 12,
+          background: '#020617',
+        }}
+      >
+        <Preview3D
+          largura={values.largura}
+          altura={values.altura}
+          comprimento={values.comprimento}
+          espessura={values.espessura}
+        />
+      </div>
     </div>
   );
 }
