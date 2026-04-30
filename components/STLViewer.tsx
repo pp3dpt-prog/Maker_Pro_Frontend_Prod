@@ -6,7 +6,6 @@ import * as THREE from 'three';
 /* ======================================================
    TIPOS
 ====================================================== */
-
 export type ViewerSchema = {
   base_geometry?: {
     mode?: 'static' | 'generated' | 'none';
@@ -44,7 +43,6 @@ type Props = {
 /* ======================================================
    COMPONENTE
 ====================================================== */
-
 export default function STLViewer({
   viewerSchema,
   valores = {},
@@ -52,7 +50,6 @@ export default function STLViewer({
   state = 'idle',
 }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -64,10 +61,8 @@ export default function STLViewer({
   /* ======================================================
      INIT THREE
   ======================================================= */
-
   useEffect(() => {
     if (!mountRef.current) return;
-
     let disposed = false;
 
     (async () => {
@@ -78,14 +73,10 @@ export default function STLViewer({
       const scene = new THREE.Scene();
       scene.background = new THREE.Color('#020617');
 
-      const w = mountRef.current!.clientWidth;
-      const h = mountRef.current!.clientHeight;
-
-      const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
       camera.position.z = viewerSchema?.camera?.distance ?? 200;
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(w, h);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
       mountRef.current!.innerHTML = '';
@@ -105,49 +96,49 @@ export default function STLViewer({
       rendererRef.current = renderer;
       controlsRef.current = controls;
 
+      const resize = () => {
+        if (!mountRef.current) return;
+        const w = mountRef.current.clientWidth;
+        const h = mountRef.current.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      };
+
+      
+      resize();
+
+      const el = mountRef.current;
+      if (!el) return;
+
+      const ro = new ResizeObserver(resize);
+      ro.observe(el);
+
+
       const animate = () => {
         if (disposed) return;
         controls.update();
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
       };
-
       animate();
+
+      // cleanup
+      return () => {
+        disposed = true;
+        ro.disconnect();
+      };
     })();
 
     return () => {
-      disposed = true;
       if (rendererRef.current) rendererRef.current.dispose();
       if (mountRef.current) mountRef.current.innerHTML = '';
     };
   }, []);
 
   /* ======================================================
-     LOAD FONT
-  ======================================================= */
-
-  useEffect(() => {
-    if (!viewerSchema?.text?.enabled) return;
-
-    (async () => {
-      const { FontLoader } = await import(
-        'three/examples/jsm/loaders/FontLoader.js'
-      );
-
-      const loader = new FontLoader();
-      const fontName = viewerSchema.text?.font ?? 'Aladin';
-
-      loader.load(`/fonts/${fontName}.json`, font => {
-        fontRef.current = font;
-        rebuildText();
-      });
-    })();
-  }, [viewerSchema?.text]);
-
-  /* ======================================================
      LOAD STL
   ======================================================= */
-
   useEffect(() => {
     if (!sceneRef.current || !cameraRef.current) return;
 
@@ -156,10 +147,15 @@ export default function STLViewer({
         'three/examples/jsm/loaders/STLLoader.js'
       );
 
-      if (meshRef.current && sceneRef.current) {
-        sceneRef.current.remove(meshRef.current);
+      
+      const scene = sceneRef.current;
+      if (!scene) return;
+
+      if (meshRef.current) {
+        scene.remove(meshRef.current);
         meshRef.current = null;
       }
+
 
       const url =
         stlUrl ??
@@ -169,19 +165,18 @@ export default function STLViewer({
       if (!url) return;
 
       const loader = new STLLoader();
-
       loader.load(url, geometry => {
         geometry.computeBoundingBox();
         const box = geometry.boundingBox!;
         const center = new THREE.Vector3();
         box.getCenter(center);
 
-        const mat = new THREE.MeshStandardMaterial({
+        const material = new THREE.MeshStandardMaterial({
           color: 0x93c5fd,
           roughness: 0.65,
         });
 
-        const mesh = new THREE.Mesh(geometry, mat);
+        const mesh = new THREE.Mesh(geometry, material);
         mesh.position.sub(center);
         sceneRef.current!.add(mesh);
         meshRef.current = mesh;
@@ -189,107 +184,29 @@ export default function STLViewer({
         const size = new THREE.Vector3();
         box.getSize(size);
         const maxDim = Math.max(size.x, size.y, size.z);
+
         if (viewerSchema?.camera?.mode !== 'fixed') {
           cameraRef.current!.position.z = maxDim * 2.2;
         }
-
-        rebuildText();
       });
     })();
   }, [stlUrl, viewerSchema?.base_geometry?.stl]);
 
   /* ======================================================
-     TEXTO (PREVIEW)
-  ======================================================= */
-
-  function rebuildText() {
-    if (
-      !sceneRef.current ||
-      !fontRef.current ||
-      !viewerSchema?.text?.enabled
-    )
-      return;
-
-    if (textGroupRef.current) {
-      sceneRef.current.remove(textGroupRef.current);
-      textGroupRef.current = null;
-    }
-
-    const { TextGeometry } = require('three/examples/jsm/geometries/TextGeometry');
-    const group = new THREE.Group();
-
-    const centerXY = (geo: any) => {
-      geo.computeBoundingBox();
-      const box = geo.boundingBox!;
-      geo.translate(
-        -(box.min.x + box.max.x) / 2,
-        -(box.min.y + box.max.y) / 2,
-        0
-      );
-    };
-
-    const build = (cfg: {
-      source: string;
-      size: number;
-      depth: number;
-      offset: [number, number, number];
-    }) => {
-      const value = String(valores[cfg.source] ?? '');
-      if (!value) return null;
-
-      const geo = new TextGeometry(value, {
-        font: fontRef.current,
-        size: cfg.size,
-        depth: cfg.depth,
-      });
-
-      centerXY(geo);
-
-      const mesh = new THREE.Mesh(
-        geo,
-        new THREE.MeshStandardMaterial({ color: 0xffffff })
-      );
-
-      const [ox, oy, oz] = cfg.offset;
-      mesh.position.set(ox, oy, oz);
-
-      return mesh;
-    };
-
-    if (viewerSchema.text.front) {
-      const m = build(viewerSchema.text.front);
-      if (m) group.add(m);
-    }
-
-    if (viewerSchema.text.back) {
-      const m = build(viewerSchema.text.back);
-      if (m) {
-        m.rotation.y = Math.PI;
-        group.add(m);
-      }
-    }
-
-    sceneRef.current.add(group);
-    textGroupRef.current = group;
-  }
-
-  /* ======================================================
      RENDER
   ======================================================= */
-
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div
         ref={mountRef}
         style={{
           width: '100%',
-          height: 'min(60vh, 520px)',
+          height: '100%',
           borderRadius: 12,
           border: '1px solid #334155',
           overflow: 'hidden',
         }}
       />
-
       {state === 'generating' && (
         <div
           style={{
@@ -300,7 +217,7 @@ export default function STLViewer({
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
-            fontWeight: 900,
+            fontWeight: 700,
             fontSize: 16,
             zIndex: 10,
           }}

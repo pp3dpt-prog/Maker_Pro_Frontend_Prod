@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import GeneratedEditor from '@/components/GeneratedEditor';
-import Preview3D from './Preview3D';
+import STLViewer from '@/components/STLViewer';
 import { createClient } from '@/lib/supabase/client';
 
 type Produto = {
@@ -28,22 +28,23 @@ export default function CustomizadorClient({ produto }: Props) {
   });
 
   const [loading, setLoading] = useState(false);
+  const [stlUrl, setStlUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function gerarSTL() {
     setLoading(true);
+    setError(null);
 
     try {
-      // ✅ Obter sessão autenticada
+      // obter sessão
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session) {
-        alert('Precisas de estar autenticado para gerar STL.');
-        return;
+        throw new Error('Precisas de estar autenticado para gerar STL.');
       }
 
-      // ✅ Enviar token no header Authorization
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: {
@@ -52,20 +53,35 @@ export default function CustomizadorClient({ produto }: Props) {
         },
         body: JSON.stringify({
           id: produto.id,
-          mode: 'final',
           params: values,
         }),
       });
 
+      /*
+        ✅ CORREÇÃO CRÍTICA E FINAL
+        Só tentamos ler JSON se o backend declará-lo explicitamente.
+      */
+      const contentType = res.headers.get('content-type') || '';
+
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(text || 'Resposta inesperada do backend.');
+      }
+
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.error || 'Erro ao gerar STL');
+        throw new Error(json.error || 'Erro ao gerar STL.');
       }
 
-      alert('STL gerado com sucesso');
+      if (!json.url) {
+        throw new Error('Backend não devolveu URL do STL.');
+      }
+
+      // ✅ URL temporário para visualização
+      setStlUrl(json.url);
     } catch (err: any) {
-      alert(err.message || 'Erro inesperado');
+      setError(err.message || 'Erro inesperado.');
     } finally {
       setLoading(false);
     }
@@ -88,6 +104,12 @@ export default function CustomizadorClient({ produto }: Props) {
           onChange={setValues}
         />
 
+        {error && (
+          <p style={{ color: '#f87171', marginTop: 12 }}>
+            {error}
+          </p>
+        )}
+
         <div style={{ marginTop: 24 }}>
           <button
             onClick={gerarSTL}
@@ -106,21 +128,30 @@ export default function CustomizadorClient({ produto }: Props) {
         </div>
       </div>
 
-      {/* COLUNA DIREITA — PREVIEW 3D */}
+      {/* COLUNA DIREITA — STL VIEWER */}
       <div
         style={{
-          height: 420,
+          height: 480,
           border: '1px dashed #334155',
           borderRadius: 12,
           background: '#020617',
         }}
       >
-        <Preview3D
-          largura={values.largura}
-          altura={values.altura}
-          comprimento={values.comprimento}
-          espessura={values.espessura}
-        />
+        {stlUrl ? (
+          <STLViewer stlUrl={stlUrl} state={loading ? 'generating' : 'ready'} />
+        ) : (
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+            }}
+          >
+            Gere o STL para visualizar o modelo
+          </div>
+        )}
       </div>
     </div>
   );
