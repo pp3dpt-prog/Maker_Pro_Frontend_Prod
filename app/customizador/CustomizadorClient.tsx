@@ -58,11 +58,11 @@ export default function CustomizadorClient({ produto }: Props) {
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
-        gap: 24,
+        gap: 32,
         alignItems: 'start',
       }}
     >
-      {/* COLUNA ESQUERDA – PARÂMETROS */}
+      {/* COLUNA ESQUERDA — PARÂMETROS */}
       <div>
         <GeneratedEditor
           schema={schema}
@@ -88,7 +88,7 @@ export default function CustomizadorClient({ produto }: Props) {
         </div>
       </div>
 
-      {/* COLUNA DIREITA – PREVIEW 3D */}
+      {/* COLUNA DIREITA — PREVIEW 3D */}
       <div
         style={{
           height: 420,
