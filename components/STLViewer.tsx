@@ -80,8 +80,14 @@ export default function STLViewer({ stlUrl }: Props) {
         box.getSize(size);
 
         const center = new THREE.Vector3();
-        box.getCenter(center);
-        geometry.translate(-center.x, -center.y, -center.z);
+        
+        // Colocar o STL com a base no Z = 0 e tudo em positivo
+        geometry.translate(
+          -box.min.x,
+          -box.min.y,
+          -box.min.z
+        );
+
 
         const material = new THREE.MeshStandardMaterial({
           color: 0x93c5fd,
