@@ -2,229 +2,162 @@
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 
-/* ======================================================
-   TIPOS
-====================================================== */
-export type ViewerSchema = {
-  base_geometry?: {
-    mode?: 'static' | 'generated' | 'none';
-    stl?: string | null;
-  };
-  camera?: {
-    mode?: 'fixed' | 'autoframe';
-    distance?: number;
-  };
-  text?: {
-    enabled?: boolean;
-    font?: string;
-    front?: {
-      source: string;
-      size: number;
-      depth: number;
-      offset: [number, number, number];
-    };
-    back?: {
-      source: string;
-      size: number;
-      depth: number;
-      offset: [number, number, number];
-    };
-  };
-};
+
+type ViewerState = 'idle' | 'generating' | 'ready';
 
 type Props = {
-  viewerSchema?: ViewerSchema;
-  valores?: Record<string, any>;
-  stlUrl?: string | null;
-  state?: 'idle' | 'generating' | 'ready';
+  stlUrl: string;
+  state?: ViewerState;
 };
 
-/* ======================================================
-   COMPONENTE
-====================================================== */
-export default function STLViewer({
-  viewerSchema,
-  valores = {},
-  stlUrl,
-  state = 'idle',
-}: Props) {
-  const mountRef = useRef<HTMLDivElement | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const controlsRef = useRef<any>(null);
-  const meshRef = useRef<THREE.Mesh | null>(null);
-  const textGroupRef = useRef<THREE.Group | null>(null);
-  const fontRef = useRef<any>(null);
 
-  /* ======================================================
-     INIT THREE
-  ======================================================= */
+export default function STLViewer({ stlUrl }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    if (!mountRef.current) return;
-    let disposed = false;
+    const container = containerRef.current;
+    if (!container) return;
 
-    (async () => {
-      const { OrbitControls } = await import(
-        'three/examples/jsm/controls/OrbitControls.js'
-      );
+    /* ================= SCENE ================= */
 
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#020617');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#020617');
 
-      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
-      camera.position.z = viewerSchema?.camera?.distance ?? 200;
+    /* ================= CAMERA ================= */
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      100000
+    );
 
-      mountRef.current!.innerHTML = '';
-      mountRef.current!.appendChild(renderer.domElement);
+    /* ================= RENDERER ================= */
 
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.enablePan = false;
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-      const light = new THREE.DirectionalLight(0xffffff, 0.8);
-      light.position.set(150, 150, 300);
-      scene.add(light);
+    /* ================= LIGHTS ================= */
 
-      sceneRef.current = scene;
-      cameraRef.current = camera;
-      rendererRef.current = renderer;
-      controlsRef.current = controls;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-      const resize = () => {
-        if (!mountRef.current) return;
-        const w = mountRef.current.clientWidth;
-        const h = mountRef.current.clientHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-      };
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(200, 300, 400);
+    scene.add(dir);
 
-      
-      resize();
+    /* ================= GRID ================= */
 
-      const el = mountRef.current;
-      if (!el) return;
+    const grid = new THREE.GridHelper(500, 20, 0x334155, 0x1e293b);
+    grid.position.y = 0;
+    scene.add(grid);
 
-      const ro = new ResizeObserver(resize);
-      ro.observe(el);
+    /* ================= CONTROLS ================= */
 
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = true;
 
-      const animate = () => {
-        if (disposed) return;
-        controls.update();
-        renderer.render(scene, camera);
-        requestAnimationFrame(animate);
-      };
-      animate();
+    /* ================= LOAD STL ================= */
 
-      // cleanup
-      return () => {
-        disposed = true;
-        ro.disconnect();
-      };
-    })();
+    const loader = new STLLoader();
+    let mesh: THREE.Mesh | null = null;
 
-    return () => {
-      if (rendererRef.current) rendererRef.current.dispose();
-      if (mountRef.current) mountRef.current.innerHTML = '';
-    };
-  }, []);
-
-  /* ======================================================
-     LOAD STL
-  ======================================================= */
-  useEffect(() => {
-    if (!sceneRef.current || !cameraRef.current) return;
-
-    (async () => {
-      const { STLLoader } = await import(
-        'three/examples/jsm/loaders/STLLoader.js'
-      );
-
-      
-      const scene = sceneRef.current;
-      if (!scene) return;
-
-      if (meshRef.current) {
-        scene.remove(meshRef.current);
-        meshRef.current = null;
-      }
-
-
-      const url =
-        stlUrl ??
-        viewerSchema?.base_geometry?.stl ??
-        null;
-
-      if (!url) return;
-
-      const loader = new STLLoader();
-      loader.load(url, geometry => {
+    loader.load(
+      stlUrl,
+      (geometry: THREE.BufferGeometry) => {
         geometry.computeBoundingBox();
+        geometry.computeVertexNormals();
+
         const box = geometry.boundingBox!;
+        const size = new THREE.Vector3();
+        box.getSize(size);
+
         const center = new THREE.Vector3();
         box.getCenter(center);
+        geometry.translate(-center.x, -center.y, -center.z);
 
         const material = new THREE.MeshStandardMaterial({
           color: 0x93c5fd,
-          roughness: 0.65,
+          roughness: 0.5,
+          metalness: 0.05,
         });
 
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.sub(center);
-        sceneRef.current!.add(mesh);
-        meshRef.current = mesh;
+        mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
 
-        const size = new THREE.Vector3();
-        box.getSize(size);
+        /* ===== AUTO-FRAME CAMERA ===== */
+
         const maxDim = Math.max(size.x, size.y, size.z);
+        const distance = maxDim * 2.2;
 
-        if (viewerSchema?.camera?.mode !== 'fixed') {
-          cameraRef.current!.position.z = maxDim * 2.2;
-        }
-      });
-    })();
-  }, [stlUrl, viewerSchema?.base_geometry?.stl]);
+        camera.position.set(
+          distance,
+          distance * 0.8,
+          distance
+        );
+        camera.lookAt(0, 0, 0);
 
-  /* ======================================================
-     RENDER
-  ======================================================= */
+        controls.target.set(0, 0, 0);
+        controls.update();
+      },
+      undefined,
+      
+      (error: ErrorEvent) => {
+        console.error('Erro ao carregar STL:', error);
+      }
+
+    );
+
+    /* ================= RESIZE ================= */
+
+    const onResize = () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    };
+
+    window.addEventListener('resize', onResize);
+
+    /* ================= LOOP ================= */
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    /* ================= CLEANUP ================= */
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      controls.dispose();
+      renderer.dispose();
+      if (mesh) {
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      }
+    };
+  }, [stlUrl]);
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div
-        ref={mountRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          borderRadius: 12,
-          border: '1px solid #334155',
-          overflow: 'hidden',
-        }}
-      />
-      {state === 'generating' && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(2,6,23,0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 700,
-            fontSize: 16,
-            zIndex: 10,
-          }}
-        >
-          ⏳ A gerar modelo 3D…
-        </div>
-      )}
-    </div>
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        borderRadius: 12,
+        border: '1px solid #334155',
+        overflow: 'hidden',
+      }}
+    />
   );
 }
