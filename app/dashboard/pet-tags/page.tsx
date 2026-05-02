@@ -1,189 +1,172 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import STLViewer, { type ViewerSchema } from '@/components/STLViewer';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
-/* ======================================================
-   VIEWER SCHEMA (BD‑DRIVEN — aqui emulado)
-====================================================== */
+type Perfil = {
+  id: string;
+  email: string;
+  creditos: number;
+  creditos_disponiveis: number;
+  acesso_comercial_ativo: boolean;
+  prod_planos?: {
+    nome: string;
+  } | null;
+};
 
-function buildViewerSchema(
-  shape: string,
-  font: string
-): ViewerSchema {
-  const map: Record<string, string> = {
-    Osso: 'osso',
-    Redondo: 'redondo',
-    Hexagono: 'hexagono',
-    Coração: 'coracao',
-  };
+type Transacao = {
+  criado_em: string;
+  descricao: string;
+  creditos_alterados: number;
+};
 
-  return {
-    base_geometry: {
-      mode: 'static',
-      stl: `/models/blank_${map[shape]}.stl`,
-    },
-    camera: {
-      mode: 'fixed',
-      distance: 120,
-    },
-    text: {
-      enabled: true,
-      font,
-      front: {
-        source: 'nome',
-        size: 9,
-        depth: 1.2,
-        offset: [0, 0, 0.08],
-      },
-      back: {
-        source: 'telefone',
-        size: 7,
-        depth: 0.3,
-        offset: [0, 0, -0.05],
-      },
-    },
-  };
-}
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState<'conta' | 'faturacao' | 'projetos'>('conta');
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
+  const [loading, setLoading] = useState(true);
 
-/* ======================================================
-   PAGE
-====================================================== */
+  const isMaker = perfil?.acesso_comercial_ativo === true;
 
-export default function PetTagsPage() {
-  const [shape, setShape] = useState<'Osso' | 'Redondo' | 'Hexagono' | 'Coração'>(
-    'Osso'
-  );
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [font, setFont] = useState('Open Sans');
-  const [mostrarPreview, setMostrarPreview] = useState(false);
+  useEffect(() => {
+    async function carregarDados() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  /* ======================================================
-     SCHEMA + VALORES (TIPADOS E MEMOIZADOS)
-  ======================================================= */
+      if (!session) {
+        setLoading(false);
+        return;
+      }
 
-  const viewerSchema = useMemo(
-    () => buildViewerSchema(shape, font),
-    [shape, font]
-  );
+      // Perfil
+      const { data: perfilData } = await supabase
+        .from('prod_perfis')
+        .select('*, prod_planos(nome)')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-  const valoresPreview = useMemo(
-    () => ({
-      nome: mostrarPreview ? name : '',
-      telefone: mostrarPreview ? phone : '',
-    }),
-    [mostrarPreview, name, phone]
-  );
+      if (perfilData) {
+        setPerfil(perfilData as Perfil);
+      }
 
-  /* ======================================================
-     UI
-  ======================================================= */
+      // Transações
+      const { data: transData } = await supabase
+        .from('prod_transacoes')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('criado_em', { ascending: false });
+
+      if (transData) {
+        setTransacoes(transData as Transacao[]);
+      }
+
+      setLoading(false);
+    }
+
+    carregarDados();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <p>A carregar o seu Painel Maker…</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: 30, maxWidth: 1100, margin: '0 auto' }}>
-      <h2>CONFIGURADOR · PET TAGS</h2>
+    <div style={{ display: 'flex', gap: 24 }}>
+      {/* SIDEBAR */}
+      <aside style={{ width: 260 }}>
+        <h3>Menu Maker</h3>
 
-      {/* 1. FORMA */}
-      <h3>1. FORMA</h3>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 30 }}>
-        {['Osso', 'Redondo', 'Hexagono', 'Coração'].map((s) => (
-          <button
-            key={s}
-            onClick={() => setShape(s as any)}
-            style={{
-              padding: '10px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              border: 'none',
-              background: shape === s ? '#3b82f6' : '#0f172a',
-              color: 'white',
-            }}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+        <button onClick={() => setActiveTab('conta')}>👤 Resumo da Conta</button>
+        <button onClick={() => setActiveTab('faturacao')}>💳 Compras e Créditos</button>
+        <button onClick={() => setActiveTab('projetos')}>📂 Meus Ficheiros STL</button>
 
-      {/* 2. FONTE */}
-      <h3>2. FONTE</h3>
-      <select
-        value={font}
-        onChange={(e) => setFont(e.target.value)}
-        style={{
-          width: '100%',
-          padding: 12,
-          background: '#0f172a',
-          color: 'white',
-          borderRadius: 8,
-          marginBottom: 20,
-          border: '1px solid #334155',
-        }}
-      >
-        <option>Open Sans</option>
-        <option>Open Sans Bold</option>
-        <option>Roboto</option>
-      </select>
+        <button
+          onClick={() =>
+            supabase.auth.signOut().then(() => {
+              window.location.href = '/';
+            })
+          }
+          style={{ marginTop: 20, color: '#f87171' }}
+        >
+          Sair
+        </button>
+      </aside>
 
-      {/* 3. TEXTOS */}
-      <h3>3. TEXTOS</h3>
-      <input
-        placeholder="Nome"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{
-          width: '100%',
-          padding: 12,
-          background: '#0f172a',
-          borderRadius: 8,
-          border: '1px solid #334155',
-          color: 'white',
-          marginBottom: 10,
-        }}
-      />
+      {/* CONTEÚDO */}
+      <main style={{ flex: 1 }}>
+        {activeTab === 'conta' && (
+          <>
+            <h2>Olá, {perfil?.email?.split('@')[0]}</h2>
 
-      <input
-        placeholder="Telefone"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        style={{
-          width: '100%',
-          padding: 12,
-          background: '#0f172a',
-          borderRadius: 8,
-          border: '1px solid #334155',
-          color: 'white',
-        }}
-      />
+            <h4>PLANO ATIVO</h4>
+            <p>{perfil?.prod_planos?.nome ?? 'Uso Pessoal'}</p>
 
-      {/* BOTÃO PREVIEW */}
-      <button
-        onClick={() => setMostrarPreview((v) => !v)}
-        style={{
-          width: '100%',
-          padding: 15,
-          marginTop: 30,
-          borderRadius: 8,
-          border: 'none',
-          background: mostrarPreview ? '#ef4444' : '#22c55e',
-          color: 'white',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-        }}
-      >
-        {mostrarPreview ? 'VER PEÇA LIMPA' : 'VISUALIZAR PERSONALIZAÇÃO'}
-      </button>
+            <h4>CRÉDITOS DISPONÍVEIS</h4>
+            <p>{perfil?.creditos_disponiveis ?? 0}</p>
 
-      {/* VIEWER */}
-      <div style={{ marginTop: 30 }}>
-        <STLViewer
-          viewerSchema={viewerSchema}
-          valores={valoresPreview}
-          stlUrl={null}
-          state="idle"
-        />
-      </div>
+            <h4>TOTAL USADO</h4>
+            <p>{perfil?.creditos ?? 0}</p>
+
+            <h5>🛡️ Estado da Licença</h5>
+            <p>
+              {isMaker
+                ? '✅ Licença Comercial Ativa: Pode vender as peças impressas.'
+                : '❌ Apenas Uso Pessoal: Atualize para um plano Maker.'}
+            </p>
+          </>
+        )}
+
+        {activeTab === 'faturacao' && (
+          <>
+            <h2>Histórico de Compras e Créditos</h2>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Conceito</th>
+                  <th>Movimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transacoes.length > 0 ? (
+                  transacoes.map((t, i) => (
+                    <tr key={i}>
+                      <td>{new Date(t.criado_em).toLocaleDateString()}</td>
+                      <td>{t.descricao}</td>
+                      <td
+                        style={{
+                          color: t.creditos_alterados > 0 ? '#4ade80' : '#f87171',
+                        }}
+                      >
+                        {t.creditos_alterados > 0
+                          ? `+${t.creditos_alterados}`
+                          : t.creditos_alterados}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3}>Não existem registos.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {activeTab === 'projetos' && (
+          <>
+            <h2>📁 Os seus ficheiros STL</h2>
+            <p>Cada exportação utiliza 1 crédito.</p>
+          </>
+        )}
+      </main>
     </div>
   );
 }
-``
