@@ -4,18 +4,15 @@ export const runtime = 'nodejs';
 
 /**
  * GET defensivo
- * Serve apenas para debug e para evitar 404 HTML do Next
  */
 export function GET() {
-  return new Response(
-    'This endpoint requires POST',
-    { status: 405 }
-  );
+  return new Response('This endpoint requires POST', { status: 405 });
 }
 
 /**
  * POST – Gerar PREVIEW
- * Proxy para o backend (/api/preview)
+ * Faz proxy para o backend, corrigindo o contrato:
+ * id (frontend) -> design_id (backend)
  */
 export async function POST(req: NextRequest) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -27,8 +24,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.text();
+  // ✅ Ler JSON corretamente
+  const body = await req.json();
   const auth = req.headers.get('authorization');
+
+  // ✅ Corrigir contrato entre frontend e backend
+  const backendPayload = {
+    design_id: body.id,     // <<<<<< AQUI ERA O ERRO
+    params: body.params,
+  };
 
   const res = await fetch(
     backendUrl + '/api/preview',
@@ -38,15 +42,15 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         ...(auth ? { Authorization: auth } : {}),
       },
-      body,
+      body: JSON.stringify(backendPayload),
     }
   );
 
   return new Response(res.body, {
     status: res.status,
     headers: {
-      // Preview devolve imagem (PNG ou similar)
-      'Content-Type': res.headers.get('content-type') ?? 'image/png',
+      'Content-Type':
+        res.headers.get('content-type') ?? 'image/png',
     },
   });
 }
