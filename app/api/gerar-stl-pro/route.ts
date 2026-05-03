@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization');
 
   const res = await fetch(
-    process.env.BACKEND_URL + '/api/preview',
+    process.env.NEXT_PUBLIC_BACKEND_URL + '/api/preview',
     {
       method: 'POST',
       headers: {
