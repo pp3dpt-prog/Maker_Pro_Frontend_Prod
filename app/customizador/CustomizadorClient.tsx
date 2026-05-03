@@ -46,7 +46,7 @@ export default function CustomizadorClient({ produto }: Props) {
         throw new Error('Precisas de estar autenticado para gerar STL.');
       }
 
-      const res = await fetch('/api/gerar-stl-pro', {
+      const res = await fetch('/api/preview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
