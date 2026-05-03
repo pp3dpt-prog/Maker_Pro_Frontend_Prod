@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import DownloadStlButton from '@/components/DownloadStlButton';
 
 type Produto = {
-  id: string;
+  design_id: string;
   nome: string;
   generation_schema: any;
 };
@@ -53,7 +53,7 @@ export default function CustomizadorClient({ produto }: Props) {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          id: produto.id,
+          design_id: produto.design_id,
           params: values,
         }),
       });
@@ -148,7 +148,7 @@ export default function CustomizadorClient({ produto }: Props) {
 
           <div style={{ marginTop: 16 }}>
             <DownloadStlButton
-              designId={produto.id}
+              designId={produto.design_id}
               params={values}
               disabled={loading}
             />
