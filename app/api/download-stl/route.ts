@@ -14,7 +14,10 @@ export const runtime = 'nodejs';
 // ============================
 const OPENSCAD_BIN = 'openscad';
 const TMP_DIR = path.join(process.cwd(), 'tmp');
-if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+
+if (!fs.existsSync(TMP_DIR)) {
+  fs.mkdirSync(TMP_DIR, { recursive: true });
+}
 
 // ============================
 // Helpers
@@ -29,26 +32,41 @@ function getSupabaseServerClient() {
 async function getUser(req: NextRequest, supabase: any) {
   const authHeader = req.headers.get('authorization');
   if (!authHeader) throw new Error('UNAUTHORIZED');
+
   const token = authHeader.replace('Bearer ', '');
   const { data, error } = await supabase.auth.getUser(token);
+
   if (error || !data?.user) throw new Error('UNAUTHORIZED');
   return data.user;
 }
 
-async function gerarSTL({ scadTemplate, params, moduleCall, outFile }: any) {
+async function gerarSTL({
+  scadTemplate,
+  params,
+  moduleCall,
+  outFile,
+}: {
+  scadTemplate: string;
+  params: Record<string, any>;
+  moduleCall: string;
+  outFile: string;
+}) {
   const scadFile = outFile.replace('.stl', '.scad');
+
   const vars = Object.entries(params)
     .map(([k, v]) => `${k} = ${typeof v === 'string' ? `"${v}"` : v};`)
     .join('\n');
 
   fs.writeFileSync(
     scadFile,
-    `${vars}\n\n${scadTemplate}\n\n${moduleCall}`
+    `${vars}\n\n${scadTemplate}\n\n${moduleCall}\n`
   );
 
   await new Promise<void>((resolve, reject) => {
     const p = spawn(OPENSCAD_BIN, ['-o', outFile, scadFile]);
-    p.on('close', c => (c === 0 ? resolve() : reject(new Error('OpenSCAD failed'))));
+    p.on('close', code =>
+      code === 0 ? resolve() : reject(new Error('OpenSCAD failed'))
+    );
     p.on('error', reject);
   });
 }
@@ -57,25 +75,22 @@ async function gerarSTL({ scadTemplate, params, moduleCall, outFile }: any) {
 // Route
 // ============================
 export async function POST(req: NextRequest) {
-  console.log('DOWNLOAD STL — START');
-
   const supabase = getSupabaseServerClient();
 
   try {
+    // ----------------------------
+    // Auth
+    // ----------------------------
     const user = await getUser(req, supabase);
     const { design_id, params } = await req.json();
 
-    const { data: design } = await supabase
-      .from('prod_designs')
-      .select('scad_template, credit_cost')
-      .eq('id', design_id)
-      .single();
+    if (!design_id || !params) {
+      return new Response('INVALID_REQUEST', { status: 400 });
+    }
 
-    const jobId = uuid();
-    const base = path.join(TMP_DIR, jobId);
-    const files: any[] = [];
-
-    
+    // ----------------------------
+    // Fetch design
+    // ----------------------------
     const { data: design, error: designError } = await supabase
       .from('prod_designs')
       .select('scad_template, credit_cost')
@@ -86,13 +101,71 @@ export async function POST(req: NextRequest) {
       return new Response('DESIGN_NOT_FOUND', { status: 404 });
     }
 
+    const cost = design.credit_cost ?? 1;
 
-    // ============================
-    // DOWNLOAD
-    // ============================
+    // ----------------------------
+    // Check credits
+    // ----------------------------
+    const { data: perfil } = await supabase
+      .from('prod_perfis')
+      .select('creditos_disponiveis')
+      .eq('id', user.id)
+      .single();
 
+    if (!perfil || perfil.creditos_disponiveis < cost) {
+      return new Response('INSUFFICIENT_CREDITS', { status: 402 });
+    }
+
+    // ----------------------------
+    // Generate STL(s)
+    // ----------------------------
+    const jobId = uuid();
+    const base = path.join(TMP_DIR, jobId);
+    const files: { name: string; path: string }[] = [];
+
+    // Caixa (sempre)
+    const caixaPath = `${base}_caixa.stl`;
+    await gerarSTL({
+      scadTemplate: design.scad_template,
+      params,
+      moduleCall: 'corpo_caixa();',
+      outFile: caixaPath,
+    });
+    files.push({ name: 'caixa.stl', path: caixaPath });
+
+    // Tampa (opcional — boolean)
+    if (params.tem_tampa === true) {
+      const tampaPath = `${base}_tampa.stl`;
+      await gerarSTL({
+        scadTemplate: design.scad_template,
+        params,
+        moduleCall: 'tampa_caixa();',
+        outFile: tampaPath,
+      });
+      files.push({ name: 'tampa.stl', path: tampaPath });
+    }
+
+    // ----------------------------
+    // Debit credits
+    // ----------------------------
+    await supabase.from('prod_transacoes').insert({
+      user_id: user.id,
+      descricao: `Download STL (${design_id})`,
+      creditos_alterados: -cost,
+    });
+
+    await supabase
+      .from('prod_perfis')
+      .update({
+        creditos_disponiveis: perfil.creditos_disponiveis - cost,
+      })
+      .eq('id', user.id);
+
+    // ----------------------------
+    // Respond download
+    // ----------------------------
+    // Case 1: single STL
     if (files.length === 1) {
-      console.log('DOWNLOAD STL SINGLE');
       return new Response(fs.createReadStream(files[0].path) as any, {
         headers: {
           'Content-Type': 'application/octet-stream',
@@ -101,8 +174,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    console.log('DOWNLOAD ZIP');
-
+    // Case 2: ZIP
     const archive = archiver('zip', { zlib: { level: 9 } });
     const stream = new PassThrough();
 
@@ -121,7 +193,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('DOWNLOAD FAILED', err);
+    console.error('DOWNLOAD_FAILED', err);
     return new Response('DOWNLOAD_FAILED', { status: 500 });
   }
 }
