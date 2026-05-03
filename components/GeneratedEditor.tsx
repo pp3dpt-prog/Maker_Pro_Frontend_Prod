@@ -11,51 +11,27 @@ export default function GeneratedEditor({
   values,
   onChange,
 }: Props) {
-  // ✅ Normalização do schema
-  // Aceita:
-  // 1) schema.parameters (antigo)
-  // 2) schema como array (ui_schema novo)
-
-  const params = Array.isArray(schema)
-    ? schema
-    : schema?.parameters
-    ? Object.values(schema.parameters).map((p: any) => ({
-        name: p.name,
-        type: p.ui?.widget ?? p.type,
-        label: p.ui?.label ?? p.label ?? p.name,
-        min: p.min,
-        max: p.max,
-        step: p.step,
-      }))
-    : [];
-
-  if (!params.length) {
-    return (
-      <div className="text-sm text-red-400">
-        Schema inválido — nenhum parâmetro definido
-      </div>
-    );
-  }
+  const parameters = schema.parameters;
 
   return (
     <div className="space-y-4">
-      {params.map((param: any) => {
-        const {
-          name,
-          type,
-          label = name,
-          min,
-          max,
-          step,
-        } = param;
-
+      {Object.entries(parameters).map(([name, def]: any) => {
+        const ui = def.ui || {};
+        const label = ui.label || name;
+        const step = ui.step ?? 1;
+        const unit = def.unit;
+        const type = ui.widget;
         const value = values[name];
 
+        // SLIDER ------------------------------------------------
         if (type === 'slider') {
           return (
             <div key={name} className="space-y-1">
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <label>{label}</label>
+                <label>
+                  {label}
+                  {unit ? ` (${unit})` : ''}
+                </label>
                 <span className="tabular-nums text-slate-400">
                   {value}
                 </span>
@@ -63,9 +39,9 @@ export default function GeneratedEditor({
 
               <input
                 type="range"
-                min={min}
-                max={max}
-                step={step ?? 1}
+                min={def.min}
+                max={def.max}
+                step={step}
                 value={value}
                 onChange={(e) =>
                   onChange({
@@ -73,12 +49,13 @@ export default function GeneratedEditor({
                     [name]: Number(e.target.value),
                   })
                 }
-                className="w-full accent-blue-500"
+                className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
           );
         }
 
+        // CHECKBOX ---------------------------------------------
         if (type === 'checkbox') {
           return (
             <label
@@ -101,24 +78,7 @@ export default function GeneratedEditor({
           );
         }
 
-        return (
-          <div key={name} className="space-y-1">
-            <label className="block text-xs text-slate-300">
-              {label}
-            </label>
-            <input
-              type="number"
-              value={value}
-              onChange={(e) =>
-                onChange({
-                  ...values,
-                  [name]: Number(e.target.value),
-                })
-              }
-              className="w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1 text-sm"
-            />
-          </div>
-        );
+        return null;
       })}
     </div>
   );
