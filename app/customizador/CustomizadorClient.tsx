@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 /* ============================
-   Tipos (mínimos e reais)
+   Tipos
 ============================ */
 type ParamSchema = {
   label: string;
@@ -36,7 +36,7 @@ export default function CustomizadorClient({ produto }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   /* ============================
-     Inicializar defaults do schema
+     Defaults do schema
   ============================ */
   useEffect(() => {
     const initial: Record<string, number | boolean> = {};
@@ -49,7 +49,7 @@ export default function CustomizadorClient({ produto }: Props) {
   }, [produto]);
 
   /* ============================
-     Atualizar parâmetro
+     Atualizar parâmetro (CORRETO)
   ============================ */
   function updateParam(key: string, value: number | boolean) {
     setParams(prev => ({
@@ -59,7 +59,7 @@ export default function CustomizadorClient({ produto }: Props) {
   }
 
   /* ============================
-     Gerar preview (API)
+     Gerar preview
   ============================ */
   async function gerarPreview() {
     setLoading(true);
@@ -95,9 +95,7 @@ export default function CustomizadorClient({ produto }: Props) {
   ============================ */
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-      {/* -------------------------
-           Painel de configuração
-         ------------------------- */}
+      {/* Configuração */}
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">{produto.nome}</h1>
@@ -160,15 +158,13 @@ export default function CustomizadorClient({ produto }: Props) {
         )}
       </div>
 
-      {/* -------------------------
-           Janela de preview
-         ------------------------- */}
+      {/* Preview */}
       <div className="flex items-center justify-center bg-neutral-900 rounded-lg min-h-[320px]">
         {previewUrl ? (
           <img
             src={previewUrl}
-            alt="Preview do modelo"
-            className="max-w-full max-h-full"
+            alt="Preview STL"
+            className="max-w-full max-h-full object-contain"
           />
         ) : (
           <div className="text-sm opacity-50">
