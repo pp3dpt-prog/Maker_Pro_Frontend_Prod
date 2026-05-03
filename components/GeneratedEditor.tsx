@@ -1,17 +1,7 @@
 'use client';
 
-type UiParam = {
-  name: string;
-  type: 'slider' | 'checkbox' | 'number' | 'text';
-  label?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  default?: any;
-};
-
 type Props = {
-  schema: UiParam[];
+  schema: any;
   values: Record<string, any>;
   onChange: (v: Record<string, any>) => void;
 };
@@ -21,9 +11,35 @@ export default function GeneratedEditor({
   values,
   onChange,
 }: Props) {
+  // ✅ Normalização do schema
+  // Aceita:
+  // 1) schema.parameters (antigo)
+  // 2) schema como array (ui_schema novo)
+
+  const params = Array.isArray(schema)
+    ? schema
+    : schema?.parameters
+    ? Object.values(schema.parameters).map((p: any) => ({
+        name: p.name,
+        type: p.ui?.widget ?? p.type,
+        label: p.ui?.label ?? p.label ?? p.name,
+        min: p.min,
+        max: p.max,
+        step: p.step,
+      }))
+    : [];
+
+  if (!params.length) {
+    return (
+      <div className="text-sm text-red-400">
+        Schema inválido — nenhum parâmetro definido
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {schema.map((param) => {
+      {params.map((param: any) => {
         const {
           name,
           type,
@@ -35,19 +51,17 @@ export default function GeneratedEditor({
 
         const value = values[name];
 
-        // SLIDER --------------------------------------------------
         if (type === 'slider') {
           return (
             <div key={name} className="space-y-1">
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <label htmlFor={name}>{label}</label>
+                <label>{label}</label>
                 <span className="tabular-nums text-slate-400">
                   {value}
                 </span>
               </div>
 
               <input
-                id={name}
                 type="range"
                 min={min}
                 max={max}
@@ -59,13 +73,12 @@ export default function GeneratedEditor({
                     [name]: Number(e.target.value),
                   })
                 }
-                className="w-full accent-blue-500 cursor-pointer"
+                className="w-full accent-blue-500"
               />
             </div>
           );
         }
 
-        // CHECKBOX ------------------------------------------------
         if (type === 'checkbox') {
           return (
             <label
@@ -88,18 +101,12 @@ export default function GeneratedEditor({
           );
         }
 
-        // INPUT DEFAULT -------------------------------------------
         return (
           <div key={name} className="space-y-1">
-            <label
-              htmlFor={name}
-              className="block text-xs text-slate-300"
-            >
+            <label className="block text-xs text-slate-300">
               {label}
             </label>
-
             <input
-              id={name}
               type="number"
               value={value}
               onChange={(e) =>
@@ -108,16 +115,7 @@ export default function GeneratedEditor({
                   [name]: Number(e.target.value),
                 })
               }
-              className="
-                w-full
-                rounded-md
-                border border-slate-700
-                bg-slate-900
-                px-2 py-1
-                text-sm text-slate-100
-                focus:outline-none
-                focus:border-blue-500
-              "
+              className="w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1 text-sm"
             />
           </div>
         );
