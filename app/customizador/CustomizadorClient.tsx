@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 
-// -----------------------------
-// Tipos
-// -----------------------------
+/* ============================
+   Tipos (mínimos e reais)
+============================ */
 type ParamSchema = {
   label: string;
+  tipo: 'number' | 'boolean';
+  default: number | boolean;
   min?: number;
   max?: number;
   step?: number;
-  default: number | boolean;
-  tipo: 'number' | 'boolean';
 };
 
 type Produto = {
@@ -22,46 +22,45 @@ type Produto = {
   };
 };
 
-type CustomizadorClientProps = {
+type Props = {
   produto: Produto;
 };
 
-// -----------------------------
-// Componente
-// -----------------------------
-export default function CustomizadorClient({
-  produto,
-}: CustomizadorClientProps) {
+/* ============================
+   Componente
+============================ */
+export default function CustomizadorClient({ produto }: Props) {
   const [params, setParams] = useState<Record<string, number | boolean>>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // -----------------------------
-  // Inicializar valores default
-  // -----------------------------
+  /* ============================
+     Inicializar defaults do schema
+  ============================ */
   useEffect(() => {
-    const defaults: Record<string, number | boolean> = {};
-
-    for (const [key, schema] of Object.entries(
-      produto.generation_schema.params
-    )) {
-      defaults[key] = schema.default;
-    }
-
-    setParams(defaults);
+    const initial: Record<string, number | boolean> = {};
+    Object.entries(produto.generation_schema.params).forEach(
+      ([key, schema]) => {
+        initial[key] = schema.default;
+      }
+    );
+    setParams(initial);
   }, [produto]);
 
-  // -----------------------------
-  // Atualizar parametro
-  // -----------------------------
+  /* ============================
+     Atualizar parâmetro
+  ============================ */
   function updateParam(key: string, value: number | boolean) {
-    setParams(prev => ({ ...prev, [key]: value }));
+    setParams(prev => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
-  // -----------------------------
-  // Gerar preview (API proxy)
-  // -----------------------------
+  /* ============================
+     Gerar preview (API)
+  ============================ */
   async function gerarPreview() {
     setLoading(true);
     setError(null);
@@ -91,28 +90,26 @@ export default function CustomizadorClient({
     }
   }
 
-  // -----------------------------
-  // Render
-  // -----------------------------
+  /* ============================
+     Render
+  ============================ */
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* -----------------------------
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      {/* -------------------------
            Painel de configuração
-         ----------------------------- */}
+         ------------------------- */}
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">
-          {produto.nome}
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold">{produto.nome}</h1>
+          <p className="text-sm opacity-70 mt-1">
+            Configure as dimensões e opções antes de gerar o ficheiro STL.
+          </p>
+        </div>
 
-        <p className="text-sm opacity-70">
-          Configure as dimensões e opções do produto antes de gerar o ficheiro STL.
-        </p>
-
-        {/* Sliders dinâmicos */}
         {Object.entries(produto.generation_schema.params).map(
           ([key, schema]) => (
             <div key={key} className="space-y-2">
-              <label className="block text-sm font-medium">
+              <label className="text-sm font-medium block">
                 {schema.label}
               </label>
 
@@ -151,9 +148,9 @@ export default function CustomizadorClient({
           type="button"
           onClick={gerarPreview}
           disabled={loading}
-          className="w-full rounded bg-white text-black py-2 font-semibold disabled:opacity-50"
+          className="w-full bg-white text-black font-semibold py-2 rounded disabled:opacity-50"
         >
-          {loading ? 'A gerar…' : 'Gerar STL'}
+          {loading ? 'A gerar preview…' : 'Gerar STL'}
         </button>
 
         {error && (
@@ -163,18 +160,18 @@ export default function CustomizadorClient({
         )}
       </div>
 
-      {/* -----------------------------
-           Painel de preview
-         ----------------------------- */}
-      <div className="bg-neutral-900 rounded-lg flex items-center justify-center">
+      {/* -------------------------
+           Janela de preview
+         ------------------------- */}
+      <div className="flex items-center justify-center bg-neutral-900 rounded-lg min-h-[320px]">
         {previewUrl ? (
           <img
             src={previewUrl}
-            alt="Preview STL"
-            className="max-w-full max-h-[600px]"
+            alt="Preview do modelo"
+            className="max-w-full max-h-full"
           />
         ) : (
-          <div className="opacity-50 text-sm">
+          <div className="text-sm opacity-50">
             Preview aparecerá aqui
           </div>
         )}
