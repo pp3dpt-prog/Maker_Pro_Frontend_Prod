@@ -11,19 +11,29 @@ export default function GeneratedEditor({
   values,
   onChange,
 }: Props) {
-  const parameters = schema.parameters;
+  if (!schema?.parameters) {
+    return (
+      <div className="text-sm text-red-400">
+        Schema inválido – parameters não definidos
+      </div>
+    );
+  }
+
+  // ✅ Normalização + ordenação explícita
+  const parameters = Object.entries(schema.parameters)
+    .sort(([, a]: any, [, b]: any) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
     <div className="space-y-4">
-      {Object.entries(parameters).map(([name, def]: any) => {
+      {parameters.map(([name, def]: any) => {
         const ui = def.ui || {};
         const label = ui.label || name;
         const step = ui.step ?? 1;
-        const unit = def.unit;
         const type = ui.widget;
+        const unit = def.unit;
         const value = values[name];
 
-        // SLIDER ------------------------------------------------
+        // SLIDER --------------------------------------------------
         if (type === 'slider') {
           return (
             <div key={name} className="space-y-1">
@@ -55,7 +65,7 @@ export default function GeneratedEditor({
           );
         }
 
-        // CHECKBOX ---------------------------------------------
+        // CHECKBOX -----------------------------------------------
         if (type === 'checkbox') {
           return (
             <label
@@ -78,7 +88,12 @@ export default function GeneratedEditor({
           );
         }
 
-        return null;
+        // FALLBACK (caso apareça algo inesperado)
+        return (
+          <div key={name} className="text-xs text-yellow-400">
+            Parâmetro não suportado: {name}
+          </div>
+        );
       })}
     </div>
   );
