@@ -486,3 +486,134 @@ Export automático para storage definitivo
 
 📌 Este ficheiro representa o estado consolidado do sistema neste momento.
 Quando quiseres, o próximo passo natural é puramente UX ou expansão funcional — a base está correta e fechada.
+
+
+Atualização de Estado do Sistema
+Data: 03‑05‑2026
+Objetivo: Consolidar o que foi descoberto hoje, corrigir pressupostos errados e alinhar os próximos passos sem quebrar o que já funciona.
+
+
+1. Conclusões Confirmadas Hoje
+1.1 generation_schema é a fonte única (e suficiente)
+Não existe (neste momento) um ui_schema separado a ser usado no sistema. Todo o UI é derivado de generation_schema.parameters, incluindo:
+
+ui.label
+ui.widget (slider, checkbox)
+ui.step
+min, max, default, unit
+Decisão: ✅ Manter o generation_schema como contrato único entre backend, frontend e OpenSCAD.
+
+
+1.2 Ordem dos parâmetros não pode depender do JSON
+Foi confirmado que alterar a ordem dos campos no JSON não garante alteração da ordem no UI, porque:
+
+parameters é um objeto
+Object.entries() não é um contrato semântico de ordenação
+Solução implementada:
+
+Introdução do campo explícito order em cada parâmetro
+Ordenação no frontend antes do render
+const parameters = Object.entries(schema.parameters)
+  .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0));
+
+
+✅ A ordem do UI passa a ser determinística e controlada pela base de dados.
+
+
+1.3 Editor Paramétrico (GeneratedEditor)
+O GeneratedEditor.tsx passou a:
+
+Respeitar order
+Usar ui.label
+Usar ui.step
+Mostrar valor atual do slider
+Mostrar unidade (unit)
+Suportar slider e checkbox
+Estado atual: ✅ Estável ✅ Compatível com o backend ✅ Sem lógica de negócio
+
+
+2. Problema do Download — Análise Final
+2.1 O erro não era de frontend
+O erro 500: This page couldn’t load foi identificado como:
+
+Falha da rota /api/download-stl
+Exceção no servidor antes de devolver resposta
+O botão, o fetch e o fluxo no frontend estavam corretos.
+
+
+2.2 Erros críticos encontrados na rota /api/download-stl
+❌ Erro 1 — Tipo errado em tem_tampa
+
+Frontend envia boolean (true/false)
+Backend verificava === 1
+Correção aplicada:
+if (params.tem_tampa === true) { ... }
+
+
+
+
+❌ Erro 2 — Uso incorreto de ReadableStream
+
+archiver produz Node streams
+ReadableStream (Web API) causava crash no runtime
+Correção aplicada:
+
+Uso direto do stream Node retornado por archiver
+Remoção completa do wrapper ReadableStream
+
+
+❌ Erro 3 — MIME type inadequado para STL
+
+application/sla causava comportamento instável
+Correção aplicada:
+Content-Type: application/octet-stream
+
+
+
+
+2.3 Estado atual do Download
+✅ Download de 1 STL funciona ✅ Download de ZIP (2 STLs) funciona ✅ Runtime Node.js confirmado (export const runtime = 'nodejs') ✅ Sem crashes 500
+
+
+3. Estado Atual do Sistema (Resumo)
+
+✅ Preview parametrizado funcional
+✅ Geração de STL final protegida por créditos
+✅ Download robusto (STL ou ZIP)
+✅ UI controlada por schema da BD
+✅ Ordem dos parâmetros determinística
+✅ Separação Preview / Download mantém‑se intacta
+
+
+4. Pontos de Atenção (não bloqueantes, mas importantes)
+4.1 Débito de créditos antes do stream
+Atualmente os créditos são debitados antes de o ficheiro ser totalmente entregue.
+Risco:
+
+Falha a meio do stream
+Utilizador perde créditos
+Mitigação futura (não implementada):
+
+Debitar após conclusão do stream
+Ou marcar transação como pending → confirmed
+
+
+4.2 Limpeza de ficheiros temporários
+Os ficheiros em /tmp não são limpos automaticamente.
+Próximo passo recomendado:
+
+Job periódico de cleanup
+Ou limpeza após archive.finalize()
+
+
+5. Próximos Passos Planeados (por prioridade)
+
+✅ Consolidar esta versão (sem novas mudanças estruturais)
+➜ UX: Input numérico sincronizado com slider
+Tooltips (ui.description)
+➜ Lógica condicional no UI: visible_if (ex: esconder campos quando tem_tampa = false)
+➜ Robustez: Idempotência de download
+Anti‑duplo clique
+
+
+📌 Este documento representa o estado real do sistema após as correções técnicas de 03‑05‑2026. Qualquer evolução futura deve partir deste baseline, sem regressões.
