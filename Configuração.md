@@ -301,3 +301,188 @@ O download final representa o momento de aquisição do ficheiro STL.
 - /api/download-stl → compra/download
 
 Estas rotas não devem ser misturadas.
+
+
+Configuração do Sistema — Customizador STL
+Versão: 1.0 (estado atual consolidado)
+Última atualização: 2026‑04‑10
+
+1. Visão Geral
+O sistema permite ao utilizador:
+
+configurar um modelo paramétrico (ex: caixa)
+gerar um preview STL (sem custo)
+visualizar o modelo num viewer 3D
+efetuar o download final do STL (com débito de créditos)
+quando aplicável, descarregar dois STLs separados (caixa + tampa)
+
+Toda a lógica crítica (custos, número de ficheiros, débito de créditos) é controlada exclusivamente no backend.
+
+2. Arquitetura Geral
+Plain TextFrontend (Next.js) ├─ CustomizadorClient.tsx        → UI principal do customizador │   ├─ GeneratedEditor           → parâmetros dinâmicos │   ├─ STLViewer                 → preview 3D (Z‑up) │   └─ DownloadStlButton         → download final │ └─ API Routes (App Router)     ├─ /api/gerar-stl-pro        → preview (sem custo)     └─ /api/download-stl         → download final (com custo)Mostrar mais linhas
+
+3. Base de Dados (Supabase)
+3.1 Tabela prod_designs
+Armazena os modelos paramétricos.
+Campos relevantes:
+
+id
+nome
+scad_template → template OpenSCAD completo
+generation_schema → definição dos parâmetros
+credit_cost → custo em créditos do download
+
+
+O custo não depende do número de STLs gerados.
+
+
+3.2 Tabela prod_perfis
+Campos relevantes:
+
+id (user_id)
+creditos_disponiveis
+
+
+3.3 Tabela prod_transacoes
+Histórico financeiro:
+
+user_id
+descricao
+creditos_alterados
+criado_em
+
+Cada download cria uma transação negativa.
+
+4. OpenSCAD (Modelo)
+4.1 Estrutura do Template
+O scad_template vive na base de dados e contém:
+Plain Textscad não é totalmente suportado. O realce da sintaxe baseia-se em Plain Text.module corpo_caixa() { ... }module tampa_caixa() { ... }``Mostrar mais linhas
+Regras fixas:
+
+Z é sempre altura
+origem em (0,0,0)
+caixa aberta em +Z
+tapa é objeto separado
+encaixe macho na tampa (entra para −Z)
+
+
+4.2 Exportação de STL
+O backend não exporta um STL combinado para download final.
+Regra:
+
+corpo_caixa(); → caixa.stl
+tampa_caixa(); → tampa.stl (se tem_tampa === 1)
+
+
+5. API — /api/gerar-stl-pro
+Função
+
+Geração de preview STL
+Sem débito de créditos
+Devolve signedUrl temporário
+Usado apenas para visualização
+
+Input
+JSON{  "id": "design_id",  "paramsMostrar mais linhas
+
+6. API — /api/download-stl
+Função
+
+Geração final dos STL(s)
+Débito de créditos
+Resposta direta como download
+
+Comportamento
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CondiçãoResultadotem_tampa = 01 ficheiro: caixa.stltem_tampa = 1ZIP com caixa.stl + tampa.stl
+
+Custo = credit_cost do design
+Débito feito apenas se geração for bem‑sucedida
+Runtime forçado: Node.js (export const runtime = 'nodejs')
+
+
+7. STLViewer (Frontend)
+Responsabilidades
+
+visualizar o STL de preview
+manter consistência com OpenSCAD e slicers
+
+Regras importantes
+
+camera.up.set(0, 0, 1) → Z‑up
+não recentrar pelo centro
+geometria ancorada em box.min para preservar relações (caixa + tampa)
+
+
+8. Botão “Download STL”
+Localização
+
+Ficheiro: components/DownloadStlButton.tsx
+Usado em: CustomizadorClient.tsx
+
+Comportamento
+
+só aparece após existir preview
+envia:
+
+design_id
+params atuais
+
+
+não calcula custo
+não decide número de ficheiros
+
+Toda a lógica crítica está no backend.
+
+9. Fluxo Completo do Utilizador
+
+Ajusta parâmetros
+Clica Gerar STL
+Visualiza preview
+Clica Download STL
+Backend:
+
+valida créditos
+gera STL(s)
+debita créditos
+devolve STL ou ZIP
+
+
+Browser inicia download
+
+
+10. Estado Atual do Projeto
+✅ SCAD correto (orientação, encaixe, tampa)
+✅ Viewer alinhado (Z‑up)
+✅ Preview funcional
+✅ Download com custo dinâmico
+✅ 1 ou 2 STLs conforme tampa
+✅ TypeScript limpo
+✅ Backend fechado
+
+11. Próximos Passos Possíveis (não implementados)
+
+Mostrar custo ao lado do botão
+Desativar botão se creditos < credit_cost
+Histórico “Meus Downloads”
+Export automático para storage definitivo
+
+
+📌 Este ficheiro representa o estado consolidado do sistema neste momento.
+Quando quiseres, o próximo passo natural é puramente UX ou expansão funcional — a base está correta e fechada.

@@ -12,77 +12,103 @@ export default function GeneratedEditor({
   onChange,
 }: Props) {
   return (
-    <>
-      {Object.entries(schema.parameters).map(([k, def]: any) => {
+    <div className="space-y-4">
+      {Object.entries(schema.parameters).map(([key, def]: any) => {
         const ui = def.ui || {};
-        const label = ui.label || k;
-        const value = values[k];
+        const label = ui.label || key;
+        const value = values[key];
 
+        // SLIDER --------------------------------------------------
         if (ui.widget === 'slider') {
           return (
-            <div key={k}>
-              <label>{label}</label>
+            <div key={key} className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <label htmlFor={key}>{label}</label>
+                <span className="tabular-nums text-slate-400">
+                  {value}
+                </span>
+              </div>
+
               <input
+                id={key}
                 type="range"
                 min={def.min}
                 max={def.max}
-                step={ui.step || 1}
+                step={def.step || 1}
                 value={value}
-                onChange={e =>
+                onChange={(e) =>
                   onChange({
                     ...values,
-                    [k]: Number(e.target.value),
+                    [key]: Number(e.target.value),
                   })
                 }
-              />
-              <input
-                type="number"
-                value={value}
-                onChange={e =>
-                  onChange({
-                    ...values,
-                    [k]: Number(e.target.value),
-                  })
-                }
+                className="
+                  w-full
+                  accent-blue-500
+                  cursor-pointer
+                "
               />
             </div>
           );
         }
 
+        // CHECKBOX ------------------------------------------------
         if (ui.widget === 'checkbox') {
           return (
-            <label key={k}>
+            <label
+              key={key}
+              className="flex items-center gap-2 text-sm text-slate-300"
+            >
               <input
                 type="checkbox"
                 checked={!!value}
-                onChange={e =>
+                onChange={(e) =>
                   onChange({
                     ...values,
-                    [k]: e.target.checked,
+                    [key]: e.target.checked,
                   })
                 }
+                className="accent-blue-500"
               />
               {label}
             </label>
           );
         }
 
+        // INPUT DEFAULT -------------------------------------------
         return (
-          <div key={k}>
-            <label>{label}</label>
+          <div key={key} className="space-y-1">
+            <label
+              htmlFor={key}
+              className="block text-xs text-slate-300"
+            >
+              {label}
+            </label>
+
             <input
-              type="text"
+              id={key}
+              type="number"
               value={value}
-              onChange={e =>
+              onChange={(e) =>
                 onChange({
                   ...values,
-                  [k]: e.target.value,
+                  [key]: Number(e.target.value),
                 })
               }
+              className="
+                w-full
+                rounded-md
+                border border-slate-700
+                bg-slate-900
+                px-2 py-1
+                text-sm text-slate-100
+                focus:outline-none
+                focus:border-blue-500
+              "
             />
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
