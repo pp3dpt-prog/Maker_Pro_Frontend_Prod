@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
 
+export function GET() {
+  return new Response('GET OK');
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const auth = req.headers.get('authorization');
