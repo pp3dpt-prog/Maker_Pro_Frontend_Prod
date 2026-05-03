@@ -4,6 +4,7 @@ import { useState } from 'react';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import STLViewer from '@/components/STLViewer';
 import { createClient } from '@/lib/supabase/client';
+import DownloadStlButton from '@/components/DownloadStlButton';
 
 type Produto = {
   id: string;
@@ -137,21 +138,26 @@ export default function CustomizadorClient({ produto }: Props) {
           background: '#020617',
         }}
       >
-        {stlUrl ? (
-          <STLViewer stlUrl={stlUrl} state={loading ? 'generating' : 'ready'} />
-        ) : (
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#64748b',
-            }}
-          >
-            Gere o STL para visualizar o modelo
+        
+      {stlUrl ? (
+        <>
+          <STLViewer
+            stlUrl={stlUrl}
+            state={loading ? 'generating' : 'ready'}
+          />
+
+          <div style={{ marginTop: 16 }}>
+            <DownloadStlButton
+              designId={produto.id}
+              params={values}
+              disabled={loading}
+            />
           </div>
-        )}
+        </>
+      ) : (
+        <p>Gere o STL para visualizar o modelo</p>
+      )}
+
       </div>
     </div>
   );
