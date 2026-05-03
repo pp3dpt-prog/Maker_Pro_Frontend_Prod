@@ -2,12 +2,19 @@
 
 import { useState } from 'react';
 
-type PreviewPayload = {
-  design_id: string;
-  params: Record<string, any>;
+// Ajusta este tipo se quiseres tipagem mais forte mais tarde
+type Produto = {
+  id: string;
+  generation_schema?: any;
 };
 
-export default function CustomizadorClient() {
+type CustomizadorClientProps = {
+  produto: Produto;
+};
+
+export default function CustomizadorClient({
+  produto,
+}: CustomizadorClientProps) {
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -17,17 +24,19 @@ export default function CustomizadorClient() {
     setError(null);
     setPreviewUrl(null);
 
-    const payload: PreviewPayload = {
-      design_id: 'caixa-exemplo',
-      params: {
-        largura: 80,
-        altura: 50,
-        profundidade: 40,
-        tem_tampa: true,
-      },
-    };
-
     try {
+      const payload = {
+        design_id: produto.id,
+        params: {
+          // aqui entram os params reais do editor
+          // exemplo mínimo
+          largura: 80,
+          altura: 50,
+          profundidade: 40,
+          tem_tampa: true,
+        },
+      };
+
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: {
@@ -40,11 +49,11 @@ export default function CustomizadorClient() {
         throw new Error(`Erro HTTP ${res.status}`);
       }
 
-      // ✅ O preview NÃO é JSON – é imagem/binário
+      // Preview é binário (imagem), NÃO JSON
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setError('Erro ao gerar preview');
     } finally {
@@ -71,10 +80,10 @@ export default function CustomizadorClient() {
 
       {previewUrl && (
         <div className="mt-4">
-          <p className="mb-2">Preview:</p>
+          <p className="mb-2 text-sm opacity-80">Preview:</p>
           <img
             src={previewUrl}
-            alt="Preview STL"
+            alt="Preview do modelo"
             className="max-w-full rounded border"
           />
         </div>
@@ -82,3 +91,4 @@ export default function CustomizadorClient() {
     </div>
   );
 }
+``
