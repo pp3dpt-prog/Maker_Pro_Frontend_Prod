@@ -28,11 +28,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const auth = req.headers.get('authorization');
 
-  // ✅ Corrigir contrato entre frontend e backend
+  
+  // aceitar contrato genérico
+  const designId = body.design_id ?? body.id;
+
+  if (!designId || !body.params) {
+    return new Response('INVALID_REQUEST', { status: 400 });
+  }
+
   const backendPayload = {
-    design_id: body.id,     // <<<<<< AQUI ERA O ERRO
+    design_id: designId,
     params: body.params,
   };
+
 
   const res = await fetch(
     backendUrl + '/api/preview',
