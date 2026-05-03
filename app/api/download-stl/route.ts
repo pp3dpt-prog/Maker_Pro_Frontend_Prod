@@ -53,7 +53,9 @@ async function gerarSTL({
   const scadFile = outFile.replace('.stl', '.scad');
 
   const vars = Object.entries(params)
-    .map(([k, v]) => `${k} = ${typeof v === 'string' ? `"${v}"` : v};`)
+    .map(([k, v]) =>
+      `${k} = ${typeof v === 'string' ? `"${v}"` : v};`
+    )
     .join('\n');
 
   const scadContent = `
@@ -69,6 +71,7 @@ ${moduleCall}
   await new Promise<void>((resolve, reject) => {
     const p = spawn(OPENSCAD_BIN, ['-o', outFile, scadFile]);
     p.on('close', code => (code === 0 ? resolve() : reject()));
+    p.on('error', reject);
   });
 }
 
@@ -90,13 +93,13 @@ export async function POST(req: NextRequest) {
     // ============================
     // Fetch design + cost
     // ============================
-    const { data: design } = await supabase
+    const { data: design, error: designError } = await supabase
       .from('prod_designs')
       .select('scad_template, credit_cost')
       .eq('id', design_id)
       .single();
 
-    if (!design) {
+    if (designError || !design) {
       return new Response('DESIGN_NOT_FOUND', { status: 404 });
     }
 
@@ -105,13 +108,17 @@ export async function POST(req: NextRequest) {
     // ============================
     // Check credits
     // ============================
-    const { data: perfil } = await supabase
+    const { data: perfil, error: perfilError } = await supabase
       .from('prod_perfis')
       .select('creditos_disponiveis')
       .eq('id', user.id)
       .single();
 
-    if (!perfil || perfil.creditos_disponiveis < cost) {
+    if (
+      perfilError ||
+      !perfil ||
+      perfil.creditos_disponiveis < cost
+    ) {
       return new Response('INSUFFICIENT_CREDITS', { status: 402 });
     }
 
@@ -120,7 +127,6 @@ export async function POST(req: NextRequest) {
     // ============================
     const jobId = uuid();
     const base = path.join(TMP_DIR, jobId);
-
     const files: { name: string; path: string }[] = [];
 
     // --- Caixa (sempre)
@@ -133,8 +139,8 @@ export async function POST(req: NextRequest) {
     });
     files.push({ name: 'caixa.stl', path: caixaPath });
 
-    // --- Tampa (opcional)
-    if (params.tem_tampa === 1) {
+    // --- Tampa (opcional, BOOLEAN CORRETO)
+    if (params.tem_tampa === true) {
       const tampaPath = `${base}_tampa.stl`;
       await gerarSTL({
         scadTemplate: design.scad_template,
@@ -146,7 +152,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================
-    // Debit credits (atomic logic)
+    // Debit credits
     // ============================
     await supabase.from('prod_transacoes').insert({
       user_id: user.id,
@@ -167,28 +173,17 @@ export async function POST(req: NextRequest) {
     // Case 1: single STL
     if (files.length === 1) {
       const stream = fs.createReadStream(files[0].path);
+
       return new Response(stream as any, {
         headers: {
-          'Content-Type': 'application/sla',
+          'Content-Type': 'application/octet-stream',
           'Content-Disposition': `attachment; filename="${files[0].name}"`,
         },
       });
     }
 
-    // Case 2: ZIP with two STLs
+    // Case 2: ZIP with multiple STLs (NODE STREAM – CORRETO)
     const archive = archiver('zip', { zlib: { level: 9 } });
-
-    
-    const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-        archive.on('data', (chunk: Buffer) => {
-        controller.enqueue(chunk);
-        });
-        archive.on('end', () => controller.close());
-        archive.on('error', (err: Error) => controller.error(err));
-    },
-    });
-
 
     for (const f of files) {
       archive.file(f.path, { name: f.name });
@@ -196,14 +191,14 @@ export async function POST(req: NextRequest) {
 
     archive.finalize();
 
-    return new Response(stream, {
+    return new Response(archive as any, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${design_id}.zip"`,
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error('DOWNLOAD FAILED:', err);
     return new Response('DOWNLOAD_FAILED', { status: 500 });
   }
 }
