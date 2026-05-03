@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server';
 
-export const runtime = 'nodejs';
-
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const auth = req.headers.get('authorization');
@@ -12,7 +10,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: auth ?? '',
+        ...(auth ? { Authorization: auth } : {}),
       },
       body,
     }
