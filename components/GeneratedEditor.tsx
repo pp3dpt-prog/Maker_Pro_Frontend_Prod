@@ -1,7 +1,17 @@
 'use client';
 
+type UiParam = {
+  name: string;
+  type: 'slider' | 'checkbox' | 'number' | 'text';
+  label?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  default?: any;
+};
+
 type Props = {
-  schema: any;
+  schema: UiParam[];
   values: Record<string, any>;
   onChange: (v: Record<string, any>) => void;
 };
@@ -13,50 +23,53 @@ export default function GeneratedEditor({
 }: Props) {
   return (
     <div className="space-y-4">
-      {Object.entries(schema.parameters).map(([key, def]: any) => {
-        const ui = def.ui || {};
-        const label = ui.label || key;
-        const value = values[key];
+      {schema.map((param) => {
+        const {
+          name,
+          type,
+          label = name,
+          min,
+          max,
+          step,
+        } = param;
+
+        const value = values[name];
 
         // SLIDER --------------------------------------------------
-        if (ui.widget === 'slider') {
+        if (type === 'slider') {
           return (
-            <div key={key} className="space-y-1">
+            <div key={name} className="space-y-1">
               <div className="flex items-center justify-between text-xs text-slate-300">
-                <label htmlFor={key}>{label}</label>
+                <label htmlFor={name}>{label}</label>
                 <span className="tabular-nums text-slate-400">
                   {value}
                 </span>
               </div>
 
               <input
-                id={key}
+                id={name}
                 type="range"
-                min={def.min}
-                max={def.max}
-                step={def.step || 1}
+                min={min}
+                max={max}
+                step={step ?? 1}
                 value={value}
                 onChange={(e) =>
                   onChange({
                     ...values,
-                    [key]: Number(e.target.value),
+                    [name]: Number(e.target.value),
                   })
                 }
-                className="
-                  w-full
-                  accent-blue-500
-                  cursor-pointer
-                "
+                className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
           );
         }
 
         // CHECKBOX ------------------------------------------------
-        if (ui.widget === 'checkbox') {
+        if (type === 'checkbox') {
           return (
             <label
-              key={key}
+              key={name}
               className="flex items-center gap-2 text-sm text-slate-300"
             >
               <input
@@ -65,7 +78,7 @@ export default function GeneratedEditor({
                 onChange={(e) =>
                   onChange({
                     ...values,
-                    [key]: e.target.checked,
+                    [name]: e.target.checked,
                   })
                 }
                 className="accent-blue-500"
@@ -77,22 +90,22 @@ export default function GeneratedEditor({
 
         // INPUT DEFAULT -------------------------------------------
         return (
-          <div key={key} className="space-y-1">
+          <div key={name} className="space-y-1">
             <label
-              htmlFor={key}
+              htmlFor={name}
               className="block text-xs text-slate-300"
             >
               {label}
             </label>
 
             <input
-              id={key}
+              id={name}
               type="number"
               value={value}
               onChange={(e) =>
                 onChange({
                   ...values,
-                  [key]: Number(e.target.value),
+                  [name]: Number(e.target.value),
                 })
               }
               className="
