@@ -1,176 +1,163 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
-/* ============================
-   Tipos
-============================ */
-type ParamSchema = {
-  label: string;
-  tipo: 'number' | 'boolean';
-  default: number | boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-};
+import { useState } from 'react';
+import GeneratedEditor from '@/components/GeneratedEditor';
+import STLViewer from '@/components/STLViewer';
+import { createClient } from '@/lib/supabase/client';
+import DownloadStlButton from '@/components/DownloadStlButton';
 
 type Produto = {
   id: string;
   nome: string;
-  generation_schema: {
-    params: Record<string, ParamSchema>;
-  };
+  generation_schema: any;
 };
 
 type Props = {
   produto: Produto;
 };
 
-/* ============================
-   Componente
-============================ */
 export default function CustomizadorClient({ produto }: Props) {
-  const [params, setParams] = useState<Record<string, number | boolean>>({});
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const supabase = createClient();
+  const schema = produto.generation_schema;
+
+  const [values, setValues] = useState<Record<string, any>>(() => {
+    const init: Record<string, any> = {};
+    Object.entries(schema.parameters).forEach(([k, def]: any) => {
+      init[k] = def.default;
+    });
+    return init;
+  });
+
   const [loading, setLoading] = useState(false);
+  const [stlUrl, setStlUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /* ============================
-     Defaults do schema
-  ============================ */
-  useEffect(() => {
-    const initial: Record<string, number | boolean> = {};
-    Object.entries(produto.generation_schema.params).forEach(
-      ([key, schema]) => {
-        initial[key] = schema.default;
-      }
-    );
-    setParams(initial);
-  }, [produto]);
-
-  /* ============================
-     Atualizar parâmetro (CORRETO)
-  ============================ */
-  function updateParam(key: string, value: number | boolean) {
-    setParams(prev => ({
-      ...prev,
-      [key]: value,
-    }));
-  }
-
-  /* ============================
-     Gerar preview
-  ============================ */
-  async function gerarPreview() {
+  async function gerarSTL() {
     setLoading(true);
     setError(null);
 
     try {
+      // obter sessão
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error('Precisas de estar autenticado para gerar STL.');
+      }
+
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
-          design_id: produto.id,
-          params,
+          id: produto.id,
+          params: values,
         }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Erro ${res.status}`);
+      /*
+        ✅ CORREÇÃO CRÍTICA E FINAL
+        Só tentamos ler JSON se o backend declará-lo explicitamente.
+      */
+      const contentType = res.headers.get('content-type') || '';
+
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(text || 'Resposta inesperada do backend.');
       }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-    } catch (e) {
-      console.error(e);
-      setError('Erro ao gerar preview');
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || 'Erro ao gerar STL.');
+      }
+
+      if (!json.url) {
+        throw new Error('Backend não devolveu URL do STL.');
+      }
+
+      // ✅ URL temporário para visualização
+      setStlUrl(json.url);
+    } catch (err: any) {
+      setError(err.message || 'Erro inesperado.');
     } finally {
       setLoading(false);
     }
   }
 
-  /* ============================
-     Render
-  ============================ */
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-      {/* Configuração */}
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">{produto.nome}</h1>
-          <p className="text-sm opacity-70 mt-1">
-            Configure as dimensões e opções antes de gerar o ficheiro STL.
-          </p>
-        </div>
-
-        {Object.entries(produto.generation_schema.params).map(
-          ([key, schema]) => (
-            <div key={key} className="space-y-2">
-              <label className="text-sm font-medium block">
-                {schema.label}
-              </label>
-
-              {schema.tipo === 'number' && (
-                <input
-                  type="range"
-                  min={schema.min}
-                  max={schema.max}
-                  step={schema.step ?? 1}
-                  value={params[key] as number}
-                  onChange={e =>
-                    updateParam(key, Number(e.target.value))
-                  }
-                  className="w-full"
-                />
-              )}
-
-              {schema.tipo === 'boolean' && (
-                <input
-                  type="checkbox"
-                  checked={params[key] as boolean}
-                  onChange={e =>
-                    updateParam(key, e.target.checked)
-                  }
-                />
-              )}
-
-              <div className="text-xs opacity-60">
-                Valor: {String(params[key])}
-              </div>
-            </div>
-          )
-        )}
-
-        <button
-          type="button"
-          onClick={gerarPreview}
-          disabled={loading}
-          className="w-full bg-white text-black font-semibold py-2 rounded disabled:opacity-50"
-        >
-          {loading ? 'A gerar preview…' : 'Gerar STL'}
-        </button>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '380px 1fr',
+        gap: 32,
+        alignItems: 'start',
+      }}
+    >
+      {/* COLUNA ESQUERDA — PARÂMETROS */}
+      <div>
+        <GeneratedEditor
+          schema={schema}
+          values={values}
+          onChange={setValues}
+        />
 
         {error && (
-          <div className="text-red-500 text-sm">
+          <p style={{ color: '#f87171', marginTop: 12 }}>
             {error}
-          </div>
+          </p>
         )}
+
+        <div style={{ marginTop: 24 }}>
+          <button
+            onClick={gerarSTL}
+            disabled={loading}
+            style={{
+              padding: '10px 18px',
+              borderRadius: 8,
+              border: '1px solid #3b82f6',
+              background: loading ? '#020617' : '#000',
+              color: '#3b82f6',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {loading ? 'A gerar…' : 'Gerar STL'}
+          </button>
+        </div>
       </div>
 
-      {/* Preview */}
-      <div className="flex items-center justify-center bg-neutral-900 rounded-lg min-h-[320px]">
-        {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt="Preview STL"
-            className="max-w-full max-h-full object-contain"
+      {/* COLUNA DIREITA — STL VIEWER */}
+      <div
+        style={{
+          height: 480,
+          border: '1px dashed #334155',
+          borderRadius: 12,
+          background: '#020617',
+        }}
+      >
+        
+      {stlUrl ? (
+        <>
+          <STLViewer
+            stlUrl={stlUrl}
+            state={loading ? 'generating' : 'ready'}
           />
-        ) : (
-          <div className="text-sm opacity-50">
-            Preview aparecerá aqui
+
+          <div style={{ marginTop: 16 }}>
+            <DownloadStlButton
+              designId={produto.id}
+              params={values}
+              disabled={loading}
+            />
           </div>
-        )}
+        </>
+      ) : (
+        <p>Gere o STL para visualizar o modelo</p>
+      )}
+
       </div>
     </div>
   );
