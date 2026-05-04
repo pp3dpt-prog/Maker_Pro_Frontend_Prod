@@ -1,163 +1,165 @@
 'use client';
 
 import { useState } from 'react';
-import GeneratedEditor from '@/components/GeneratedEditor';
+import Preview3D from './Preview3D';
 import STLViewer from '@/components/STLViewer';
-import { createClient } from '@/lib/supabase/client';
-import DownloadStlButton from '@/components/DownloadStlButton';
 
-type Produto = {
-  id: string;
-  nome: string;
-  generation_schema: any;
-};
+type ViewerState = 'idle' | 'generating' | 'ready';
 
+/**
+ * Props típicas recebidas da página:
+ * - design.id
+ * - valores iniciais vindos do generation_schema
+ */
 type Props = {
-  produto: Produto;
+  designId: string;
+  initialParams: Record<string, any>;
 };
 
-export default function CustomizadorClient({ produto }: Props) {
-  const supabase = createClient();
-  const schema = produto.generation_schema;
+export default function CustomizadorClient({ designId, initialParams }: Props) {
+  // ============================
+  // STATE
+  // ============================
+  const [params, setParams] = useState<Record<string, any>>(initialParams);
+  const [viewerState, setViewerState] = useState<ViewerState>('idle');
+  const [stlUrl, setStlUrl] = useState<string | undefined>(undefined);
 
-  const [values, setValues] = useState<Record<string, any>>(() => {
-    const init: Record<string, any> = {};
-    Object.entries(schema.parameters).forEach(([k, def]: any) => {
-      init[k] = def.default;
-    });
-    return init;
-  });
+  // ============================
+  // HANDLERS
+  // ============================
+  function updateParam(key: string, value: any) {
+    setParams(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  }
 
-  const [loading, setLoading] = useState(false);
-  const [stlUrl, setStlUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function gerarSTL() {
-    setLoading(true);
-    setError(null);
-
+  async function gerarPreviewSTL() {
     try {
-      // obter sessão
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        throw new Error('Precisas de estar autenticado para gerar STL.');
-      }
+      setViewerState('generating');
+      setStlUrl(undefined);
 
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          design_id: produto.id,
-          params: values,
+          id: designId,
+          params,
         }),
       });
 
-      /*
-        ✅ CORREÇÃO CRÍTICA E FINAL
-        Só tentamos ler JSON se o backend declará-lo explicitamente.
-      */
-      const contentType = res.headers.get('content-type') || '';
-
-      if (!contentType.includes('application/json')) {
-        const text = await res.text();
-        throw new Error(text || 'Resposta inesperada do backend.');
-      }
-
-      const json = await res.json();
-
       if (!res.ok) {
-        throw new Error(json.error || 'Erro ao gerar STL.');
+        const err = await res.text();
+        console.error(err);
+        setViewerState('idle');
+        return;
       }
 
-      if (!json.url) {
-        throw new Error('Backend não devolveu URL do STL.');
-      }
+      // ✅ CRÍTICO: tratar como BINÁRIO
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
 
-      // ✅ URL temporário para visualização
-      setStlUrl(json.url);
-    } catch (err: any) {
-      setError(err.message || 'Erro inesperado.');
-    } finally {
-      setLoading(false);
+      setStlUrl(url);
+      setViewerState('ready');
+    } catch (e) {
+      console.error(e);
+      setViewerState('idle');
     }
   }
 
+  // ============================
+  // UI
+  // ============================
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '380px 1fr',
-        gap: 32,
-        alignItems: 'start',
-      }}
-    >
-      {/* COLUNA ESQUERDA — PARÂMETROS */}
-      <div>
-        <GeneratedEditor
-          schema={schema}
-          values={values}
-          onChange={setValues}
-        />
-
-        {error && (
-          <p style={{ color: '#f87171', marginTop: 12 }}>
-            {error}
-          </p>
-        )}
-
-        <div style={{ marginTop: 24 }}>
-          <button
-            onClick={gerarSTL}
-            disabled={loading}
-            style={{
-              padding: '10px 18px',
-              borderRadius: 8,
-              border: '1px solid #3b82f6',
-              background: loading ? '#020617' : '#000',
-              color: '#3b82f6',
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading ? 'A gerar…' : 'Gerar STL'}
-          </button>
-        </div>
-      </div>
-
-      {/* COLUNA DIREITA — STL VIEWER */}
-      <div
-        style={{
-          height: 480,
-          border: '1px dashed #334155',
-          borderRadius: 12,
-          background: '#020617',
-        }}
-      >
-        
-      {stlUrl ? (
-        <>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 24 }}>
+      {/* ===================== */}
+      {/* VISUALIZAÇÃO 3D       */}
+      {/* ===================== */}
+      <div style={{ height: 450 }}>
+        {stlUrl ? (
           <STLViewer
             stlUrl={stlUrl}
-            state={loading ? 'generating' : 'ready'}
+            state={viewerState}
+            schema={{ grid: true, autoFrame: true }}
           />
+        ) : (
+          <Preview3D
+            largura={params.largura}
+            comprimento={params.comprimento}
+            altura={params.altura}
+            espessura={params.espessura}
+          />
+        )}
+      </div>
 
-          <div style={{ marginTop: 16 }}>
-            <DownloadStlButton
-              designId={produto.id}
-              params={values}
-              disabled={loading}
-            />
-          </div>
-        </>
-      ) : (
-        <p>Gere o STL para visualizar o modelo</p>
-      )}
+      {/* ===================== */}
+      {/* CONTROLOS             */}
+      {/* ===================== */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Exemplo de sliders */}
+        <label>
+          Largura
+          <input
+            type="range"
+            min={10}
+            max={200}
+            step={1}
+            value={params.largura}
+            onChange={e => updateParam('largura', Number(e.target.value))}
+          />
+        </label>
 
+        <label>
+          Comprimento
+          <input
+            type="range"
+            min={10}
+            max={300}
+            step={1}
+            value={params.comprimento}
+            onChange={e =>
+              updateParam('comprimento', Number(e.target.value))
+            }
+          />
+        </label>
+
+        <label>
+          Altura
+          <input
+            type="range"
+            min={5}
+            max={150}
+            step={1}
+            value={params.altura}
+            onChange={e => updateParam('altura', Number(e.target.value))}
+          />
+        </label>
+
+        <label>
+          Espessura
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={0.5}
+            value={params.espessura}
+            onChange={e => updateParam('espessura', Number(e.target.value))}
+          />
+        </label>
+
+        <button
+          onClick={gerarPreviewSTL}
+          disabled={viewerState === 'generating'}
+          style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            fontWeight: 'bold',
+          }}
+        >
+          {viewerState === 'generating' ? 'A gerar STL…' : 'Gerar STL'}
+        </button>
       </div>
     </div>
   );
