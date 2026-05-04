@@ -4,15 +4,20 @@ export const runtime = 'nodejs';
 
 /**
  * GET defensivo
+ * Evita que o browser faça GET por engano
  */
 export function GET() {
-  return new Response('This endpoint requires POST', { status: 405 });
+  return new Response(
+    'This endpoint requires POST',
+    { status: 405 }
+  );
 }
 
 /**
- * POST – Gerar PREVIEW
- * Faz proxy para o backend, corrigindo o contrato:
- * id (frontend) -> design_id (backend)
+ * POST – Gerar PREVIEW (proxy)
+ * - aceita payload genérico do frontend
+ * - traduz contrato para o backend
+ * - devolve PNG binário (sem streaming)
  */
 export async function POST(req: NextRequest) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -24,41 +29,51 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ✅ Ler JSON corretamente
+  // ✅ Ler JSON corretamente (em vez de text)
   const body = await req.json();
-  const auth = req.headers.get('authorization');
 
-  
-  // aceitar contrato genérico
+  // ✅ Contrato genérico e escalável
   const designId = body.design_id ?? body.id;
+  const params = body.params;
 
-  if (!designId || !body.params) {
-    return new Response('INVALID_REQUEST', { status: 400 });
+  if (!designId || !params) {
+    return new Response(
+      'INVALID_REQUEST',
+      { status: 400 }
+    );
   }
 
-  const backendPayload = {
-    design_id: designId,
-    params: body.params,
-  };
-
-
-  const res = await fetch(
+  // ✅ Pedido ao backend real
+  const backendRes = await fetch(
     backendUrl + '/api/preview',
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(auth ? { Authorization: auth } : {}),
       },
-      body: JSON.stringify(backendPayload),
+      body: JSON.stringify({
+        design_id: designId,
+        params,
+      }),
     }
   );
 
-  return new Response(res.body, {
-    status: res.status,
+  // ✅ Se backend falhar, propagar erro claro
+  if (!backendRes.ok) {
+    const text = await backendRes.text();
+    return new Response(text, {
+      status: backendRes.status,
+    });
+  }
+
+  // ✅ LER O BINÁRIO COMPLETO (NÃO STREAMAR)
+  const buffer = await backendRes.arrayBuffer();
+
+  return new Response(buffer, {
+    status: 200,
     headers: {
-      'Content-Type':
-        res.headers.get('content-type') ?? 'image/png',
+      'Content-Type': 'image/png',
+      'Cache-Control': 'no-store',
     },
   });
 }
