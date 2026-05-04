@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { notFound, redirect } from 'next/navigation';
 import PageInner from './PageInner';
 
-// ✅ ISTO É A CHAVE
 export const dynamic = 'force-dynamic';
 
 export default async function Page({
@@ -11,8 +11,9 @@ export default async function Page({
 }) {
   const designId = searchParams.id;
 
+  // ✅ Caso esperado → redirect ou 404
   if (!designId) {
-    throw new Error('DESIGN_ID_MISSING');
+    redirect('/produtos'); // ou notFound()
   }
 
   const supabase = createClient(
@@ -27,9 +28,8 @@ export default async function Page({
     .single();
 
   if (error || !produto) {
-    throw new Error('DESIGN_NOT_FOUND');
+    notFound();
   }
 
   return <PageInner produto={produto} />;
 }
-``
