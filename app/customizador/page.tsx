@@ -1,11 +1,31 @@
-'use client';
+import { createClient } from '@supabase/supabase-js';
+import PageInner from './PageInner';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: { id?: string };
+}) {
+  const designId = searchParams.id;
 
-import PageInner from 'app/customizador/PageInner';
+  if (!designId) {
+    throw new Error('DESIGN_ID_MISSING');
+  }
 
-export default function Page() {
-  return <PageInner />;
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: produto, error } = await supabase
+    .from('prod_designs')
+    .select('id, parametros_default')
+    .eq('id', designId)
+    .single();
+
+  if (error || !produto) {
+    throw new Error('DESIGN_NOT_FOUND');
+  }
+
+  return <PageInner produto={produto} />;
 }
-``
