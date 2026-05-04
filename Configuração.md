@@ -617,3 +617,207 @@ Anti‑duplo clique
 
 
 📌 Este documento representa o estado real do sistema após as correções técnicas de 03‑05‑2026. Qualquer evolução futura deve partir deste baseline, sem regressões.
+
+
+Maker Pro — Configuração do Projeto
+
+Estado consolidado após decisões técnicas de 03‑05‑2026
+Esta versão do documento substitui e clarifica pressupostos anteriores, à luz do comportamento real do OpenSCAD em ambiente cloud (headless).
+
+
+
+
+1. Visão do Produto
+O Maker Pro é uma plataforma de criação de objetos paramétricos para impressão 3D, organizada por Famílias e Modelos.
+O utilizador:
+
+escolhe um modelo
+configura parâmetros definidos na base de dados
+visualiza o modelo em 3D
+descarrega STL(s) finais mediante créditos
+🔑 Artefacto central do sistema: STL
+Não existem imagens renderizadas no backend.
+
+
+2. Conceitos Fundamentais
+2.1 Família
+Agrupamento lógico de modelos com propósito semelhante:
+
+Caixas
+Peças mecânicas
+Vasos
+Pet tags
+Artístico / Hueforge
+2.2 Modelo (Design)
+Cada modelo corresponde a uma peça física concreta e contém:
+
+id (slug ou identificador único)
+scad_template (OpenSCAD completo)
+generation_schema (contrato único do UI)
+credit_cost
+
+
+3. Decisão Arquitetural Crítica
+❌ Renderização de Imagens no Backend
+Foi explicitamente abandonada a geração de imagens PNG no backend com OpenSCAD.
+Justificação técnica confirmada:
+
+O OpenSCAD disponível em servidores (Render) é headless
+A exportação para PNG requer OpenGL / X server
+Flags como --render não eliminam essa dependência
+Isto causa erros do tipo: Unable to open a connection to the X server
+👉 Manter PNG no backend não é viável sem Docker custom ou X virtual.
+✅ Decisão final:
+
+O backend gera apenas STL. A visualização é feita no frontend.
+
+
+
+
+4. Artefacto Único: STL
+4.1 Porquê STL
+
+Não depende de OpenGL
+Gerado apenas com CGAL (CPU)
+Funciona em qualquer servidor
+É o formato final real do utilizador
+Permite visualização 3D rica no browser
+O mesmo ficheiro serve para:
+
+preview
+validação
+download final
+
+
+5. Backend de Geração
+5.1 Stack
+
+Node.js + Express
+OpenSCAD executado via spawn
+Runtime forçado: nodejs
+5.2 Pipeline de Geração
+
+Receber design_id + params
+Buscar scad_template na BD
+Injectar parâmetros
+Gerar ficheiro .scad temporário
+Executar:
+openscad -o output.stl file.scad
+
+
+
+Devolver STL
+❗ O OpenSCAD não gera imagens neste pipeline.
+
+
+6. OpenSCAD Template (Contrato)
+6.1 Estrutura Esperada
+module corpo_caixa() { ... }
+module tampa_caixa() { ... }
+
+
+6.2 Regras Fixas
+
+Eixo Z é sempre altura
+Origem em (0,0,0)
+Caixa abre em +Z
+Tampa entra em −Z
+STL(s) separados
+
+
+7. API — /api/gerar-stl-pro
+Função
+Geração não definitiva de STL para preview
+Input
+{
+  "id": "design_id",
+  "params": { ... }
+}
+
+
+Output
+
+STL binário
+URL interna ou blob temporário
+❌ Não desconta créditos
+✅ Usado apenas para visualização
+
+
+8. Frontend
+8.1 Papel
+O frontend é responsável por:
+
+Renderizar UI baseada em schema
+Gerir estado dos parâmetros
+Pedir STL de preview
+Visualizar STL
+Iniciar download
+Não executa lógica de negócio.
+
+
+9. Editor Paramétrico
+9.1 generation_schema
+É o contrato único do sistema.
+Contém:
+
+label
+tipo de controlo (slider, checkbox)
+min / max / step
+default
+unit
+order
+Não existe ui_schema separado.
+
+
+10. STLViewer (Frontend)
+Função
+Visualizar STL gerado pelo backend.
+Tecnologias
+
+three.js / react-three-fiber
+STLLoader
+Regras Importantes
+
+Z‑up (camera.up.set(0,0,1))
+Não recentrar automaticamente
+Preservar relação caixa+tampa
+Este viewer substitui completamente qualquer preview PNG.
+
+
+11. Download Final
+/api/download-stl
+
+Valida autenticação
+Verifica créditos
+Gera STL(s) finais
+Debita créditos
+Devolve STL ou ZIP
+Regras
+
+tem_tampa = false → 1 STL
+tem_tampa = true → ZIP (caixa + tampa)
+
+
+12. Separação Estrutural Obrigatória
+
+/api/gerar-stl-pro → preview STL (sem custo)
+/api/download-stl → download final (com custo)
+Estas rotas não devem ser fundidas.
+
+
+13. Conclusões Essenciais
+✅ O sistema está correto ✅ O SCAD está correto ✅ O schema é suficiente ✅ STL é o artefacto certo ✅ Viewer no frontend é a solução adequada
+❌ OpenSCAD não deve gerar imagens em cloud
+
+
+14. Próximos Passos (não técnicos)
+
+Melhorias UX do viewer
+Medidas e anotações
+Tooltips a partir do schema
+Condições de visibilidade
+Histórico de downloads
+
+
+📌 Este documento representa o baseline técnico definitivo. Qualquer evolução futura deve respeitar esta arquitetura, evitando regressões.
+Última atualização: 03‑05‑2026
