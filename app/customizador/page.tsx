@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import PageInner from './PageInner';
 
+// ✅ ISTO É A CHAVE
+export const dynamic = 'force-dynamic';
+
 export default async function Page({
   searchParams,
 }: {
@@ -29,3 +32,4 @@ export default async function Page({
 
   return <PageInner produto={produto} />;
 }
+``
