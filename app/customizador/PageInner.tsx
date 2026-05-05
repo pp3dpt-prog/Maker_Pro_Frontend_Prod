@@ -1,7 +1,15 @@
+'use client';
 
 import CustomizadorClient from './CustomizadorClient';
 
-export default function PageInner({ produto }: { produto: any }) {
+type Props = {
+  produto: {
+    id: string;
+    parametros_default: Record<string, any>;
+  };
+};
+
+export default function PageInner({ produto }: Props) {
   return (
     <main>
       <CustomizadorClient
