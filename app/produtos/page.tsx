@@ -19,10 +19,6 @@ function FamilyCard({
 
   const principal = produtos[0];
 
-  const href = `/customizador?id=${encodeURIComponent(
-    String(principal.id)
-  )}&familia=${encodeURIComponent(familia)}`;
-
   return (
     <section style={{ marginBottom: 32 }}>
       <h3>{familia}</h3>
@@ -30,11 +26,20 @@ function FamilyCard({
       <p>
         Produtos configuráveis em tempo real com parâmetros ajustáveis.
         <br />
-        {produtos.length} modelos
+        {produtos.length} modelos disponíveis
       </p>
 
-      {/* ✅ LINK CORRETO E DIRETO */}
-      <Link href={href} className="btn-primary">
+      {/* ✅ FORMA CERTA: href como objeto */}
+      <Link
+        href={{
+          pathname: '/customizador',
+          query: {
+            id: String(principal.id),
+            familia,
+          },
+        }}
+        className="btn-primary"
+      >
         Personalizar →
       </Link>
     </section>
