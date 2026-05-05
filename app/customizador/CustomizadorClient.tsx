@@ -8,7 +8,7 @@ type ViewerState = 'idle' | 'generating' | 'ready';
 
 type Props = {
   designId: string;
-  initialParams: Record<string, number | boolean | string>;
+  initialParams?: Record<string, number | boolean | string>;
 };
 
 export default function CustomizadorClient({
@@ -16,7 +16,12 @@ export default function CustomizadorClient({
   initialParams,
 }: Props) {
   // ✅ Estado corretamente tipado
-  const [params, setParams] = useState<Record<string, any>>(initialParams);
+  const [params, setParams] = useState<Record<string, any>>(initialParams ?? {
+    largura: 100,
+    comprimento: 150,
+    altura: 50,
+    espessura: 5,
+  });
   const [viewerState, setViewerState] = useState<ViewerState>('idle');
   const [stlUrl, setStlUrl] = useState<string | undefined>(undefined);
 
