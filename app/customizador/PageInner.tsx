@@ -5,43 +5,46 @@ import { useState } from 'react';
 import CustomizadorClient from './CustomizadorClient';
 import styles from './ConfiguratorLayout.module.css';
 
-
 export default function PageInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
 
-  const [configOpen, setConfigOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   if (!id) {
-    return <main style={{ padding: 40 }}>Produto inválido</main>;
+    return (
+      <main className={styles.invalid}>
+        Produto inválido
+      </main>
+    );
   }
 
   return (
     <main className={styles.root}>
       {/* Painel desktop */}
-      <aside className="config-panel">
+      <aside className={styles.panel}>
         <ConfigPanel />
       </aside>
 
       {/* Área 3D */}
-      <section className="viewer-area">
+      <section className={styles.viewer}>
         <CustomizadorClient designId={id} />
 
         {/* Botão mobile */}
         <button
-          className="mobile-config-btn"
-          onClick={() => setConfigOpen(true)}
+          className={styles.mobileBtn}
+          onClick={() => setMobileOpen(true)}
         >
           Configurar
         </button>
       </section>
 
       {/* Drawer mobile */}
-      {configOpen && (
-        <div className="mobile-drawer">
+      {mobileOpen && (
+        <div className={styles.mobileDrawer}>
           <button
-            className="close-btn"
-            onClick={() => setConfigOpen(false)}
+            className={styles.closeBtn}
+            onClick={() => setMobileOpen(false)}
           >
             Fechar
           </button>
@@ -52,27 +55,33 @@ export default function PageInner() {
   );
 }
 
+/* Painel de configuração reutilizável */
 function ConfigPanel() {
   return (
     <>
-      <h3>Configuração</h3>
+      <h3 className={styles.title}>Configuração</h3>
 
-      <label>
+      <label className={styles.label}>
         Largura
         <input type="range" />
       </label>
 
-      <label>
+      <label className={styles.label}>
+        Comprimento
+        <input type="range" />
+      </label>
+
+      <label className={styles.label}>
         Altura
         <input type="range" />
       </label>
 
-      <label>
+      <label className={styles.label}>
         Espessura
         <input type="range" />
       </label>
 
-      <button className="primary-btn">
+      <button className={styles.primaryBtn}>
         Gerar STL
       </button>
     </>
