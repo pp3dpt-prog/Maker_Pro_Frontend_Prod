@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { redirect, notFound } from 'next/navigation';
 import PageInner from './PageInner';
 
 export const dynamic = 'force-dynamic';
@@ -11,8 +10,13 @@ export default async function Page({
 }) {
   const designId = searchParams.id;
 
+  // ✅ SEM id → mostrar erro explícito
   if (!designId) {
-    redirect('/produtos');
+    return (
+      <main style={{ padding: 40, color: '#94a3b8' }}>
+        Produto inválido.
+      </main>
+    );
   }
 
   const supabase = createClient(
@@ -26,9 +30,15 @@ export default async function Page({
     .eq('id', designId)
     .single();
 
+  // ✅ ID existe mas produto não foi encontrado
   if (error || !produto) {
-    notFound();
+    return (
+      <main style={{ padding: 40, color: '#94a3b8' }}>
+        Produto não encontrado.
+      </main>
+    );
   }
 
+  // ✅ CASO NORMAL
   return <PageInner produto={produto} />;
 }
