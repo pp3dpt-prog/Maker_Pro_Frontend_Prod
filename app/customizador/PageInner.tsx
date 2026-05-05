@@ -1,21 +1,15 @@
 'use client';
 
-import CustomizadorClient from './CustomizadorClient';
+import { useSearchParams } from 'next/navigation';
 
-type Props = {
-  produto: {
-    id: string;
-    parametros_default: Record<string, any>;
-  };
-};
+export default function PageInner() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
-export default function PageInner({ produto }: Props) {
   return (
-    <main>
-      <CustomizadorClient
-        designId={produto.id}
-        initialParams={produto.parametros_default}
-      />
+    <main style={{ padding: 40 }}>
+      ✅ Customizador aberto <br />
+      ID: {id ?? 'nenhum'}
     </main>
   );
 }
