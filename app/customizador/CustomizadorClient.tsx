@@ -2,10 +2,11 @@
 
 import Preview3D from './Preview3D';
 import STLViewer from '@/components/STLViewer';
+import LoadingViewer from './LoadingViewer';
 
 type Props = {
   designId: string;
-  mode: 'preview' | 'stl';
+  mode: 'preview' | 'stl' | 'generating';
   params: Record<string, any>;
   stlUrl?: string | null;
 };
@@ -22,6 +23,10 @@ export default function CustomizadorClient({
         <Preview3D
           params={params}
         />
+      )}
+
+      {mode === 'generating' && (
+        <LoadingViewer />
       )}
 
       {mode === 'stl' && stlUrl && (

@@ -54,10 +54,24 @@ export default async function Page() {
       {/* Renderizar por família */}
       {Object.entries(familias).map(([familia, designs]) => (
         <section key={familia} style={{ marginBottom: 50 }}>
-          <h2 style={{ marginBottom: 10 }}>{familia}</h2>
-          <p style={{ marginBottom: 20, color: '#888' }}>
-            {designs.length} modelo{designs.length !== 1 ? 's' : ''} disponível{designs.length !== 1 ? 's' : ''}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <h2 style={{ marginBottom: 5 }}>{familia}</h2>
+              <p style={{ color: '#888', fontSize: '14px', margin: 0 }}>
+                <strong>{designs.length}</strong> design{designs.length !== 1 ? 's' : ''} disponível{designs.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div style={{ 
+              background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              {designs.length} modelos
+            </div>
+          </div>
 
           {/* Grid de DesignCard */}
           <div style={{

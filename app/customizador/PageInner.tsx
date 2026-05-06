@@ -25,7 +25,7 @@ export default function PageInner() {
   // ------------------------------
   const [design, setDesign] = useState<Design | null>(null);
   const [params, setParams] = useState<Record<string, any> | null>(null);
-  const [mode, setMode] = useState<'preview' | 'stl'>('preview');
+  const [mode, setMode] = useState<'preview' | 'stl' | 'generating'>('preview');
   const [stlUrl, setStlUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,14 +74,20 @@ export default function PageInner() {
   // ------------------------------
   const handleParamsChange = (newParams: Record<string, any>) => {
     setParams(newParams);
-    // Sempre que mexe nos parâmetros, volta ao preview
-    setMode('preview');
+    // Se estava vendo STL, volta ao preview quando mexe nos parâmetros
+    if (mode === 'stl') {
+      setMode('preview');
+      setStlUrl(null);
+    }
   };
 
   const gerarSTL = async () => {
     if (!params || !designId) return;
 
     try {
+      // Muda para estado "generating" e mostra animação de loading
+      setMode('generating');
+
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,6 +107,7 @@ export default function PageInner() {
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Erro ao gerar STL');
+      setMode('preview');
     }
   };
 
@@ -139,8 +146,17 @@ export default function PageInner() {
           onChange={handleParamsChange}
         />
 
-        <button className={styles.primaryBtn} onClick={gerarSTL}>
-          Gerar STL
+        <button 
+          className={styles.primaryBtn} 
+          onClick={gerarSTL}
+          disabled={mode === 'generating'}
+          style={{
+            opacity: mode === 'generating' ? 0.6 : 1,
+            cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {mode === 'generating' ? 'Gerando STL...' : 'Gerar STL'}
         </button>
       </aside>
 
