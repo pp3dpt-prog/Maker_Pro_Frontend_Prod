@@ -1,56 +1,46 @@
 'use client';
 
-/**
- * ATENÇÃO IMPORTANTE
- * ------------------
- * Este componente:
- *  ✅ NÃO tem sliders
- *  ✅ NÃO tem botões
- *  ✅ NÃO tem texto
- *  ✅ NÃO tem layout
- *
- * Ele existe APENAS para:
- *  - Renderizar o preview 3D
- *  - Renderizar o STL viewer
- *  - Conter lógica 3D / geração STL
- *
- * TODA a UI (sliders, botões, labels)
- * pertence ao PageInner.tsx
- */
+import Preview3D from './Preview3D';
+import STLViewer from '@/components/STLViewer';
+
+type Params = {
+  largura: number;
+  comprimento: number;
+  altura: number;
+  espessura: number;
+};
 
 type Props = {
   designId: string;
+  mode: 'preview' | 'stl';
+  params: Params;
+  stlUrl?: string | null;
 };
 
-export default function CustomizadorClient({ designId }: Props) {
+export default function CustomizadorClient({
+  designId,
+  mode,
+  params,
+  stlUrl,
+}: Props) {
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      {/* ✅ AQUI ENTRA APENAS O 3D */}
+    <div style={{ width: '100%', height: '100%' }}>
+      {mode === 'preview' && (
+        <Preview3D
+          largura={params.largura}
+          comprimento={params.comprimento}
+          altura={params.altura}
+          espessura={params.espessura}
+        />
+      )}
 
-      {/* Exemplo (quando ligares o teu código real):
-          <Preview3D designId={designId} />
-          ou
-          <STLViewer url={...} />
-      */}
-
-      {/* TEMPORÁRIO (opcional, podes remover):
-      <div
-        style={{
-          position: 'absolute',
-          top: 16,
-          left: 16,
-          fontSize: 12,
-          opacity: 0.5,
-        }}
-      >
-        Design ID: {designId}
-      </div>
-      */}
+      {mode === 'stl' && stlUrl && (
+        <STLViewer
+          stlUrl={stlUrl}
+          state="ready"
+          schema={{ grid: true }}
+        />
+      )}
     </div>
   );
 }

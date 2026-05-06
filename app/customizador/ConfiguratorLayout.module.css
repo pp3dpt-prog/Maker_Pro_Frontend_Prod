@@ -84,3 +84,29 @@
     display: block;
   }
 }
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.controlHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.selectRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selectRow select {
+  background: #020617;
+  border: 1px solid #1f2937;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: white;
+}
