@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import DesignCard from '@/components/cards/DesignCard';
+import FamilyCard from '@/components/cards/FamilyCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,12 @@ type Design = {
   preco_creditos: number;
   tags?: string[];
   thumbnail_url?: string;
+};
+
+type FamilyInfo = {
+  count: number;
+  thumbnail_url?: string;
+  designs: Design[];
 };
 
 export default async function Page() {
@@ -34,67 +40,58 @@ export default async function Page() {
   const designs = (data ?? []) as Design[];
 
   // Agrupar designs por família
-  const familias = designs.reduce<Record<string, Design[]>>(
+  const familias = designs.reduce<Record<string, FamilyInfo>>(
     (acc, design) => {
       const familia = design.familia ?? 'geral';
-      if (!acc[familia]) acc[familia] = [];
-      acc[familia].push(design);
+      if (!acc[familia]) {
+        acc[familia] = {
+          count: 0,
+          thumbnail_url: design.thumbnail_url, // Usar thumbnail do primeiro design
+          designs: [],
+        };
+      }
+      acc[familia].count++;
+      acc[familia].designs.push(design);
       return acc;
     },
     {}
   );
 
   return (
-    <main style={{ padding: 40 }}>
-      <h1>Catálogo MakerPro</h1>
-      <p style={{ marginBottom: 40, color: '#888' }}>
-        Explore a nossa coleção de designs paramétricos para impressão 3D.
-      </p>
+    <main className="bg-slate-950 min-h-screen">
+      <div style={{ padding: '60px 40px' }}>
+        <h1 className="text-4xl font-bold text-white mb-4">
+          Catálogo MakerPro
+        </h1>
+        <p className="text-slate-400 text-lg mb-12 max-w-2xl">
+          Explore as nossas famílias de designs paramétricos para impressão 3D. 
+          Escolha uma família para descobrir todos os modelos disponíveis.
+        </p>
 
-      {/* Renderizar por família */}
-      {Object.entries(familias).map(([familia, designs]) => (
-        <section key={familia} style={{ marginBottom: 50 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ marginBottom: 5 }}>{familia}</h2>
-              <p style={{ color: '#888', fontSize: '14px', margin: 0 }}>
-                <strong>{designs.length}</strong> design{designs.length !== 1 ? 's' : ''} disponível{designs.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <div style={{ 
-              background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}>
-              {designs.length} modelos
-            </div>
-          </div>
-
-          {/* Grid de DesignCard */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 24,
-            marginBottom: 30,
-          }}>
-            {designs.map(design => (
-              <Link
-                key={design.id}
-                href={{
-                  pathname: '/customizador',
-                  query: { id: design.id },
-                }}
-                style={{ textDecoration: 'none' }}
-              >
-                <DesignCard design={design} />
-              </Link>
-            ))}
-          </div>
-        </section>
-      ))}
+        {/* Grid de Famílias */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+          gap: 32,
+        }}>
+          {Object.entries(familias).map(([familia, info]) => (
+            <Link
+              key={familia}
+              href={{
+                pathname: '/familia',
+                query: { name: familia },
+              }}
+              style={{ textDecoration: 'none' }}
+            >
+              <FamilyCard 
+                familia={familia}
+                modelCount={info.count}
+                thumbnail_url={info.thumbnail_url}
+              />
+            </Link>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }
