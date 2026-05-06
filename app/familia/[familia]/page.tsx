@@ -1,10 +1,8 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import DesignCard from '@/components/cards/DesignCard';
+
+export const dynamic = 'force-dynamic';
 
 type Design = {
   id: string;
@@ -16,32 +14,22 @@ type Design = {
   thumbnail_url?: string;
 };
 
-export default function FamilyPage() {
-  const searchParams = useSearchParams();
-  const familyName = searchParams.get('name') || 'Desconhecida';
+type Props = {
+  params: {
+    familia: string;
+  };
+};
+
+export default async function FamilyPage({ params }: Props) {
+  const familyName = decodeURIComponent(params.familia);
+  const supabase = await createClient();
   
-  const [designs, setDesigns] = useState<Design[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, error } = await supabase
+    .from('prod_designs')
+    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url')
+    .eq('familia', familyName);
 
-  useEffect(() => {
-    async function fetchFamilyDesigns() {
-      const supabase = createClient();
-      
-      const { data, error } = await supabase
-        .from('prod_designs')
-        .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url')
-        .eq('familia', familyName);
-
-      if (error) {
-        console.error('Erro ao buscar designs da família:', error);
-      } else {
-        setDesigns(data || []);
-      }
-      setLoading(false);
-    }
-
-    fetchFamilyDesigns();
-  }, [familyName]);
+  const designs = (error ? [] : data || []) as Design[];
 
   // Cores por família
   const familyColors: Record<string, { gradient: string; accent: string }> = {
@@ -93,17 +81,13 @@ export default function FamilyPage() {
               {familyName}
             </h1>
             <p className="text-slate-300">
-              {loading ? 'Carregando...' : `${designs.length} modelo${designs.length !== 1 ? 's' : ''} disponível${designs.length !== 1 ? 's' : ''}`}
+              {`${designs.length} modelo${designs.length !== 1 ? 's' : ''} disponível${designs.length !== 1 ? 's' : ''}`}
             </p>
           </div>
         </div>
 
         {/* Conteúdo */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-slate-400">Carregando designs...</p>
-          </div>
-        ) : designs.length === 0 ? (
+        {designs.length === 0 ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-slate-400">Nenhum design encontrado nesta família.</p>
           </div>

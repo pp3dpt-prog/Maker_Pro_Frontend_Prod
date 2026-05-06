@@ -78,8 +78,7 @@ export default async function Page() {
             <Link
               key={familia}
               href={{
-                pathname: '/familia',
-                query: { name: familia },
+                pathname: `/familia/${encodeURIComponent(familia)}`,
               }}
               style={{ textDecoration: 'none' }}
             >
