@@ -181,39 +181,100 @@ Fonte de dados:
 
 ### 10.3 Catálogo de Produtos (/produtos)
 
-A rota /produtos representa:
-- a lista oficial de designs disponíveis
-- cada design corresponde a um modelo concreto
+A rota /produtos exibe as **famílias** de designs disponíveis.
 
-Cada design possui:
-- nome
-- descrição
-- tags
-- custo em créditos
+Cada família é apresentada como um cartão atraente que mostra:
+- nome da família
+- número de modelos disponíveis
+- imagem representativa
+- cor temática única
 
-Unidade central do sistema: **Design**
+Famílias implementadas:
+- Pet Tags (rosa/coral)
+- Caixas (âmbar/amarelo)
+- Peças Mecânicas (cinzento/grafite)
+- Hueforge / Artístico (roxo/índigo)
+- Vasos (verde/esmeralda)
+
+Cada família é um ponto de entrada para explorar os modelos específicos.
 
 ---
 
-### 10.4 Cartão de Design (DesignCard)
+### 10.3.1 Detalhes de Família (/familia/[familia])
 
-O DesignCard é a representação visual básica de um modelo.
+A rota /familia/[familia] mostra todos os modelos dentro de uma família.
+
+Recebe como parâmetro:
+- familia: nome da família (URL encoded)
+
+Mostra:
+- Todos os designs pertencentes à família
+- Cartões de design (DesignCard) com interface consistente
+- Breadcrumb para voltar ao catálogo
+
+Cada design é um modelo concreto que pode ser:
+- Visualizado em detalhe
+- Customizado no editor paramétrico
+- Adicionado ao carrinho/download
+
+Unidade central do sistema: **Design** (dentro de uma Família)
+
+---
+
+### 10.4 Cartão de Família (FamilyCard)
+
+O FamilyCard é a representação visual de uma família de designs.
+
+Mostra:
+- nome da família
+- número de modelos disponíveis
+- imagem representativa (thumbnail do primeiro design)
+- cor temática consistente
+- descrição breve da família
+- ícone de exploração
+
+Comportamento:
+- Hover: animação de escala e brilho
+- Click: navega para /familia/[familia]
+
+Design atraente com:
+- gradientes de fundo únicos por família
+- efeitos de transição suaves
+- contador de modelos em evidência
+
+---
+
+### 10.5 Cartão de Design (DesignCard)
+
+O DesignCard é a representação visual de um modelo individual.
 
 Mostra:
 - informações essenciais
 - custo
 - identidade do design
+- thumbnail da peça
 
 É a ponte entre catálogo e editor.
 
+Usado em:
+- /familia/[familia] (dentro de uma família)
+- /customizador (na barra lateral)
+
 ---
 
-### 10.5 Entrada no Editor (/customizador)
+### 10.6 Entrada no Editor (/customizador)
 
-A entrada no editor ocorre sempre a partir de um Design.
+A entrada no editor ocorre sempre a partir de um Design específico.
+
+Fluxo de navegação:
+1. Utilizador acede /produtos
+2. Vê as famílias como cartões (FamilyCard)
+3. Clica numa família → vai para /familia/[familia]
+4. Vê todos os designs da família como cartões (DesignCard)
+5. Clica num design → vai para /customizador?id=[design_id]
 
 O editor recebe:
-- design_id
+- design_id (via query param)
 - generation_schema
 - parâmetros iniciais
 
@@ -302,8 +363,91 @@ O download final representa o momento de aquisição do ficheiro STL.
 
 Estas rotas não devem ser misturadas.
 
+---
 
-Configuração do Sistema — Customizador STL
+## 13. Arquitetura de Rotas Frontend (Maio 2026)
+
+### 13.1 Estrutura Hierárquica
+
+```
+/explore                     → Exploração de aplicações
+/produtos                    → Catálogo de famílias (FamilyCard)
+/familia/[familia]           → Modelos de uma família (DesignCard)
+/customizador?id=[id]        → Editor paramétrico
+/dashboard                   → Área de utilizador
+```
+
+---
+
+### 13.2 Componentes de Navegação
+
+**FamilyCard** (`components/cards/FamilyCard.tsx`)
+- Representa uma família
+- Mostra contador de modelos
+- Cores temáticas por família
+- Click → /familia/[familia]
+
+**DesignCard** (`components/cards/DesignCard.tsx`)
+- Representa um modelo individual
+- Mostra preço em créditos
+- Usado em /familia/[familia]
+- Click → /customizador?id=[design_id]
+
+---
+
+### 13.3 Fluxo Completo de Utilização
+
+```
+1. Utilizador acede /produtos
+   └─ Vê: 5 famílias como cartões (FamilyCard)
+
+2. Clica numa família (ex: Pet Tags)
+   └─ Vai para: /familia/Pet%20Tags
+   └─ Vê: Todos os designs dessa família (DesignCard)
+
+3. Clica num design (ex: Tag Redonda)
+   └─ Vai para: /customizador?id=design_123
+   └─ Pode: Configurar parâmetros, ver preview, gerar STL, download
+
+4. Download final
+   └─ Consome créditos
+   └─ Ficheiro guardado em Supabase Storage
+```
+
+---
+
+### 13.4 Estrutura de Dados — Catálogo
+
+```typescript
+// Produtos (/produtos) agrupa por família
+familias = {
+  "Pet Tags": {
+    count: 8,          // número de designs
+    thumbnail_url: "...",
+    designs: [...]
+  },
+  "Caixas": {
+    count: 5,
+    thumbnail_url: "...",
+    designs: [...]
+  },
+  ...
+}
+
+// Família (/familia/[familia]) mostra designs
+designs = [
+  {
+    id: "design_1",
+    nome: "Tag Redonda",
+    descricao: "...",
+    familia: "Pet Tags",
+    preco_creditos: 50,
+    thumbnail_url: "...",
+    tags: ["pet", "tag", "identificador"]
+  },
+  ...
+]
+```
 Versão: 1.0 (estado atual consolidado)
 Última atualização: 2026‑04‑10
 
