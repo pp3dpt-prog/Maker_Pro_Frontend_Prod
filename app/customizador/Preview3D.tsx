@@ -5,22 +5,22 @@ import { OrbitControls, Grid, Environment } from '@react-three/drei';
 import { Suspense } from 'react';
 
 type Preview3DProps = {
-  largura?: number;
-  comprimento?: number;
-  altura?: number;
-  espessura?: number;
+  params: Record<string, any>;
 };
 
 /**
- * Preview paramétrico simples (caixa / sólido)
- * Serve APENAS como visualização rápida.
+ * Preview paramétrico simples
+ * Serve APENAS como visualização rápida de aproximação geométrica.
  */
 export default function Preview3D({
-  largura = 100,
-  comprimento = 120,
-  altura = 60,
-  espessura = 3,
+  params,
 }: Preview3DProps) {
+  // Extrair parâmetros conhecidos com defaults
+  const largura = typeof params.largura === 'number' ? params.largura : 100;
+  const comprimento = typeof params.comprimento === 'number' ? params.comprimento : 120;
+  const altura = typeof params.altura === 'number' ? params.altura : 60;
+  const espessura = typeof params.espessura === 'number' ? params.espessura : 3;
+
   return (
     <Canvas
       camera={{
@@ -96,7 +96,12 @@ function CaixaPreview({
   comprimento,
   altura,
   espessura,
-}: Required<Preview3DProps>) {
+}: {
+  largura: number;
+  comprimento: number;
+  altura: number;
+  espessura: number;
+}) {
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry

@@ -1,73 +1,44 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import DesignCard from '@/components/cards/DesignCard';
 
 export const dynamic = 'force-dynamic';
 
-type Produto = {
-  id: string | number;
-  familia?: string | null;
-};
-
-function FamilyCard({
-  familia,
-  produtos,
-}: {
+type Design = {
+  id: string;
+  nome: string;
+  descricao: string;
   familia: string;
-  produtos: Produto[];
-}) {
-  if (produtos.length === 0) return null;
-
-  const principal = produtos[0];
-
-  return (
-    <section style={{ marginBottom: 32 }}>
-      <h3>{familia}</h3>
-
-      <p>
-        Produtos configuráveis em tempo real com parâmetros ajustáveis.
-        <br />
-        {produtos.length} modelos disponíveis
-      </p>
-
-      {/* ✅ FORMA CERTA: href como objeto */}
-      <Link
-        href={{
-          pathname: '/customizador',
-          query: {
-            id: String(principal.id),
-            familia,
-          },
-        }}
-        className="btn-primary"
-      >
-        Personalizar →
-      </Link>
-    </section>
-  );
-}
+  preco_creditos: number;
+  tags?: string[];
+  thumbnail_url?: string;
+};
 
 export default async function Page() {
   const supabase = await createClient();
 
+  // Carregar designs completos com todos os campos necessários
   const { data, error } = await supabase
     .from('prod_designs')
-    .select('id, familia');
+    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url');
 
   if (error) {
     return (
       <main style={{ padding: 40 }}>
         <h2>Erro ao carregar catálogo</h2>
+        <p>{error.message}</p>
       </main>
     );
   }
 
-  const produtos = (data ?? []) as Produto[];
+  const designs = (data ?? []) as Design[];
 
-  const familias = produtos.reduce<Record<string, Produto[]>>(
-    (acc, item) => {
-      const key = item.familia ?? 'geral';
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
+  // Agrupar designs por família
+  const familias = designs.reduce<Record<string, Design[]>>(
+    (acc, design) => {
+      const familia = design.familia ?? 'geral';
+      if (!acc[familia]) acc[familia] = [];
+      acc[familia].push(design);
       return acc;
     },
     {}
@@ -75,13 +46,40 @@ export default async function Page() {
 
   return (
     <main style={{ padding: 40 }}>
-      <h2>Configurador 3D</h2>
-      <h3>Catálogo MakerPro</h3>
+      <h1>Catálogo MakerPro</h1>
+      <p style={{ marginBottom: 40, color: '#888' }}>
+        Explore a nossa coleção de designs paramétricos para impressão 3D.
+      </p>
 
-      <p>Selecione a família de produtos para iniciar a configuração.</p>
+      {/* Renderizar por família */}
+      {Object.entries(familias).map(([familia, designs]) => (
+        <section key={familia} style={{ marginBottom: 50 }}>
+          <h2 style={{ marginBottom: 10 }}>{familia}</h2>
+          <p style={{ marginBottom: 20, color: '#888' }}>
+            {designs.length} modelo{designs.length !== 1 ? 's' : ''} disponível{designs.length !== 1 ? 's' : ''}
+          </p>
 
-      {Object.entries(familias).map(([nome, items]) => (
-        <FamilyCard key={nome} familia={nome} produtos={items} />
+          {/* Grid de DesignCard */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 24,
+            marginBottom: 30,
+          }}>
+            {designs.map(design => (
+              <Link
+                key={design.id}
+                href={{
+                  pathname: '/customizador',
+                  query: { id: design.id },
+                }}
+                style={{ textDecoration: 'none' }}
+              >
+                <DesignCard design={design} />
+              </Link>
+            ))}
+          </div>
+        </section>
       ))}
     </main>
   );
