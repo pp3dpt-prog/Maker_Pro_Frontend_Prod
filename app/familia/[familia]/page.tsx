@@ -11,13 +11,13 @@ type Design = {
 };
 
 type Props = {
-  params: {
-    familia: string;
-  };
+  params: Promise<{ familia: string }>; // ← Promise no Next.js 15
 };
 
 export default async function FamilyPage({ params }: Props) {
-  const familyName = decodeURIComponent(params.familia);
+  const { familia } = await params; // ← await obrigatório
+  const familyName = decodeURIComponent(familia);
+  
   const supabase = await createClient();
   
   const { data, error } = await supabase
@@ -28,10 +28,9 @@ export default async function FamilyPage({ params }: Props) {
 
   const designs = (error ? [] : data || []) as Design[];
 
-  // Se não houver designs, redireciona para catálogo
   if (designs.length === 0) {
     redirect('/produtos');
   }
 
-  // Redireciona para o customizador com o primeiro design e passa a família
   redirect(`/customizador?id=${designs[0].id}&familia=${encodeURIComponent(familyName)}`);
+}
