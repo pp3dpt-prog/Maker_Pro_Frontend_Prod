@@ -23,30 +23,28 @@ type FamilyInfo = {
 export default async function Page() {
   const supabase = await createClient();
 
-  // Carregar designs completos com todos os campos necessários
   const { data, error } = await supabase
     .from('prod_designs')
     .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url');
 
   if (error) {
     return (
-      <main style={{ padding: 40 }}>
+      <main style={{ padding: 40, color: 'white' }}>
         <h2>Erro ao carregar catálogo</h2>
-        <p>{error.message}</p>
+        <p style={{ color: '#f87171' }}>{error.message}</p>
       </main>
     );
   }
 
   const designs = (data ?? []) as Design[];
 
-  // Agrupar designs por família
   const familias = designs.reduce<Record<string, FamilyInfo>>(
     (acc, design) => {
       const familia = design.familia ?? 'geral';
       if (!acc[familia]) {
         acc[familia] = {
           count: 0,
-          thumbnail_url: design.thumbnail_url, // Usar thumbnail do primeiro design
+          thumbnail_url: design.thumbnail_url,
           designs: [],
         };
       }
@@ -57,39 +55,115 @@ export default async function Page() {
     {}
   );
 
+  const familiaEntries = Object.entries(familias);
+
   return (
-    <main className="bg-slate-950 min-h-screen">
-      <div style={{ padding: '60px 40px' }}>
-        <h1 className="text-4xl font-bold text-white mb-4">
-          Catálogo MakerPro
+    <main style={{ background: '#080c10', minHeight: '100vh' }}>
+      <style>{`
+        .catalog-header {
+          padding: 64px 40px 40px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .catalog-eyebrow {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: #3b82f6;
+          margin-bottom: 14px;
+        }
+        .catalog-title {
+          font-size: clamp(28px, 4vw, 48px);
+          font-weight: 900;
+          color: #f1f5f9;
+          letter-spacing: -0.03em;
+          margin: 0 0 14px;
+          line-height: 1.1;
+        }
+        .catalog-title span {
+          color: #3b82f6;
+        }
+        .catalog-subtitle {
+          font-size: 16px;
+          color: #475569;
+          max-width: 560px;
+          line-height: 1.65;
+          margin: 0;
+        }
+        .catalog-stats {
+          display: flex;
+          gap: 32px;
+          margin-top: 32px;
+          padding-top: 32px;
+          border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .catalog-stat-value {
+          font-size: 28px;
+          font-weight: 900;
+          color: #f1f5f9;
+          letter-spacing: -0.03em;
+          display: block;
+        }
+        .catalog-stat-label {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: #334155;
+        }
+        .catalog-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 24px;
+          padding: 0 40px 80px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        @media (max-width: 640px) {
+          .catalog-header { padding: 40px 20px 32px; }
+          .catalog-grid { padding: 0 20px 60px; gap: 16px; }
+          .catalog-stats { gap: 24px; }
+        }
+      `}</style>
+
+      <div className="catalog-header">
+        <p className="catalog-eyebrow">Catálogo MakerPro</p>
+        <h1 className="catalog-title">
+          Designs para<br />
+          <span>impressão 3D</span>
         </h1>
-        <p className="text-slate-400 text-lg mb-12 max-w-2xl">
-          Explore as nossas famílias de designs paramétricos para impressão 3D. 
-          Escolha uma família para descobrir todos os modelos disponíveis.
+        <p className="catalog-subtitle">
+          Famílias de modelos paramétricos, prontos a personalizar. 
+          Ajusta as medidas, gera o STL e imprime.
         </p>
 
-        {/* Grid de Famílias */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: 32,
-        }}>
-          {Object.entries(familias).map(([familia, info]) => (
-            <Link
-              key={familia}
-              href={{
-                pathname: `/familia/${encodeURIComponent(familia)}`,
-              }}
-              style={{ textDecoration: 'none' }}
-            >
-              <FamilyCard 
-                familia={familia}
-                modelCount={info.count}
-                thumbnail_url={info.thumbnail_url}
-              />
-            </Link>
-          ))}
+        <div className="catalog-stats">
+          <div>
+            <span className="catalog-stat-value">{familiaEntries.length}</span>
+            <span className="catalog-stat-label">Famílias</span>
+          </div>
+          <div>
+            <span className="catalog-stat-value">{designs.length}</span>
+            <span className="catalog-stat-label">Modelos</span>
+          </div>
         </div>
+      </div>
+
+      <div className="catalog-grid">
+        {familiaEntries.map(([familia, info]) => (
+          <Link
+            key={familia}
+            href={`/familia/${encodeURIComponent(familia)}`}
+            style={{ textDecoration: 'none' }}
+          >
+            <FamilyCard
+              familia={familia}
+              modelCount={info.count}
+              thumbnail_url={info.thumbnail_url}
+            />
+          </Link>
+        ))}
       </div>
     </main>
   );
