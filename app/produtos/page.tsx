@@ -12,12 +12,16 @@ type Design = {
   preco_creditos: number;
   tags?: string[];
   thumbnail_url?: string;
+  total_likes: number;
+  total_downloads: number;
 };
 
 type FamilyInfo = {
   count: number;
   thumbnail_url?: string;
-  designs: Design[];
+  totalLikes: number;
+  totalDownloads: number;
+  designIds: string[];
 };
 
 export default async function Page() {
@@ -25,7 +29,7 @@ export default async function Page() {
 
   const { data, error } = await supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url');
+    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url, total_likes, total_downloads');
 
   if (error) {
     return (
@@ -38,6 +42,7 @@ export default async function Page() {
 
   const designs = (data ?? []) as Design[];
 
+  // Agrupa por família e soma likes + downloads
   const familias = designs.reduce<Record<string, FamilyInfo>>(
     (acc, design) => {
       const familia = design.familia ?? 'geral';
@@ -45,17 +50,22 @@ export default async function Page() {
         acc[familia] = {
           count: 0,
           thumbnail_url: design.thumbnail_url,
-          designs: [],
+          totalLikes: 0,
+          totalDownloads: 0,
+          designIds: [],
         };
       }
       acc[familia].count++;
-      acc[familia].designs.push(design);
+      acc[familia].totalLikes += design.total_likes ?? 0;
+      acc[familia].totalDownloads += design.total_downloads ?? 0;
+      acc[familia].designIds.push(design.id);
       return acc;
     },
     {}
   );
 
   const familiaEntries = Object.entries(familias);
+  const totalModelos = designs.length;
 
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
@@ -66,51 +76,32 @@ export default async function Page() {
           margin: 0 auto;
         }
         .catalog-eyebrow {
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: #3b82f6;
-          margin-bottom: 14px;
+          font-size: 11px; font-weight: 800;
+          letter-spacing: 0.18em; text-transform: uppercase;
+          color: #3b82f6; margin-bottom: 14px;
         }
         .catalog-title {
           font-size: clamp(28px, 4vw, 48px);
-          font-weight: 900;
-          color: #f1f5f9;
-          letter-spacing: -0.03em;
-          margin: 0 0 14px;
-          line-height: 1.1;
+          font-weight: 900; color: #f1f5f9;
+          letter-spacing: -0.03em; margin: 0 0 14px; line-height: 1.1;
         }
-        .catalog-title span {
-          color: #3b82f6;
-        }
+        .catalog-title span { color: #3b82f6; }
         .catalog-subtitle {
-          font-size: 16px;
-          color: #475569;
-          max-width: 560px;
-          line-height: 1.65;
-          margin: 0;
+          font-size: 16px; color: #475569;
+          max-width: 560px; line-height: 1.65; margin: 0;
         }
         .catalog-stats {
-          display: flex;
-          gap: 32px;
-          margin-top: 32px;
-          padding-top: 32px;
+          display: flex; gap: 32px;
+          margin-top: 32px; padding-top: 32px;
           border-top: 1px solid rgba(255,255,255,0.05);
         }
         .catalog-stat-value {
-          font-size: 28px;
-          font-weight: 900;
-          color: #f1f5f9;
-          letter-spacing: -0.03em;
-          display: block;
+          font-size: 28px; font-weight: 900; color: #f1f5f9;
+          letter-spacing: -0.03em; display: block;
         }
         .catalog-stat-label {
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          color: #334155;
+          font-size: 11px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.1em; color: #334155;
         }
         .catalog-grid {
           display: grid;
@@ -134,17 +125,16 @@ export default async function Page() {
           <span>impressão 3D</span>
         </h1>
         <p className="catalog-subtitle">
-          Famílias de modelos paramétricos, prontos a personalizar. 
+          Famílias de modelos paramétricos, prontos a personalizar.
           Ajusta as medidas, gera o STL e imprime.
         </p>
-
         <div className="catalog-stats">
           <div>
             <span className="catalog-stat-value">{familiaEntries.length}</span>
             <span className="catalog-stat-label">Famílias</span>
           </div>
           <div>
-            <span className="catalog-stat-value">{designs.length}</span>
+            <span className="catalog-stat-value">{totalModelos}</span>
             <span className="catalog-stat-label">Modelos</span>
           </div>
         </div>
@@ -161,6 +151,9 @@ export default async function Page() {
               familia={familia}
               modelCount={info.count}
               thumbnail_url={info.thumbnail_url}
+              totalLikes={info.totalLikes}
+              totalDownloads={info.totalDownloads}
+              designIds={info.designIds}
             />
           </Link>
         ))}
