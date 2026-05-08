@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import CustomizadorClient from './CustomizadorClient';
 import DownloadStlButton from '@/components/DownloadStlButton';
@@ -50,47 +50,43 @@ export default function PageInner() {
   // AUTH + PERFIL
   // ------------------------------
   useEffect(() => {
-    const supabase = createClient();
+  async function loadAuth() {
+    const { data: { session } } = await supabase.auth.getSession();
 
-    async function loadAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setUserId(session.user.id);
 
-      if (session?.user) {
-        setUserId(session.user.id);
+      const { data: perfil } = await supabase
+        .from('prod_perfis')
+        .select('creditos_disponiveis')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-        const { data: perfil } = await supabase
-          .from('prod_perfis')
-          .select('creditos_disponiveis')
-          .eq('id', session.user.id)
-          .maybeSingle();
-
-        setUserProfile(perfil ?? null);
-      }
-
-      setAuthLoading(false);
+      setUserProfile(perfil ?? null);
     }
 
-    loadAuth();
+    setAuthLoading(false);
+  }
 
-    // Atualizar créditos em tempo real após download
-    const supabaseInstance = supabase;
-    const { data: { subscription } } = supabaseInstance.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setUserId(session.user.id);
-        const { data: perfil } = await supabaseInstance
-          .from('prod_perfis')
-          .select('creditos_disponiveis')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        setUserProfile(perfil ?? null);
-      } else {
-        setUserId(null);
-        setUserProfile(null);
-      }
-    });
+  loadAuth();
 
-    return () => subscription.unsubscribe();
-  }, []);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user) {
+      setUserId(session.user.id);
+      const { data: perfil } = await supabase
+        .from('prod_perfis')
+        .select('creditos_disponiveis')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      setUserProfile(perfil ?? null);
+    } else {
+      setUserId(null);
+      setUserProfile(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
 
   // ------------------------------
   // LOAD DESIGN + SCHEMA

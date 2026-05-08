@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 
 type Props = {
   designId: string;
@@ -29,7 +29,6 @@ export default function DownloadStlButton({
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
 
     try {
       // 1. Validar sessão
