@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import CustomizadorClient from './CustomizadorClient';
+import DownloadStlButton from '@/components/DownloadStlButton';
 import styles from './ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
@@ -14,7 +16,12 @@ type Design = {
   id: string;
   nome: string;
   familia: string;
+  credit_cost: number;
   generation_schema: GenerationSchema;
+};
+
+type UserProfile = {
+  creditos_disponiveis: number;
 };
 
 export default function PageInner() {
@@ -34,8 +41,59 @@ export default function PageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Auth
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   // ------------------------------
-  // LOAD DESIGN + SCHEMA FROM DB (API)
+  // AUTH + PERFIL
+  // ------------------------------
+  useEffect(() => {
+    const supabase = createClient();
+
+    async function loadAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        setUserId(session.user.id);
+
+        const { data: perfil } = await supabase
+          .from('prod_perfis')
+          .select('creditos_disponiveis')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        setUserProfile(perfil ?? null);
+      }
+
+      setAuthLoading(false);
+    }
+
+    loadAuth();
+
+    // Atualizar créditos em tempo real após download
+    const supabaseInstance = supabase;
+    const { data: { subscription } } = supabaseInstance.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        const { data: perfil } = await supabaseInstance
+          .from('prod_perfis')
+          .select('creditos_disponiveis')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        setUserProfile(perfil ?? null);
+      } else {
+        setUserId(null);
+        setUserProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ------------------------------
+  // LOAD DESIGN + SCHEMA
   // ------------------------------
   useEffect(() => {
     if (!designId) return;
@@ -45,15 +103,14 @@ export default function PageInner() {
         setLoading(true);
         setError(null);
 
+        // Buscar design incluindo credit_cost
         const res = await fetch(`/api/produto?id=${designId}`);
-        if (!res.ok) {
-          throw new Error('Erro ao carregar design');
-        }
+        if (!res.ok) throw new Error('Erro ao carregar design');
 
         const data: Design = await res.json();
         setDesign(data);
 
-        // Inicializar parâmetros com valores default do schema
+        // Inicializar parâmetros
         const schema = data.generation_schema;
         if (schema?.parameters) {
           const initialParams: Record<string, any> = {};
@@ -63,7 +120,7 @@ export default function PageInner() {
           setParams(initialParams);
         }
 
-        // Se temos uma família, carregar todos os designs dessa família
+        // Carregar designs da família
         if (familiaParam) {
           const familyRes = await fetch(`/api/designs-familia?familia=${encodeURIComponent(familiaParam)}`);
           if (familyRes.ok) {
@@ -72,7 +129,6 @@ export default function PageInner() {
           }
         }
       } catch (err) {
-        console.error(err);
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
       } finally {
         setLoading(false);
@@ -87,7 +143,6 @@ export default function PageInner() {
   // ------------------------------
   const handleParamsChange = (newParams: Record<string, any>) => {
     setParams(newParams);
-    // Se estava vendo STL, volta ao preview quando mexe nos parâmetros
     if (mode === 'stl') {
       setMode('preview');
       setStlUrl(null);
@@ -95,29 +150,28 @@ export default function PageInner() {
   };
 
   const handleDesignChange = (newDesignId: string) => {
-    // Atualizar URL com novo design
-    const params = new URLSearchParams();
-    params.set('id', newDesignId);
-    if (familiaParam) {
-      params.set('familia', familiaParam);
-    }
-    router.push(`/customizador?${params.toString()}`);
+    const p = new URLSearchParams();
+    p.set('id', newDesignId);
+    if (familiaParam) p.set('familia', familiaParam);
+    router.push(`/customizador?${p.toString()}`);
   };
 
   const gerarSTL = async () => {
+    // Guardar de login
+    if (!userId) {
+      router.push('/login');
+      return;
+    }
+
     if (!params || !designId) return;
 
     try {
-      // Muda para estado "generating" e mostra animação de loading
       setMode('generating');
 
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: designId,
-          params,
-        }),
+        body: JSON.stringify({ id: designId, params }),
       });
 
       if (!res.ok) throw new Error('Erro ao gerar STL');
@@ -128,10 +182,15 @@ export default function PageInner() {
       setStlUrl(url);
       setMode('stl');
     } catch (err) {
-      console.error(err);
       setError(err instanceof Error ? err.message : 'Erro ao gerar STL');
       setMode('preview');
     }
+  };
+
+  // Callback chamado pelo DownloadStlButton após download com sucesso
+  // Atualiza os créditos localmente sem precisar de reload
+  const handleDownloadSuccess = (novosCreditos: number) => {
+    setUserProfile((prev) => prev ? { ...prev, creditos_disponiveis: novosCreditos } : prev);
   };
 
   // ------------------------------
@@ -149,9 +208,12 @@ export default function PageInner() {
     );
   }
 
-  if (loading || !design || !params) {
+  if (loading || authLoading || !design || !params) {
     return <main className={styles.fallback}>A carregar…</main>;
   }
+
+  const isFree = !design.credit_cost || design.credit_cost === 0;
+  const temCreditos = isFree || (userProfile?.creditos_disponiveis ?? 0) >= design.credit_cost;
 
   // ------------------------------
   // UI
@@ -160,71 +222,127 @@ export default function PageInner() {
     <main className={styles.root}>
       {/* Painel de configuração (esquerda) */}
       <aside className={styles.panel}>
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>{design.nome}</h3>
-          
-          {/* Selector de designs da família */}
-          {familyDesigns.length > 1 && (
-            <div style={{
-              padding: 12,
-              backgroundColor: '#1e293b',
-              borderRadius: 8,
-              border: '1px solid #334155',
-              marginBottom: 16,
-            }}>
-              <label style={{
-                display: 'block',
-                fontSize: '12px',
-                color: '#94a3b8',
-                marginBottom: 8,
-                fontWeight: 500,
-              }}>
-                Outros modelos:
-              </label>
-              <select
-                value={designId}
-                onChange={(e) => handleDesignChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  backgroundColor: '#0f172a',
-                  color: '#ffffff',
-                  border: '1px solid #475569',
-                  borderRadius: 6,
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {familyDesigns.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+
+        {/* Selector de designs da família */}
+        {familyDesigns.length > 1 && (
+          <div style={{
+            padding: 12,
+            backgroundColor: '#1e293b',
+            borderRadius: 8,
+            border: '1px solid #334155',
+            marginBottom: 4,
+          }}>
+            <label style={{ display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 8, fontWeight: 500 }}>
+              Outros modelos:
+            </label>
+            <select
+              value={designId}
+              onChange={(e) => handleDesignChange(e.target.value)}
+              style={{
+                width: '100%', padding: '8px 10px',
+                backgroundColor: '#0f172a', color: '#ffffff',
+                border: '1px solid #475569', borderRadius: 6,
+                fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {familyDesigns.map((d) => (
+                <option key={d.id} value={d.id}>{d.nome}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: '#f1f5f9' }}>{design.nome}</h3>
         </div>
 
-        {/* Render dynamic editor based on schema */}
+        {/* Editor de parâmetros */}
         <GeneratedEditor
           schema={design.generation_schema}
           values={params}
           onChange={handleParamsChange}
         />
 
-        <button 
-          className={styles.primaryBtn} 
-          onClick={gerarSTL}
-          disabled={mode === 'generating'}
-          style={{
-            opacity: mode === 'generating' ? 0.6 : 1,
-            cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          {mode === 'generating' ? 'Gerando STL...' : 'Gerar STL'}
-        </button>
+        {/* ── Área de ação ── */}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          {/* Preço */}
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: 10,
+            backgroundColor: '#0f172a',
+            border: '1px solid #1e293b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Custo do download</span>
+            {isFree ? (
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#34d399' }}>Gratuito</span>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#60a5fa' }}>
+                  {design.credit_cost} ₡
+                </span>
+                {userId && (
+                  <span style={{
+                    fontSize: 11, color: temCreditos ? '#64748b' : '#f87171',
+                    fontWeight: 600,
+                  }}>
+                    (tens {userProfile?.creditos_disponiveis ?? 0} ₡)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Aviso de créditos insuficientes */}
+          {userId && !isFree && !temCreditos && (
+            <div style={{
+              padding: '8px 12px', borderRadius: 8,
+              backgroundColor: 'rgba(248,113,113,0.1)',
+              border: '1px solid rgba(248,113,113,0.3)',
+              fontSize: 12, color: '#f87171', textAlign: 'center',
+            }}>
+              Créditos insuficientes.{' '}
+              <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
+                Adquirir créditos →
+              </a>
+            </div>
+          )}
+
+          {/* Botão Gerar STL */}
+          <button
+            className={styles.primaryBtn}
+            onClick={gerarSTL}
+            disabled={mode === 'generating'}
+            title={!userId ? 'É necessário fazer login para gerar STL' : undefined}
+            style={{
+              opacity: mode === 'generating' ? 0.6 : 1,
+              cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              position: 'relative',
+            }}
+          >
+            {mode === 'generating'
+              ? 'A gerar STL…'
+              : !userId
+                ? '🔒 Login para Gerar STL'
+                : 'Gerar STL'
+            }
+          </button>
+
+          {/* Botão Download — só aparece após gerar */}
+          {mode === 'stl' && userId && (
+            <DownloadStlButton
+              designId={designId}
+              params={params}
+              creditCost={design.credit_cost ?? 0}
+              creditsAvailable={userProfile?.creditos_disponiveis ?? 0}
+              onSuccess={handleDownloadSuccess}
+            />
+          )}
+        </div>
       </aside>
 
       {/* Viewer (direita) */}
