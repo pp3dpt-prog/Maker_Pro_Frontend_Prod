@@ -114,7 +114,7 @@ function PetTagModel({
         const geomBack = new TextGeometry(telefone, {
           font,
           size: fontSizeN,
-          height: 0.1,
+          height: 0.3,
           curveSegments: 8,
         });
         geomBack.computeBoundingBox();
@@ -165,7 +165,7 @@ function PetTagModel({
       {showText && backText && (
         <primitive
           object={backText}
-          position={[0, 0, -0.8]}
+          position={[0, 0, -0.2]}
           rotation={[0, Math.PI, 0]}
         />
       )}
