@@ -47,6 +47,11 @@ function PetTagModel({
       const box = geometry.boundingBox!;
       const center = new THREE.Vector3();
       box.getCenter(center);
+        // Log do offset real
+      console.log('STL:', stlFilePath);
+      console.log('BBox min:', box.min);
+      console.log('BBox max:', box.max);
+      console.log('Center (offset a aplicar ao texto):', center);
       geometry.translate(-center.x, -center.y, -box.min.z);
 
       const mesh = new THREE.Mesh(
