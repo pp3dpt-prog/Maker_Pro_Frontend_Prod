@@ -25,6 +25,15 @@ type UserProfile = {
   creditos_disponiveis: number;
 };
 
+// Parâmetros que são apenas visuais e não devem ir para o backend
+const VISUAL_PARAMS = ['mostrar_texto'];
+
+function filtrarParamsBackend(params: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(params).filter(([k]) => !VISUAL_PARAMS.includes(k))
+  );
+}
+
 export default function PageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -143,10 +152,14 @@ export default function PageInner() {
 
     try {
       setMode('generating');
+
+      // Filtrar params visuais antes de enviar ao backend
+      const paramsBackend = filtrarParamsBackend(params);
+
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: designId, params }),
+        body: JSON.stringify({ id: designId, params: paramsBackend }),
       });
       if (!res.ok) throw new Error('Erro ao gerar STL');
       const blob = await res.blob();
@@ -163,6 +176,7 @@ export default function PageInner() {
     setUserProfile((prev) => prev ? { ...prev, creditos_disponiveis: novosCreditos } : prev);
   };
 
+  // Guards
   if (!designId) return <main className={styles.fallback}>Produto inválido</main>;
   if (error) return <main className={styles.fallback}><div style={{ color: '#ef4444' }}>{error}</div></main>;
   if (loading || authLoading || !design || !params) return <main className={styles.fallback}>A carregar…</main>;
@@ -170,20 +184,34 @@ export default function PageInner() {
   const isFree = !design.credit_cost || design.credit_cost === 0;
   const temCreditos = isFree || (userProfile?.creditos_disponiveis ?? 0) >= design.credit_cost;
 
+  // Params filtrados para o backend (sem params visuais)
+  const paramsParaDownload = filtrarParamsBackend(params);
+
   return (
     <main className={styles.root}>
       <aside className={styles.panel}>
 
         {/* Selector de designs da família */}
         {familyDesigns.length > 1 && (
-          <div style={{ padding: 12, backgroundColor: '#1e293b', borderRadius: 8, border: '1px solid #334155', marginBottom: 4 }}>
+          <div style={{
+            padding: 12,
+            backgroundColor: '#1e293b',
+            borderRadius: 8,
+            border: '1px solid #334155',
+            marginBottom: 4,
+          }}>
             <label style={{ display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 8, fontWeight: 500 }}>
               Outros modelos:
             </label>
             <select
               value={designId}
               onChange={(e) => handleDesignChange(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', backgroundColor: '#0f172a', color: '#ffffff', border: '1px solid #475569', borderRadius: 6, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+              style={{
+                width: '100%', padding: '8px 10px',
+                backgroundColor: '#0f172a', color: '#ffffff',
+                border: '1px solid #475569', borderRadius: 6,
+                fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}
             >
               {familyDesigns.map((d) => (
                 <option key={d.id} value={d.id}>{d.nome}</option>
@@ -196,6 +224,7 @@ export default function PageInner() {
           <h3 style={{ margin: 0, fontSize: 16, color: '#f1f5f9' }}>{design.nome}</h3>
         </div>
 
+        {/* Editor de parâmetros — inclui o checkbox mostrar_texto */}
         <GeneratedEditor
           schema={design.generation_schema}
           values={params}
@@ -206,7 +235,11 @@ export default function PageInner() {
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {/* Preço */}
-          <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: '#0f172a', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{
+            padding: '10px 14px', borderRadius: 10,
+            backgroundColor: '#0f172a', border: '1px solid #1e293b',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
             <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Custo do download</span>
             {isFree ? (
               <span style={{ fontSize: 14, fontWeight: 800, color: '#34d399' }}>Gratuito</span>
@@ -224,9 +257,16 @@ export default function PageInner() {
 
           {/* Aviso créditos insuficientes */}
           {userId && !isFree && !temCreditos && (
-            <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#f87171', textAlign: 'center' }}>
+            <div style={{
+              padding: '8px 12px', borderRadius: 8,
+              backgroundColor: 'rgba(248,113,113,0.1)',
+              border: '1px solid rgba(248,113,113,0.3)',
+              fontSize: 12, color: '#f87171', textAlign: 'center',
+            }}>
               Créditos insuficientes.{' '}
-              <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Adquirir créditos →</a>
+              <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
+                Adquirir créditos →
+              </a>
             </div>
           )}
 
@@ -235,7 +275,11 @@ export default function PageInner() {
             className={styles.primaryBtn}
             onClick={gerarSTL}
             disabled={mode === 'generating'}
-            style={{ opacity: mode === 'generating' ? 0.6 : 1, cursor: mode === 'generating' ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}
+            style={{
+              opacity: mode === 'generating' ? 0.6 : 1,
+              cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
           >
             {mode === 'generating'
               ? 'A gerar STL…'
@@ -245,11 +289,11 @@ export default function PageInner() {
             }
           </button>
 
-          {/* Botão Download */}
+          {/* Botão Download — só aparece após gerar */}
           {mode === 'stl' && userId && (
             <DownloadStlButton
               designId={designId}
-              params={params}
+              params={paramsParaDownload}
               creditCost={design.credit_cost ?? 0}
               creditsAvailable={userProfile?.creditos_disponiveis ?? 0}
               onSuccess={handleDownloadSuccess}
@@ -258,6 +302,7 @@ export default function PageInner() {
         </div>
       </aside>
 
+      {/* Viewer */}
       <section className={styles.viewer}>
         <CustomizadorClient
           designId={designId}

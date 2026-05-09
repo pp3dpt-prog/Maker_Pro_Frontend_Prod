@@ -190,7 +190,7 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 // ── Componente principal ──
 export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
   const isPetTag = !!stlFilePath;
-  const [showText, setShowText] = useState(true);
+  const showText = params.mostrar_texto !== false;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -239,30 +239,6 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
         </Suspense>
       </Canvas>
 
-      {/* Botão mostrar/esconder texto — só para pet-tags */}
-      {isPetTag && (
-        <button
-          onClick={() => setShowText((v) => !v)}
-          style={{
-            position: 'absolute',
-            bottom: 16,
-            right: 16,
-            padding: '8px 14px',
-            borderRadius: 10,
-            border: '1px solid rgba(255,255,255,0.15)',
-            background: showText ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
-            color: showText ? '#93c5fd' : '#94a3b8',
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: 'pointer',
-            backdropFilter: 'blur(8px)',
-            transition: 'all 0.2s',
-            fontFamily: 'inherit',
-          }}
-        >
-          {showText ? '👁 Esconder texto' : '👁 Mostrar texto'}
-        </button>
-      )}
     </div>
   );
 }
