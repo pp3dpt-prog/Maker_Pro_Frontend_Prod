@@ -9,6 +9,7 @@ type Props = {
   mode: 'preview' | 'stl' | 'generating';
   params: Record<string, any>;
   stlUrl?: string | null;
+  stlFilePath?: string | null; // caminho do modelo em branco (pet-tags)
 };
 
 export default function CustomizadorClient({
@@ -16,12 +17,14 @@ export default function CustomizadorClient({
   mode,
   params,
   stlUrl,
+  stlFilePath,
 }: Props) {
   return (
     <div style={{ width: '100%', height: '100%' }}>
       {mode === 'preview' && (
         <Preview3D
           params={params}
+          stlFilePath={stlFilePath}
         />
       )}
 
