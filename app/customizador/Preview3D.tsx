@@ -114,7 +114,7 @@ function PetTagModel({
         const geomBack = new TextGeometry(telefone, {
           font,
           size: fontSizeN,
-          height: 0.8,
+          height: 0.1,
           curveSegments: 8,
         });
         geomBack.computeBoundingBox();
