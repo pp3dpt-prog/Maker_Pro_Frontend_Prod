@@ -142,6 +142,22 @@ export default function GeneratedEditor({ schema, values, onChange }: Props) {
             </label>
           );
         }
+        // INFO -----------------------------------------------
+        if (type === 'info') {
+          return (
+            <div key={name} style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              backgroundColor: 'rgba(59,130,246,0.08)',
+              border: '1px solid rgba(59,130,246,0.2)',
+              fontSize: 12,
+              color: '#94a3b8',
+              lineHeight: 1.5,
+            }}>
+              {ui.text}
+            </div>
+          );
+        }
 
         // FALLBACK
         return (
