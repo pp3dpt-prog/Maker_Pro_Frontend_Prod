@@ -27,13 +27,18 @@ type UserProfile = {
   creditos_disponiveis: number;
 };
 
-// Parâmetros que são apenas visuais e não devem ir para o backend
+// Parâmetros visuais que não devem ir para o backend
 const VISUAL_PARAMS = ['mostrar_texto'];
 
 function filtrarParamsBackend(params: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
     Object.entries(params).filter(([k]) => !VISUAL_PARAMS.includes(k))
   );
+}
+
+function formatCount(n: number): string {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'k';
+  return String(n);
 }
 
 export default function PageInner() {
@@ -53,6 +58,11 @@ export default function PageInner() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Like state
+  const [likes, setLikes] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [liking, setLiking] = useState(false);
 
   // Auth
   useEffect(() => {
@@ -103,6 +113,7 @@ export default function PageInner() {
 
         const data: Design = await res.json();
         setDesign(data);
+        setLikes(data.total_likes ?? 0);
 
         const schema = data.generation_schema;
         if (schema?.parameters) {
@@ -154,10 +165,7 @@ export default function PageInner() {
 
     try {
       setMode('generating');
-
-      // Filtrar params visuais antes de enviar ao backend
       const paramsBackend = filtrarParamsBackend(params);
-
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,19 +182,36 @@ export default function PageInner() {
     }
   };
 
+  const handleLike = async () => {
+    if (liked || liking || !designId) return;
+    setLiking(true);
+    setLikes((prev) => prev + 1);
+    setLiked(true);
+
+    try {
+      await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ design_id: designId }),
+      });
+    } catch {
+      setLikes((prev) => prev - 1);
+      setLiked(false);
+    } finally {
+      setLiking(false);
+    }
+  };
+
   const handleDownloadSuccess = (novosCreditos: number) => {
     setUserProfile((prev) => prev ? { ...prev, creditos_disponiveis: novosCreditos } : prev);
   };
 
-  // Guards
   if (!designId) return <main className={styles.fallback}>Produto inválido</main>;
   if (error) return <main className={styles.fallback}><div style={{ color: '#ef4444' }}>{error}</div></main>;
   if (loading || authLoading || !design || !params) return <main className={styles.fallback}>A carregar…</main>;
 
   const isFree = !design.credit_cost || design.credit_cost === 0;
   const temCreditos = isFree || (userProfile?.creditos_disponiveis ?? 0) >= design.credit_cost;
-
-  // Params filtrados para o backend (sem params visuais)
   const paramsParaDownload = filtrarParamsBackend(params);
 
   return (
@@ -195,25 +220,14 @@ export default function PageInner() {
 
         {/* Selector de designs da família */}
         {familyDesigns.length > 1 && (
-          <div style={{
-            padding: 12,
-            backgroundColor: '#1e293b',
-            borderRadius: 8,
-            border: '1px solid #334155',
-            marginBottom: 4,
-          }}>
+          <div style={{ padding: 12, backgroundColor: '#1e293b', borderRadius: 8, border: '1px solid #334155', marginBottom: 4 }}>
             <label style={{ display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 8, fontWeight: 500 }}>
               Outros modelos:
             </label>
             <select
               value={designId}
               onChange={(e) => handleDesignChange(e.target.value)}
-              style={{
-                width: '100%', padding: '8px 10px',
-                backgroundColor: '#0f172a', color: '#ffffff',
-                border: '1px solid #475569', borderRadius: 6,
-                fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
-              }}
+              style={{ width: '100%', padding: '8px 10px', backgroundColor: '#0f172a', color: '#ffffff', border: '1px solid #475569', borderRadius: 6, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
             >
               {familyDesigns.map((d) => (
                 <option key={d.id} value={d.id}>{d.nome}</option>
@@ -222,11 +236,49 @@ export default function PageInner() {
           </div>
         )}
 
+        {/* Nome e stats */}
         <div style={{ marginBottom: 8 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: '#f1f5f9' }}>{design.nome}</h3>
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#f1f5f9' }}>{design.nome}</h3>
+
+          {/* Stats: likes + downloads */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Botão like */}
+            <button
+              onClick={handleLike}
+              disabled={liked || liking}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20,
+                border: `1px solid ${liked ? '#f43f5e' : 'rgba(255,255,255,0.1)'}`,
+                background: liked ? 'rgba(244,63,94,0.12)' : 'transparent',
+                color: liked ? '#f43f5e' : '#64748b',
+                fontSize: 12, fontWeight: 700,
+                cursor: liked ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill={liked ? '#f43f5e' : 'none'}>
+                <path d="M6 10.5S1 7 1 3.5a2.5 2.5 0 015 0 2.5 2.5 0 015 0C11 7 6 10.5 6 10.5z"
+                  stroke={liked ? '#f43f5e' : 'currentColor'} strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              {formatCount(likes)}
+            </button>
+
+            <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)' }} />
+
+            {/* Downloads */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 11h8"
+                  stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {formatCount(design.total_downloads ?? 0)} downloads
+            </div>
+          </div>
         </div>
 
-        {/* Editor de parâmetros — inclui o checkbox mostrar_texto */}
+        {/* Editor de parâmetros */}
         <GeneratedEditor
           schema={design.generation_schema}
           values={params}
@@ -271,31 +323,6 @@ export default function PageInner() {
               </a>
             </div>
           )}
-          {/* Stats do produto */}
-          <div style={{
-            display: 'flex',
-            gap: 16,
-            padding: '8px 14px',
-            borderRadius: 10,
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 12S1 8 1 4.5a3 3 0 016 0 3 3 0 016 0C13 8 7 12 7 12z"
-                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-              <span>{design.total_likes ?? 0} gostos</span>
-            </div>
-            <div style={{ width: 1, background: 'rgba(255,255,255,0.07)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1v8M4 6l3 3 3-3M2 12h10"
-                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span>{design.total_downloads ?? 0} downloads</span>
-            </div>
-          </div>
 
           {/* Botão Gerar STL */}
           <button
@@ -316,7 +343,7 @@ export default function PageInner() {
             }
           </button>
 
-          {/* Botão Download — só aparece após gerar */}
+          {/* Botão Download */}
           {mode === 'stl' && userId && (
             <DownloadStlButton
               designId={designId}
