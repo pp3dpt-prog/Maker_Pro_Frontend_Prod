@@ -71,6 +71,8 @@ function PetTagModel({
     setFrontText(null);
     setBackText(null);
 
+     let cancelled = false; // ← flag de cancelamento
+
     const nomePet   = String(params.nome_pet  ?? '');
     const telefone  = String(params.telefone  ?? '');
     const fonteName = String(params.fonte     ?? 'Aladin');
@@ -85,6 +87,7 @@ function PetTagModel({
     const fontLoader = new FontLoader();
 
     fontLoader.load(fontPath, (font) => {
+      if (cancelled) return; // ← ignora se já mudou entretanto
       // Texto frente (nome)
       if (nomePet) {
         const geomFront = new TextGeometry(nomePet, {
