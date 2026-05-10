@@ -67,6 +67,9 @@ function PetTagModel({
       setBackText(null);
       return;
     }
+      // ✅ Limpar texto anterior imediatamente enquanto carrega a nova fonte
+    setFrontText(null);
+    setBackText(null);
 
     const nomePet   = String(params.nome_pet  ?? '');
     const telefone  = String(params.telefone  ?? '');
