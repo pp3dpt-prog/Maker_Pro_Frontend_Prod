@@ -28,13 +28,14 @@ export async function GET(req: Request) {
   if (!produto && familia) {
     const { data } = await supabase
       .from('prod_designs')
-      .select('id, nome, familia, credit_cost, generation_schema, stl_file_path')
+      .select('id, nome, familia, credit_cost, total_likes, total_downloads, generation_schema, stl_file_path')
       .eq('familia', familia)
       .order('id')
       .limit(1)
       .maybeSingle();
     if (data) produto = data;
   }
+  
 
   if (!produto) {
     return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });

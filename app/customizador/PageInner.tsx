@@ -19,6 +19,8 @@ type Design = {
   credit_cost: number;
   generation_schema: GenerationSchema;
   stl_file_path?: string | null;
+  total_likes: number;
+  total_downloads: number;
 };
 
 type UserProfile = {
@@ -269,6 +271,31 @@ export default function PageInner() {
               </a>
             </div>
           )}
+          {/* Stats do produto */}
+          <div style={{
+            display: 'flex',
+            gap: 16,
+            padding: '8px 14px',
+            borderRadius: 10,
+            backgroundColor: '#0f172a',
+            border: '1px solid #1e293b',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 12S1 8 1 4.5a3 3 0 016 0 3 3 0 016 0C13 8 7 12 7 12z"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <span>{design.total_likes ?? 0} gostos</span>
+            </div>
+            <div style={{ width: 1, background: 'rgba(255,255,255,0.07)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v8M4 6l3 3 3-3M2 12h10"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span>{design.total_downloads ?? 0} downloads</span>
+            </div>
+          </div>
 
           {/* Botão Gerar STL */}
           <button

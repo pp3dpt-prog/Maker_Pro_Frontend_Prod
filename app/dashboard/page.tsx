@@ -174,7 +174,7 @@ export default function Dashboard() {
           <div style={{ maxWidth: '900px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>📂 Meus Ficheiros STL</h1>
             <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '30px' }}>
-              Cada download fica guardado aqui durante 1 ano.
+              Cada download fica guardado aqui durante 30 dias.
             </p>
 
             {assets.length === 0 ? (
