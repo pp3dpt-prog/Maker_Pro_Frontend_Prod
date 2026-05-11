@@ -73,16 +73,16 @@ function PetTagModel({
 
      let cancelled = false; // ← flag de cancelamento
 
-    const SCALE_FACTOR = 1; // ajusta até o preview corresponder ao STL
+    const SCALE_FACTOR = 1.2; // ajusta até o preview corresponder ao STL
     const nomePet   = String(params.nome_pet  ?? '');
     const telefone  = String(params.telefone  ?? '');
     const fonteName = String(params.fonte     ?? 'Aladin');
-    const fontSize  = Number(params.fontSize  ?? 7) * SCALE_FACTOR;
-    const fontSizeN = Number(params.fontSizeN ?? 6) * SCALE_FACTOR;
+    const fontSize  = Number(params.fontSize  ?? 7);
+    const fontSizeN = Number(params.fontSizeN ?? 6);
     const xPos      = Number(params.xPos  ?? 0);
-    const yPos      = Number(params.yPos  ?? 0);
+    const yPos      = Number(params.yPos  ?? 0)* SCALE_FACTOR;
     const xPosN     = Number(params.xPosN ?? 0);
-    const yPosN     = Number(params.yPosN ?? 0);
+    const yPosN     = Number(params.yPosN ?? 0)* SCALE_FACTOR;
     
 
     const fontPath = FONT_MAP[fonteName] ?? FONT_MAP['Aladin'];
