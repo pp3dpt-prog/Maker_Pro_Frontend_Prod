@@ -113,7 +113,7 @@ function PetTagModel({
           // ao mesmo ponto que no OpenSCAD
           geomFront.translate(
             -fw / 2 + xPos,
-            -fh / 2 + yPos + stlOffsetY,
+            -fh / 2 + yPos - stlOffsetY,
             0
           );
 
