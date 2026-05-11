@@ -144,7 +144,7 @@ function PetTagModel({
 
           geomBack.translate(
             -bw / 2 + xPosN,
-            -bh / 2 + yPosN + stlOffsetY,
+            -bh / 2 + yPosN - stlOffsetY,
             0
           );
 
