@@ -73,7 +73,7 @@ function PetTagModel({
 
      let cancelled = false; // ← flag de cancelamento
 
-    const SCALE_FACTOR = 0.8; // ajusta até o preview corresponder ao STL
+    const SCALE_FACTOR = 0.1; // ajusta até o preview corresponder ao STL
     const nomePet   = String(params.nome_pet  ?? '');
     const telefone  = String(params.telefone  ?? '');
     const fonteName = String(params.fonte     ?? 'Aladin');
