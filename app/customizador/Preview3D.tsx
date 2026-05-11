@@ -13,9 +13,9 @@ type Preview3DProps = {
 
 const FONT_MAP: Record<string, string> = {
   'Aladin':   '/fonts/Aladin.json',
-  'Amarante': '/fonts/amarante.json',
-  'Benne':    '/fonts/benne.json',
-  'Baloo 2':  '/fonts/baloo2.json',
+  'Amarante': '/fonts/Amarante.json',
+  'Benne':    '/fonts/Benne.json',
+  'Baloo 2':  '/fonts/Baloo2.json',
 };
 
 // ── Pet Tag: carrega STL em branco e sobrepõe texto em tempo real ──
@@ -32,8 +32,9 @@ function PetTagModel({
   const [frontText, setFrontText] = useState<THREE.Mesh | null>(null);
   const [backText,  setBackText]  = useState<THREE.Mesh | null>(null);
   const [stlHeight, setStlHeight] = useState(3);
+  const [stlOffsetY, setStlOffsetY] = useState(0); // offset Y do centro geométrico
 
-  // Carregar STL em branco (só quando muda o ficheiro)
+  // Carregar STL em branco
   useEffect(() => {
     const loader = new STLLoader();
     loader.load(stlFilePath, (geometry: THREE.BufferGeometry) => {
@@ -44,6 +45,9 @@ function PetTagModel({
       const center = new THREE.Vector3();
       box.getCenter(center);
 
+      // Guardar offset Y antes de centrar
+      // Este valor é a diferença entre a origem OpenSCAD e o centro geométrico
+      setStlOffsetY(center.y);
       setStlHeight(box.max.z - box.min.z);
 
       // Centrar em X e Y, ancorar em Z=0
@@ -67,94 +71,107 @@ function PetTagModel({
       setBackText(null);
       return;
     }
-      // ✅ Limpar texto anterior imediatamente enquanto carrega a nova fonte
+
+    // Limpar texto anterior enquanto carrega nova fonte
     setFrontText(null);
     setBackText(null);
 
-     let cancelled = false; // ← flag de cancelamento
+    let cancelled = false;
 
-    const SCALE_FACTOR = 2.2; // ajusta até o preview corresponder ao STL
     const nomePet   = String(params.nome_pet  ?? '');
     const telefone  = String(params.telefone  ?? '');
     const fonteName = String(params.fonte     ?? 'Aladin');
     const fontSize  = Number(params.fontSize  ?? 7);
     const fontSizeN = Number(params.fontSizeN ?? 6);
     const xPos      = Number(params.xPos  ?? 0);
-    const yPos      = Number(params.yPos  ?? 0)* SCALE_FACTOR;
+    const yPos      = Number(params.yPos  ?? 0);
     const xPosN     = Number(params.xPosN ?? 0);
-    const yPosN     = Number(params.yPosN ?? 0)* SCALE_FACTOR;
-    
+    const yPosN     = Number(params.yPosN ?? 0);
 
     const fontPath = FONT_MAP[fonteName] ?? FONT_MAP['Aladin'];
     const fontLoader = new FontLoader();
 
-    fontLoader.load(fontPath, (font) => {
-      if (cancelled) return; // ← ignora se já mudou entretanto
-      // Texto frente (nome)
-      if (nomePet) {
-        const geomFront = new TextGeometry(nomePet, {
-          font,
-          size: fontSize,
-          height: 0.8,
-          curveSegments: 8,
-        });
-        geomFront.computeBoundingBox();
-        const fb = geomFront.boundingBox!;
-        const fw = fb.max.x - fb.min.x;
-        const fh = fb.max.y - fb.min.y;
+    fontLoader.load(
+      fontPath,
+      (font) => {
+        if (cancelled) return;
 
-        geomFront.translate(
-          -fw / 2 + xPos,
-          -fh / 2 + yPos,
-          0
-        );
+        // Texto frente (nome)
+        if (nomePet) {
+          const geomFront = new TextGeometry(nomePet, {
+            font,
+            size: fontSize,
+            height: 0.8,
+            curveSegments: 8,
+          });
+          geomFront.computeBoundingBox();
+          const fb = geomFront.boundingBox!;
+          const fw = fb.max.x - fb.min.x;
+          const fh = fb.max.y - fb.min.y;
 
-        setFrontText(new THREE.Mesh(
-          geomFront,
-          new THREE.MeshStandardMaterial({
-            color: '#1e3a5f',
-            metalness: 0.2,
-            roughness: 0.3,
-          })
-        ));
-      } else {
-        setFrontText(null);
+          // Compensar offset Y do STL para que yPos=0 corresponda
+          // ao mesmo ponto que no OpenSCAD
+          geomFront.translate(
+            -fw / 2 + xPos,
+            -fh / 2 + yPos + stlOffsetY,
+            0
+          );
+
+          setFrontText(new THREE.Mesh(
+            geomFront,
+            new THREE.MeshStandardMaterial({
+              color: '#1e3a5f',
+              metalness: 0.2,
+              roughness: 0.3,
+            })
+          ));
+        } else {
+          setFrontText(null);
+        }
+
+        // Texto verso (telefone)
+        if (telefone) {
+          const geomBack = new TextGeometry(telefone, {
+            font,
+            size: fontSizeN,
+            height: 0.8,
+            curveSegments: 8,
+          });
+          geomBack.computeBoundingBox();
+          const bb = geomBack.boundingBox!;
+          const bw = bb.max.x - bb.min.x;
+          const bh = bb.max.y - bb.min.y;
+
+          geomBack.translate(
+            -bw / 2 + xPosN,
+            -bh / 2 + yPosN + stlOffsetY,
+            0
+          );
+
+          setBackText(new THREE.Mesh(
+            geomBack,
+            new THREE.MeshStandardMaterial({
+              color: '#1e3a5f',
+              metalness: 0.2,
+              roughness: 0.3,
+            })
+          ));
+        } else {
+          setBackText(null);
+        }
+      },
+      undefined,
+      (err) => {
+        console.error('Erro ao carregar fonte:', fontPath, err);
       }
+    );
 
-      // Texto verso (telefone)
-      if (telefone) {
-        const geomBack = new TextGeometry(telefone, {
-          font,
-          size: fontSizeN,
-          height: 0.8,
-          curveSegments: 8,
-        });
-        geomBack.computeBoundingBox();
-        const bb = geomBack.boundingBox!;
-        const bw = bb.max.x - bb.min.x;
-        const bh = bb.max.y - bb.min.y;
-
-        geomBack.translate(
-          -bw / 2 + xPosN,
-          -bh / 2 + yPosN,
-          0
-        );
-
-        setBackText(new THREE.Mesh(
-          geomBack,
-          new THREE.MeshStandardMaterial({
-            color: '#1e3a5f',
-            metalness: 0.2,
-            roughness: 0.3,
-          })
-        ));
-      } else {
-        setBackText(null);
-      }
-    });
+    return () => {
+      cancelled = true;
+    };
   }, [
     showText,
-    // Dependências primitivas para detetar mudanças em tempo real
+    stlOffsetY, // ← importante: regenerar texto quando o offset mudar
     params.nome_pet,
     params.telefone,
     params.fonte,
