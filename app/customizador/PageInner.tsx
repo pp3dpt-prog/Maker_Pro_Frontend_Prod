@@ -296,7 +296,31 @@ export default function PageInner() {
   const paramsParaDownload = filtrarParamsBackend(params);
 
   return (
-    <main className={styles.root}>
+    <>
+      {/* BOTÃO DE VOLTAR */}
+      <div style={{
+        padding: '20px 24px 0',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        <Link href="/produtos" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          color: '#94a3b8',
+          textDecoration: 'none',
+          fontSize: '14px',
+          transition: 'color 0.2s'
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          Voltar para os produtos
+        </Link>
+      </div>
+
+      <main className={styles.root}>
       <aside className={styles.panel}>
 
         {/* Badge admin */}
@@ -494,5 +518,6 @@ export default function PageInner() {
         />
       </section>
     </main>
+    </>
   );
 }
