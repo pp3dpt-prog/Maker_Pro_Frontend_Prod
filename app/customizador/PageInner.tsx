@@ -21,14 +21,25 @@ type Design = {
   stl_file_path?: string | null;
   total_likes: number;
   total_downloads: number;
+  estado: string;
+  plano_minimo: string | null;
 };
 
 type UserProfile = {
   creditos_disponiveis: number;
+  role: string | null;
+  plano_id: string | null;
+  prod_planos?: { nome: string } | { nome: string }[] | null;
 };
 
-// Parâmetros visuais que não devem ir para o backend
 const VISUAL_PARAMS = ['mostrar_texto'];
+
+const HIERARQUIA_PLANOS = [
+  'Experimental',
+  'Maker Pro',
+  'Plano Fundador Pro',
+  'Commercial License',
+];
 
 function filtrarParamsBackend(params: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
@@ -59,7 +70,6 @@ export default function PageInner() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Like state
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
@@ -72,10 +82,10 @@ export default function PageInner() {
         setUserId(session.user.id);
         const { data: perfil } = await supabase
           .from('prod_perfis')
-          .select('creditos_disponiveis')
+          .select('creditos_disponiveis, role, plano_id, prod_planos(nome)')
           .eq('id', session.user.id)
           .maybeSingle();
-        setUserProfile(perfil ?? null);
+        setUserProfile(perfil as UserProfile ?? null);
       }
       setAuthLoading(false);
     }
@@ -86,10 +96,10 @@ export default function PageInner() {
         setUserId(session.user.id);
         const { data: perfil } = await supabase
           .from('prod_perfis')
-          .select('creditos_disponiveis')
+          .select('creditos_disponiveis, role, plano_id, prod_planos(nome)')
           .eq('id', session.user.id)
           .maybeSingle();
-        setUserProfile(perfil ?? null);
+        setUserProfile(perfil as UserProfile ?? null);
       } else {
         setUserId(null);
         setUserProfile(null);
@@ -141,6 +151,21 @@ export default function PageInner() {
     load();
   }, [designId, familiaParam]);
 
+  // Verificar acesso ao plano
+  const isAdmin = userProfile?.role === 'admin';
+  const userPlanoNome = Array.isArray(userProfile?.prod_planos)
+  ? (userProfile?.prod_planos as any[])[0]?.nome ?? null
+  : (userProfile?.prod_planos as any)?.nome ?? null;
+
+  const temAcessoPlano = (planoMinimo: string | null): boolean => {
+    if (!planoMinimo) return true;
+    if (isAdmin) return true;
+    if (!userPlanoNome) return false;
+    const nivelUser = HIERARQUIA_PLANOS.indexOf(userPlanoNome);
+    const nivelMinimo = HIERARQUIA_PLANOS.indexOf(planoMinimo);
+    return nivelUser >= nivelMinimo;
+  };
+
   const handleParamsChange = (newParams: Record<string, any>) => {
     setParams(newParams);
     if (mode === 'stl') {
@@ -187,7 +212,6 @@ export default function PageInner() {
     setLiking(true);
     setLikes((prev) => prev + 1);
     setLiked(true);
-
     try {
       await fetch('/api/like', {
         method: 'POST',
@@ -210,6 +234,26 @@ export default function PageInner() {
   if (error) return <main className={styles.fallback}><div style={{ color: '#ef4444' }}>{error}</div></main>;
   if (loading || authLoading || !design || !params) return <main className={styles.fallback}>A carregar…</main>;
 
+  // Verificar acesso ao design
+  const designBloqueado = design.estado === 'exclusivo' && !temAcessoPlano(design.plano_minimo) && !isAdmin;
+  const designRascunho = design.estado === 'rascunho' && !isAdmin;
+  const designInativo = design.estado === 'inativo' && !isAdmin;
+
+  if (designRascunho || designInativo) {
+    return (
+      <main className={styles.fallback}>
+        <div style={{ textAlign: 'center', color: '#64748b' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+          <h2 style={{ color: '#f1f5f9', marginBottom: 8 }}>Design não disponível</h2>
+          <p>Este design não está disponível de momento.</p>
+          <a href="/produtos" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 700 }}>
+            ← Voltar ao catálogo
+          </a>
+        </div>
+      </main>
+    );
+  }
+
   const isFree = !design.credit_cost || design.credit_cost === 0;
   const temCreditos = isFree || (userProfile?.creditos_disponiveis ?? 0) >= design.credit_cost;
   const paramsParaDownload = filtrarParamsBackend(params);
@@ -217,6 +261,27 @@ export default function PageInner() {
   return (
     <main className={styles.root}>
       <aside className={styles.panel}>
+
+        {/* Badge admin */}
+        {isAdmin && design.estado !== 'ativo' && (
+          <div style={{
+            padding: '4px 10px', borderRadius: 6, marginBottom: 8,
+            fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
+            background: design.estado === 'rascunho' ? 'rgba(251,191,36,0.15)' :
+                        design.estado === 'inativo'   ? 'rgba(248,113,113,0.15)' :
+                        'rgba(167,139,250,0.15)',
+            color: design.estado === 'rascunho' ? '#fbbf24' :
+                   design.estado === 'inativo'   ? '#f87171' :
+                   '#a78bfa',
+            border: `1px solid ${design.estado === 'rascunho' ? 'rgba(251,191,36,0.3)' :
+                                  design.estado === 'inativo'   ? 'rgba(248,113,113,0.3)' :
+                                  'rgba(167,139,250,0.3)'}`,
+          }}>
+            {design.estado === 'rascunho' ? '✏️ Rascunho' :
+             design.estado === 'inativo'   ? '⛔ Inativo' :
+             '⭐ Exclusivo'}
+          </div>
+        )}
 
         {/* Selector de designs da família */}
         {familyDesigns.length > 1 && (
@@ -236,13 +301,11 @@ export default function PageInner() {
           </div>
         )}
 
-        {/* Nome e stats */}
+        {/* Nome + stats */}
         <div style={{ marginBottom: 8 }}>
           <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#f1f5f9' }}>{design.nome}</h3>
-
-          {/* Stats: likes + downloads */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Botão like */}
+            {/* Like */}
             <button
               onClick={handleLike}
               disabled={liked || liking}
@@ -254,8 +317,7 @@ export default function PageInner() {
                 color: liked ? '#f43f5e' : '#64748b',
                 fontSize: 12, fontWeight: 700,
                 cursor: liked ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
+                fontFamily: 'inherit', transition: 'all 0.2s',
               }}
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill={liked ? '#f43f5e' : 'none'}>
@@ -267,7 +329,6 @@ export default function PageInner() {
 
             <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)' }} />
 
-            {/* Downloads */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 11h8"
@@ -279,81 +340,110 @@ export default function PageInner() {
         </div>
 
         {/* Editor de parâmetros */}
-        <GeneratedEditor
-          schema={design.generation_schema}
-          values={params}
-          onChange={handleParamsChange}
-        />
+        {designBloqueado ? (
+          // Design exclusivo sem acesso — mostrar mensagem
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            textAlign: 'center', gap: 12, padding: '20px 0',
+          }}>
+            <div style={{ fontSize: 40 }}>🔒</div>
+            <h4 style={{ color: '#f1f5f9', margin: 0 }}>Conteúdo Exclusivo</h4>
+            <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+              Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.plano_minimo}</strong> ou superior.
+            </p>
+            <a
+              href="/precario"
+              style={{
+                padding: '10px 20px', borderRadius: 10,
+                background: 'rgba(167,139,250,0.15)',
+                border: '1px solid rgba(167,139,250,0.3)',
+                color: '#a78bfa', fontWeight: 700, fontSize: 13,
+                textDecoration: 'none',
+              }}
+            >
+              Ver planos →
+            </a>
+          </div>
+        ) : (
+          <GeneratedEditor
+            schema={design.generation_schema}
+            values={params}
+            onChange={handleParamsChange}
+          />
+        )}
 
         {/* Área de ação */}
-        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {!designBloqueado && (
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-          {/* Preço */}
-          <div style={{
-            padding: '10px 14px', borderRadius: 10,
-            backgroundColor: '#0f172a', border: '1px solid #1e293b',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Custo do download</span>
-            {isFree ? (
-              <span style={{ fontSize: 14, fontWeight: 800, color: '#34d399' }}>Gratuito</span>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#60a5fa' }}>{design.credit_cost} ₡</span>
-                {userId && (
-                  <span style={{ fontSize: 11, color: temCreditos ? '#64748b' : '#f87171', fontWeight: 600 }}>
-                    (tens {userProfile?.creditos_disponiveis ?? 0} ₡)
-                  </span>
-                )}
+            {/* Preço */}
+            <div style={{
+              padding: '10px 14px', borderRadius: 10,
+              backgroundColor: '#0f172a', border: '1px solid #1e293b',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Custo do download</span>
+              {isFree ? (
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#34d399' }}>Gratuito</span>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: '#60a5fa' }}>{design.credit_cost} ₡</span>
+                  {userId && (
+                    <span style={{ fontSize: 11, color: temCreditos ? '#64748b' : '#f87171', fontWeight: 600 }}>
+                      (tens {userProfile?.creditos_disponiveis ?? 0} ₡)
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Aviso créditos insuficientes */}
+            {userId && !isFree && !temCreditos && (
+              <div style={{
+                padding: '8px 12px', borderRadius: 8,
+                backgroundColor: 'rgba(248,113,113,0.1)',
+                border: '1px solid rgba(248,113,113,0.3)',
+                fontSize: 12, color: '#f87171', textAlign: 'center',
+              }}>
+                Créditos insuficientes.{' '}
+                <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
+                  Adquirir créditos →
+                </a>
               </div>
             )}
+
+            {/* Botão Gerar STL */}
+            <button
+              className={styles.primaryBtn}
+              onClick={gerarSTL}
+              disabled={mode === 'generating'}
+              style={{
+                opacity: mode === 'generating' ? 0.6 : 1,
+                cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {mode === 'generating'
+                ? 'A gerar STL…'
+                : !userId
+                  ? '🔒 Login para Gerar STL'
+                  : 'Gerar STL'
+              }
+            </button>
+
+            {/* Botão Download */}
+            {mode === 'stl' && userId && (
+              <DownloadStlButton
+                designId={designId}
+                params={paramsParaDownload}
+                creditCost={design.credit_cost ?? 0}
+                creditsAvailable={userProfile?.creditos_disponiveis ?? 0}
+                onSuccess={handleDownloadSuccess}
+              />
+            )}
           </div>
-
-          {/* Aviso créditos insuficientes */}
-          {userId && !isFree && !temCreditos && (
-            <div style={{
-              padding: '8px 12px', borderRadius: 8,
-              backgroundColor: 'rgba(248,113,113,0.1)',
-              border: '1px solid rgba(248,113,113,0.3)',
-              fontSize: 12, color: '#f87171', textAlign: 'center',
-            }}>
-              Créditos insuficientes.{' '}
-              <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
-                Adquirir créditos →
-              </a>
-            </div>
-          )}
-
-          {/* Botão Gerar STL */}
-          <button
-            className={styles.primaryBtn}
-            onClick={gerarSTL}
-            disabled={mode === 'generating'}
-            style={{
-              opacity: mode === 'generating' ? 0.6 : 1,
-              cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {mode === 'generating'
-              ? 'A gerar STL…'
-              : !userId
-                ? '🔒 Login para Gerar STL'
-                : 'Gerar STL'
-            }
-          </button>
-
-          {/* Botão Download */}
-          {mode === 'stl' && userId && (
-            <DownloadStlButton
-              designId={designId}
-              params={paramsParaDownload}
-              creditCost={design.credit_cost ?? 0}
-              creditsAvailable={userProfile?.creditos_disponiveis ?? 0}
-              onSuccess={handleDownloadSuccess}
-            />
-          )}
-        </div>
+        )}
       </aside>
 
       {/* Viewer */}

@@ -10,6 +10,8 @@ type FamilyCardProps = {
   totalLikes: number;
   totalDownloads: number;
   designIds: string[]; // IDs dos designs desta família (like vai para o primeiro)
+  isExclusivo?: boolean;
+  isAdmin?: boolean;
 };
 
 const FAMILY_CONFIG: Record<string, {
@@ -83,6 +85,8 @@ export default function FamilyCard({
   totalLikes,
   totalDownloads,
   designIds,
+  isExclusivo,
+  isAdmin,
 }: FamilyCardProps) {
   const cfg = getConfig(familia);
   const description = descricao || cfg.description;

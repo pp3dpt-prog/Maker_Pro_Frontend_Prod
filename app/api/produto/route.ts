@@ -14,12 +14,14 @@ export async function GET(req: Request) {
   const id = searchParams.get('id');
   const familia = searchParams.get('familia');
 
+  const fields = 'id, nome, familia, credit_cost, generation_schema, stl_file_path, total_likes, total_downloads, estado, familia_estado, plano_minimo';
+
   let produto = null;
 
   if (id) {
     const { data } = await supabase
       .from('prod_designs')
-      .select('id, nome, familia, credit_cost, generation_schema, stl_file_path, total_likes, total_downloads')
+      .select(fields)
       .eq('id', id)
       .maybeSingle();
     if (data) produto = data;
@@ -28,7 +30,7 @@ export async function GET(req: Request) {
   if (!produto && familia) {
     const { data } = await supabase
       .from('prod_designs')
-      .select('id, nome, familia, credit_cost, generation_schema, stl_file_path, total_likes, total_downloads')
+      .select(fields)
       .eq('familia', familia)
       .order('id')
       .limit(1)

@@ -14,6 +14,9 @@ type Design = {
   thumbnail_url?: string;
   total_likes: number;
   total_downloads: number;
+  estado: string;
+  familia_estado: string;
+  plano_minimo: string | null;
 };
 
 type FamilyInfo = {
@@ -22,14 +25,48 @@ type FamilyInfo = {
   totalLikes: number;
   totalDownloads: number;
   designIds: string[];
+  estado: string; // estado da família (do primeiro design)
+  plano_minimo: string | null;
+  isExclusivo: boolean;
 };
 
 export default async function Page() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // Verificar sessão e perfil do utilizador
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  let userRole = null;
+  let userPlano = null;
+
+  if (session?.user) {
+    const { data: perfil } = await supabase
+      .from('prod_perfis')
+      .select('role, plano_id, prod_planos(nome)')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    
+    userRole = perfil?.role ?? null;
+    userPlano = (perfil?.prod_planos as any)?.nome ?? null;
+  }
+
+  const isAdmin = userRole === 'admin';
+
+  // Buscar designs conforme o role
+  let query = supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url, total_likes, total_downloads');
+    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url, total_likes, total_downloads, estado, familia_estado, plano_minimo');
+
+  // Admin vê tudo, utilizadores normais não veem rascunhos/inativos
+  if (!isAdmin) {
+    query = query
+      .neq('estado', 'inativo')
+      .neq('estado', 'rascunho')
+      .neq('familia_estado', 'inativo')
+      .neq('familia_estado', 'rascunho');
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return (
@@ -42,7 +79,7 @@ export default async function Page() {
 
   const designs = (data ?? []) as Design[];
 
-  // Agrupa por família e soma likes + downloads
+  // Agrupar por família
   const familias = designs.reduce<Record<string, FamilyInfo>>(
     (acc, design) => {
       const familia = design.familia ?? 'geral';
@@ -53,12 +90,26 @@ export default async function Page() {
           totalLikes: 0,
           totalDownloads: 0,
           designIds: [],
+          estado: design.familia_estado,
+          plano_minimo: design.plano_minimo,
+          isExclusivo: design.familia_estado === 'exclusivo' || design.estado === 'exclusivo',
         };
       }
       acc[familia].count++;
       acc[familia].totalLikes += design.total_likes ?? 0;
       acc[familia].totalDownloads += design.total_downloads ?? 0;
       acc[familia].designIds.push(design.id);
+
+      // Se qualquer design da família for exclusivo, a família é exclusiva
+      if (design.estado === 'exclusivo' || design.familia_estado === 'exclusivo') {
+        acc[familia].isExclusivo = true;
+      }
+
+      // Plano mínimo mais restritivo
+      if (design.plano_minimo && !acc[familia].plano_minimo) {
+        acc[familia].plano_minimo = design.plano_minimo;
+      }
+
       return acc;
     },
     {}
@@ -66,6 +117,18 @@ export default async function Page() {
 
   const familiaEntries = Object.entries(familias);
   const totalModelos = designs.length;
+
+  // Verificar se o utilizador tem acesso a um plano
+  const temAcesso = (planoMinimo: string | null) => {
+    if (!planoMinimo) return true;
+    if (isAdmin) return true;
+    if (!userPlano) return false;
+    // Hierarquia de planos
+    const hierarquia = ['Experimental', 'Maker Pro', 'Plano Fundador Pro', 'Commercial License'];
+    const nivelUser = hierarquia.indexOf(userPlano);
+    const nivelMinimo = hierarquia.indexOf(planoMinimo);
+    return nivelUser >= nivelMinimo;
+  };
 
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
@@ -111,10 +174,59 @@ export default async function Page() {
           max-width: 1200px;
           margin: 0 auto;
         }
+        .card-wrapper { position: relative; text-decoration: none; }
+        .card-lock-overlay {
+          position: absolute;
+          inset: 0;
+          border-radius: 20px;
+          background: rgba(0,0,0,0.45);
+          backdrop-filter: blur(2px);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          z-index: 10;
+          pointer-events: none;
+        }
+        .card-lock-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 20px;
+          background: rgba(251,191,36,0.15);
+          border: 1px solid rgba(251,191,36,0.4);
+          color: #fbbf24;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+        }
+        .card-lock-hint {
+          font-size: 11px;
+          color: rgba(255,255,255,0.5);
+          text-align: center;
+          padding: 0 20px;
+        }
+        .admin-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          z-index: 20;
+          padding: 3px 8px;
+          border-radius: 6px;
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .admin-badge-rascunho { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+        .admin-badge-inativo   { background: rgba(248,113,113,0.2); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+        .admin-badge-exclusivo { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+        .admin-badge-ativo     { background: rgba(52,211,153,0.2); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
         @media (max-width: 640px) {
           .catalog-header { padding: 40px 20px 32px; }
           .catalog-grid { padding: 0 20px 60px; gap: 16px; }
-          .catalog-stats { gap: 24px; }
         }
       `}</style>
 
@@ -141,22 +253,52 @@ export default async function Page() {
       </div>
 
       <div className="catalog-grid">
-        {familiaEntries.map(([familia, info]) => (
-          <Link
-            key={familia}
-            href={`/familia/${encodeURIComponent(familia)}`}
-            style={{ textDecoration: 'none' }}
-          >
-            <FamilyCard
-              familia={familia}
-              modelCount={info.count}
-              thumbnail_url={info.thumbnail_url}
-              totalLikes={info.totalLikes}
-              totalDownloads={info.totalDownloads}
-              designIds={info.designIds}
-            />
-          </Link>
-        ))}
+        {familiaEntries.map(([familia, info]) => {
+          const bloqueado = info.isExclusivo && !temAcesso(info.plano_minimo) && !isAdmin;
+          const estadoFamilia = info.estado;
+
+          return (
+            <div key={familia} style={{ position: 'relative' }}>
+
+              {/* Badge de estado — só admin vê */}
+              {isAdmin && estadoFamilia !== 'ativo' && (
+                <div className={`admin-badge admin-badge-${estadoFamilia}`}>
+                  {estadoFamilia === 'rascunho' ? '✏️ Rascunho' :
+                   estadoFamilia === 'inativo'   ? '⛔ Inativo' :
+                   estadoFamilia === 'exclusivo' ? '⭐ Exclusivo' : estadoFamilia}
+                </div>
+              )}
+
+              {/* Overlay de cadeado para exclusivos sem acesso */}
+              {bloqueado && (
+                <div className="card-lock-overlay">
+                  <div className="card-lock-badge">
+                    🔒 {info.plano_minimo ?? 'Plano necessário'}
+                  </div>
+                  <p className="card-lock-hint">
+                    Faz upgrade para aceder a esta família
+                  </p>
+                </div>
+              )}
+
+              <Link
+                href={bloqueado ? '/precario' : `/familia/${encodeURIComponent(familia)}`}
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                <FamilyCard
+                  familia={familia}
+                  modelCount={info.count}
+                  thumbnail_url={info.thumbnail_url}
+                  totalLikes={info.totalLikes}
+                  totalDownloads={info.totalDownloads}
+                  designIds={info.designIds}
+                  isExclusivo={info.isExclusivo && !isAdmin}
+                  isAdmin={isAdmin}
+                />
+              </Link>
+            </div>
+          );
+        })}
       </div>
     </main>
   );
