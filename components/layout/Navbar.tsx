@@ -14,6 +14,15 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
 
+  async function checkAdminRole(userId: string) {
+    const { data: perfil } = await supabase
+      .from('prod_perfis')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    return perfil?.role === 'admin';
+  }
+
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -25,15 +34,17 @@ export default function Navbar() {
       }
 
       setUser(session.user);
-      setIsAdmin(session.user.email === 'pp3d.pt@gmail.com');
+      const admin = await checkAdminRole(session.user.id);
+      setIsAdmin(admin);
     };
 
     checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         setUser(session.user);
-        setIsAdmin(session.user.email === 'pp3d.pt@gmail.com');
+        const admin = await checkAdminRole(session.user.id);
+        setIsAdmin(admin);
       }
 
       if (event === 'SIGNED_OUT') {
@@ -87,7 +98,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login">Login</Link>
-              <Link href="/register">Registo</Link>
+              <Link href="/registo">Registo</Link>
             </>
           )}
         </div>
@@ -128,7 +139,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" onClick={() => setMobileOpen(false)}>Login</Link>
-              <Link href="/register" onClick={() => setMobileOpen(false)}>Registo</Link>
+              <Link href="/registo" onClick={() => setMobileOpen(false)}>Registo</Link>
             </>
           )}
         </div>
