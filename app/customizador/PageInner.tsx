@@ -73,6 +73,7 @@ export default function PageInner() {
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
+  const [showRetry, setShowRetry] = useState(false);
 
   // Auth
   useEffect(() => {
@@ -109,6 +110,16 @@ export default function PageInner() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Retry timeout
+  useEffect(() => {
+    if (loading && !design && !error) {
+      const timer = setTimeout(() => setShowRetry(true), 8000); // 8 seconds
+      return () => clearTimeout(timer);
+    } else {
+      setShowRetry(false);
+    }
+  }, [loading, design, error]);
+
   // Load design
   useEffect(() => {
     if (!designId) return;
@@ -117,6 +128,7 @@ export default function PageInner() {
       try {
         setLoading(true);
         setError(null);
+        setShowRetry(false); // reset retry flag when starting load
 
         const res = await fetch(`/api/produto?id=${designId}`);
         if (!res.ok) throw new Error('Erro ao carregar design');
@@ -143,6 +155,7 @@ export default function PageInner() {
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
+        setShowRetry(false);
       } finally {
         setLoading(false);
       }
@@ -232,6 +245,30 @@ export default function PageInner() {
 
   if (!designId) return <main className={styles.fallback}>Produto inválido</main>;
   if (error) return <main className={styles.fallback}><div style={{ color: '#ef4444' }}>{error}</div></main>;
+  if (showRetry) {
+    return (
+      <main className={styles.fallback} style={{ textAlign: 'center', padding: '40px' }}>
+        <p style={{ color: '#94a3b8', marginBottom: '16px' }}>O carregamento está a demorar mais do que o esperado.</p>
+        <button
+          onClick={() => {
+            setShowRetry(false);
+            window.location.reload();
+          }}
+          style={{
+            padding: '10px 20px',
+            background: 'rgba(30,64,175,0.2)',
+            border: '1px solid rgba(30,64,175,0.4)',
+            color: '#60a5fa',
+            borderRadius: '6px',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Tentar novamente
+        </button>
+      </main>
+    );
+  }
   if (loading || authLoading || !design || !params) return <main className={styles.fallback}>A carregar…</main>;
 
   // Verificar acesso ao design
