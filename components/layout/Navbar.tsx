@@ -87,7 +87,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login">Login</Link>
-              <Link href="/registo">Registo</Link>
+              <Link href="/register">Registo</Link>
             </>
           )}
         </div>
@@ -128,7 +128,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" onClick={() => setMobileOpen(false)}>Login</Link>
-              <Link href="/registo" onClick={() => setMobileOpen(false)}>Registo</Link>
+              <Link href="/register" onClick={() => setMobileOpen(false)}>Registo</Link>
             </>
           )}
         </div>
