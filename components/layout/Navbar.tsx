@@ -45,10 +45,8 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    setMobileOpen(false);
-    window.location.href = '/';
+    router.push('/');
+    router.refresh();
   };
 
   return (

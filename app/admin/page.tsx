@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X
+  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X, Mail, Loader2
 } from 'lucide-react';
 import CreateCouponForm from '@/components/admin/CreateCouponForm';
 import {
@@ -45,6 +45,10 @@ export default function AdminDashboard() {
   const [campStatus, setCampStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [campErro, setCampErro] = useState('');
 
+  // Estado de envio de newsletter
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [newsletterMsg, setNewsletterMsg] = useState<{ id: string; texto: string; tipo: 'ok' | 'erro' } | null>(null);
+
   const handleCriar = async () => {
     if (!campTitulo || !campConteudo) {
       setCampErro('Preenche o título e o conteúdo.');
@@ -73,6 +77,27 @@ export default function AdminDashboard() {
       setCampConteudo('');
       fetchData();
       setTimeout(() => setCampStatus('idle'), 3000);
+    }
+  };
+
+  const enviarNewsletter = async (camp: Campanha) => {
+    if (!confirm(`Enviar "${camp.titulo}" por email a todos os utilizadores?`)) return;
+    setEnviandoId(camp.id);
+    setNewsletterMsg(null);
+    try {
+      const res = await fetch('/api/enviar-campanha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campanha_id: camp.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro desconhecido');
+      setNewsletterMsg({ id: camp.id, texto: `✓ Enviado a ${json.enviados} utilizadores`, tipo: 'ok' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao enviar';
+      setNewsletterMsg({ id: camp.id, texto: msg, tipo: 'erro' });
+    } finally {
+      setEnviandoId(null);
     }
   };
 
@@ -274,14 +299,34 @@ export default function AdminDashboard() {
               <div className="bg-[#16162d] rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-black/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest">
-                    <tr><th className="p-5">Campanha</th><th className="p-5 text-center">Interações</th><th className="p-5 text-center">Ações</th><th className="p-5 text-center">Status</th></tr>
+                    <tr><th className="p-5">Campanha</th><th className="p-5 text-center">Interações</th><th className="p-5 text-center">Partilhar</th><th className="p-5 text-center">Newsletter</th><th className="p-5 text-center">Status</th></tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {campanhas.map((camp) => (
                       <tr key={camp.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-5"><div className="font-bold text-gray-200">{camp.titulo}</div><div className="text-[9px] text-gray-500 uppercase">{camp.tipo}</div></td>
+                        <td className="p-5">
+                          <div className="font-bold text-gray-200">{camp.titulo}</div>
+                          <div className="text-[9px] text-gray-500 uppercase">{camp.tipo}</div>
+                          {newsletterMsg?.id === camp.id && (
+                            <div className={`text-[10px] mt-1 font-bold ${newsletterMsg.tipo === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
+                              {newsletterMsg.texto}
+                            </div>
+                          )}
+                        </td>
                         <td className="p-5 text-center font-mono text-indigo-400 font-bold">{camp.cliques} <span className="text-[10px] text-gray-600 block">cliques</span></td>
                         <td className="p-5"><div className="flex justify-center gap-4 text-gray-500"><button onClick={() => shareCampaign('wa', camp)} className="hover:text-green-500 transition-colors"><MessageCircle size={18}/></button><button onClick={() => shareCampaign('tw', camp)} className="hover:text-blue-400 transition-colors"><Twitter size={18}/></button></div></td>
+                        <td className="p-5 text-center">
+                          <button
+                            onClick={() => enviarNewsletter(camp)}
+                            disabled={enviandoId === camp.id}
+                            className="flex items-center gap-1.5 mx-auto px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                          >
+                            {enviandoId === camp.id
+                              ? <><Loader2 size={12} className="animate-spin" /> A enviar...</>
+                              : <><Mail size={12} /> Email</>
+                            }
+                          </button>
+                        </td>
                         <td className="p-5 text-center"><span className={`h-2.5 w-2.5 rounded-full inline-block ${camp.ativa ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500'}`}></span></td>
                       </tr>
                     ))}
