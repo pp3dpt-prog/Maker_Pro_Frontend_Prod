@@ -31,12 +31,8 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (path.startsWith('/admin')) {
-    // O terminal mostrou que o email é pp3d.pt@gmail.com
-    const meuEmailAdmin = 'pp3d.pt@gmail.com'; 
-    
-    // Usamos toLowerCase() nos dois lados para garantir que não falha por maiúsculas
-    if (!user || user.email?.toLowerCase().trim() !== meuEmailAdmin.toLowerCase().trim()) {
-      console.log("Middleware: Acesso negado para:", user?.email);
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!user || !adminEmail || user.email?.toLowerCase().trim() !== adminEmail.toLowerCase().trim()) {
       return NextResponse.redirect(new URL('/', request.url));
     }
   }
