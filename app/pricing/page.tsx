@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
+import { Check, RefreshCw, Loader2, Zap } from 'lucide-react';
 
 interface Plano {
   id: string;
@@ -19,37 +19,34 @@ interface Plano {
   vantagens?: string[];
 }
 
+const BG_PAGE   = '#080c10';
+const BG_CARD   = '#111827';
+const BG_CARD_H = '#131d2e';
+const BORDER    = 'rgba(255,255,255,0.07)';
+const BORDER_H  = 'rgba(99,102,241,0.5)';
+
 export default function PricingPage() {
   const router = useRouter();
-  const [planos, setPlanos] = useState<Plano[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  const [planos, setPlanos]       = useState<Plano[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [erro, setErro]           = useState<string | null>(null);
   const [aderindoId, setAderindoId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function carregarPlanos() {
-      try {
-        const { data, error } = await supabase
-          .from('prod_planos')
-          .select('*')
-          .order('preco', { ascending: true });
-        if (error) throw error;
-        if (!data || data.length === 0) { setErro('Nenhum plano disponível.'); return; }
-        setPlanos(data);
-      } catch (err: unknown) {
-        setErro(err instanceof Error ? err.message : 'Erro ao carregar planos');
-      } finally {
+    supabase.from('prod_planos').select('*').order('preco', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) { setErro(error.message); }
+        else if (!data?.length) { setErro('Nenhum plano disponível.'); }
+        else { setPlanos(data); }
         setLoading(false);
-      }
-    }
-    carregarPlanos();
+      });
   }, []);
 
-  const getPoupanca = (plano: Plano): number | null => {
-    const mensal = plano.preco_mensal ?? plano.preco;
-    const anual = plano.preco_anual;
-    if (!anual || !mensal) return null;
-    return Math.round(((mensal * 12 - anual) / (mensal * 12)) * 100);
+  const getPoupanca = (p: Plano) => {
+    const m = p.preco_mensal ?? p.preco;
+    const a = p.preco_anual;
+    if (!a || !m) return null;
+    return Math.round(((m * 12 - a) / (m * 12)) * 100);
   };
 
   const getPopularId = () => {
@@ -58,207 +55,225 @@ export default function PricingPage() {
     return pagos[0]?.id ?? null;
   };
 
-  const handleAderirGratuito = async (planoId: string) => {
+  const handleGratuito = async (planoId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/login?redirect=/pricing'); return; }
-
     setAderindoId(planoId);
     const res = await fetch('/api/aderir-gratuito', { method: 'POST' });
     setAderindoId(null);
-
-    if (res.ok) {
-      router.push('/dashboard');
-      router.refresh();
-    }
+    if (res.ok) { router.push('/dashboard'); router.refresh(); }
   };
 
   if (loading) return (
-    <div style={{ background: '#0f172a', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontSize: 14 }}>
+    <div style={{ background: BG_PAGE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 14 }}>
       A carregar planos...
     </div>
   );
 
   if (erro) return (
-    <div style={{ background: '#0f172a', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#f87171', padding: 20, textAlign: 'center' }}>
-      <h2 style={{ marginBottom: 10 }}>⚠️ Erro</h2>
-      <p style={{ color: '#94a3b8', fontSize: 14 }}>{erro}</p>
-      <button onClick={() => window.location.reload()} style={{ marginTop: 20, padding: '10px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
-        Tentar Novamente
+    <div style={{ background: BG_PAGE, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+      <p style={{ color: '#f87171', fontSize: 14 }}>{erro}</p>
+      <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', background: '#4f46e5', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, cursor: 'pointer' }}>
+        Tentar novamente
       </button>
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-[#0f172a] text-white" style={{ fontFamily: 'sans-serif' }}>
+  const popularId = getPopularId();
 
-      {/* Header */}
-      <div className="text-center pt-20 pb-12 px-4">
-        <p className="text-[11px] font-black text-indigo-400 uppercase tracking-widest mb-4">Planos</p>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Escolhe o teu plano</h1>
-        <p className="text-slate-400 text-lg max-w-xl mx-auto">
-          Acesso ao configurador 3D, créditos para downloads e muito mais.
+  return (
+    <div style={{ background: BG_PAGE, minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
+
+      {/* HEADER */}
+      <div style={{ textAlign: 'center', padding: '96px 24px 64px' }}>
+        <p style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>
+          Preçário
+        </p>
+        <h1 style={{ fontSize: 'clamp(32px,5vw,52px)', fontWeight: 900, letterSpacing: '-0.03em', margin: '0 0 16px', lineHeight: 1.1 }}>
+          Simples e transparente
+        </h1>
+        <p style={{ color: '#64748b', fontSize: 16, maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
+          Começa grátis. Evolui quando precisares.
         </p>
       </div>
 
-      {/* Cards */}
-      <div className="max-w-5xl mx-auto px-4 pb-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+      {/* GRID */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 96px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, alignItems: 'stretch' }}>
         {planos.map((plano) => {
-          const isPopular = plano.id === getPopularId();
-          const poupanca = getPoupanca(plano);
+          const isPopular  = plano.id === popularId && !plano.gratuito;
+          const poupanca   = getPoupanca(plano);
           const precoMensal = plano.preco_mensal ?? plano.preco;
-          const precoAnual = plano.preco_anual;
+          const precoAnual  = plano.preco_anual;
+
+          const features: string[] = plano.vantagens?.length ? plano.vantagens : [
+            'Configurador 3D completo',
+            `${plano.limite_downloads} downloads STL incluídos`,
+            plano.gratuito && plano.recarga_creditos_mensal > 0
+              ? `+${plano.recarga_creditos_mensal} créditos renovados por mês`
+              : plano.permite_venda_comercial ? 'Licença Comercial incluída' : 'Licença de uso pessoal',
+          ];
 
           return (
             <div
               key={plano.id}
-              className={`relative flex flex-col rounded-3xl p-8 border transition-all ${
-                plano.gratuito
-                  ? 'bg-[#1e293b] border-white/10'
-                  : isPopular
-                    ? 'bg-indigo-600/10 border-indigo-500/50 shadow-2xl shadow-indigo-500/10'
-                    : 'bg-[#1e293b] border-white/10'
-              }`}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 20,
+                overflow: 'hidden',
+                border: `1px solid ${isPopular ? BORDER_H : BORDER}`,
+                background: isPopular ? BG_CARD_H : BG_CARD,
+                boxShadow: isPopular ? '0 0 40px rgba(99,102,241,0.12)' : 'none',
+              }}
             >
-              {isPopular && !plano.gratuito && (
-                <div className="absolute -top-3 left-6 bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                  Mais Popular
-                </div>
-              )}
+              {/* Barra de cor no topo */}
+              <div style={{
+                height: 4,
+                background: plano.gratuito
+                  ? '#374151'
+                  : isPopular
+                    ? 'linear-gradient(90deg,#6366f1,#8b5cf6)'
+                    : '#1e293b',
+              }} />
 
-              {plano.gratuito && (
-                <div className="absolute -top-3 left-6 bg-slate-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                  Grátis
-                </div>
-              )}
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 28 }}>
 
-              {/* Nome */}
-              <div className="mb-5">
-                <h2 className={`text-lg font-black uppercase tracking-wide mb-1 ${isPopular && !plano.gratuito ? 'text-indigo-400' : 'text-white'}`}>
-                  {plano.nome}
-                </h2>
-                {plano.permite_venda_comercial && (
-                  <span className="text-[10px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
-                    Licença Comercial
-                  </span>
-                )}
-              </div>
-
-              {/* Preço — só para planos gratuitos mostramos aqui */}
-              {plano.gratuito && (
-                <div className="mb-5">
-                  <div className="flex items-end gap-1 mb-1">
-                    <span className="text-4xl font-black text-white">0€</span>
-                    <span className="text-slate-400 text-sm mb-1">/ sempre</span>
-                  </div>
-                  <p className="text-slate-500 text-xs">Sem cartão de crédito</p>
-                </div>
-              )}
-
-              {/* Créditos */}
-              <div className="bg-black/20 rounded-2xl p-4 mb-5 text-center">
-                <p className="text-slate-400 text-xs mb-1">Downloads incluídos</p>
-                <p className="text-3xl font-black text-green-400">{plano.limite_downloads}</p>
-                <p className="text-slate-500 text-xs mt-1">créditos STL</p>
-              </div>
-
-              {/* Recarga mensal — só para planos gratuitos com recarga */}
-              {plano.gratuito && plano.recarga_creditos_mensal > 0 && (
-                <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 mb-5">
-                  <RefreshCw size={14} className="text-green-400 flex-shrink-0" />
-                  <p className="text-green-300 text-xs">
-                    <span className="font-black">+{plano.recarga_creditos_mensal} créditos</span> adicionados automaticamente todos os meses
-                  </p>
-                </div>
-              )}
-
-              {/* Validade */}
-              {plano.gratuito && (
-                <div className="flex items-center justify-between text-sm mb-6">
-                  <span className="text-slate-400">Validade</span>
-                  <span className="text-white font-bold">{plano.validade_dias} dias (renovável)</span>
-                </div>
-              )}
-
-              {/* Features */}
-              <ul className="space-y-2 mb-8 flex-grow">
-                {(plano.vantagens && plano.vantagens.length > 0
-                  ? plano.vantagens
-                  : [
-                      'Configurador 3D completo',
-                      `${plano.limite_downloads} créditos iniciais`,
-                      plano.gratuito && plano.recarga_creditos_mensal > 0
-                        ? `+${plano.recarga_creditos_mensal} créditos / mês`
-                        : plano.permite_venda_comercial ? 'Licença Comercial' : 'Uso pessoal',
-                    ]
-                ).map((v, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <CheckCircle2 size={14} className="text-indigo-400 flex-shrink-0 mt-0.5" />
-                    {v}
-                  </li>
-                ))}
-              </ul>
-
-              {/* Botões */}
-              {plano.gratuito ? (
-                /* Plano gratuito: apenas um botão de adesão */
-                <button
-                  onClick={() => handleAderirGratuito(plano.id)}
-                  disabled={aderindoId === plano.id}
-                  className="w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/10 disabled:opacity-50"
-                >
-                  {aderindoId === plano.id
-                    ? <><Loader2 size={14} className="animate-spin" /> A ativar...</>
-                    : 'Começar Grátis'
-                  }
-                </button>
-              ) : (
-                /* Planos pagos: botão mensal + botão anual */
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=mensal`)}
-                    className={`w-full py-3 rounded-xl font-black text-sm transition-all flex items-center justify-between px-4 ${
-                      isPopular
-                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
-                        : 'bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10'
-                    }`}
-                  >
-                    <span>Mensal</span>
-                    <span className="font-black">
-                      {precoMensal}€<span className="text-xs font-normal opacity-70"> /mês</span>
+                {/* Badge */}
+                <div style={{ marginBottom: 20 }}>
+                  {isPopular && (
+                    <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 900, color: '#a5b4fc', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', padding: '3px 10px', borderRadius: 99, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>
+                      Mais Popular
                     </span>
-                  </button>
+                  )}
+                  {plano.gratuito && (
+                    <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 900, color: '#94a3b8', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: '3px 10px', borderRadius: 99, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>
+                      Grátis
+                    </span>
+                  )}
+                  <h2 style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', margin: 0, color: isPopular ? '#a5b4fc' : 'white' }}>
+                    {plano.nome}
+                  </h2>
+                  {plano.permite_venda_comercial && (
+                    <p style={{ fontSize: 11, color: '#4ade80', fontWeight: 600, marginTop: 4 }}>Inclui Licença Comercial</p>
+                  )}
+                </div>
 
-                  {precoAnual ? (
-                    <button
-                      onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=anual`)}
-                      className="w-full py-3 rounded-xl font-black text-sm transition-all flex items-center justify-between px-4 bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/30"
-                    >
-                      <span className="flex items-center gap-2">
-                        Anual
-                        {poupanca && poupanca > 0 && (
-                          <span className="text-[9px] font-black bg-green-500/30 text-green-400 px-1.5 py-0.5 rounded-full">
-                            -{poupanca}%
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-black text-white">
-                        {precoAnual}€<span className="text-xs font-normal opacity-70"> /ano</span>
-                      </span>
-                    </button>
+                {/* Preço */}
+                <div style={{ marginBottom: 24 }}>
+                  {plano.gratuito ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                        <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>0€</span>
+                        <span style={{ fontSize: 14, color: '#475569' }}>/mês</span>
+                      </div>
+                      <p style={{ fontSize: 11, color: '#334155', marginTop: 6 }}>Sem cartão de crédito</p>
+                    </>
                   ) : (
-                    <div className="w-full py-3 rounded-xl text-center text-slate-600 text-xs border border-white/5">
-                      Plano anual em breve
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                        <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>{precoMensal}€</span>
+                        <span style={{ fontSize: 14, color: '#475569' }}>/mês</span>
+                      </div>
+                      {precoAnual && (
+                        <p style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+                          ou{' '}
+                          <span style={{ color: '#94a3b8', fontWeight: 600 }}>{precoAnual}€/ano</span>
+                          {poupanca && poupanca > 0 && (
+                            <span style={{ marginLeft: 6, color: '#4ade80', fontWeight: 700 }}>— poupa {poupanca}%</span>
+                          )}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Créditos */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 10, background: isPopular ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.05)', flexShrink: 0 }}>
+                    <Zap size={16} color={isPopular ? '#818cf8' : '#64748b'} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, margin: 0 }}>{plano.limite_downloads}</p>
+                    <p style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>créditos STL incluídos</p>
+                  </div>
+                  {plano.gratuito && plano.recarga_creditos_mensal > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 8, padding: '5px 8px', flexShrink: 0 }}>
+                      <RefreshCw size={10} color="#4ade80" />
+                      <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80' }}>+{plano.recarga_creditos_mensal}/mês</span>
                     </div>
                   )}
                 </div>
-              )}
+
+                {/* Divider */}
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', marginBottom: 20 }} />
+
+                {/* Features */}
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                  {features.map((f, i) => (
+                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: '#94a3b8' }}>
+                      <Check size={13} color={isPopular ? '#818cf8' : '#475569'} style={{ flexShrink: 0, marginTop: 1 }} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Botões */}
+                {plano.gratuito ? (
+                  <button
+                    onClick={() => handleGratuito(plano.id)}
+                    disabled={aderindoId === plano.id}
+                    style={{ width: '100%', padding: '13px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontWeight: 800, fontSize: 13, letterSpacing: '0.05em', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: aderindoId === plano.id ? 0.5 : 1, transition: 'background 0.2s' }}
+                  >
+                    {aderindoId === plano.id
+                      ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> A ativar...</>
+                      : 'Começar Grátis'}
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Mensal */}
+                    <button
+                      onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=mensal`)}
+                      style={{
+                        width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
+                        background: isPopular ? '#4f46e5' : 'rgba(255,255,255,0.07)',
+                        color: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                        boxShadow: isPopular ? '0 4px 20px rgba(79,70,229,0.3)' : 'none',
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                    >
+                      Subscrição Mensal — {precoMensal}€
+                    </button>
+
+                    {/* Anual */}
+                    {precoAnual ? (
+                      <button
+                        onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=anual`)}
+                        style={{ width: '100%', padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'color 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                      >
+                        Anual — {precoAnual}€
+                        {poupanca && poupanca > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80', background: 'rgba(74,222,128,0.12)', padding: '2px 6px', borderRadius: 6 }}>
+                            -{poupanca}%
+                          </span>
+                        )}
+                      </button>
+                    ) : (
+                      <p style={{ textAlign: 'center', color: '#1e293b', fontSize: 12, margin: 0, padding: '8px 0' }}>Plano anual brevemente</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="text-center pb-16 px-4">
-        <p className="text-slate-500 text-sm">Dúvidas? Fala connosco — estamos aqui para ajudar.</p>
+      <div style={{ textAlign: 'center', paddingBottom: 80 }}>
+        <p style={{ color: '#1e293b', fontSize: 13 }}>Dúvidas? Fala connosco.</p>
       </div>
     </div>
   );
