@@ -25,30 +25,15 @@ export default function Navbar() {
   }
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-
-      if (error || !session) {
-        setUser(null);
-        setIsAdmin(false);
-        return;
-      }
-
-      setUser(session.user);
-      const admin = await checkAdminRole(session.user.id);
-      setIsAdmin(admin);
-    };
-
-    checkUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+    // onAuthStateChange dispara INITIAL_SESSION no mount (sessão existente),
+    // SIGNED_IN no login, TOKEN_REFRESHED na renovação, SIGNED_OUT no logout.
+    // Tratar todos garante que o estado nunca fica desatualizado.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
         setUser(session.user);
         const admin = await checkAdminRole(session.user.id);
         setIsAdmin(admin);
-      }
-
-      if (event === 'SIGNED_OUT') {
+      } else {
         setUser(null);
         setIsAdmin(false);
         setMobileOpen(false);
