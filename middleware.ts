@@ -34,6 +34,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
+    // Verificação 1: email definido em ADMIN_EMAIL (rápido, sem query à DB)
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail && user.email?.toLowerCase().trim() === adminEmail.toLowerCase().trim()) {
+      return response;
+    }
+
+    // Verificação 2: coluna role na tabela prod_perfis
     const { data: perfil } = await supabase
       .from('prod_perfis')
       .select('role')
