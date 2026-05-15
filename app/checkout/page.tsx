@@ -3,21 +3,20 @@ import { redirect } from 'next/navigation';
 import CheckoutClient from './CheckoutClient';
 
 interface PageProps {
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; intervalo?: string }>;
 }
 
 export default async function CheckoutPage({ searchParams }: PageProps) {
-  const { plan: planId } = await searchParams;
+  const { plan: planId, intervalo } = await searchParams;
+  const billingInterval = intervalo === 'anual' ? 'anual' : 'mensal';
 
   if (!planId) redirect('/pricing');
 
   const supabase = await createClient();
 
-  // Verificar sessão
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?redirect=/checkout?plan=${planId}`);
+  if (!user) redirect(`/login?redirect=/checkout?plan=${planId}&intervalo=${billingInterval}`);
 
-  // Buscar dados do plano
   const { data: plano } = await supabase
     .from('prod_planos')
     .select('*')
@@ -26,7 +25,6 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
 
   if (!plano) redirect('/pricing');
 
-  // Buscar perfil do utilizador
   const { data: perfil } = await supabase
     .from('prod_perfis')
     .select('plano_id, prod_planos(nome)')
@@ -38,6 +36,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
   return (
     <CheckoutClient
       plano={plano}
+      intervalo={billingInterval}
       userEmail={user.email ?? ''}
       planoAtualNome={planoAtualNome}
     />
