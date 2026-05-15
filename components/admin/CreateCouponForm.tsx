@@ -10,6 +10,7 @@ interface CreateCouponProps {
 
 export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponProps) {
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
   const [formData, setFormData] = useState({
     codigo: '',
     desconto: 10,
@@ -19,22 +20,22 @@ export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErro('');
 
     const { error } = await supabase
       .from('cupons')
-      .insert([{ 
-        codigo: formData.codigo.toUpperCase(), 
+      .insert([{
+        codigo: formData.codigo.toUpperCase(),
         desconto_percent: formData.desconto,
         max_usos: formData.limite,
-        ativo: true 
+        ativo: true
       }]);
 
     if (!error) {
-      alert("Campanha criada!");
-      onSuccess(); //
-      onClose();   //
+      onSuccess();
+      onClose();
     } else {
-      alert("Erro: " + error.message);
+      setErro('Erro: ' + error.message);
     }
     setLoading(false);
   };
@@ -51,6 +52,7 @@ export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponPro
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {erro && <p className="text-red-400 text-sm">{erro}</p>}
         <div>
           <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2 font-bold">Código</label>
           <input 

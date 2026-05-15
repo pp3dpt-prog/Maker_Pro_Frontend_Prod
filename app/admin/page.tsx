@@ -2,18 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { 
-  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X 
+import {
+  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X, Mail, Loader2
 } from 'lucide-react';
 import CreateCouponForm from '@/components/admin/CreateCouponForm';
-import { 
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
+import {
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
+import type { ReactNode } from 'react';
 
 // --- INTERFACES ---
 interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; }
 interface TicketSuporte { id: string; assunto: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; }
 interface Campanha { id: string; titulo: string; tipo: string; cliques: number; vistas: number; ativa: boolean; created_at: string; }
+
+interface MenuButtonProps { active: boolean; onClick: () => void; icon: ReactNode; label: string; }
+interface StatCardProps { title: string; value: number | string; icon: ReactNode; }
 
 const chartData = [
   { name: 'Seg', users: 40, cliques: 240 },
@@ -34,19 +38,68 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, tickets: 0 });
   const [loading, setLoading] = useState(true);
 
+  // Estado do formulário de campanhas
+  const [campTitulo, setCampTitulo] = useState('');
+  const [campCanal, setCampCanal] = useState('Feed da App');
+  const [campConteudo, setCampConteudo] = useState('');
+  const [campStatus, setCampStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [campErro, setCampErro] = useState('');
+
+  // Estado de envio de newsletter
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [newsletterMsg, setNewsletterMsg] = useState<{ id: string; texto: string; tipo: 'ok' | 'erro' } | null>(null);
+
   const handleCriar = async () => {
-  console.log("Iniciando gravação...");
-  
-  // Aqui podes adicionar a lógica do Supabase depois
-  alert("A função handleCriar foi chamada com sucesso!");
-  
-  // Exemplo de insert (ajusta os nomes das variáveis se necessário)
-  /*
-  const { error } = await supabase
-    .from('prod_campanhas')
-    .insert([{ titulo: 'Teste', ativa: true }]);
-  */
-};
+    if (!campTitulo || !campConteudo) {
+      setCampErro('Preenche o título e o conteúdo.');
+      return;
+    }
+
+    setCampStatus('loading');
+    setCampErro('');
+
+    const { error } = await supabase
+      .from('prod_campanhas')
+      .insert([{
+        titulo: campTitulo,
+        tipo: campCanal,
+        conteudo: campConteudo,
+        ativa: true,
+        segmento: 'todos'
+      }]);
+
+    if (error) {
+      setCampErro('Erro ao criar campanha: ' + error.message);
+      setCampStatus('error');
+    } else {
+      setCampStatus('success');
+      setCampTitulo('');
+      setCampConteudo('');
+      fetchData();
+      setTimeout(() => setCampStatus('idle'), 3000);
+    }
+  };
+
+  const enviarNewsletter = async (camp: Campanha) => {
+    if (!confirm(`Enviar "${camp.titulo}" por email a todos os utilizadores?`)) return;
+    setEnviandoId(camp.id);
+    setNewsletterMsg(null);
+    try {
+      const res = await fetch('/api/enviar-campanha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campanha_id: camp.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro desconhecido');
+      setNewsletterMsg({ id: camp.id, texto: `✓ Enviado a ${json.enviados} utilizadores`, tipo: 'ok' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao enviar';
+      setNewsletterMsg({ id: camp.id, texto: msg, tipo: 'erro' });
+    } finally {
+      setEnviandoId(null);
+    }
+  };
 
   // --- CARREGAMENTO DE DADOS ---
   const fetchData = useCallback(async () => {
@@ -64,7 +117,7 @@ export default function AdminDashboard() {
       setCampanhas(cpData || []);
       setStats({ users: uCount || 0, tickets: tOpenCount || 0 });
     } catch (err) {
-      console.error("Erro ao carregar dados:", err);
+      console.error('Erro ao carregar dados:', err);
     } finally {
       setLoading(false);
     }
@@ -86,14 +139,22 @@ export default function AdminDashboard() {
   };
 
   const deleteCoupon = async (id: number) => {
-    if (!confirm("Eliminar este cupão?")) return;
-    await supabase.from('cupons').delete().eq('id', id);
+    if (!confirm('Eliminar este cupão?')) return;
+    const { error } = await supabase.from('cupons').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao eliminar cupão:', error.message);
+      return;
+    }
     fetchData();
   };
 
   const toggleTicketStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'aberto' ? 'fechado' : 'aberto';
-    await supabase.from('prod_tickets_suporte').update({ status: newStatus }).eq('id', id);
+    const { error } = await supabase.from('prod_tickets_suporte').update({ status: newStatus }).eq('id', id);
+    if (error) {
+      console.error('Erro ao atualizar ticket:', error.message);
+      return;
+    }
     fetchData();
   };
 
@@ -113,7 +174,7 @@ export default function AdminDashboard() {
       {/* CONTEÚDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto p-10 space-y-10">
-          
+
           {showModal && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
               <div className="relative bg-[#16162d] p-2 rounded-3xl border border-white/10 w-full max-w-md shadow-2xl">
@@ -157,7 +218,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* GESTÃO DE CAMPANHAS (O Gráfico está aqui!) */}
+          {/* GESTÃO DE CAMPANHAS */}
           {activeTab === 'campanhas' && (
             <div className="space-y-10 animate-in fade-in duration-500">
               {/* 1. Formulário */}
@@ -166,29 +227,43 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Título</label>
-                    <input type="text" placeholder="Ex: Promoção Flash" className="bg-white border border-white/10 p-4 rounded-xl text-white placeholder-gray-600 focus:border-indigo-500 outline-none transition-all w-full" />
+                    <input
+                      type="text"
+                      value={campTitulo}
+                      onChange={(e) => setCampTitulo(e.target.value)}
+                      placeholder="Ex: Promoção Flash"
+                      className="bg-[#0f0f1e] border border-white/10 p-4 rounded-xl text-white placeholder-gray-600 focus:border-indigo-500 outline-none transition-all w-full"
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Canal</label>
-                    <select className="bg-white border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none">
-                      <option className="bg-white">Feed da App</option>
-                      <option className="bg-white">Banner Principal</option>
+                    <select
+                      value={campCanal}
+                      onChange={(e) => setCampCanal(e.target.value)}
+                      className="bg-[#0f0f1e] border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none"
+                    >
+                      <option>Feed da App</option>
+                      <option>Banner Principal</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Conteúdo da Mensagem</label>
-                    <textarea placeholder="Escreve aqui..." className="bg-white border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"></textarea>
+                    <textarea
+                      value={campConteudo}
+                      onChange={(e) => setCampConteudo(e.target.value)}
+                      placeholder="Escreve aqui..."
+                      className="bg-[#0f0f1e] border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"
+                    />
                   </div>
-                 <button 
-                  type="button" // IMPORTANTE: evita o refresh automático
-                  onClick={() => {
-                    console.log("TESTE: O botão funciona!");
-                    handleCriar();
-                  }}
-                  className="..."
-                >
-                  Confirmar e Publicar
-                </button>
+                  {campErro && <p className="md:col-span-2 text-red-400 text-sm">{campErro}</p>}
+                  <button
+                    type="button"
+                    onClick={handleCriar}
+                    disabled={campStatus === 'loading'}
+                    className={`md:col-span-2 py-4 rounded-xl font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50 ${campStatus === 'success' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-500'}`}
+                  >
+                    {campStatus === 'loading' ? 'A publicar...' : campStatus === 'success' ? 'Publicada com Sucesso!' : 'Confirmar e Publicar'}
+                  </button>
                 </div>
               </div>
 
@@ -224,14 +299,34 @@ export default function AdminDashboard() {
               <div className="bg-[#16162d] rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-black/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest">
-                    <tr><th className="p-5">Campanha</th><th className="p-5 text-center">Interações</th><th className="p-5 text-center">Ações</th><th className="p-5 text-center">Status</th></tr>
+                    <tr><th className="p-5">Campanha</th><th className="p-5 text-center">Interações</th><th className="p-5 text-center">Partilhar</th><th className="p-5 text-center">Newsletter</th><th className="p-5 text-center">Status</th></tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {campanhas.map((camp) => (
                       <tr key={camp.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-5"><div className="font-bold text-gray-200">{camp.titulo}</div><div className="text-[9px] text-gray-500 uppercase">{camp.tipo}</div></td>
+                        <td className="p-5">
+                          <div className="font-bold text-gray-200">{camp.titulo}</div>
+                          <div className="text-[9px] text-gray-500 uppercase">{camp.tipo}</div>
+                          {newsletterMsg?.id === camp.id && (
+                            <div className={`text-[10px] mt-1 font-bold ${newsletterMsg.tipo === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
+                              {newsletterMsg.texto}
+                            </div>
+                          )}
+                        </td>
                         <td className="p-5 text-center font-mono text-indigo-400 font-bold">{camp.cliques} <span className="text-[10px] text-gray-600 block">cliques</span></td>
                         <td className="p-5"><div className="flex justify-center gap-4 text-gray-500"><button onClick={() => shareCampaign('wa', camp)} className="hover:text-green-500 transition-colors"><MessageCircle size={18}/></button><button onClick={() => shareCampaign('tw', camp)} className="hover:text-blue-400 transition-colors"><Twitter size={18}/></button></div></td>
+                        <td className="p-5 text-center">
+                          <button
+                            onClick={() => enviarNewsletter(camp)}
+                            disabled={enviandoId === camp.id}
+                            className="flex items-center gap-1.5 mx-auto px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                          >
+                            {enviandoId === camp.id
+                              ? <><Loader2 size={12} className="animate-spin" /> A enviar...</>
+                              : <><Mail size={12} /> Email</>
+                            }
+                          </button>
+                        </td>
                         <td className="p-5 text-center"><span className={`h-2.5 w-2.5 rounded-full inline-block ${camp.ativa ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500'}`}></span></td>
                       </tr>
                     ))}
@@ -272,7 +367,7 @@ export default function AdminDashboard() {
 }
 
 // --- COMPONENTES AUXILIARES ---
-function MenuButton({ active, onClick, icon, label }: any) {
+function MenuButton({ active, onClick, icon, label }: MenuButtonProps) {
   return (
     <button onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-sm font-bold ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
       {icon} {label}
@@ -280,7 +375,7 @@ function MenuButton({ active, onClick, icon, label }: any) {
   );
 }
 
-function StatCard({ title, value, icon }: any) {
+function StatCard({ title, value, icon }: StatCardProps) {
   return (
     <div className="bg-[#16162d] p-8 rounded-3xl border border-white/5 shadow-xl flex flex-col items-center text-center group hover:border-indigo-500/20 transition-all">
       <div className="p-4 bg-black/20 rounded-2xl mb-4 group-hover:scale-110 transition-transform">{icon}</div>

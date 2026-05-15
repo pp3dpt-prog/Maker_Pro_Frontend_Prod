@@ -33,19 +33,19 @@ type FamilyInfo = {
 export default async function Page() {
   const supabase = await createClient();
 
-  // Verificar sessão e perfil do utilizador
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  // Verificar utilizador e perfil
+  const { data: { user } } = await supabase.auth.getUser();
+
   let userRole = null;
   let userPlano = null;
 
-  if (session?.user) {
+  if (user) {
     const { data: perfil } = await supabase
       .from('prod_perfis')
       .select('role, plano_id, prod_planos(nome)')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .maybeSingle();
-    
+
     userRole = perfil?.role ?? null;
     userPlano = (perfil?.prod_planos as any)?.nome ?? null;
   }
@@ -282,7 +282,7 @@ export default async function Page() {
               )}
 
               <Link
-                href={bloqueado ? '/precario' : `/familia/${encodeURIComponent(familia)}`}
+                href={bloqueado ? '/pricing' : `/familia/${encodeURIComponent(familia)}`}
                 style={{ textDecoration: 'none', display: 'block' }}
               >
                 <FamilyCard

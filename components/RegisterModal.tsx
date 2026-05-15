@@ -17,6 +17,7 @@ export default function RegisterModal({ isOpen, onClose, onSuccess }: RegisterMo
   if (!isOpen) return null;
 
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -27,6 +28,7 @@ export default function RegisterModal({ isOpen, onClose, onSuccess }: RegisterMo
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setErro('');
 
     const { error } = await supabase.auth.signUp({
       email: formData.email,
@@ -40,16 +42,12 @@ export default function RegisterModal({ isOpen, onClose, onSuccess }: RegisterMo
     });
 
     if (error) {
-      alert(error.message);
+      setErro(error.message);
       setLoading(false);
       return;
     }
 
-    alert('Conta criada! Verifica o teu email.');
-
-    // ✅ Só chama se existir
     if (onSuccess) onSuccess();
-
     setLoading(false);
   };
 
@@ -206,6 +204,10 @@ export default function RegisterModal({ isOpen, onClose, onSuccess }: RegisterMo
               />
             </div>
           </label>
+
+          {erro && (
+            <p style={{ color: '#f87171', fontSize: '13px', margin: 0 }}>{erro}</p>
+          )}
 
           <button
             type="submit"

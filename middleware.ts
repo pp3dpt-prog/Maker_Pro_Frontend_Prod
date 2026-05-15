@@ -26,17 +26,28 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // IMPORTANTE: getUser() é mais lento mas muito mais seguro que getSession() no Middleware
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
 
   if (path.startsWith('/admin')) {
-    // O terminal mostrou que o email é pp3d.pt@gmail.com
-    const meuEmailAdmin = 'pp3d.pt@gmail.com'; 
-    
-    // Usamos toLowerCase() nos dois lados para garantir que não falha por maiúsculas
-    if (!user || user.email?.toLowerCase().trim() !== meuEmailAdmin.toLowerCase().trim()) {
-      console.log("Middleware: Acesso negado para:", user?.email);
+    if (!user) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    // Verificação 1: email definido em ADMIN_EMAIL (rápido, sem query à DB)
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail && user.email?.toLowerCase().trim() === adminEmail.toLowerCase().trim()) {
+      return response;
+    }
+
+    // Verificação 2: coluna role na tabela prod_perfis
+    const { data: perfil } = await supabase
+      .from('prod_perfis')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (perfil?.role !== 'admin') {
       return NextResponse.redirect(new URL('/', request.url));
     }
   }
@@ -45,5 +56,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'], 
+  matcher: ['/admin/:path*'],
 };

@@ -15,44 +15,25 @@ export default function Navbar() {
   const router = useRouter();
 
   async function checkAdminRole(userId: string): Promise<boolean> {
-    const { data: perfil, error } = await supabase
+    const { data: perfil } = await supabase
       .from('prod_perfis')
       .select('role')
       .eq('id', userId)
       .maybeSingle();
-    
-    console.log('checkAdminRole:', { userId, perfil, error });
+
     return perfil?.role === 'admin';
   }
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-
-      if (error || !session) {
-        setUser(null);
-        setIsAdmin(false);
-        return;
-      }
-
-      setUser(session.user);
-      const admin = await checkAdminRole(session.user.id);
-      setIsAdmin(admin);
-      console.log('checkUser done:', { email: session.user.email, admin });
-    };
-
-    checkUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('onAuthStateChange:', event, session?.user?.email);
-      
-      if (event === 'SIGNED_IN' && session) {
+    // onAuthStateChange dispara INITIAL_SESSION no mount (sessão existente),
+    // SIGNED_IN no login, TOKEN_REFRESHED na renovação, SIGNED_OUT no logout.
+    // Tratar todos garante que o estado nunca fica desatualizado.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
         setUser(session.user);
         const admin = await checkAdminRole(session.user.id);
         setIsAdmin(admin);
-      }
-
-      if (event === 'SIGNED_OUT') {
+      } else {
         setUser(null);
         setIsAdmin(false);
         setMobileOpen(false);
@@ -64,13 +45,9 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    setMobileOpen(false);
-    window.location.href = '/';
+    router.push('/');
+    router.refresh();
   };
-
-  console.log('Navbar render:', { email: user?.email, isAdmin });
 
   return (
     <header className={styles.header}>
@@ -81,7 +58,7 @@ export default function Navbar() {
 
         {/* Links desktop */}
         <div className={styles.desktopLinks}>
-          <Link href="/precario">Preçário</Link>
+          <Link href="/pricing">Preçário</Link>
 
           {user ? (
             <>
@@ -103,7 +80,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login">Login</Link>
-              <Link href="/registo">Registo</Link>
+              <Link href="/register">Registo</Link>
             </>
           )}
         </div>
@@ -122,7 +99,7 @@ export default function Navbar() {
       {/* Menu mobile */}
       {mobileOpen && (
         <div className={styles.mobileMenu} role="menu">
-          <Link href="/precario" onClick={() => setMobileOpen(false)}>Preçário</Link>
+          <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>
 
           {user ? (
             <>
@@ -144,7 +121,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" onClick={() => setMobileOpen(false)}>Login</Link>
-              <Link href="/registo" onClick={() => setMobileOpen(false)}>Registo</Link>
+              <Link href="/register" onClick={() => setMobileOpen(false)}>Registo</Link>
             </>
           )}
         </div>

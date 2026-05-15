@@ -5,8 +5,15 @@ import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import StatusBar from '@/components/ui/StatusBar';
 
+interface Programa {
+  id: string;
+  nome: string;
+  descricao: string;
+  imagem_url?: string;
+}
+
 export default function ExploreView() {
-  const [programas, setProgramas] = useState<any[]>([]);
+  const [programas, setProgramas] = useState<Programa[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
