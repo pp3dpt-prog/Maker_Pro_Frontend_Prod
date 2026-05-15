@@ -26,13 +26,21 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // IMPORTANTE: getUser() é mais lento mas muito mais seguro que getSession() no Middleware
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
 
   if (path.startsWith('/admin')) {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    if (!user || !adminEmail || user.email?.toLowerCase().trim() !== adminEmail.toLowerCase().trim()) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    const { data: perfil } = await supabase
+      .from('prod_perfis')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (perfil?.role !== 'admin') {
       return NextResponse.redirect(new URL('/', request.url));
     }
   }
@@ -41,5 +49,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'], 
+  matcher: ['/admin/:path*'],
 };
