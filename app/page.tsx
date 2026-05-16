@@ -70,7 +70,43 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. COMO FUNCIONA (O QUE FAZEMOS) */}
+      {/* 3. SOBRE MIM */}
+      <section style={{ padding: '80px 20px' }}>
+        <div style={{
+          maxWidth: '700px',
+          margin: '0 auto',
+          backgroundColor: '#1e293b',
+          borderRadius: '24px',
+          border: '1px solid #334155',
+          padding: '50px 48px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            display: 'inline-block',
+            backgroundColor: '#1d3557',
+            color: '#3b82f6',
+            fontSize: '13px',
+            fontWeight: '700',
+            letterSpacing: '1.5px',
+            textTransform: 'uppercase',
+            padding: '6px 16px',
+            borderRadius: '99px',
+            marginBottom: '28px'
+          }}>
+            Quem sou
+          </div>
+          <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '20px', letterSpacing: '-0.5px' }}>
+            Olá, sou o Pedro
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '17px', lineHeight: '1.8', margin: 0 }}>
+            Estou na impressão 3D há mais de 3 anos e tenho aprendido muito sobre desenho paramétrico ao longo do caminho.
+            Criei a MakerPro porque acredito que toda a gente devia ter acesso a peças personalizadas —
+            sem complicações, sem precisar de saber modelar, e com os ficheiros sempre disponíveis.
+          </p>
+        </div>
+      </section>
+
+      {/* 5. COMO FUNCIONA (O QUE FAZEMOS) */}
       <section style={{ padding: '100px 20px', maxWidth: '1100px', margin: '0 auto' }}>
         <h2 style={{ textAlign: 'center', fontSize: '32px', fontWeight: '800', marginBottom: '60px' }}>PORQUÊ A MAKERPRO?</h2>
         
