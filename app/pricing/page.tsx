@@ -107,9 +107,9 @@ export default function PricingPage() {
 
           const features: string[] = plano.vantagens?.length ? plano.vantagens : [
             'Configurador 3D completo',
-            `${plano.limite_downloads} downloads STL incluídos`,
+            `${plano.limite_downloads} créditos STL por mês`,
             plano.gratuito && plano.recarga_creditos_mensal > 0
-              ? `+${plano.recarga_creditos_mensal} créditos renovados por mês`
+              ? `Créditos renovados automaticamente todo o mês`
               : plano.permite_venda_comercial ? 'Licença Comercial incluída' : 'Licença de uso pessoal',
           ];
 
@@ -166,7 +166,10 @@ export default function PricingPage() {
                         <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>0€</span>
                         <span style={{ fontSize: 14, color: '#475569' }}>/mês</span>
                       </div>
-                      <p style={{ fontSize: 11, color: '#334155', marginTop: 6 }}>Sem cartão de crédito</p>
+                      <p style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+                        Sem cartão de crédito · Válido por {plano.validade_dias} dias
+                        {plano.recarga_creditos_mensal > 0 && ', renova automaticamente'}
+                      </p>
                     </>
                   ) : (
                     <>
@@ -188,20 +191,29 @@ export default function PricingPage() {
                 </div>
 
                 {/* Créditos */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 10, background: isPopular ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.05)', flexShrink: 0 }}>
-                    <Zap size={16} color={isPopular ? '#818cf8' : '#64748b'} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, margin: 0 }}>{plano.limite_downloads}</p>
-                    <p style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>créditos STL incluídos</p>
-                  </div>
-                  {plano.gratuito && plano.recarga_creditos_mensal > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 8, padding: '5px 8px', flexShrink: 0 }}>
-                      <RefreshCw size={10} color="#4ade80" />
-                      <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80' }}>+{plano.recarga_creditos_mensal}/mês</span>
+                <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 10, background: isPopular ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.05)', flexShrink: 0 }}>
+                      <Zap size={16} color={isPopular ? '#818cf8' : '#64748b'} />
                     </div>
-                  )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                        <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1 }}>{plano.limite_downloads}</span>
+                        <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>créditos / mês</span>
+                      </div>
+                      {!plano.gratuito && precoAnual && (
+                        <p style={{ fontSize: 11, color: '#334155', marginTop: 3 }}>
+                          até {plano.limite_downloads * 12} créditos no plano anual
+                        </p>
+                      )}
+                    </div>
+                    {plano.gratuito && plano.recarga_creditos_mensal > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 8, padding: '5px 8px', flexShrink: 0 }}>
+                        <RefreshCw size={10} color="#4ade80" />
+                        <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80' }}>renova/mês</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Divider */}
@@ -234,32 +246,37 @@ export default function PricingPage() {
                     <button
                       onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=mensal`)}
                       style={{
-                        width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
+                        width: '100%', padding: '12px 16px', borderRadius: 12, border: 'none',
                         background: isPopular ? '#4f46e5' : 'rgba(255,255,255,0.07)',
                         color: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer',
                         boxShadow: isPopular ? '0 4px 20px rgba(79,70,229,0.3)' : 'none',
-                        transition: 'opacity 0.15s',
+                        transition: 'opacity 0.15s', textAlign: 'left',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                       onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                     >
-                      Subscrição Mensal — {precoMensal}€
+                      <span>Mensal <span style={{ fontWeight: 400, opacity: 0.6, fontSize: 12 }}>· {plano.validade_dias} dias</span></span>
+                      <span>{precoMensal}€</span>
                     </button>
 
                     {/* Anual */}
                     {precoAnual ? (
                       <button
                         onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=anual`)}
-                        style={{ width: '100%', padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'color 0.15s' }}
+                        style={{ width: '100%', padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'color 0.15s' }}
                         onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; }}
                         onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
                       >
-                        Anual — {precoAnual}€
-                        {poupanca && poupanca > 0 && (
-                          <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80', background: 'rgba(74,222,128,0.12)', padding: '2px 6px', borderRadius: 6 }}>
-                            -{poupanca}%
-                          </span>
-                        )}
+                        <span>Anual <span style={{ fontWeight: 400, opacity: 0.7, fontSize: 12 }}>· {plano.validade_dias * 12} dias</span></span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {precoAnual}€
+                          {poupanca && poupanca > 0 && (
+                            <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80', background: 'rgba(74,222,128,0.12)', padding: '2px 6px', borderRadius: 6 }}>
+                              -{poupanca}%
+                            </span>
+                          )}
+                        </span>
                       </button>
                     ) : (
                       <p style={{ textAlign: 'center', color: '#1e293b', fontSize: 12, margin: 0, padding: '8px 0' }}>Plano anual brevemente</p>
