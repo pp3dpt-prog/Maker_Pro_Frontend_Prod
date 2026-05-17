@@ -199,10 +199,10 @@ export default function PageInner() {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
     const uid = Math.random().toString(36).slice(2, 10);
-    const storagePath = `uploads/${session.user.id}/${Date.now()}_${uid}.${ext}`;
+    const storagePath = `Images/${session.user.id}/${Date.now()}_${uid}.${ext}`;
 
     const { error } = await supabase.storage
-      .from('designs-vault')
+      .from('makers_pro_stl_prod')
       .upload(storagePath, file, { contentType: file.type, upsert: false });
 
     if (error) throw new Error(`Erro no upload: ${error.message}`);
