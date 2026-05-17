@@ -10,44 +10,51 @@ export async function POST(req: NextRequest) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   if (!backendUrl) {
-    return new Response('NEXT_PUBLIC_BACKEND_URL not configured', { status: 500 });
+    return new Response(
+      'NEXT_PUBLIC_BACKEND_URL not configured',
+      { status: 500 }
+    );
   }
 
   const body = await req.json();
-  const designId = body.design_id ?? body.id;
-  const params = body.params ?? {};
 
-  if (!designId) {
+  const designId = body.design_id ?? body.id;
+  const params = body.params;
+
+  if (!designId || !params) {
     return new Response('INVALID_REQUEST', { status: 400 });
   }
 
-  // Encaminhar o token de autenticação do utilizador ao backend
-  const auth = req.headers.get('authorization');
-
-  // Chamar o endpoint correto do backend Docker com parâmetros planos
-  const backendRes = await fetch(`${backendUrl}/gerar-stl-pro`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(auth ? { Authorization: auth } : {}),
-    },
-    body: JSON.stringify({
-      id: designId,
-      mode: 'preview',
-      ...params,   // parâmetros planos: nome, fontSize, fonte, diametro, etc.
-    }),
-  });
+  const backendRes = await fetch(
+    backendUrl + '/api/preview',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        design_id: designId,
+        params,
+      }),
+    }
+  );
 
   if (!backendRes.ok) {
     const text = await backendRes.text();
-    return new Response(text, { status: backendRes.status });
+    return new Response(text, {
+      status: backendRes.status,
+    });
   }
 
-  // Backend devolve { success, url, storagePath, cached, mode }
-  const data = await backendRes.json();
+  // ✅ Continua correto: ler binário completo
+  const buffer = await backendRes.arrayBuffer();
 
-  return new Response(JSON.stringify(data), {
+  // ✅ CORREÇÃO IMPORTANTE: tipo STL
+  return new Response(buffer, {
     status: 200,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'model/stl',
+      'Cache-Control': 'no-store',
+    },
   });
 }

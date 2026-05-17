@@ -205,26 +205,15 @@ export default function PageInner() {
     try {
       setMode('generating');
       const paramsBackend = filtrarParamsBackend(params);
-
-      // Obter token para autenticar no backend Docker
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: designId, params: paramsBackend }),
       });
-
       if (!res.ok) throw new Error('Erro ao gerar STL');
-
-      const data = await res.json();
-      if (!data?.url) throw new Error('URL do STL não recebida');
-
-      setStlUrl(data.url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setStlUrl(url);
       setMode('stl');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar STL');
