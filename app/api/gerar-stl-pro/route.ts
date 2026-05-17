@@ -1,36 +1,6 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
-
-const BUCKET = 'makers_pro_stl_prod';
-const SIGNED_URL_EXPIRY = 3600; // 1 hora
-
-function supabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
-
-// Substitui valores que sejam storage paths (ex: "uploads/...") por URLs assinadas
-async function resolveStoragePaths(params: Record<string, any>): Promise<Record<string, any>> {
-  const supabase = supabaseAdmin();
-  const resolved: Record<string, any> = {};
-
-  for (const [key, value] of Object.entries(params)) {
-    if (typeof value === 'string' && value.startsWith('uploads/')) {
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(value, SIGNED_URL_EXPIRY);
-      resolved[key] = error ? value : data.signedUrl;
-    } else {
-      resolved[key] = value;
-    }
-  }
-
-  return resolved;
-}
 
 export function GET() {
   return new Response('This endpoint requires POST', { status: 405 });
@@ -55,7 +25,6 @@ export async function POST(req: NextRequest) {
   // ── SISTEMA NOVO: produtos com scad_template (copo, etiquetas, etc.) ──
   if (system === 'scad') {
     const auth = req.headers.get('authorization');
-    const resolvedParams = await resolveStoragePaths(params);
 
     const backendRes = await fetch(`${backendUrl}/gerar-stl-pro`, {
       method: 'POST',
@@ -66,7 +35,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         id: designId,
         mode: 'preview',
-        ...resolvedParams, // storage paths já substituídos por URLs assinadas
+        ...params,
       }),
     });
 
