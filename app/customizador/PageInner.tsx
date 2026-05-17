@@ -11,6 +11,7 @@ import styles from './ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
   parameters: Record<string, any>;
+  base_geometry?: string | null;
 };
 
 type Design = {
