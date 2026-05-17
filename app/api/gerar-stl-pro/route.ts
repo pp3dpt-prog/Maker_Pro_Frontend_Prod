@@ -10,51 +10,44 @@ export async function POST(req: NextRequest) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   if (!backendUrl) {
-    return new Response(
-      'NEXT_PUBLIC_BACKEND_URL not configured',
-      { status: 500 }
-    );
+    return new Response('NEXT_PUBLIC_BACKEND_URL not configured', { status: 500 });
   }
 
   const body = await req.json();
-
   const designId = body.design_id ?? body.id;
-  const params = body.params;
+  const params = body.params ?? {};
 
-  if (!designId || !params) {
+  if (!designId) {
     return new Response('INVALID_REQUEST', { status: 400 });
   }
 
-  const backendRes = await fetch(
-    backendUrl + '/api/preview',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        design_id: designId,
-        params,
-      }),
-    }
-  );
+  // Encaminhar o token de autenticação do utilizador ao backend
+  const auth = req.headers.get('authorization');
+
+  // Chamar o endpoint correto do backend Docker com parâmetros planos
+  const backendRes = await fetch(`${backendUrl}/gerar-stl-pro`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(auth ? { Authorization: auth } : {}),
+    },
+    body: JSON.stringify({
+      id: designId,
+      mode: 'preview',
+      ...params,   // parâmetros planos: nome, fontSize, fonte, diametro, etc.
+    }),
+  });
 
   if (!backendRes.ok) {
     const text = await backendRes.text();
-    return new Response(text, {
-      status: backendRes.status,
-    });
+    return new Response(text, { status: backendRes.status });
   }
 
-  // ✅ Continua correto: ler binário completo
-  const buffer = await backendRes.arrayBuffer();
+  // Backend devolve { success, url, storagePath, cached, mode }
+  const data = await backendRes.json();
 
-  // ✅ CORREÇÃO IMPORTANTE: tipo STL
-  return new Response(buffer, {
+  return new Response(JSON.stringify(data), {
     status: 200,
-    headers: {
-      'Content-Type': 'model/stl',
-      'Cache-Control': 'no-store',
-    },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
