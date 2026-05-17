@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import Link from 'next/link';
 
 type Perfil = {
   id: string;
@@ -101,9 +102,19 @@ export default function Dashboard() {
             </button>
           ))}
         </nav>
+        <Link
+          href="/produtos"
+          style={{
+            display: 'block', textAlign: 'center', padding: '12px', marginBottom: '10px',
+            background: '#2563eb', color: 'white', borderRadius: '10px',
+            fontSize: '13px', fontWeight: 'bold', textDecoration: 'none',
+          }}
+        >
+          🛍️ Ver Catálogo
+        </Link>
         <button
           onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')}
-          style={{ padding: '12px', background: 'transparent', color: '#f87171', border: '1px solid #451a1a', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', fontFamily: 'inherit' }}
+          style={{ padding: '12px', background: 'transparent', color: '#f87171', border: '1px solid #451a1a', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', fontFamily: 'inherit', width: '100%' }}
         >
           Sair
         </button>
