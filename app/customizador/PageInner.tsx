@@ -205,15 +205,41 @@ export default function PageInner() {
     try {
       setMode('generating');
       const paramsBackend = filtrarParamsBackend(params);
+
+      // Detetar sistema: 'scad' para novos produtos (sem base_geometry),
+      // 'legacy' para pet tags com base_geometry estático
+      const isScad = !design?.generation_schema?.base_geometry;
+      const system = isScad ? 'scad' : 'legacy';
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+      // Sistema SCAD requer autenticação no backend Docker
+      if (isScad) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: designId, params: paramsBackend }),
+        headers,
+        body: JSON.stringify({ id: designId, params: paramsBackend, system }),
       });
+
       if (!res.ok) throw new Error('Erro ao gerar STL');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setStlUrl(url);
+
+      if (isScad) {
+        // Sistema novo: resposta é JSON com URL assinada
+        const data = await res.json();
+        if (!data?.url) throw new Error('URL do STL não recebida');
+        setStlUrl(data.url);
+      } else {
+        // Sistema legado: resposta é binário STL
+        const blob = await res.blob();
+        setStlUrl(URL.createObjectURL(blob));
+      }
+
       setMode('stl');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar STL');

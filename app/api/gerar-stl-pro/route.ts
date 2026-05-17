@@ -10,46 +10,61 @@ export async function POST(req: NextRequest) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   if (!backendUrl) {
-    return new Response(
-      'NEXT_PUBLIC_BACKEND_URL not configured',
-      { status: 500 }
-    );
+    return new Response('NEXT_PUBLIC_BACKEND_URL not configured', { status: 500 });
   }
 
   const body = await req.json();
-
   const designId = body.design_id ?? body.id;
   const params = body.params;
+  const system = body.system ?? 'legacy'; // 'legacy' = pet tags, 'scad' = novos produtos
 
   if (!designId || !params) {
     return new Response('INVALID_REQUEST', { status: 400 });
   }
 
-  const backendRes = await fetch(
-    backendUrl + '/api/preview',
-    {
+  // ── SISTEMA NOVO: produtos com scad_template (copo, etiquetas, etc.) ──
+  if (system === 'scad') {
+    const auth = req.headers.get('authorization');
+
+    const backendRes = await fetch(`${backendUrl}/gerar-stl-pro`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(auth ? { Authorization: auth } : {}),
       },
       body: JSON.stringify({
-        design_id: designId,
-        params,
+        id: designId,
+        mode: 'preview',
+        ...params, // parâmetros planos: nome, fontSize, fonte, etc.
       }),
-    }
-  );
+    });
 
-  if (!backendRes.ok) {
-    const text = await backendRes.text();
-    return new Response(text, {
-      status: backendRes.status,
+    if (!backendRes.ok) {
+      const text = await backendRes.text();
+      return new Response(text, { status: backendRes.status });
+    }
+
+    // Backend devolve { success, url, storagePath, cached, mode }
+    const data = await backendRes.json();
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  // ✅ Continua correto: ler binário completo
-  const buffer = await backendRes.arrayBuffer();
+  // ── SISTEMA LEGADO: pet tags com base_geometry estático ──
+  const backendRes = await fetch(`${backendUrl}/api/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ design_id: designId, params }),
+  });
 
-  // ✅ CORREÇÃO IMPORTANTE: tipo STL
+  if (!backendRes.ok) {
+    const text = await backendRes.text();
+    return new Response(text, { status: backendRes.status });
+  }
+
+  const buffer = await backendRes.arrayBuffer();
   return new Response(buffer, {
     status: 200,
     headers: {
