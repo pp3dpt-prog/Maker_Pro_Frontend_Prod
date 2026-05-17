@@ -71,6 +71,8 @@ export default function PageInner() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const [txtUrl, setTxtUrl] = useState<string | null>(null);
+
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
@@ -185,7 +187,25 @@ export default function PageInner() {
     if (mode === 'stl') {
       setMode('preview');
       setStlUrl(null);
+      setTxtUrl(null);
     }
+  };
+
+  // Upload de imagem para o Supabase Storage
+  const handleFileUpload = async (paramName: string, file: File): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error('Não autenticado');
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const uid = Math.random().toString(36).slice(2, 10);
+    const storagePath = `uploads/${session.user.id}/${Date.now()}_${uid}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from('designs-vault')
+      .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+    if (error) throw new Error(`Erro no upload: ${error.message}`);
+    return storagePath;
   };
 
   const handleDesignChange = (newDesignId: string) => {
@@ -234,6 +254,9 @@ export default function PageInner() {
         const data = await res.json();
         if (!data?.url) throw new Error('URL do STL não recebida');
         setStlUrl(data.url);
+        // HueForge: URL do ficheiro TXT com instruções de cor
+        if (data.txtUrl) setTxtUrl(data.txtUrl);
+        else setTxtUrl(null);
       } else {
         // Sistema legado: resposta é binário STL
         const blob = await res.blob();
@@ -458,6 +481,7 @@ export default function PageInner() {
             schema={design.generation_schema}
             values={params}
             onChange={handleParamsChange}
+            onFileUpload={handleFileUpload}
           />
         )}
 
@@ -520,7 +544,7 @@ export default function PageInner() {
               }
             </button>
 
-            {/* Botão Download */}
+            {/* Botão Download STL */}
             {mode === 'stl' && userId && (
               <DownloadStlButton
                 designId={designId}
@@ -529,6 +553,37 @@ export default function PageInner() {
                 creditsAvailable={userProfile?.creditos_disponiveis ?? 0}
                 onSuccess={handleDownloadSuccess}
               />
+            )}
+
+            {/* Botão Download TXT — só aparece para HueForge */}
+            {mode === 'stl' && txtUrl && (
+              <a
+                href={txtUrl}
+                download="hueforge_cores.txt"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  background: 'rgba(16,185,129,0.12)',
+                  border: '1px solid rgba(16,185,129,0.3)',
+                  color: '#34d399',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="11" x2="12" y2="17"/>
+                  <polyline points="9 14 12 17 15 14"/>
+                </svg>
+                Guia de Cores (TXT)
+              </a>
             )}
           </div>
         )}
