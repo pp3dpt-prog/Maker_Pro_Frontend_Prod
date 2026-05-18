@@ -232,23 +232,32 @@ export default function PageInner() {
       const isScad = !design?.generation_schema?.base_geometry;
       const system = isScad ? 'scad' : 'legacy';
 
+      console.log('[STL] Iniciando geração', { designId, system, paramsBackend });
+
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
       // Sistema SCAD requer autenticação no backend Docker
       if (isScad) {
+        console.log('[STL] A obter token de autenticação...');
         try {
           // Tenta refresh; se falhar, usa sessão em cache
           const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
           const token = !error && refreshed?.access_token
             ? refreshed.access_token
             : (await supabase.auth.getSession()).data.session?.access_token;
-          if (token) headers['Authorization'] = `Bearer ${token}`;
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            console.log('[STL] Token obtido com sucesso');
+          } else {
+            console.warn('[STL] Sem token de autenticação');
+          }
         } catch {
           const { data: { session: cached } } = await supabase.auth.getSession();
           if (cached?.access_token) headers['Authorization'] = `Bearer ${cached.access_token}`;
         }
       }
 
+      console.log('[STL] A enviar pedido para /api/gerar-stl-pro...');
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 120_000); // 2 min timeout
       let res: Response;
@@ -263,6 +272,7 @@ export default function PageInner() {
         clearTimeout(timeout);
       }
 
+      console.log('[STL] Resposta recebida:', res!.status);
       if (!res!.ok) throw new Error('Erro ao gerar STL');
 
       if (isScad) {
