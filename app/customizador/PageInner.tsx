@@ -232,26 +232,19 @@ export default function PageInner() {
       const isScad = !design?.generation_schema?.base_geometry;
       const system = isScad ? 'scad' : 'legacy';
 
-      console.log('[STL] Iniciando geração', { designId, system, paramsBackend });
-
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
       // Sistema SCAD requer autenticação no backend Docker
       if (isScad) {
-        console.log('[STL] A obter token via servidor...');
-        // Usar endpoint server-side para evitar problemas com onAuthStateChange
-        // do cliente Supabase browser que bloqueia o fluxo assíncrono
         const refreshResp = await fetch('/api/auth/refresh', { method: 'POST' });
-        console.log('[STL] Resposta auth/refresh:', refreshResp.status);
         if (refreshResp.ok) {
           const { access_token } = await refreshResp.json();
           if (access_token) headers['Authorization'] = `Bearer ${access_token}`;
         }
       }
 
-      console.log('[STL] A enviar pedido para /api/gerar-stl-pro...');
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 120_000); // 2 min timeout
+      const timeout = setTimeout(() => controller.abort(), 120_000);
       let res: Response;
       try {
         res = await fetch('/api/gerar-stl-pro', {
@@ -264,7 +257,6 @@ export default function PageInner() {
         clearTimeout(timeout);
       }
 
-      console.log('[STL] Resposta recebida:', res!.status);
       if (!res!.ok) throw new Error('Erro ao gerar STL');
 
       if (isScad) {
