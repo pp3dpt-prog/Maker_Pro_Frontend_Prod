@@ -238,27 +238,14 @@ export default function PageInner() {
 
       // Sistema SCAD requer autenticação no backend Docker
       if (isScad) {
-        console.log('[STL] A obter token de autenticação...');
-        const { data: { session } } = await supabase.auth.getSession();
-        // Forçar refresh apenas se token expirado ou a expirar em menos de 60s
-        const expiresAt = session?.expires_at ?? 0;
-        const needsRefresh = expiresAt < Math.floor(Date.now() / 1000) + 60;
-        let token = session?.access_token;
-        if (needsRefresh) {
-          console.log('[STL] Token expirado, a chamar refreshSession via API...');
-          // Usar endpoint dedicado para refresh em vez de chamar diretamente
-          // (evita onAuthStateChange que bloqueia o fluxo)
-          const refreshResp = await fetch('/api/auth/refresh', { method: 'POST' });
-          if (refreshResp.ok) {
-            const refreshData = await refreshResp.json();
-            token = refreshData.access_token ?? token;
-          }
-        }
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-          console.log('[STL] Token pronto');
-        } else {
-          console.warn('[STL] Sem token de autenticação');
+        console.log('[STL] A obter token via servidor...');
+        // Usar endpoint server-side para evitar problemas com onAuthStateChange
+        // do cliente Supabase browser que bloqueia o fluxo assíncrono
+        const refreshResp = await fetch('/api/auth/refresh', { method: 'POST' });
+        console.log('[STL] Resposta auth/refresh:', refreshResp.status);
+        if (refreshResp.ok) {
+          const { access_token } = await refreshResp.json();
+          if (access_token) headers['Authorization'] = `Bearer ${access_token}`;
         }
       }
 
