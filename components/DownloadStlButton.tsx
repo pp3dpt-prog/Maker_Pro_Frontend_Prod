@@ -31,13 +31,11 @@ export default function DownloadStlButton({
 
 
     try {
-      // 1. Validar sessão
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('É necessário estar autenticado.');
-      }
-
-      const userId = session.user.id;
+      // 1. Obter token via servidor (evita onAuthStateChange que bloqueia o fluxo)
+      const refreshResp = await fetch('/api/auth/refresh', { method: 'POST' });
+      if (!refreshResp.ok) throw new Error('É necessário estar autenticado.');
+      const { access_token, user_id: userId } = await refreshResp.json();
+      if (!access_token) throw new Error('É necessário estar autenticado.');
 
       // 2. Verificar créditos (double-check no cliente antes de chamar o backend)
       if (!isFree && creditsAvailable < creditCost) {
@@ -49,7 +47,7 @@ export default function DownloadStlButton({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${access_token}`,
         },
         body: JSON.stringify({ design_id: designId, params }),
       });
