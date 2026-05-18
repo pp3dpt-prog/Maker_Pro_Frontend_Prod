@@ -1,22 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST() {
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name) => cookieStore.get(name)?.value,
-        set: (name, value, options) => cookieStore.set(name, value, options),
-        remove: (name, options) => cookieStore.delete({ name, ...options }),
-      },
-    }
-  );
-
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.refreshSession();
 
   if (error || !data.session) {
