@@ -236,20 +236,34 @@ export default function PageInner() {
 
       // Sistema SCAD requer autenticação no backend Docker
       if (isScad) {
-        // refreshSession garante token válido mesmo após expiração
-        const { data: { session } } = await supabase.auth.refreshSession();
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
+        try {
+          // Tenta refresh; se falhar, usa sessão em cache
+          const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
+          const token = !error && refreshed?.access_token
+            ? refreshed.access_token
+            : (await supabase.auth.getSession()).data.session?.access_token;
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+        } catch {
+          const { data: { session: cached } } = await supabase.auth.getSession();
+          if (cached?.access_token) headers['Authorization'] = `Bearer ${cached.access_token}`;
         }
       }
 
-      const res = await fetch('/api/gerar-stl-pro', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ id: designId, params: paramsBackend, system }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120_000); // 2 min timeout
+      let res: Response;
+      try {
+        res = await fetch('/api/gerar-stl-pro', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ id: designId, params: paramsBackend, system }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
-      if (!res.ok) throw new Error('Erro ao gerar STL');
+      if (!res!.ok) throw new Error('Erro ao gerar STL');
 
       if (isScad) {
         // Sistema novo: resposta é JSON com URL assinada

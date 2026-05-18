@@ -25,19 +25,30 @@ export async function POST(req: NextRequest) {
   // ── SISTEMA NOVO: produtos com scad_template (copo, etiquetas, etc.) ──
   if (system === 'scad') {
     const auth = req.headers.get('authorization');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 110_000); // 110s (antes do limite Next.js)
 
-    const backendRes = await fetch(`${backendUrl}/gerar-stl-pro`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(auth ? { Authorization: auth } : {}),
-      },
-      body: JSON.stringify({
-        id: designId,
-        mode: 'preview',
-        ...params,
-      }),
-    });
+    let backendRes: Response;
+    try {
+      backendRes = await fetch(`${backendUrl}/gerar-stl-pro`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(auth ? { Authorization: auth } : {}),
+        },
+        body: JSON.stringify({
+          id: designId,
+          mode: 'preview',
+          ...params,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err: unknown) {
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      return new Response(isAbort ? 'TIMEOUT' : 'BACKEND_ERROR', { status: 504 });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!backendRes.ok) {
       const text = await backendRes.text();
