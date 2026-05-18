@@ -239,21 +239,26 @@ export default function PageInner() {
       // Sistema SCAD requer autenticação no backend Docker
       if (isScad) {
         console.log('[STL] A obter token de autenticação...');
-        try {
-          // Tenta refresh; se falhar, usa sessão em cache
-          const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
-          const token = !error && refreshed?.access_token
-            ? refreshed.access_token
-            : (await supabase.auth.getSession()).data.session?.access_token;
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            console.log('[STL] Token obtido com sucesso');
-          } else {
-            console.warn('[STL] Sem token de autenticação');
+        const { data: { session } } = await supabase.auth.getSession();
+        // Forçar refresh apenas se token expirado ou a expirar em menos de 60s
+        const expiresAt = session?.expires_at ?? 0;
+        const needsRefresh = expiresAt < Math.floor(Date.now() / 1000) + 60;
+        let token = session?.access_token;
+        if (needsRefresh) {
+          console.log('[STL] Token expirado, a chamar refreshSession via API...');
+          // Usar endpoint dedicado para refresh em vez de chamar diretamente
+          // (evita onAuthStateChange que bloqueia o fluxo)
+          const refreshResp = await fetch('/api/auth/refresh', { method: 'POST' });
+          if (refreshResp.ok) {
+            const refreshData = await refreshResp.json();
+            token = refreshData.access_token ?? token;
           }
-        } catch {
-          const { data: { session: cached } } = await supabase.auth.getSession();
-          if (cached?.access_token) headers['Authorization'] = `Bearer ${cached.access_token}`;
+        }
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+          console.log('[STL] Token pronto');
+        } else {
+          console.warn('[STL] Sem token de autenticação');
         }
       }
 
