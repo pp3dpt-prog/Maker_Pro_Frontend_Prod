@@ -236,7 +236,8 @@ export default function PageInner() {
 
       // Sistema SCAD requer autenticação no backend Docker
       if (isScad) {
-        const { data: { session } } = await supabase.auth.getSession();
+        // refreshSession garante token válido mesmo após expiração
+        const { data: { session } } = await supabase.auth.refreshSession();
         if (session?.access_token) {
           headers['Authorization'] = `Bearer ${session.access_token}`;
         }
