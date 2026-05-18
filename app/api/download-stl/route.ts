@@ -13,14 +13,25 @@ export async function POST(req: NextRequest) {
     return new Response('NEXT_PUBLIC_BACKEND_URL não configurado', { status: 500 });
   }
 
-  const res = await fetch(`${backendUrl}/download-stl`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(auth ? { Authorization: auth } : {}),
-    },
-    body,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 110_000);
+  let res: Response;
+  try {
+    res = await fetch(`${backendUrl}/download-stl`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(auth ? { Authorization: auth } : {}),
+      },
+      body,
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    return new Response(isAbort ? 'TIMEOUT' : 'BACKEND_ERROR', { status: 504 });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   return new Response(res.body, {
     status: res.status,
