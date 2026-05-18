@@ -194,18 +194,36 @@ export default function PageInner() {
 
   // Upload de imagem para o Supabase Storage
   const handleFileUpload = async (paramName: string, file: File): Promise<string> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) throw new Error('Não autenticado');
+    // Usar endpoint server-side para obter token (evita onAuthStateChange que bloqueia)
+    const refreshResp = await fetch('/api/auth/refresh', { method: 'POST' });
+    if (!refreshResp.ok) throw new Error('Não autenticado');
+    const { access_token, user_id } = await refreshResp.json();
+    if (!access_token || !user_id) throw new Error('Não autenticado');
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
     const uid = Math.random().toString(36).slice(2, 10);
-    const storagePath = `uploads/${session.user.id}/${Date.now()}_${uid}.${ext}`;
+    const storagePath = `uploads/${user_id}/${Date.now()}_${uid}.${ext}`;
+    const bucket = 'makers_pro_stl_prod';
 
-    const { error } = await supabase.storage
-      .from('makers_pro_stl_prod')
-      .upload(storagePath, file, { contentType: file.type, upsert: false });
+    // Upload direto via REST API do Supabase Storage (sem cliente JS que pode bloquear)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const uploadResp = await fetch(
+      `${supabaseUrl}/storage/v1/object/${bucket}/${storagePath}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${access_token}`,
+          'Content-Type': file.type,
+        },
+        body: file,
+      }
+    );
 
-    if (error) throw new Error(`Erro no upload: ${error.message}`);
+    if (!uploadResp.ok) {
+      const errText = await uploadResp.text();
+      throw new Error(`Erro no upload: ${errText}`);
+    }
+
     return storagePath;
   };
 

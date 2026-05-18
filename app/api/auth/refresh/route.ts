@@ -9,5 +9,8 @@ export async function POST() {
     return NextResponse.json({ error: 'refresh_failed' }, { status: 401 });
   }
 
-  return NextResponse.json({ access_token: data.session.access_token });
+  return NextResponse.json({
+    access_token: data.session.access_token,
+    user_id: data.session.user.id,
+  });
 }
