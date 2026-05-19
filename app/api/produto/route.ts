@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const id = searchParams.get('id');
   const familia = searchParams.get('familia');
 
-  const fields = 'id, nome, familia, credit_cost, generation_schema, stl_file_path, total_likes, total_downloads, estado, familia_estado, plano_minimo';
+  const fields = 'id, nome, familia, generation_schema, stl_file_path, total_likes, total_downloads, estado, acesso_maker, requer_licenca_comercial, disponivel_consumidor, pvp';
 
   let produto = null;
 

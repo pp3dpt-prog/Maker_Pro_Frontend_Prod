@@ -9,23 +9,13 @@ export async function POST() {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }
 
-  // Buscar o plano gratuito
-  const { data: plano } = await supabase
-    .from('prod_planos')
-    .select('id, recarga_creditos_mensal')
-    .eq('gratuito', true)
-    .single();
-
-  if (!plano) {
-    return NextResponse.json({ error: 'Plano gratuito não encontrado' }, { status: 404 });
-  }
-
-  // Atribuir o plano ao utilizador com os créditos iniciais
+  // Inicializar perfil com plano gratuito
   const { error } = await supabase
     .from('prod_perfis')
     .update({
-      plano_id: plano.id,
-      creditos: plano.recarga_creditos_mensal,
+      plano: 'gratuito',
+      downloads_mes: 0,
+      downloads_limite: 3,
     })
     .eq('id', user.id);
 

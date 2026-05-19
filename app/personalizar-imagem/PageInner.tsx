@@ -15,23 +15,30 @@ type Design = {
   id: string;
   nome: string;
   familia: string;
-  credit_cost: number;
   generation_schema: GenerationSchema;
   total_likes: number;
   total_downloads: number;
   estado: string;
-  plano_minimo: string | null;
+  acesso_maker: 'gratuito' | 'pessoal' | 'pessoal_plus' | 'comercial' | null;
+  requer_licenca_comercial: boolean;
 };
 
 type UserProfile = {
-  creditos_disponiveis: number;
   role: string | null;
-  plano_id: string | null;
-  prod_planos?: { nome: string } | { nome: string }[] | null;
+  plano: string;
+  downloads_mes: number;
+  downloads_limite: number;
 };
 
 const VISUAL_PARAMS = ['mostrar_texto'];
-const HIERARQUIA_PLANOS = ['Experimental', 'Maker Pro', 'Plano Fundador Pro', 'Commercial License'];
+const PLANO_ORDEM = ['gratuito', 'pessoal', 'pessoal_plus', 'comercial'];
+
+function temAcessoPlano(userPlano: string, acesso: string | null): boolean {
+  if (!acesso) return false;
+  const nivelUser = PLANO_ORDEM.indexOf(userPlano.startsWith('comercial') ? 'comercial' : userPlano);
+  const nivelMin  = PLANO_ORDEM.indexOf(acesso);
+  return nivelUser >= nivelMin;
+}
 
 function filtrarParamsBackend(params: Record<string, any>): Record<string, any> {
   return Object.fromEntries(Object.entries(params).filter(([k]) => !VISUAL_PARAMS.includes(k)));
@@ -80,7 +87,7 @@ export default function PageInner() {
           const supabase = createClient();
           const { data: perfil } = await supabase
             .from('prod_perfis')
-            .select('creditos_disponiveis, role, plano_id, prod_planos(nome)')
+            .select('role, plano, downloads_mes, downloads_limite')
             .eq('id', user_id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
@@ -226,8 +233,8 @@ export default function PageInner() {
     finally { setLiking(false); }
   };
 
-  const handleDownloadSuccess = (novosCreditos: number) => {
-    setUserProfile(prev => prev ? { ...prev, creditos_disponiveis: novosCreditos } : prev);
+  const handleDownloadSuccess = () => {
+    setUserProfile(prev => prev ? { ...prev, downloads_mes: prev.downloads_mes + 1 } : prev);
   };
 
   // ── Render guards ─────────────────────────────────────────────────────────
@@ -246,19 +253,9 @@ export default function PageInner() {
   if (loading || authLoading || !design || !params) return <main style={{ padding: 40, color: '#94a3b8' }}>A carregar…</main>;
 
   const isAdmin = userProfile?.role === 'admin';
-  const userPlanoNome = Array.isArray(userProfile?.prod_planos)
-    ? (userProfile?.prod_planos as any[])[0]?.nome ?? null
-    : (userProfile?.prod_planos as any)?.nome ?? null;
-
-  const temAcessoPlano = (planoMinimo: string | null) => {
-    if (!planoMinimo || isAdmin) return true;
-    if (!userPlanoNome) return false;
-    return HIERARQUIA_PLANOS.indexOf(userPlanoNome) >= HIERARQUIA_PLANOS.indexOf(planoMinimo);
-  };
-
-  const designBloqueado = design.estado === 'exclusivo' && !temAcessoPlano(design.plano_minimo) && !isAdmin;
-  const isFree = !design.credit_cost || design.credit_cost === 0;
-  const temCreditos = isFree || (userProfile?.creditos_disponiveis ?? 0) >= design.credit_cost;
+  const userPlano = userProfile?.plano ?? 'gratuito';
+  const designBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
+  const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const paramsParaDownload = filtrarParamsBackend(params);
 
   return (
@@ -321,22 +318,19 @@ export default function PageInner() {
           {/* Ações */}
           {!designBloqueado && (
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: '#0f172a', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Custo do download</span>
-                {isFree ? (
-                  <span style={{ fontSize: 14, fontWeight: 800, color: '#34d399' }}>Gratuito</span>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: '#60a5fa' }}>{design.credit_cost} ₡</span>
-                    {userId && <span style={{ fontSize: 11, color: temCreditos ? '#64748b' : '#f87171', fontWeight: 600 }}>(tens {userProfile?.creditos_disponiveis ?? 0} ₡)</span>}
-                  </div>
-                )}
-              </div>
+              {userId && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: '#0f172a', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Downloads este mês</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: semDownloads ? '#f87171' : '#34d399' }}>
+                    {userProfile?.downloads_mes ?? 0} / {userProfile?.downloads_limite ?? 3}
+                  </span>
+                </div>
+              )}
 
-              {userId && !isFree && !temCreditos && (
+              {semDownloads && (
                 <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#f87171', textAlign: 'center' }}>
-                  Créditos insuficientes.{' '}
-                  <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Adquirir créditos →</a>
+                  Limite mensal atingido.{' '}
+                  <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Upgrade do plano →</a>
                 </div>
               )}
 
@@ -345,7 +339,7 @@ export default function PageInner() {
               </button>
 
               {mode === 'done' && userId && (
-                <DownloadStlButton designId={designId} params={paramsParaDownload} creditCost={design.credit_cost ?? 0} creditsAvailable={userProfile?.creditos_disponiveis ?? 0} onSuccess={handleDownloadSuccess} />
+                <DownloadStlButton designId={designId} params={paramsParaDownload} onSuccess={handleDownloadSuccess} />
               )}
 
               {mode === 'done' && txtUrl && (
