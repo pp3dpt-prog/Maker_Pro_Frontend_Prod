@@ -53,7 +53,10 @@ export default function Navbar() {
     <header className={styles.header}>
       <nav className={styles.navbar}>
         <div className={styles.brand}>
-          <Link href="/" style={{ fontWeight: 900, letterSpacing: '-0.5px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></Link>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+            <span style={{ fontWeight: 900, letterSpacing: '-0.5px', color: 'white' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
+          </Link>
         </div>
 
         {/* Links desktop */}
