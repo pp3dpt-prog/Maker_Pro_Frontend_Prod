@@ -138,6 +138,18 @@ export default function PageInner() {
         if (!res.ok) throw new Error('Erro ao carregar design');
 
         const data: Design = await res.json();
+
+        // Redirecionar produtos com image_upload para /personalizar-imagem
+        const hasImageUpload = Object.values(data.generation_schema?.parameters ?? {})
+          .some((p: any) => p?.ui?.widget === 'image_upload');
+        if (hasImageUpload) {
+          const p = new URLSearchParams();
+          p.set('id', data.id);
+          if (familiaParam) p.set('familia', familiaParam);
+          router.replace(`/personalizar-imagem?${p.toString()}`);
+          return;
+        }
+
         setDesign(data);
         setLikes(data.total_likes ?? 0);
 
