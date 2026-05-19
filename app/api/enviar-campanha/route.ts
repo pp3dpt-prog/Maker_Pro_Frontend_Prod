@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   }
 
   const resend = new Resend(resendKey);
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'MakerPro <onboarding@resend.dev>';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>';
 
   const html = `
     <!DOCTYPE html>
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         <h1 style="color:#f1f5f9;font-size:24px;font-weight:900;margin:0 0 16px;letter-spacing:-0.03em;">${campanha.titulo}</h1>
         <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 32px;">${(campanha.conteudo ?? '').replace(/\n/g, '<br>')}</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://makerpro.pt'}" style="display:inline-block;background:#6366f1;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Ver na plataforma</a>
-        <p style="color:#334155;font-size:12px;margin-top:32px;">Recebeste este email porque tens conta no MakerPro.</p>
+        <p style="color:#334155;font-size:12px;margin-top:32px;">Recebeste este email porque tens conta no PP3D.</p>
       </div>
     </body>
     </html>

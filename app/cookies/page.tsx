@@ -52,7 +52,7 @@ export default function CookiesPage() {
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>O que NÃO utilizamos</h2>
             <p>
               Não utilizamos cookies de rastreio publicitário, nem partilhamos informação de cookies com redes de publicidade.
-              Não existem cookies de terceiros para fins de marketing na MakerPro.
+              Não existem cookies de terceiros para fins de marketing na PP3D.
             </p>
           </section>
 

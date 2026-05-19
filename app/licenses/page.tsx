@@ -17,7 +17,7 @@ export default function LicensesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
           <p style={{ color: '#94a3b8', lineHeight: '1.8' }}>
-            Todos os modelos e ficheiros STL gerados através da MakerPro estão protegidos por direitos de autor
+            Todos os modelos e ficheiros STL gerados através da PP3D estão protegidos por direitos de autor
             e sujeitos aos termos de licença descritos abaixo. Ao utilizares a Plataforma, aceitas estes termos.
           </p>
 
@@ -58,9 +58,9 @@ export default function LicensesPage() {
             <ul style={{ color: '#94a3b8', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
               <li>Redistribuir os ficheiros STL originais (com ou sem modificações).</li>
               <li>Vender ou ceder os ficheiros digitais a terceiros.</li>
-              <li>Criar plataformas concorrentes com base nos modelos da MakerPro.</li>
+              <li>Criar plataformas concorrentes com base nos modelos da PP3D.</li>
               <li>Utilizar engenharia reversa nos modelos para criar derivados não autorizados.</li>
-              <li>Remover marcas de água ou referências à MakerPro dos ficheiros.</li>
+              <li>Remover marcas de água ou referências à PP3D dos ficheiros.</li>
             </ul>
           </div>
 

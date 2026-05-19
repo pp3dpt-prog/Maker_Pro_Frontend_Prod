@@ -53,7 +53,7 @@ export default function Navbar() {
     <header className={styles.header}>
       <nav className={styles.navbar}>
         <div className={styles.brand}>
-          <Link href="/">MakerPro</Link>
+          <Link href="/" style={{ fontWeight: 900, letterSpacing: '-0.5px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></Link>
         </div>
 
         {/* Links desktop */}

@@ -12,7 +12,7 @@ export default function GuidelinesPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Guidelines
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Como tirar o máximo partido da MakerPro e da nossa comunidade</p>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Como tirar o máximo partido da PP3D e da nossa comunidade</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
 
@@ -41,7 +41,7 @@ export default function GuidelinesPage() {
             <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px', color: '#3b82f6' }}>Como usar o Discord</h2>
             <p style={{ color: '#94a3b8', lineHeight: '1.8', marginBottom: '20px' }}>
               O nosso servidor de Discord é o sítio certo para tirares dúvidas, partilhares os teus projetos e
-              ligares-te à comunidade MakerPro. Para tirares o máximo partido:
+              ligares-te à comunidade PP3D. Para tirares o máximo partido:
             </p>
             <ul style={{ color: '#94a3b8', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
               <li>Usa o canal <strong style={{ color: 'white' }}>#pedir-ajuda</strong> para dúvidas sobre a plataforma ou sobre os modelos.</li>
@@ -56,7 +56,7 @@ export default function GuidelinesPage() {
             <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px', color: '#3b82f6' }}>Partilhar produtos e sucessos</h2>
             <p style={{ color: '#94a3b8', lineHeight: '1.8' }}>
               Adoramos ver o que a comunidade cria! Se fizeste uma peça que ficou incrível, partilha uma foto no Discord.
-              As melhores criações podem ser destacadas na página principal da MakerPro.
+              As melhores criações podem ser destacadas na página principal da PP3D.
               Ao partilhares, estás a inspirar outros utilizadores e a ajudar a crescer a comunidade.
             </p>
           </section>

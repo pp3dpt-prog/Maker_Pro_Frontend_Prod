@@ -124,7 +124,7 @@ export default async function Page() {
     if (isAdmin) return true;
     if (!userPlano) return false;
     // Hierarquia de planos
-    const hierarquia = ['Experimental', 'Maker Pro', 'Plano Fundador Pro', 'Commercial License'];
+    const hierarquia = ['Experimental', 'PP3D', 'Plano Fundador Pro', 'Commercial License'];
     const nivelUser = hierarquia.indexOf(userPlano);
     const nivelMinimo = hierarquia.indexOf(planoMinimo);
     return nivelUser >= nivelMinimo;
@@ -231,7 +231,7 @@ export default async function Page() {
       `}</style>
 
       <div className="catalog-header">
-        <p className="catalog-eyebrow">Catálogo MakerPro</p>
+        <p className="catalog-eyebrow">Catálogo PP3D</p>
         <h1 className="catalog-title">
           Designs para<br />
           <span>impressão 3D</span>

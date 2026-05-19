@@ -19,7 +19,7 @@ export default function PurchaseTermsPage() {
           <section>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>1. Planos e Preços</h2>
             <p>
-              A MakerPro oferece planos de subscrição com acesso às funcionalidades da Plataforma, incluindo geração
+              A PP3D oferece planos de subscrição com acesso às funcionalidades da Plataforma, incluindo geração
               de ficheiros STL e acesso ao catálogo de modelos paramétricos. Os preços atuais estão disponíveis na
               página de <Link href="/pricing" style={{ color: '#3b82f6' }}>Preços</Link>.
               Reservamo-nos o direito de alterar os preços com aviso prévio de 30 dias.

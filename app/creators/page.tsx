@@ -17,9 +17,9 @@ export default function CreatorsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
 
           <section>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px', color: '#3b82f6' }}>Vender na MakerPro</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px', color: '#3b82f6' }}>Vender na PP3D</h2>
             <p style={{ color: '#94a3b8', lineHeight: '1.8' }}>
-              A MakerPro é uma plataforma de personalização 3D que permite aos utilizadores aceder a modelos paramétricos e
+              A PP3D é uma plataforma de personalização 3D que permite aos utilizadores aceder a modelos paramétricos e
               gerar ficheiros STL únicos. Se pretendes comercializar produtos criados com base nos nossos modelos,
               é obrigatório que tenhas uma <strong style={{ color: 'white' }}>licença ativa</strong> na tua conta.
             </p>
@@ -32,7 +32,7 @@ export default function CreatorsPage() {
               <li>Podes consultar o estado da tua licença a qualquer momento no teu <strong style={{ color: 'white' }}>Dashboard</strong>.</li>
               <li>Se a tua licença expirar, <strong style={{ color: 'white' }}>não podes continuar a vender</strong>, mesmo que os ficheiros tenham sido gerados durante o período de licença ativa.</li>
               <li>A licença é pessoal e intransmissível — não pode ser partilhada ou cedida a terceiros.</li>
-              <li>A MakerPro reserva-se o direito de revogar a licença em caso de violação dos termos.</li>
+              <li>A PP3D reserva-se o direito de revogar a licença em caso de violação dos termos.</li>
             </ul>
           </div>
 

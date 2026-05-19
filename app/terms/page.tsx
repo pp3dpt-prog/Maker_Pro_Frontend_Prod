@@ -19,7 +19,7 @@ export default function TermsPage() {
           <section>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>1. Aceitação dos Termos</h2>
             <p>
-              Ao acederes e utilizares a plataforma MakerPro (doravante "Plataforma"), operada por PP3D.PT,
+              Ao acederes e utilizares a plataforma PP3D (doravante "Plataforma"), operada por PP3D.PT,
               aceitas integralmente os presentes Termos e Condições. Se não concordares com algum dos termos aqui descritos,
               deves cessar imediatamente a utilização da Plataforma.
             </p>
@@ -28,7 +28,7 @@ export default function TermsPage() {
           <section>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>2. Descrição do Serviço</h2>
             <p>
-              A MakerPro é uma plataforma de personalização paramétrica de modelos 3D. Permite aos utilizadores configurar
+              A PP3D é uma plataforma de personalização paramétrica de modelos 3D. Permite aos utilizadores configurar
               modelos através de parâmetros ajustáveis (texto, dimensões, etc.) e gerar ficheiros STL para impressão 3D.
               Os ficheiros gerados são armazenados de forma segura e acessíveis através da conta do utilizador.
             </p>
@@ -78,7 +78,7 @@ export default function TermsPage() {
           <section>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>7. Limitação de Responsabilidade</h2>
             <p>
-              A MakerPro não se responsabiliza por danos diretos ou indiretos resultantes da utilização ou incapacidade
+              A PP3D não se responsabiliza por danos diretos ou indiretos resultantes da utilização ou incapacidade
               de utilização da Plataforma, incluindo falhas técnicas, interrupções de serviço ou resultados de impressão 3D
               que não correspondam às expectativas do utilizador. Os ficheiros STL são gerados com base nos parâmetros
               introduzidos pelo utilizador, sendo da sua responsabilidade verificar a adequação antes de imprimir.

@@ -19,7 +19,7 @@ export default function DmcaPage() {
           <section>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>Respeito pelos Direitos de Autor</h2>
             <p>
-              A MakerPro respeita os direitos de propriedade intelectual e espera que os seus utilizadores façam o mesmo.
+              A PP3D respeita os direitos de propriedade intelectual e espera que os seus utilizadores façam o mesmo.
               Todos os modelos disponíveis na Plataforma são criados ou licenciados pela PP3D.PT.
               Se acreditas que algum conteúdo da nossa plataforma infringe os teus direitos de autor, podes submeter
               uma notificação nos termos descritos abaixo.
@@ -54,7 +54,7 @@ export default function DmcaPage() {
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>Política de reincidência</h2>
             <p>
               Utilizadores que reincidentemente violem direitos de autor terão as suas contas suspensas ou
-              permanentemente encerradas, a critério da MakerPro.
+              permanentemente encerradas, a critério da PP3D.
             </p>
           </section>
 
