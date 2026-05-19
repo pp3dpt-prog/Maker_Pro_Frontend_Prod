@@ -7,8 +7,8 @@ export function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (!backendUrl) return new Response('NEXT_PUBLIC_BACKEND_URL not configured', { status: 500 });
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) return new Response('BACKEND_URL not configured', { status: 500 });
 
   const body = await req.json();
   const auth = req.headers.get('authorization');

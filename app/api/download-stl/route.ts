@@ -6,11 +6,11 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
   const auth = req.headers.get('authorization');
 
-  // ✅ Corrigido: NEXT_PUBLIC_BACKEND_URL em vez de BACKEND_URL
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  // ✅ Corrigido: BACKEND_URL em vez de BACKEND_URL
+  const backendUrl = process.env.BACKEND_URL;
 
   if (!backendUrl) {
-    return new Response('NEXT_PUBLIC_BACKEND_URL não configurado', { status: 500 });
+    return new Response('BACKEND_URL não configurado', { status: 500 });
   }
 
   const controller = new AbortController();
