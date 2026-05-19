@@ -1,60 +1,100 @@
 'use client';
-
 import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function Register() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [mensagem, setMensagem] = useState('');
-  const [erro, setErro] = useState('');
+  const [confirmar, setConfirmar] = useState('');
+  const [erro, setErro]         = useState('');
+  const [loading, setLoading]   = useState(false);
   const router = useRouter();
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setErro('');
-    setMensagem('');
 
+    if (password !== confirmar) {
+      setErro('As passwords não coincidem.');
+      return;
+    }
+    if (password.length < 6) {
+      setErro('A password deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setLoading(true);
     const { error } = await supabase.auth.signUp({ email, password });
+    setLoading(false);
+
     if (error) {
       setErro(error.message);
     } else {
-      setMensagem('Conta criada com sucesso! Verifica o teu email.');
-      setTimeout(() => router.push('/dashboard'), 2000);
+      // Redirecionar para a página de escolha de intenção
+      router.push('/bem-vindo');
     }
   }
 
   return (
-    <div style={{ backgroundColor: '#0f172a', minHeight: '100vh', padding: '40px 20px', color: 'white' }}>
-      <div style={{ maxWidth: '400px', margin: '80px auto', padding: '30px', backgroundColor: '#1e293b', borderRadius: '20px', border: '1px solid #334155' }}>
-        <h1 style={{ marginBottom: '20px', textAlign: 'center' }}>Criar Conta</h1>
+    <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ width: '100%', maxWidth: '420px' }}>
 
-        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {erro && <p style={{ color: '#f87171', fontSize: '14px', margin: 0 }}>{erro}</p>}
-          {mensagem && <p style={{ color: '#4ade80', fontSize: '14px', margin: 0 }}>{mensagem}</p>}
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+            <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '44px', height: '44px', borderRadius: '50%' }} />
+            <span style={{ fontSize: '24px', fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
+          </Link>
+          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '12px' }}>Cria a tua conta gratuita</p>
+        </div>
 
-          <input
-            type="email"
-            placeholder="Email"
-            required
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: 'white' }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            required
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: 'white' }}
-          />
-          <button
-            type="submit"
-            style={{ padding: '12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            Registar
-          </button>
-        </form>
+        {/* Card */}
+        <div style={{ background: '#0f172a', borderRadius: '24px', border: '1px solid #1e293b', padding: '40px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', textAlign: 'center' }}>Criar conta</h1>
+          <p style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', marginBottom: '28px' }}>
+            3 downloads gratuitos para começar
+          </p>
+
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {erro && <p style={{ color: '#f87171', fontSize: '14px', margin: 0, padding: '12px', background: 'rgba(248,113,113,0.1)', borderRadius: '8px', border: '1px solid rgba(248,113,113,0.2)' }}>{erro}</p>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Email</label>
+              <input type="email" placeholder="o@teu.email" value={email} onChange={e => setEmail(e.target.value)} required
+                style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0a0a0a', color: 'white', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Password</label>
+              <input type="password" placeholder="Mínimo 6 caracteres" value={password} onChange={e => setPassword(e.target.value)} required
+                style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0a0a0a', color: 'white', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Confirmar password</label>
+              <input type="password" placeholder="Repete a password" value={confirmar} onChange={e => setConfirmar(e.target.value)} required
+                style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0a0a0a', color: 'white', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+            </div>
+
+            <button type="submit" disabled={loading}
+              style={{ marginTop: '8px', padding: '14px', backgroundColor: loading ? '#1e3a5f' : '#2563eb', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '15px', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}>
+              {loading ? 'A criar conta…' : 'Criar conta grátis'}
+            </button>
+          </form>
+
+          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginTop: '24px' }}>
+            Já tens conta?{' '}
+            <Link href="/login" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
+          </p>
+        </div>
+
+        <p style={{ textAlign: 'center', color: '#334155', fontSize: '12px', marginTop: '20px' }}>
+          Ao criares conta aceitas os nossos{' '}
+          <Link href="/terms" style={{ color: '#475569', textDecoration: 'none' }}>Termos</Link> e{' '}
+          <Link href="/privacy" style={{ color: '#475569', textDecoration: 'none' }}>Política de Privacidade</Link>
+        </p>
       </div>
     </div>
   );
