@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const auth = req.headers.get('authorization');
+  const { id, params, mode } = body;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 110_000);
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         ...(auth ? { Authorization: auth } : {}),
       },
-      body: JSON.stringify(body),
+      // Espalhar params ao nível raiz (igual ao gerar-stl-pro)
+      body: JSON.stringify({ id, mode: mode ?? 'preview', ...params }),
       signal: controller.signal,
     });
   } catch (err: unknown) {
