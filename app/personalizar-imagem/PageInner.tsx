@@ -308,7 +308,7 @@ export default function PageInner() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12, padding: '20px 0' }}>
               <div style={{ fontSize: 40 }}>🔒</div>
               <h4 style={{ color: '#f1f5f9', margin: 0 }}>Conteúdo Exclusivo</h4>
-              <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.plano_minimo}</strong> ou superior.</p>
+              <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.acesso_maker}</strong> ou superior.</p>
               <a href="/precario" style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Ver planos →</a>
             </div>
           ) : (
