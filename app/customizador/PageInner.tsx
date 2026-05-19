@@ -359,8 +359,6 @@ export default function PageInner() {
     );
   }
 
-  const isFree = !design.credit_cost || design.credit_cost === 0;
-  const temCreditos = isFree || (userProfile?.creditos_disponiveis ?? 0) >= design.credit_cost;
   const paramsParaDownload = filtrarParamsBackend(params);
 
   return (
