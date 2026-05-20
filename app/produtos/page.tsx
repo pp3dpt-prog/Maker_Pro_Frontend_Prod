@@ -9,13 +9,11 @@ type Design = {
   nome: string;
   descricao: string;
   familia: string;
-  preco_creditos: number;
   tags?: string[];
   thumbnail_url?: string;
   total_likes: number;
   total_downloads: number;
   estado: string;
-  plano_minimo: string | null;
 };
 
 type FamilyInfo = {
@@ -24,8 +22,7 @@ type FamilyInfo = {
   totalLikes: number;
   totalDownloads: number;
   designIds: string[];
-  estado: string; // estado da família (do primeiro design)
-  plano_minimo: string | null;
+  estado: string;
   isExclusivo: boolean;
 };
 
@@ -54,7 +51,7 @@ export default async function Page() {
   // Buscar designs conforme o role
   let query = supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url, total_likes, total_downloads, estado, plano_minimo');
+    .select('id, nome, descricao, familia, tags, thumbnail_url, total_likes, total_downloads, estado');
 
   // Admin vê tudo, utilizadores normais não veem rascunhos/inativos
   if (!isAdmin) {
@@ -88,7 +85,6 @@ export default async function Page() {
           totalDownloads: 0,
           designIds: [],
           estado: design.estado,
-          plano_minimo: design.plano_minimo,
           isExclusivo: design.estado === 'exclusivo',
         };
       }
@@ -102,11 +98,6 @@ export default async function Page() {
         acc[familia].isExclusivo = true;
       }
 
-      // Plano mínimo mais restritivo
-      if (design.plano_minimo && !acc[familia].plano_minimo) {
-        acc[familia].plano_minimo = design.plano_minimo;
-      }
-
       return acc;
     },
     {}
@@ -115,17 +106,8 @@ export default async function Page() {
   const familiaEntries = Object.entries(familias);
   const totalModelos = designs.length;
 
-  // Verificar se o utilizador tem acesso a um plano
-  const temAcesso = (planoMinimo: string | null) => {
-    if (!planoMinimo) return true;
-    if (isAdmin) return true;
-    if (!userPlano) return false;
-    // Hierarquia de planos
-    const hierarquia = ['Experimental', 'PP3D', 'Plano Fundador Pro', 'Commercial License'];
-    const nivelUser = hierarquia.indexOf(userPlano);
-    const nivelMinimo = hierarquia.indexOf(planoMinimo);
-    return nivelUser >= nivelMinimo;
-  };
+  // Por agora exclusivos são apenas visíveis a admins
+  const temAcesso = () => isAdmin;
 
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
@@ -251,7 +233,7 @@ export default async function Page() {
 
       <div className="catalog-grid">
         {familiaEntries.map(([familia, info]) => {
-          const bloqueado = info.isExclusivo && !temAcesso(info.plano_minimo) && !isAdmin;
+          const bloqueado = info.isExclusivo && !temAcesso() && !isAdmin;
           const estadoFamilia = info.estado;
 
           return (
@@ -270,7 +252,7 @@ export default async function Page() {
               {bloqueado && (
                 <div className="card-lock-overlay">
                   <div className="card-lock-badge">
-                    🔒 {info.plano_minimo ?? 'Plano necessário'}
+                    🔒 Plano necessário
                   </div>
                   <p className="card-lock-hint">
                     Faz upgrade para aceder a esta família
