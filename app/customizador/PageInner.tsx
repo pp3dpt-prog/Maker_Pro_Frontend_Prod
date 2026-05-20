@@ -480,7 +480,7 @@ export default function PageInner() {
               Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.acesso_maker}</strong> ou superior.
             </p>
             <a
-              href="/precario"
+              href="/pricing"
               style={{
                 padding: '10px 20px', borderRadius: 10,
                 background: 'rgba(167,139,250,0.15)',
@@ -528,7 +528,7 @@ export default function PageInner() {
                 fontSize: 12, color: '#f87171', textAlign: 'center',
               }}>
                 Limite mensal atingido.{' '}
-                <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
+                <a href="/pricing" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
                   Upgrade do plano →
                 </a>
               </div>

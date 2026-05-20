@@ -116,7 +116,7 @@ export default function Dashboard() {
                   : '❌ Uso Pessoal — faz upgrade para um plano comercial para vender as tuas impressões.'}
               </p>
               {!temLicencaComercial && (
-                <a href="/precario" style={{ display: 'inline-block', marginTop: '12px', color: '#60a5fa', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
+                <a href="/pricing" style={{ display: 'inline-block', marginTop: '12px', color: '#60a5fa', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
                   Ver planos comerciais →
                 </a>
               )}
@@ -137,7 +137,7 @@ export default function Dashboard() {
                   <h3 style={{ margin: 0, color: '#f1f5f9', textTransform: 'capitalize' }}>{perfil?.plano ?? 'Gratuito'}</h3>
                   <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>Plano atual</p>
                 </div>
-                <a href="/precario" style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
+                <a href="/pricing" style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
                   Fazer upgrade
                 </a>
               </div>
