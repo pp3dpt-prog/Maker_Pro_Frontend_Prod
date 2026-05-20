@@ -107,9 +107,9 @@ export default function PricingPage() {
 
           const features: string[] = plano.vantagens?.length ? plano.vantagens : [
             'Configurador 3D completo',
-            `${plano.limite_downloads} créditos STL por mês`,
+            `${plano.limite_downloads} downloads STL por mês`,
             plano.gratuito && plano.recarga_creditos_mensal > 0
-              ? `Créditos renovados automaticamente todo o mês`
+              ? `Downloads renovados automaticamente todo o mês`
               : plano.permite_venda_comercial ? 'Licença Comercial incluída' : 'Licença de uso pessoal',
           ];
 
@@ -190,7 +190,7 @@ export default function PricingPage() {
                   )}
                 </div>
 
-                {/* Créditos */}
+                {/* Downloads */}
                 <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 10, background: isPopular ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.05)', flexShrink: 0 }}>
@@ -199,11 +199,11 @@ export default function PricingPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1 }}>{plano.limite_downloads}</span>
-                        <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>créditos / mês</span>
+                        <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>downloads / mês</span>
                       </div>
                       {!plano.gratuito && precoAnual && (
                         <p style={{ fontSize: 11, color: '#334155', marginTop: 3 }}>
-                          até {plano.limite_downloads * 12} créditos no plano anual
+                          até {plano.limite_downloads * 12} downloads no plano anual
                         </p>
                       )}
                     </div>
