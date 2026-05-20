@@ -15,7 +15,6 @@ type Design = {
   total_likes: number;
   total_downloads: number;
   estado: string;
-  familia_estado: string;
   plano_minimo: string | null;
 };
 
@@ -55,15 +54,13 @@ export default async function Page() {
   // Buscar designs conforme o role
   let query = supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url, total_likes, total_downloads, estado, familia_estado, plano_minimo');
+    .select('id, nome, descricao, familia, preco_creditos, tags, thumbnail_url, total_likes, total_downloads, estado, plano_minimo');
 
   // Admin vê tudo, utilizadores normais não veem rascunhos/inativos
   if (!isAdmin) {
     query = query
       .neq('estado', 'inativo')
       .neq('estado', 'rascunho')
-      .neq('familia_estado', 'inativo')
-      .neq('familia_estado', 'rascunho');
   }
 
   const { data, error } = await query;
@@ -90,9 +87,9 @@ export default async function Page() {
           totalLikes: 0,
           totalDownloads: 0,
           designIds: [],
-          estado: design.familia_estado,
+          estado: design.estado,
           plano_minimo: design.plano_minimo,
-          isExclusivo: design.familia_estado === 'exclusivo' || design.estado === 'exclusivo',
+          isExclusivo: design.estado === 'exclusivo',
         };
       }
       acc[familia].count++;
@@ -101,7 +98,7 @@ export default async function Page() {
       acc[familia].designIds.push(design.id);
 
       // Se qualquer design da família for exclusivo, a família é exclusiva
-      if (design.estado === 'exclusivo' || design.familia_estado === 'exclusivo') {
+      if (design.estado === 'exclusivo') {
         acc[familia].isExclusivo = true;
       }
 
