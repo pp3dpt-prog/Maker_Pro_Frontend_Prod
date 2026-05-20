@@ -309,7 +309,7 @@ export default function PageInner() {
               <div style={{ fontSize: 40 }}>🔒</div>
               <h4 style={{ color: '#f1f5f9', margin: 0 }}>Conteúdo Exclusivo</h4>
               <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.acesso_maker}</strong> ou superior.</p>
-              <a href="/precario" style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Ver planos →</a>
+              <a href="/pricing" style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Ver planos →</a>
             </div>
           ) : (
             <GeneratedEditor schema={design.generation_schema} values={params} onChange={handleParamsChange} onFileUpload={handleFileUpload} />
@@ -330,7 +330,7 @@ export default function PageInner() {
               {semDownloads && (
                 <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#f87171', textAlign: 'center' }}>
                   Limite mensal atingido.{' '}
-                  <a href="/precario" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Upgrade do plano →</a>
+                  <a href="/pricing" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Upgrade do plano →</a>
                 </div>
               )}
 
