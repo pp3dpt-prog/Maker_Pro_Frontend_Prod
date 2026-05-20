@@ -44,23 +44,15 @@ export default function BemVindo() {
     setLoading(true);
 
     // Guardar preferência no perfil
-    const resp = await fetch('/api/auth/refresh', { method: 'POST' });
-    if (resp.ok) {
-      const { user_id } = await resp.json();
-      if (user_id) {
-        await supabase
-          .from('prod_perfis')
-          .update({ tipo_utilizador: selecionado })
-          .eq('id', user_id);
-      }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('prod_perfis')
+        .update({ tipo_utilizador: selecionado })
+        .eq('id', user.id);
     }
 
-    // Redirecionar conforme escolha
-    if (selecionado === 'consumidor') {
-      router.push('/produtos');
-    } else {
-      router.push('/produtos');
-    }
+    router.push('/produtos');
   }
 
   return (
