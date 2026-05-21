@@ -335,6 +335,14 @@ export default function PageInner() {
       </main>
     );
   }
+  if (error && !loading) return (
+    <main className={styles.fallback} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+      <p style={{ color: '#f87171', fontSize: 14 }}>Erro ao carregar produto: {error}</p>
+      <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', background: '#2563eb', border: 'none', borderRadius: 8, color: 'white', fontWeight: 700, cursor: 'pointer' }}>
+        Tentar novamente
+      </button>
+    </main>
+  );
   if (loading || authLoading || !design || !params) return <main className={styles.fallback}>A carregar…</main>;
 
   // Verificar acesso ao design

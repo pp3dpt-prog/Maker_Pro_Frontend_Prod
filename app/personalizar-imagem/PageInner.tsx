@@ -20,7 +20,6 @@ type Design = {
   total_downloads: number;
   estado: string;
   acesso_maker: 'gratuito' | 'pessoal' | 'pessoal_plus' | 'comercial' | null;
-  requer_licenca_comercial: boolean;
 };
 
 type UserProfile = {
