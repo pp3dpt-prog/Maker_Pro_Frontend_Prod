@@ -53,11 +53,9 @@ export default async function Page() {
     .from('prod_designs')
     .select('id, nome, descricao, familia, tags, thumbnail_url, total_likes, total_downloads, estado');
 
-  // Admin vê tudo, utilizadores normais não veem rascunhos/inativos
+  // Admin vê tudo — utilizadores normais só veem designs activos
   if (!isAdmin) {
-    query = query
-      .neq('estado', 'inativo')
-      .neq('estado', 'rascunho')
+    query = query.eq('estado', 'ativo');
   }
 
   const { data, error } = await query;
