@@ -19,12 +19,30 @@ export default async function FamilyPage({ params }: Props) {
   const familyName = decodeURIComponent(familia);
   
   const supabase = await createClient();
-  
-  const { data, error } = await supabase
+
+  // Verificar se é admin
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: perfil } = await supabase
+      .from('prod_perfis')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+    isAdmin = perfil?.role === 'admin';
+  }
+
+  let query = supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia')
+    .select('id, nome, descricao, familia, estado')
     .eq('familia', familyName)
     .order('nome', { ascending: true });
+
+  if (!isAdmin) {
+    query = query.eq('estado', 'ativo');
+  }
+
+  const { data, error } = await query;
 
   const designs = (error ? [] : data || []) as Design[];
 
