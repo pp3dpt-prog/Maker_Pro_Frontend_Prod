@@ -249,6 +249,14 @@ export default function PageInner() {
       </main>
     );
   }
+  if (error && !loading) return (
+    <main style={{ padding: 40, color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 12 }}>
+      <p style={{ color: '#f87171', fontSize: 14 }}>Erro ao carregar produto: {error}</p>
+      <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', background: '#2563eb', border: 'none', borderRadius: 8, color: 'white', fontWeight: 700, cursor: 'pointer' }}>
+        Tentar novamente
+      </button>
+    </main>
+  );
   if (loading || authLoading || !design || !params) return <main style={{ padding: 40, color: '#94a3b8' }}>A carregar…</main>;
 
   const isAdmin = userProfile?.role === 'admin';

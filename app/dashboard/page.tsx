@@ -11,7 +11,6 @@ type Perfil = {
   tipo_utilizador: string;
   downloads_mes: number;
   downloads_limite: number;
-  acesso_comercial_ativo: boolean;
 };
 
 type UserAsset = {
@@ -31,27 +30,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function carregarDados() {
-      const resp = await fetch('/api/auth/refresh', { method: 'POST' });
-      if (!resp.ok) { setLoading(false); return; }
-      const { user_id } = await resp.json();
-      if (!user_id) { setLoading(false); return; }
+      try {
+        const resp = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (!resp.ok) return;
+        const { user_id } = await resp.json();
+        if (!user_id) return;
 
-      const { data: perfilData } = await supabase
-        .from('prod_perfis')
-        .select('id, email, role, plano, tipo_utilizador, downloads_mes, downloads_limite, acesso_comercial_ativo')
-        .eq('id', user_id)
-        .maybeSingle();
-      if (perfilData) setPerfil(perfilData as Perfil);
+        const { data: perfilData } = await supabase
+          .from('prod_perfis')
+          .select('id, email, role, plano, tipo_utilizador, downloads_mes, downloads_limite')
+          .eq('id', user_id)
+          .maybeSingle();
+        if (perfilData) setPerfil(perfilData as Perfil);
 
-      const { data: assetsData } = await supabase
-        .from('prod_user_assets')
-        .select('*')
-        .eq('user_id', user_id)
-        .eq('is_archived', false)
-        .order('last_rendered_at', { ascending: false });
-      if (assetsData) setAssets(assetsData as UserAsset[]);
-
-      setLoading(false);
+        const { data: assetsData } = await supabase
+          .from('prod_user_assets')
+          .select('*')
+          .eq('user_id', user_id)
+          .order('last_rendered_at', { ascending: false });
+        if (assetsData) setAssets(assetsData as UserAsset[]);
+      } catch (_) {
+        // erro de rede — não bloquear o loading
+      } finally {
+        setLoading(false);
+      }
     }
     carregarDados();
   }, []);
@@ -63,7 +65,7 @@ export default function Dashboard() {
   );
 
   const downloadsRestantes = Math.max(0, (perfil?.downloads_limite ?? 3) - (perfil?.downloads_mes ?? 0));
-  const temLicencaComercial = perfil?.plano?.startsWith('comercial') || perfil?.acesso_comercial_ativo;
+  const temLicencaComercial = perfil?.plano?.startsWith('comercial');
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>
