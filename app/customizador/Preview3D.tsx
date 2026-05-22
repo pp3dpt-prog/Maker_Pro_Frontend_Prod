@@ -12,10 +12,20 @@ type Preview3DProps = {
 };
 
 const FONT_MAP: Record<string, string> = {
-  'Aladin':   '/fonts/Aladin.json',
-  'Amarante': '/fonts/amarante.json',
-  'Benne':    '/fonts/benne.json',
-  'Baloo 2':  '/fonts/baloo2.json',
+  'Aladin':              '/fonts/Aladin.json',
+  'Amarante':            '/fonts/amarante.json',
+  'Benne':               '/fonts/benne.json',
+  'Baloo 2':             '/fonts/baloo2.json',
+  'Anton':               '/fonts/Anton.json',
+  'Chewy':               '/fonts/Chewy.json',
+  'Gloria Hallelujah':   '/fonts/Gloria_Hallelujah.json',
+  'Lobster':             '/fonts/Lobster.json',
+  'Luckiest Guy':        '/fonts/Luckiest_Guy.json',
+  'Oswald':              '/fonts/Oswald_Bold.json',
+  'Pacifico':            '/fonts/Pacifico.json',
+  'Press Start 2P':      '/fonts/Press_Start_2P.json',
+  'Racing Sans One':     '/fonts/Racing_Sans_One.json',
+  'Sigmar One':          '/fonts/Sigmar_One.json',
 };
 
 // ── Pet Tag: carrega STL em branco e sobrepõe texto em tempo real ──
