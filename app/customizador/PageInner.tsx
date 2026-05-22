@@ -81,23 +81,25 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
-  // Auth
+  // Auth — usa getSession() para compatibilidade Firefox (sem depender de cookies de servidor)
   useEffect(() => {
     async function loadAuth() {
-      const resp = await fetch('/api/auth/refresh', { method: 'POST' });
-      if (resp.ok) {
-        const { user_id } = await resp.json();
-        if (user_id) {
-          setUserId(user_id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUserId(session.user.id);
           const { data: perfil } = await supabase
             .from('prod_perfis')
             .select('role, plano, downloads_mes, downloads_limite')
-            .eq('id', user_id)
+            .eq('id', session.user.id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
         }
+      } catch (_) {
+        // erro de rede — continuar sem auth
+      } finally {
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     }
     loadAuth();
   }, []);

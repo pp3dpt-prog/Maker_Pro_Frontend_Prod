@@ -74,25 +74,27 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [likes, setLikes] = useState(0);
 
-  // Auth
+  // Auth — usa getSession() para compatibilidade Firefox
   useEffect(() => {
     async function loadAuth() {
-      const resp = await fetch('/api/auth/refresh', { method: 'POST' });
-      if (resp.ok) {
-        const { user_id } = await resp.json();
-        if (user_id) {
-          setUserId(user_id);
-          const { createClient } = await import('@/lib/supabase/client');
-          const supabase = createClient();
-          const { data: perfil } = await supabase
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.user) {
+          setUserId(session.user.id);
+          const { data: perfil } = await sb
             .from('prod_perfis')
             .select('role, plano, downloads_mes, downloads_limite')
-            .eq('id', user_id)
+            .eq('id', session.user.id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
         }
+      } catch (_) {
+        // continuar sem auth
+      } finally {
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     }
     loadAuth();
   }, []);
