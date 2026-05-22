@@ -16,30 +16,12 @@ export async function GET(req: Request) {
 
     const supabase = await createClient();
 
-    // Verificar se é admin
-    const { data: { user } } = await supabase.auth.getUser();
-    let isAdmin = false;
-    if (user) {
-      const { data: perfil } = await supabase
-        .from('prod_perfis')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-      isAdmin = perfil?.role === 'admin';
-    }
-
-    let query = supabase
+    const { data, error } = await supabase
       .from('prod_designs')
-      .select('id, nome, familia, estado')
+      .select('id, nome, familia')
       .eq('familia', familia)
+      .eq('estado', 'ativo')
       .order('nome', { ascending: true });
-
-    // Não-admins só veem designs activos
-    if (!isAdmin) {
-      query = query.eq('estado', 'ativo');
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       return Response.json(

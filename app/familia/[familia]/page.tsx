@@ -20,29 +20,12 @@ export default async function FamilyPage({ params }: Props) {
   
   const supabase = await createClient();
 
-  // Verificar se é admin
-  const { data: { user } } = await supabase.auth.getUser();
-  let isAdmin = false;
-  if (user) {
-    const { data: perfil } = await supabase
-      .from('prod_perfis')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-    isAdmin = perfil?.role === 'admin';
-  }
-
-  let query = supabase
+  const { data, error } = await supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia, estado')
+    .select('id, nome, descricao, familia')
     .eq('familia', familyName)
+    .eq('estado', 'ativo')
     .order('nome', { ascending: true });
-
-  if (!isAdmin) {
-    query = query.eq('estado', 'ativo');
-  }
-
-  const { data, error } = await query;
 
   const designs = (error ? [] : data || []) as Design[];
 
