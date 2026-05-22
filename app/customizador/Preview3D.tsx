@@ -207,6 +207,82 @@ function PetTagModel({
   );
 }
 
+// ── NameKey: portachaves com letras individuais em 3D ──
+function NameKeyPreview({ params }: { params: Record<string, any> }) {
+  const [group, setGroup] = useState<THREE.Group | null>(null);
+
+  const fontPath = FONT_MAP[String(params.Font_name || '')] ?? FONT_MAP['Aladin'];
+
+  // Dependências para re-renderizar
+  const depsKey = JSON.stringify({
+    t: params.Text, fn: params.Font_name, c: params.center,
+    lx: params.Loop_x_position, ly: params.Loop_y_position, lc: params.Loop_character,
+    ...Object.fromEntries(
+      Array.from({ length: 13 }, (_, i) => [
+        [`letter_${i+1}_space`, params[`letter_${i+1}_space`]],
+        [`letter_${i+1}_height`, params[`letter_${i+1}_height`]],
+      ]).flat()
+    )
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const text     = String(params.Text || 'KEY').slice(0, 13);
+    const center   = Number(params.center ?? 30);
+    const loopX    = Number(params.Loop_x_position ?? 10);
+    const loopY    = Number(params.Loop_y_position ?? 0);
+    const loopChar = String(params.Loop_character || 'o');
+
+    // Defaults do NameKey.scad
+    const defSpaces  = [0, 10, 8, 9, 9, 8.6, 14, 9.5, 9.7, 9.6, 9.6, 9.4, 9.5, 20];
+    const getSpace  = (i: number) => Number(params[`letter_${i}_space`]  ?? defSpaces[i] ?? 9);
+    const getHeight = (i: number) => Number(params[`letter_${i}_height`] ?? 6);
+
+    new FontLoader().load(fontPath, (font) => {
+      if (cancelled) return;
+      const grp = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
+
+      // Letra de argola
+      const loopGeom = new TextGeometry(loopChar, {
+        font, size: 20, height: 3, curveSegments: 6,
+      });
+      loopGeom.computeBoundingBox();
+      const lb = loopGeom.boundingBox!;
+      const lh = lb.max.y - lb.min.y;
+      loopGeom.rotateZ(-Math.PI / 2);
+      loopGeom.computeBoundingBox();
+      const loopMesh = new THREE.Mesh(loopGeom, new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.2, roughness: 0.3 }));
+      loopMesh.position.set(-center - loopX, loopY, 0);
+      grp.add(loopMesh);
+
+      // Letras do nome
+      for (let i = 0; i < text.length; i++) {
+        const h    = getHeight(i + 1);
+        const xPos = getSpace(i) * i - center; // spacing[i]*i - center
+        const geom = new TextGeometry(text[i], {
+          font, size: 25, height: h, curveSegments: 6,
+        });
+        geom.computeBoundingBox();
+        const bb = geom.boundingBox!;
+        const w  = bb.max.x - bb.min.x;
+        const ch = bb.max.y - bb.min.y;
+        geom.translate(-w / 2, -ch / 2, 0); // centrar cada letra
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(xPos, 0, 0);
+        grp.add(mesh);
+      }
+
+      setGroup(grp);
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depsKey, fontPath]);
+
+  if (!group) return null;
+  return <primitive object={group} />;
+}
+
 // ── Caixa paramétrica simples ──
 function CaixaPreview({ params }: { params: Record<string, any> }) {
   const largura     = typeof params.largura     === 'number' ? params.largura     : 100;
@@ -223,14 +299,15 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 
 // ── Componente principal ──
 export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
-  const isPetTag = !!stlFilePath;
-  const showText = params.mostrar_texto !== false;
+  const isPetTag  = !!stlFilePath;
+  const isNameKey = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
+  const showText  = params.mostrar_texto !== false;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : isNameKey ? [0, -60, 120] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 1000,
@@ -265,6 +342,8 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
               params={params}
               showText={showText}
             />
+          ) : isNameKey ? (
+            <NameKeyPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
