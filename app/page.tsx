@@ -10,7 +10,7 @@ export default function HomePage() {
           <div style={{ display: 'inline-block', padding: '6px 16px', borderRadius: '20px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa', fontSize: '13px', fontWeight: 700, marginBottom: '28px', letterSpacing: '0.05em' }}>
             PP3D.PT — IMPRESSÃO 3D PERSONALIZADA
           </div>
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 950, letterSpacing: '-2px', lineHeight: 1.1, marginBottom: '24px' }}>
+          <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 900, letterSpacing: '-2px', lineHeight: 1.1, marginBottom: '24px' }}>
             Personalizado por ti,<br />
             <span style={{ color: '#3b82f6' }}>impresso para ti.</span>
           </h1>

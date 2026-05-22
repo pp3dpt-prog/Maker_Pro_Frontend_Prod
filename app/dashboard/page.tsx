@@ -31,10 +31,11 @@ export default function Dashboard() {
   useEffect(() => {
     async function carregarDados() {
       try {
-        const resp = await fetch('/api/auth/refresh', { method: 'POST' });
-        if (!resp.ok) return;
-        const { user_id } = await resp.json();
-        if (!user_id) return;
+        // getSession() lê do localStorage — funciona em todos os browsers
+        // sem depender de cookies do servidor (evita bloqueios do Firefox ETP)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const user_id = session.user.id;
 
         const { data: perfilData } = await supabase
           .from('prod_perfis')

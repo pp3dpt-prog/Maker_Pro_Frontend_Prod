@@ -57,6 +57,7 @@ body {
 /* Efeito de Vidro para os Cards */
 .card-glass {
   background: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 40px;
@@ -68,7 +69,9 @@ body {
 .texto-gradiente {
   background: linear-gradient(to right, #fff, #6366f1);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 /* Grid de Destaques */

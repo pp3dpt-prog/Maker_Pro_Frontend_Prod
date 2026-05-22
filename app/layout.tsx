@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import Navbar from '@/components/layout/Navbar';
 import './globals.css';
+
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'PP3D.pt — Personalizado por ti, impresso para ti',
@@ -22,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt">
-      <body className="bg-[#0a0a0a] text-white">
+      <body className={`${inter.className} bg-[#0a0a0a] text-white`}>
         <Navbar />
         {children}
       </body>
