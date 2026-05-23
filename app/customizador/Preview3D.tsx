@@ -274,7 +274,7 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
       const mat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
 
       // Argola
-      const loopGeom = new TextGeometry(loopChar, { font, size: 20, height: 3, curveSegments: 6 });
+      const loopGeom = new TextGeometry(loopChar, { font, size: 20, height: 3, curveSegments: 10 });
       loopGeom.rotateZ(-Math.PI / 2);
       const loopMesh = new THREE.Mesh(loopGeom, new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.2, roughness: 0.3 }));
       loopMesh.position.set(-center - loopX, loopY, 0);
@@ -284,7 +284,7 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
       for (let i = 0; i < text.length; i++) {
         const h    = getHeight(i + 1);
         const xPos = getSpace(i) * i - center;
-        const geom = new TextGeometry(text[i], { font, size: 25, height: h, curveSegments: 6 });
+        const geom = new TextGeometry(text[i], { font, size: 25, height: h, curveSegments: 10 });
         geom.computeBoundingBox();
         const bb = geom.boundingBox!;
         geom.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0);
