@@ -266,7 +266,7 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
 
     const defSpaces = [0, 10, 8, 9, 9, 8.6, 14, 9.5, 9.7, 9.6, 9.6, 9.4, 9.5, 20];
     const getSpace  = (i: number) => Number(params[`letter_${i}_space`]  ?? defSpaces[i] ?? 9);
-    const getHeight = (i: number) => Number(params[`letter_${i}_height`] ?? 6);
+    const getHeight = (i: number) => Number(params[`letter_${i}_height`] ?? 3);
 
     new FontLoader().load(fontPath, (font) => {
       if (cancelled) return;
@@ -274,7 +274,7 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
       const mat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
 
       // Argola
-      const loopGeom = new TextGeometry(loopChar, { font, size: 20, height: 3, curveSegments: 32 });
+      const loopGeom = new TextGeometry(loopChar, { font, size: 20, height: 0.3, curveSegments: 32 });
       loopGeom.rotateZ(-Math.PI / 2);
       const loopMesh = new THREE.Mesh(loopGeom, new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.2, roughness: 0.3 }));
       loopMesh.position.set(-center - loopX, loopY, 0);
