@@ -34,4 +34,4 @@ yarn-error.log*
 
 # --- Cache ---
 .eslintcache
-.tsbuildinfo
+.tsbuildinfo".claude/" 
