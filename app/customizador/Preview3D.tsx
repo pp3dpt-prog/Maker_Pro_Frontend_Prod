@@ -274,7 +274,7 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
       const mat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
 
       // Argola
-      const loopGeom = new TextGeometry(loopChar, { font, size: 20, height: 0.3, curveSegments: 32 });
+      const loopGeom = new TextGeometry(loopChar, { font, size: 20, height: 3, curveSegments: 32 });
       loopGeom.rotateZ(-Math.PI / 2);
       const loopMesh = new THREE.Mesh(loopGeom, new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.2, roughness: 0.3 }));
       loopMesh.position.set(-center - loopX, loopY, 0);
