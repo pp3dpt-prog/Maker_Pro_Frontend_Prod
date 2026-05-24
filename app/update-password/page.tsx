@@ -1,49 +1,90 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
-function UpdatePasswordInner() {
+export default function UpdatePassword() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
   const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState('A validar link…');
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     let cancelled = false;
 
-    async function prepareRecoverySession() {
-      const code = searchParams.get('code');
+    async function init() {
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        const tokenHash = url.searchParams.get('token_hash');
+        const type = url.searchParams.get('type');
 
-      if (code) {
-        await supabase.auth.signOut().catch(() => {});
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (cancelled) return;
-        if (error) {
-          setErro('Link inválido ou expirado. Pede um novo email de recuperação.');
+        const hash = window.location.hash.startsWith('#')
+          ? window.location.hash.slice(1)
+          : '';
+        const hashParams = new URLSearchParams(hash);
+        const hashAccessToken = hashParams.get('access_token');
+        const hashRefreshToken = hashParams.get('refresh_token');
+        const hashError = hashParams.get('error_description') || hashParams.get('error');
+
+        if (hashError) {
+          if (!cancelled) setErro(decodeURIComponent(hashError));
           return;
         }
-        window.history.replaceState({}, '', '/update-password');
-        setReady(true);
-        return;
-      }
 
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (data.session) {
-        setReady(true);
-      } else {
-        setErro('Sessão de recuperação não encontrada. Pede um novo email.');
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (cancelled) return;
+          if (error) {
+            setErro('Link inválido ou expirado: ' + error.message);
+            return;
+          }
+        } else if (tokenHash && type) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: type as 'recovery',
+          });
+          if (cancelled) return;
+          if (error) {
+            setErro('Link inválido ou expirado: ' + error.message);
+            return;
+          }
+        } else if (hashAccessToken && hashRefreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: hashAccessToken,
+            refresh_token: hashRefreshToken,
+          });
+          if (cancelled) return;
+          if (error) {
+            setErro('Link inválido ou expirado: ' + error.message);
+            return;
+          }
+        } else {
+          const { data } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (!data.session) {
+            setErro('Link de recuperação inválido. Pede um novo email em /forgot-password.');
+            return;
+          }
+        }
+
+        window.history.replaceState({}, '', '/update-password');
+        if (!cancelled) {
+          setReady(true);
+          setStatus('');
+        }
+      } catch (e: any) {
+        if (!cancelled) setErro('Erro ao validar link: ' + (e?.message || String(e)));
       }
     }
 
-    prepareRecoverySession();
+    init();
     return () => { cancelled = true; };
-  }, [searchParams]);
+  }, []);
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
@@ -81,26 +122,17 @@ function UpdatePasswordInner() {
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={!ready || loading}
             style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', border: '1px solid #475569', color: 'white' }}
           />
           <button
             disabled={!ready || loading}
             type="submit"
-            style={{ padding: '12px', backgroundColor: '#3b82f6', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer', opacity: (!ready || loading) ? 0.6 : 1 }}
+            style={{ padding: '12px', backgroundColor: '#3b82f6', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold', cursor: (!ready || loading) ? 'not-allowed' : 'pointer', opacity: (!ready || loading) ? 0.6 : 1 }}
           >
-            {!ready ? 'A validar link…' : loading ? 'A guardar...' : 'Guardar nova password'}
+            {!ready ? status : loading ? 'A guardar...' : 'Guardar nova password'}
           </button>
         </form>
       </div>
     </div>
-  );
-}
-
-export default function UpdatePassword() {
-  return (
-    <Suspense>
-      <UpdatePasswordInner />
-    </Suspense>
   );
 }
