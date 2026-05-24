@@ -4,7 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment } from '@react-three/drei';
 import { Suspense, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { STLLoader, FontLoader, TextGeometry } from 'three-stdlib';
+import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-stdlib';
 
 type Preview3DProps = {
   params: Record<string, any>;
@@ -235,7 +235,25 @@ function applyTwist(geom: THREE.BufferGeometry, twistDeg: number) {
     pos.setY(i, x * Math.sin(ang) + y * Math.cos(ang));
   }
   pos.needsUpdate = true;
-  geom.computeVertexNormals();
+}
+
+// Recalcula normais respeitando cantos vivos (>30°), evita picos/sombras
+// artificiais nos limites entre face frontal e laterais das letras extrudidas.
+function computeCreasedNormals(geom: THREE.BufferGeometry, creaseAngleDeg = 30) {
+  // toCreasedNormals exige geometria não-indexada
+  const nonIndexed = geom.index ? geom.toNonIndexed() : geom;
+  const creased = toCreasedNormals(
+    nonIndexed,
+    THREE.MathUtils.degToRad(creaseAngleDeg)
+  );
+  // Substitui os atributos no geom original (mantém a referência usada pelo mesh)
+  geom.setIndex(null);
+  for (const name of Object.keys(geom.attributes)) geom.deleteAttribute(name);
+  for (const [name, attr] of Object.entries(creased.attributes)) {
+    geom.setAttribute(name, attr as THREE.BufferAttribute);
+  }
+  geom.computeBoundingBox();
+  geom.computeBoundingSphere();
 }
 
 // ── NameKey: portachaves com letras individuais em 3D ──
@@ -289,6 +307,7 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
         const bb = geom.boundingBox!;
         geom.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0);
         applyTwist(geom, twist);
+        computeCreasedNormals(geom, 30);
         const mesh = new THREE.Mesh(geom, mat);
         mesh.position.set(xPos, 0, 0);
         grp.add(mesh);
