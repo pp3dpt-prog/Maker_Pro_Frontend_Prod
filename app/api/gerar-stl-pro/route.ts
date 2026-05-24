@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           id: designId,
           mode: 'preview',
+          modo: 'preview', // alias PT — alguns scad_templates usam variável `modo`
           ...params,
         }),
         signal: controller.signal,
