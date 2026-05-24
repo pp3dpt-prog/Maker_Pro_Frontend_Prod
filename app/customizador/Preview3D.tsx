@@ -237,23 +237,21 @@ function applyTwist(geom: THREE.BufferGeometry, twistDeg: number) {
   pos.needsUpdate = true;
 }
 
-// Recalcula normais respeitando cantos vivos (>30°), evita picos/sombras
+// Recalcula normais respeitando cantos vivos (>creaseAngleDeg), evita picos/sombras
 // artificiais nos limites entre face frontal e laterais das letras extrudidas.
-function computeCreasedNormals(geom: THREE.BufferGeometry, creaseAngleDeg = 30) {
-  // toCreasedNormals exige geometria não-indexada
+// Devolve uma NOVA geometria — o chamador deve usar o valor retornado.
+function withCreasedNormals(
+  geom: THREE.BufferGeometry,
+  creaseAngleDeg = 30
+): THREE.BufferGeometry {
   const nonIndexed = geom.index ? geom.toNonIndexed() : geom;
   const creased = toCreasedNormals(
     nonIndexed,
     THREE.MathUtils.degToRad(creaseAngleDeg)
-  );
-  // Substitui os atributos no geom original (mantém a referência usada pelo mesh)
-  geom.setIndex(null);
-  for (const name of Object.keys(geom.attributes)) geom.deleteAttribute(name);
-  for (const [name, attr] of Object.entries(creased.attributes)) {
-    geom.setAttribute(name, attr as THREE.BufferAttribute);
-  }
-  geom.computeBoundingBox();
-  geom.computeBoundingSphere();
+  ) as THREE.BufferGeometry;
+  creased.computeBoundingBox();
+  creased.computeBoundingSphere();
+  return creased;
 }
 
 // ── NameKey: portachaves com letras individuais em 3D ──
@@ -307,8 +305,8 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
         const bb = geom.boundingBox!;
         geom.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0);
         applyTwist(geom, twist);
-        computeCreasedNormals(geom, 30);
-        const mesh = new THREE.Mesh(geom, mat);
+        const finalGeom = withCreasedNormals(geom, 30);
+        const mesh = new THREE.Mesh(finalGeom, mat);
         mesh.position.set(xPos, 0, 0);
         grp.add(mesh);
       }
