@@ -16,70 +16,97 @@ export default function UpdatePassword() {
   useEffect(() => {
     let cancelled = false;
 
-    async function init() {
-      try {
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get('code');
-        const tokenHash = url.searchParams.get('token_hash');
-        const type = url.searchParams.get('type');
+    const isLockError = (msg: string) =>
+      msg.includes('Lock') && msg.includes('stole');
 
-        const hash = window.location.hash.startsWith('#')
-          ? window.location.hash.slice(1)
-          : '';
-        const hashParams = new URLSearchParams(hash);
-        const hashAccessToken = hashParams.get('access_token');
-        const hashRefreshToken = hashParams.get('refresh_token');
-        const hashError = hashParams.get('error_description') || hashParams.get('error');
+    // Espera (com retry) que apareça uma sessão válida nos cookies/storage.
+    async function waitForSession(tries = 5): Promise<boolean> {
+      for (let i = 0; i < tries; i++) {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) return true;
+        await new Promise(r => setTimeout(r, 200));
+      }
+      return false;
+    }
 
-        if (hashError) {
-          if (!cancelled) setErro(decodeURIComponent(hashError));
-          return;
+    // Corre uma chamada de auth tolerando lock-stealing; se a chamada falhar
+    // mas no fim houver sessão, considera-se sucesso.
+    async function tryAuth(fn: () => Promise<{ error: any }>): Promise<string | null> {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { error } = await fn();
+          if (!error) return null;
+          if (isLockError(error.message)) {
+            await new Promise(r => setTimeout(r, 250));
+            continue;
+          }
+          return error.message;
+        } catch (e: any) {
+          const msg = e?.message || String(e);
+          if (isLockError(msg)) {
+            await new Promise(r => setTimeout(r, 250));
+            continue;
+          }
+          return msg;
         }
+      }
+      return (await waitForSession(1)) ? null : 'Não foi possível abrir a sessão de recuperação.';
+    }
 
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (cancelled) return;
-          if (error) {
-            setErro('Link inválido ou expirado: ' + error.message);
-            return;
-          }
-        } else if (tokenHash && type) {
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: type as 'recovery',
-          });
-          if (cancelled) return;
-          if (error) {
-            setErro('Link inválido ou expirado: ' + error.message);
-            return;
-          }
-        } else if (hashAccessToken && hashRefreshToken) {
-          const { error } = await supabase.auth.setSession({
+    async function init() {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      const tokenHash = url.searchParams.get('token_hash');
+      const type = url.searchParams.get('type');
+
+      const hash = window.location.hash.startsWith('#')
+        ? window.location.hash.slice(1)
+        : '';
+      const hashParams = new URLSearchParams(hash);
+      const hashAccessToken = hashParams.get('access_token');
+      const hashRefreshToken = hashParams.get('refresh_token');
+      const hashError = hashParams.get('error_description') || hashParams.get('error');
+
+      if (hashError) {
+        if (!cancelled) setErro(decodeURIComponent(hashError));
+        return;
+      }
+
+      let failureMsg: string | null = null;
+
+      if (code) {
+        failureMsg = await tryAuth(() => supabase.auth.exchangeCodeForSession(code));
+      } else if (tokenHash && type) {
+        failureMsg = await tryAuth(() =>
+          supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as 'recovery' })
+        );
+      } else if (hashAccessToken && hashRefreshToken) {
+        failureMsg = await tryAuth(() =>
+          supabase.auth.setSession({
             access_token: hashAccessToken,
             refresh_token: hashRefreshToken,
-          });
-          if (cancelled) return;
-          if (error) {
-            setErro('Link inválido ou expirado: ' + error.message);
-            return;
-          }
-        } else {
-          const { data } = await supabase.auth.getSession();
-          if (cancelled) return;
-          if (!data.session) {
-            setErro('Link de recuperação inválido. Pede um novo email em /forgot-password.');
-            return;
-          }
-        }
-
-        window.history.replaceState({}, '', '/update-password');
-        if (!cancelled) {
-          setReady(true);
-          setStatus('');
-        }
-      } catch (e: any) {
-        if (!cancelled) setErro('Erro ao validar link: ' + (e?.message || String(e)));
+          })
+        );
       }
+      // Se nada na URL, talvez já exista sessão de recovery (após redirect)
+
+      if (cancelled) return;
+
+      const hasSession = await waitForSession();
+      if (cancelled) return;
+
+      if (hasSession) {
+        window.history.replaceState({}, '', '/update-password');
+        setReady(true);
+        setStatus('');
+        return;
+      }
+
+      setErro(
+        failureMsg
+          ? 'Link inválido ou expirado: ' + failureMsg
+          : 'Link de recuperação inválido. Pede um novo email em /forgot-password.'
+      );
     }
 
     init();
