@@ -1,18 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function UpdatePassword() {
+function UpdatePasswordInner() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
+  const [ready, setReady] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function prepareRecoverySession() {
+      const code = searchParams.get('code');
+
+      if (code) {
+        await supabase.auth.signOut().catch(() => {});
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (cancelled) return;
+        if (error) {
+          setErro('Link inválido ou expirado. Pede um novo email de recuperação.');
+          return;
+        }
+        window.history.replaceState({}, '', '/update-password');
+        setReady(true);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        setReady(true);
+      } else {
+        setErro('Sessão de recuperação não encontrada. Pede um novo email.');
+      }
+    }
+
+    prepareRecoverySession();
+    return () => { cancelled = true; };
+  }, [searchParams]);
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
+    if (!ready) return;
     setLoading(true);
     setErro('');
     setMensagem('');
@@ -21,12 +56,13 @@ export default function UpdatePassword() {
 
     if (error) {
       setErro('Erro ao atualizar: ' + error.message);
-    } else {
-      setMensagem('Password alterada com sucesso!');
-      setTimeout(() => router.push('/login'), 2000);
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    setMensagem('Password alterada com sucesso!');
+    await supabase.auth.signOut();
+    setTimeout(() => router.push('/login'), 1500);
   }
 
   return (
@@ -42,18 +78,29 @@ export default function UpdatePassword() {
             type="password"
             placeholder="Nova password"
             required
+            minLength={6}
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={!ready || loading}
             style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', border: '1px solid #475569', color: 'white' }}
           />
           <button
-            disabled={loading}
+            disabled={!ready || loading}
             type="submit"
-            style={{ padding: '12px', backgroundColor: '#3b82f6', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '12px', backgroundColor: '#3b82f6', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer', opacity: (!ready || loading) ? 0.6 : 1 }}
           >
-            {loading ? 'A guardar...' : 'Guardar nova password'}
+            {!ready ? 'A validar link…' : loading ? 'A guardar...' : 'Guardar nova password'}
           </button>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function UpdatePassword() {
+  return (
+    <Suspense>
+      <UpdatePasswordInner />
+    </Suspense>
   );
 }
