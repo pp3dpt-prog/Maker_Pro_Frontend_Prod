@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
 import { ShieldCheck, Menu, X } from 'lucide-react';
@@ -12,7 +11,6 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const router = useRouter();
 
   async function checkAdminRole(userId: string): Promise<boolean> {
     const { data: perfil } = await supabase
@@ -45,8 +43,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
+    window.location.href = '/';
   };
 
   return (
