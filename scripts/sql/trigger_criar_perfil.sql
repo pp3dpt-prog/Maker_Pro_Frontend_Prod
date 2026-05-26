@@ -16,10 +16,7 @@ begin
     plano,
     tipo_utilizador,
     downloads_mes,
-    downloads_limite,
-    creditos,
-    creditos_disponiveis,
-    acesso_comercial_ativo
+    downloads_limite
   )
   values (
     new.id,
@@ -28,10 +25,7 @@ begin
     'gratuito',  -- plano inicial
     null,        -- tipo_utilizador: definido na página /bem-vindo
     0,
-    3,           -- 3 downloads gratuitos
-    0,
-    0,
-    false
+    3            -- 3 downloads gratuitos
   )
   on conflict (id) do nothing; -- seguro se o perfil já existir
   return new;
