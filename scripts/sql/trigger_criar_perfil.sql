@@ -23,7 +23,7 @@ begin
     new.email,
     null,        -- role: null por omissão (admin definido manualmente)
     'gratuito',  -- plano inicial
-    null,        -- tipo_utilizador: definido na página /bem-vindo
+    'maker',     -- tipo_utilizador: default; alterado na página /bem-vindo
     0,
     3            -- 3 downloads gratuitos
   )
