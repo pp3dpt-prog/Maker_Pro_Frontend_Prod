@@ -10,6 +10,7 @@ export default function Register() {
   const [confirmar, setConfirmar] = useState('');
   const [erro, setErro]         = useState('');
   const [loading, setLoading]   = useState(false);
+  const [confirmacaoPendente, setConfirmacaoPendente] = useState(false);
   const router = useRouter();
 
   async function handleRegister(e: React.FormEvent) {
@@ -26,14 +27,22 @@ export default function Register() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
     setLoading(false);
 
     if (error) {
       setErro(error.message);
+    } else if (!data.session) {
+      // Supabase requer confirmação de email — sessão ainda não está ativa
+      setConfirmacaoPendente(true);
     } else {
-      // Redirecionar para a página de escolha de intenção
-      router.push('/bem-vindo');
+      window.location.href = '/bem-vindo';
     }
   }
 
@@ -52,6 +61,22 @@ export default function Register() {
 
         {/* Card */}
         <div style={{ background: '#0f172a', borderRadius: '24px', border: '1px solid #1e293b', padding: '40px' }}>
+
+          {confirmacaoPendente ? (
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📬</div>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>Confirma o teu email</h2>
+              <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.6 }}>
+                Enviámos um link para <strong style={{ color: '#f1f5f9' }}>{email}</strong>.<br />
+                Clica no link para ativar a conta e continuar.
+              </p>
+              <p style={{ color: '#64748b', fontSize: '13px', marginTop: '16px' }}>
+                Já confirmaste?{' '}
+                <Link href="/login" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
+              </p>
+            </div>
+          ) : (
+            <>
           <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', textAlign: 'center' }}>Criar conta</h1>
           <p style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', marginBottom: '28px' }}>
             3 downloads gratuitos para começar
@@ -88,6 +113,8 @@ export default function Register() {
             Já tens conta?{' '}
             <Link href="/login" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
           </p>
+            </>
+          )}
         </div>
 
         <p style={{ textAlign: 'center', color: '#334155', fontSize: '12px', marginTop: '20px' }}>

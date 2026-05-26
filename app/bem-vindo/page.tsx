@@ -43,16 +43,14 @@ export default function BemVindo() {
     if (!selecionado) return;
     setLoading(true);
 
-    // Guardar preferência no perfil
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
         .from('prod_perfis')
-        .update({ tipo_utilizador: selecionado })
-        .eq('id', user.id);
+        .upsert({ id: user.id, tipo_utilizador: selecionado }, { onConflict: 'id' });
     }
 
-    router.push('/produtos');
+    window.location.href = '/produtos';
   }
 
   return (

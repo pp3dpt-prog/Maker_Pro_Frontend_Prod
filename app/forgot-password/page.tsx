@@ -16,17 +16,21 @@ export default function ForgotPassword() {
     setErro('');
     setMensagem('');
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
 
-    if (error) {
-      setErro(error.message);
-    } else {
-      setMensagem('Link enviado! Verifica o teu email.');
+      if (error) {
+        setErro(error.message);
+      } else {
+        setMensagem('Link enviado! Verifica o teu email.');
+      }
+    } catch {
+      setErro('Erro de ligação. Verifica a tua internet e tenta novamente.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
