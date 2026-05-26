@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import CustomizadorClient from './CustomizadorClient';
 import DownloadStlButton from '@/components/DownloadStlButton';
+import PedidoOrcamentoModal from '@/components/PedidoOrcamentoModal';
 import styles from './ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
@@ -30,6 +31,7 @@ type Design = {
 type UserProfile = {
   role: string | null;
   plano: string;
+  tipo_utilizador: string | null;
   downloads_mes: number;
   downloads_limite: number;
 };
@@ -71,8 +73,10 @@ export default function PageInner() {
   const [error, setError] = useState<string | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showPedidoModal, setShowPedidoModal] = useState(false);
 
   const [txtUrl, setTxtUrl] = useState<string | null>(null);
 
@@ -88,9 +92,10 @@ export default function PageInner() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUserId(session.user.id);
+          setUserEmail(session.user.email ?? null);
           const { data: perfil } = await supabase
             .from('prod_perfis')
-            .select('role, plano, downloads_mes, downloads_limite')
+            .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
             .eq('id', session.user.id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
@@ -348,8 +353,15 @@ export default function PageInner() {
   if (loading || authLoading || !design || !params) return <main className={styles.fallback}>A carregar…</main>;
 
   // Verificar acesso ao design
-  const userPlano = userProfile?.plano ?? 'gratuito';
-  const designBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
+  const userPlano = userProfile?.plano || 'gratuito'; // || em vez de ?? para tratar string vazia
+  const tipo = userProfile?.tipo_utilizador ?? null;
+  const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
+
+  // Consumidores (que querem encomendar peça impressa) nunca ficam bloqueados pelo acesso_maker —
+  // esse requisito é só para makers que querem descarregar o STL.
+  const stlBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
+  const designBloqueado = stlBloqueado && !isClienteFinal;
+
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const designRascunho = design.estado === 'rascunho' && !isAdmin;
   const designInativo = design.estado === 'inativo' && !isAdmin;
@@ -544,27 +556,99 @@ export default function PageInner() {
               </div>
             )}
 
-            {/* Botão Gerar STL */}
-            <button
-              className={styles.primaryBtn}
-              onClick={gerarSTL}
-              disabled={mode === 'generating'}
-              style={{
-                opacity: mode === 'generating' ? 0.6 : 1,
-                cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
-              {mode === 'generating'
-                ? 'A gerar STL…'
-                : !userId
-                  ? '🔒 Login para Gerar STL'
-                  : 'Gerar STL'
+            {/* Botão Encomendar peça impressa (apenas cliente final autenticado) */}
+            {(() => {
+
+              if (!userId) {
+                const next = encodeURIComponent(`/customizador?id=${designId}${familiaParam ? `&familia=${encodeURIComponent(familiaParam)}` : ''}`);
+                return (
+                  <Link
+                    href={`/login?redirect=${next}`}
+                    style={{
+                      padding: '12px 16px', borderRadius: 10,
+                      background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                      color: 'white', border: 'none', fontWeight: 800, fontSize: 14,
+                      cursor: 'pointer', textAlign: 'center', textDecoration: 'none',
+                      boxShadow: '0 8px 20px rgba(37,99,235,0.35)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
+                  >
+                    🔒 Inicia sessão para encomendar
+                  </Link>
+                );
               }
-            </button>
+
+              if (!isClienteFinal) {
+                return (
+                  <div style={{
+                    padding: '12px 14px', borderRadius: 10,
+                    background: 'rgba(167,139,250,0.08)',
+                    border: '1px solid rgba(167,139,250,0.25)',
+                    fontSize: 12, color: '#cbd5e1', lineHeight: 1.5,
+                  }}>
+                    📦 Para encomendar a peça impressa precisas de ter o perfil <strong>cliente final</strong>.{' '}
+                    <Link href="/bem-vindo" style={{ color: '#a78bfa', fontWeight: 700, textDecoration: 'none' }}>
+                      Alterar perfil →
+                    </Link>
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  type="button"
+                  onClick={() => setShowPedidoModal(true)}
+                  style={{
+                    padding: '12px 16px', borderRadius: 10,
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    color: 'white', border: 'none', fontWeight: 800, fontSize: 14,
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 20px rgba(37,99,235,0.35)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  📦 Encomendar peça impressa
+                </button>
+              );
+            })()}
+
+            {/* Botão Gerar STL — bloqueado se o utilizador não tiver plano maker suficiente */}
+            {stlBloqueado ? (
+              <a
+                href="/pricing"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px 16px', borderRadius: 10,
+                  background: 'rgba(167,139,250,0.1)',
+                  border: '1px solid rgba(167,139,250,0.3)',
+                  color: '#a78bfa', fontWeight: 700, fontSize: 14,
+                  textDecoration: 'none',
+                }}
+              >
+                🔒 Plano {design.acesso_maker} para descarregar STL
+              </a>
+            ) : (
+              <button
+                className={styles.primaryBtn}
+                onClick={gerarSTL}
+                disabled={mode === 'generating'}
+                style={{
+                  opacity: mode === 'generating' ? 0.6 : 1,
+                  cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {mode === 'generating'
+                  ? 'A gerar STL…'
+                  : !userId
+                    ? '🔒 Login para Gerar STL'
+                    : 'Gerar STL'
+                }
+              </button>
+            )}
 
             {/* Botão Download STL */}
-            {mode === 'stl' && userId && (
+            {!stlBloqueado && mode === 'stl' && userId && (
               <DownloadStlButton
                 designId={designId}
                 params={paramsParaDownload}
@@ -617,6 +701,22 @@ export default function PageInner() {
         />
       </section>
     </main>
+
+    {showPedidoModal && params && (
+      <PedidoOrcamentoModal
+        isOpen={showPedidoModal}
+        onClose={() => setShowPedidoModal(false)}
+        design={{
+          id: design.id,
+          nome: design.nome,
+          familia: design.familia,
+          generation_schema: design.generation_schema,
+        }}
+        params={params}
+        defaultEmail={userEmail ?? undefined}
+        userId={userId}
+      />
+    )}
     </>
   );
 }
