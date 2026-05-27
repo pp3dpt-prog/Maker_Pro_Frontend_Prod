@@ -44,10 +44,19 @@ export default function BemVindo() {
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('prod_perfis')
-        .upsert({ id: user.id, tipo_utilizador: selecionado }, { onConflict: 'id' });
+    if (!user) {
+      // Sessão expirada ou email ainda não confirmado — enviar para login
+      window.location.href = '/login';
+      return;
+    }
+
+    const { error } = await supabase
+      .from('prod_perfis')
+      .update({ tipo_utilizador: selecionado })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('[bem-vindo] erro ao guardar tipo_utilizador:', error.message);
     }
 
     window.location.href = '/produtos';
