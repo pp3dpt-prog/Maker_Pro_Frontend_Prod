@@ -383,10 +383,9 @@ export default function PageInner() {
   // Consumidores puros nunca precisam de descarregar STL — só encomendam.
   const isMaker = !userId || tipo === 'maker' || tipo === 'ambos' || isAdmin;
 
-  // Consumidores (que querem encomendar peça impressa) nunca ficam bloqueados pelo acesso_maker —
-  // esse requisito é só para makers que querem descarregar o STL.
+  // acesso_maker controla APENAS o download/geração de STL.
+  // O editor e o botão de encomendar estão sempre disponíveis para designs ativos.
   const stlBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
-  const designBloqueado = stlBloqueado && !isClienteFinal;
 
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const designRascunho = design.estado === 'rascunho' && !isAdmin;
@@ -514,44 +513,16 @@ export default function PageInner() {
           </div>
         </div>
 
-        {/* Editor de parâmetros */}
-        {designBloqueado ? (
-          // Design exclusivo sem acesso — mostrar mensagem
-          <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            textAlign: 'center', gap: 12, padding: '20px 0',
-          }}>
-            <div style={{ fontSize: 40 }}>🔒</div>
-            <h4 style={{ color: '#f1f5f9', margin: 0 }}>Conteúdo Exclusivo</h4>
-            <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
-              Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.acesso_maker}</strong> ou superior.
-            </p>
-            <a
-              href="/pricing"
-              style={{
-                padding: '10px 20px', borderRadius: 10,
-                background: 'rgba(167,139,250,0.15)',
-                border: '1px solid rgba(167,139,250,0.3)',
-                color: '#a78bfa', fontWeight: 700, fontSize: 13,
-                textDecoration: 'none',
-              }}
-            >
-              Ver planos →
-            </a>
-          </div>
-        ) : (
-          <GeneratedEditor
-            schema={design.generation_schema}
-            values={params}
-            onChange={handleParamsChange}
-            onFileUpload={handleFileUpload}
-          />
-        )}
+        {/* Editor de parâmetros — sempre visível para designs ativos */}
+        <GeneratedEditor
+          schema={design.generation_schema}
+          values={params}
+          onChange={handleParamsChange}
+          onFileUpload={handleFileUpload}
+        />
 
         {/* Área de ação */}
-        {!designBloqueado && (
-          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
             {/* Downloads restantes — só para makers e "ambos" (não para consumidores puros) */}
             {isMaker && userId && (
@@ -712,7 +683,6 @@ export default function PageInner() {
               </a>
             )}
           </div>
-        )}
       </aside>
 
       {/* Viewer */}
