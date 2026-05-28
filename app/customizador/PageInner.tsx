@@ -85,59 +85,67 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
-  // Auth — estratégia dupla:
-  // 1) getSession() imediato (lê cookies diretamente, funciona após login com hard-nav)
-  // 2) onAuthStateChange para detetar login/logout enquanto a página está aberta
+  // Auth: onAuthStateChange é a fonte única e autoritativa.
+  // INITIAL_SESSION dispara exatamente uma vez na subscrição com o estado real da sessão.
+  // getSession() é chamado apenas como fallback caso INITIAL_SESSION demore >2s.
   useEffect(() => {
-    let settled = false;
+    let profileLoaded = false;
+    let authSettled = false;
 
-    async function loadProfile(userId: string, email: string) {
-      setUserId(userId);
-      setUserEmail(email);
-      try {
-        const { data: perfil } = await supabase
-          .from('prod_perfis')
-          .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
-          .eq('id', userId)
-          .maybeSingle();
-        setUserProfile(perfil as UserProfile ?? null);
-      } catch (_) {
-        // erro de rede — continuar sem perfil
-      }
+    function finishAuth() {
+      if (!authSettled) { authSettled = true; setAuthLoading(false); }
     }
 
-    // Verificação imediata via getSession (fonte primária)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        await loadProfile(session.user.id, session.user.email ?? '');
-      }
-      if (!settled) { settled = true; setAuthLoading(false); }
-    }).catch(() => {
-      if (!settled) { settled = true; setAuthLoading(false); }
-    });
-
-    // Subscrição reativa para login/logout enquanto a página está aberta
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) await loadProfile(session.user.id, session.user.email ?? '');
-        if (!settled) { settled = true; setAuthLoading(false); }
-      } else if (event === 'SIGNED_OUT') {
+    async function handleSession(session: { user: { id: string; email?: string } } | null) {
+      if (session?.user && !profileLoaded) {
+        profileLoaded = true;
+        setUserId(session.user.id);
+        setUserEmail(session.user.email ?? null);
+        try {
+          const { data: perfil } = await supabase
+            .from('prod_perfis')
+            .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          setUserProfile(perfil as UserProfile ?? null);
+        } catch (_) { /* sem perfil — continua */ }
+      } else if (!session?.user) {
         setUserId(null);
         setUserEmail(null);
         setUserProfile(null);
-        if (!settled) { settled = true; setAuthLoading(false); }
       }
-      // INITIAL_SESSION é ignorado — getSession() já tratou
+      finishAuth();
+    }
+
+    // INITIAL_SESSION é o evento autoritativo — trata-o como todos os outros
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (
+        event === 'INITIAL_SESSION' ||
+        event === 'SIGNED_IN'       ||
+        event === 'TOKEN_REFRESHED' ||
+        event === 'SIGNED_OUT'
+      ) {
+        await handleSession(session?.user ? session : null);
+      }
     });
 
-    // Failsafe: liberta authLoading após 8s mesmo que tudo falhe
-    const timer = setTimeout(() => {
-      if (!settled) { settled = true; setAuthLoading(false); }
-    }, 8000);
+    // Fallback: se INITIAL_SESSION demorar >2s, tenta getSession() diretamente
+    const fallbackTimer = setTimeout(async () => {
+      if (!authSettled) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await handleSession(session?.user ? session : null);
+        } catch (_) { finishAuth(); }
+      }
+    }, 2000);
+
+    // Failsafe absoluto: liberta authLoading após 10s
+    const hardTimer = setTimeout(finishAuth, 10000);
 
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
+      clearTimeout(hardTimer);
     };
   }, []);
 
