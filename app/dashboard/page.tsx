@@ -30,18 +30,11 @@ export default function Dashboard() {
   const [assets, setAssets] = useState<UserAsset[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Failsafe: liberta o loading após 10s mesmo que Supabase não responda
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 10000);
-    return () => clearTimeout(timer);
-  }, []);
+    let settled = false;
 
-  useEffect(() => {
-    async function carregarDados() {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        // getSession() lê do localStorage — funciona em todos os browsers
-        // sem depender de cookies do servidor (evita bloqueios do Firefox ETP)
-        const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           router.replace('/login');
           return;
@@ -64,11 +57,26 @@ export default function Dashboard() {
       } catch (_) {
         // erro de rede — não bloquear o loading
       } finally {
+        if (!settled) {
+          settled = true;
+          setLoading(false);
+        }
+      }
+    });
+
+    // Failsafe: liberta o loading após 10s mesmo que onAuthStateChange não dispare
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
         setLoading(false);
       }
-    }
-    carregarDados();
-  }, []);
+    }, 10000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [router]);
 
   if (loading) return (
     <div style={{ background: '#0f172a', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontFamily: 'sans-serif' }}>

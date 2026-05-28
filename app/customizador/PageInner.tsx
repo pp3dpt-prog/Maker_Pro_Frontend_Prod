@@ -85,17 +85,14 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
-  // Failsafe: garante que authLoading nunca fica preso (ex: Supabase lento/pausado)
+  // Auth — onAuthStateChange dispara INITIAL_SESSION imediatamente com a sessão atual,
+  // evitando o problema de getSession() retornar null quando a sessão está em cookies
+  // mas ainda não sincronizada no localStorage.
   useEffect(() => {
-    const timer = setTimeout(() => setAuthLoading(false), 8000);
-    return () => clearTimeout(timer);
-  }, []);
+    let settled = false;
 
-  // Auth — usa getSession() para compatibilidade Firefox (sem depender de cookies de servidor)
-  useEffect(() => {
-    async function loadAuth() {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUserId(session.user.id);
           setUserEmail(session.user.email ?? null);
@@ -105,14 +102,33 @@ export default function PageInner() {
             .eq('id', session.user.id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
+        } else {
+          setUserId(null);
+          setUserEmail(null);
+          setUserProfile(null);
         }
       } catch (_) {
         // erro de rede — continuar sem auth
       } finally {
+        if (!settled) {
+          settled = true;
+          setAuthLoading(false);
+        }
+      }
+    });
+
+    // Failsafe: liberta authLoading após 8s mesmo que onAuthStateChange não dispare
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
         setAuthLoading(false);
       }
-    }
-    loadAuth();
+    }, 8000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   // Retry timeout
