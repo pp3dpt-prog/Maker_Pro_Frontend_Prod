@@ -379,6 +379,10 @@ export default function PageInner() {
   const tipo = userProfile?.tipo_utilizador ?? null;
   const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
 
+  // isMaker: utilizadores não autenticados, makers e "ambos" veem a secção STL.
+  // Consumidores puros nunca precisam de descarregar STL — só encomendam.
+  const isMaker = !userId || tipo === 'maker' || tipo === 'ambos' || isAdmin;
+
   // Consumidores (que querem encomendar peça impressa) nunca ficam bloqueados pelo acesso_maker —
   // esse requisito é só para makers que querem descarregar o STL.
   const stlBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
@@ -549,8 +553,8 @@ export default function PageInner() {
         {!designBloqueado && (
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-            {/* Downloads restantes */}
-            {userId && (
+            {/* Downloads restantes — só para makers e "ambos" (não para consumidores puros) */}
+            {isMaker && userId && (
               <div style={{
                 padding: '10px 14px', borderRadius: 10,
                 backgroundColor: '#0f172a', border: '1px solid #1e293b',
@@ -563,8 +567,8 @@ export default function PageInner() {
               </div>
             )}
 
-            {/* Aviso limite atingido */}
-            {semDownloads && (
+            {/* Aviso limite atingido — só para makers */}
+            {isMaker && semDownloads && (
               <div style={{
                 padding: '8px 12px', borderRadius: 8,
                 backgroundColor: 'rgba(248,113,113,0.1)',
@@ -578,9 +582,8 @@ export default function PageInner() {
               </div>
             )}
 
-            {/* Botão Encomendar peça impressa (apenas cliente final autenticado) */}
+            {/* Botão Encomendar peça impressa */}
             {(() => {
-
               if (!userId) {
                 const next = encodeURIComponent(`/customizador?id=${designId}${familiaParam ? `&familia=${encodeURIComponent(familiaParam)}` : ''}`);
                 return (
@@ -634,8 +637,8 @@ export default function PageInner() {
               );
             })()}
 
-            {/* Botão Gerar STL — bloqueado se o utilizador não tiver plano maker suficiente */}
-            {stlBloqueado ? (
+            {/* Botão Gerar STL — só para makers e "ambos"; consumidores puros não precisam */}
+            {isMaker && (stlBloqueado ? (
               <a
                 href="/pricing"
                 style={{
@@ -647,7 +650,7 @@ export default function PageInner() {
                   textDecoration: 'none',
                 }}
               >
-                🔒 Plano {design.acesso_maker} para descarregar STL
+                🔒 {design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar STL` : 'STL não disponível neste plano'}
               </a>
             ) : (
               <button
@@ -667,10 +670,10 @@ export default function PageInner() {
                     : 'Gerar STL'
                 }
               </button>
-            )}
+            ))}
 
-            {/* Botão Download STL */}
-            {!stlBloqueado && mode === 'stl' && userId && (
+            {/* Botão Download STL — só para makers */}
+            {isMaker && !stlBloqueado && mode === 'stl' && userId && (
               <DownloadStlButton
                 designId={designId}
                 params={paramsParaDownload}
