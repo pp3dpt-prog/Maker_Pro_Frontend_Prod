@@ -149,13 +149,13 @@ export default function PageInner() {
         setLikes(data.total_likes ?? 0);
 
         const schema = data.generation_schema;
+        const initialParams: Record<string, any> = {};
         if (schema?.parameters) {
-          const initialParams: Record<string, any> = {};
           Object.entries(schema.parameters).forEach(([key, def]: any) => {
             initialParams[key] = def.default ?? null;
           });
-          setParams(initialParams);
         }
+        setParams(initialParams);
 
         if (familiaParam) {
           const familyRes = await fetch(`/api/designs-familia?familia=${encodeURIComponent(familiaParam)}`);
