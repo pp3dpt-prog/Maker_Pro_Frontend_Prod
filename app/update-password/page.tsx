@@ -130,7 +130,7 @@ export default function UpdatePassword() {
 
     setMensagem('Password alterada com sucesso!');
     await supabase.auth.signOut();
-    setTimeout(() => router.push('/login'), 1500);
+    setTimeout(() => { window.location.href = '/login'; }, 1500);
   }
 
   return (

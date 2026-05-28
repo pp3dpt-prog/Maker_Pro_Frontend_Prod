@@ -85,44 +85,54 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
-  // Auth — onAuthStateChange dispara INITIAL_SESSION imediatamente com a sessão atual,
-  // evitando o problema de getSession() retornar null quando a sessão está em cookies
-  // mas ainda não sincronizada no localStorage.
+  // Auth — estratégia dupla:
+  // 1) getSession() imediato (lê cookies diretamente, funciona após login com hard-nav)
+  // 2) onAuthStateChange para detetar login/logout enquanto a página está aberta
   useEffect(() => {
     let settled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    async function loadProfile(userId: string, email: string) {
+      setUserId(userId);
+      setUserEmail(email);
       try {
-        if (session?.user) {
-          setUserId(session.user.id);
-          setUserEmail(session.user.email ?? null);
-          const { data: perfil } = await supabase
-            .from('prod_perfis')
-            .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          setUserProfile(perfil as UserProfile ?? null);
-        } else {
-          setUserId(null);
-          setUserEmail(null);
-          setUserProfile(null);
-        }
+        const { data: perfil } = await supabase
+          .from('prod_perfis')
+          .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
+          .eq('id', userId)
+          .maybeSingle();
+        setUserProfile(perfil as UserProfile ?? null);
       } catch (_) {
-        // erro de rede — continuar sem auth
-      } finally {
-        if (!settled) {
-          settled = true;
-          setAuthLoading(false);
-        }
+        // erro de rede — continuar sem perfil
       }
+    }
+
+    // Verificação imediata via getSession (fonte primária)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        await loadProfile(session.user.id, session.user.email ?? '');
+      }
+      if (!settled) { settled = true; setAuthLoading(false); }
+    }).catch(() => {
+      if (!settled) { settled = true; setAuthLoading(false); }
     });
 
-    // Failsafe: liberta authLoading após 8s mesmo que onAuthStateChange não dispare
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        setAuthLoading(false);
+    // Subscrição reativa para login/logout enquanto a página está aberta
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) await loadProfile(session.user.id, session.user.email ?? '');
+        if (!settled) { settled = true; setAuthLoading(false); }
+      } else if (event === 'SIGNED_OUT') {
+        setUserId(null);
+        setUserEmail(null);
+        setUserProfile(null);
+        if (!settled) { settled = true; setAuthLoading(false); }
       }
+      // INITIAL_SESSION é ignorado — getSession() já tratou
+    });
+
+    // Failsafe: liberta authLoading após 8s mesmo que tudo falhe
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; setAuthLoading(false); }
     }, 8000);
 
     return () => {

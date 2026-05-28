@@ -22,8 +22,9 @@ function LoginForm() {
     if (error) {
       setErro('Email ou password incorrectos.');
     } else {
-      router.push(redirectTo);
-      router.refresh();
+      // Hard navigation para garantir que os cookies de sessão são sincronizados
+      // antes de qualquer componente cliente tentar ler o auth state.
+      window.location.href = redirectTo;
     }
   };
 

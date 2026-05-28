@@ -33,14 +33,8 @@ export default function Dashboard() {
   useEffect(() => {
     let settled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    async function carregarDados(user_id: string) {
       try {
-        if (!session) {
-          router.replace('/login');
-          return;
-        }
-        const user_id = session.user.id;
-
         const { data: perfilData } = await supabase
           .from('prod_perfis')
           .select('id, email, role, plano, tipo_utilizador, downloads_mes, downloads_limite')
@@ -56,20 +50,33 @@ export default function Dashboard() {
         if (assetsData) setAssets(assetsData as UserAsset[]);
       } catch (_) {
         // erro de rede — não bloquear o loading
-      } finally {
-        if (!settled) {
-          settled = true;
-          setLoading(false);
-        }
+      }
+    }
+
+    // Verificação imediata (fonte primária — lê cookies sincronizados pelo login)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        router.replace('/login');
+      } else {
+        await carregarDados(session.user.id);
+      }
+      if (!settled) { settled = true; setLoading(false); }
+    }).catch(() => {
+      router.replace('/login');
+      if (!settled) { settled = true; setLoading(false); }
+    });
+
+    // Reativo: detetar logout enquanto a página está aberta
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || (!session && event === 'INITIAL_SESSION')) {
+        router.replace('/login');
+        if (!settled) { settled = true; setLoading(false); }
       }
     });
 
-    // Failsafe: liberta o loading após 10s mesmo que onAuthStateChange não dispare
+    // Failsafe: liberta o loading após 10s
     const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        setLoading(false);
-      }
+      if (!settled) { settled = true; setLoading(false); }
     }, 10000);
 
     return () => {
