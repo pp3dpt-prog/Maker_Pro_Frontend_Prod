@@ -397,16 +397,16 @@ export default function PageInner() {
   const tipo = userProfile?.tipo_utilizador ?? null;
   const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
 
-  // isMaker: quem pode descarregar STL (makers e "ambos" com plano suficiente).
-  // Consumidores puros não descarregam, mas podem gerar pré-visualização para encomendar.
+  // Qualquer utilizador com login pode gerar/pré-visualizar o STL.
+  // O download é que fica restrito por plano (acesso_maker).
   const isMaker = !userId || tipo === 'maker' || tipo === 'ambos' || isAdmin;
 
-  // Consumidores autenticados podem sempre gerar STL para pré-visualização antes de encomendar.
-  const podeGerarPreview = !!userId && isClienteFinal && !isMaker;
+  // stlBloqueadoDownload: plano insuficiente para DESCARREGAR o STL.
+  // NÃO bloqueia a geração/pré-visualização — isso é livre para qualquer utilizador autenticado.
+  const stlBloqueadoDownload = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
 
-  // acesso_maker controla o download/geração de STL para makers.
-  // Consumidores nunca ficam bloqueados — geração é sempre permitida para pré-visualização.
-  const stlBloqueado = !isAdmin && !podeGerarPreview && !temAcessoPlano(userPlano, design.acesso_maker);
+  // Pode descarregar: tem de ser maker/ambos E ter plano suficiente
+  const canDownloadStl = isMaker && !stlBloqueadoDownload;
 
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const designRascunho = design.estado === 'rascunho' && !isAdmin;
@@ -545,7 +545,7 @@ export default function PageInner() {
         {/* Área de ação */}
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-            {/* Downloads restantes — só para makers e "ambos" (não para consumidores puros) */}
+            {/* Contador de downloads — só para makers (consumidores não descarregam STL) */}
             {isMaker && userId && (
               <div style={{
                 padding: '10px 14px', borderRadius: 10,
@@ -559,7 +559,7 @@ export default function PageInner() {
               </div>
             )}
 
-            {/* Aviso limite atingido — só para makers */}
+            {/* Aviso de limite de downloads — só para makers */}
             {isMaker && semDownloads && (
               <div style={{
                 padding: '8px 12px', borderRadius: 8,
@@ -629,9 +629,18 @@ export default function PageInner() {
               );
             })()}
 
-            {/* Botão STL — comportamento diferente por tipo de utilizador */}
-            {podeGerarPreview ? (
-              /* Consumidor puro: gera pré-visualização para ver a peça antes de encomendar */
+            {/* Botão Gerar/Pré-visualizar STL — disponível para qualquer utilizador com login */}
+            {!userId ? (
+              /* Não autenticado */
+              <button
+                className={styles.primaryBtn}
+                onClick={() => { window.location.href = `/login?redirect=${encodeURIComponent(window.location.href)}`; }}
+                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                🔒 Login para gerar pré-visualização
+              </button>
+            ) : (
+              /* Autenticado: pode sempre gerar */
               <button
                 className={styles.primaryBtn}
                 onClick={gerarSTL}
@@ -640,44 +649,36 @@ export default function PageInner() {
                   opacity: mode === 'generating' ? 0.6 : 1,
                   cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
-                  background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                  ...(isClienteFinal && !isMaker && {
+                    background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                  }),
                 }}
               >
-                {mode === 'generating' ? 'A gerar pré-visualização…' : '🔍 Pré-visualizar peça em 3D'}
+                {mode === 'generating'
+                  ? (isClienteFinal && !isMaker ? 'A gerar pré-visualização…' : 'A gerar STL…')
+                  : (isClienteFinal && !isMaker ? '🔍 Pré-visualizar peça em 3D' : 'Gerar STL')}
               </button>
-            ) : isMaker && (stlBloqueado ? (
-              /* Maker sem plano suficiente */
+            )}
+
+            {/* Aviso de plano para makers sem acesso ao download */}
+            {userId && isMaker && stlBloqueadoDownload && (
               <a
                 href="/pricing"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '12px 16px', borderRadius: 10,
+                  padding: '10px 16px', borderRadius: 10,
                   background: 'rgba(167,139,250,0.1)',
                   border: '1px solid rgba(167,139,250,0.3)',
-                  color: '#a78bfa', fontWeight: 700, fontSize: 14,
+                  color: '#a78bfa', fontWeight: 700, fontSize: 13,
                   textDecoration: 'none',
                 }}
               >
                 🔒 {design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar STL` : 'STL não disponível neste plano'}
               </a>
-            ) : (
-              /* Maker com plano suficiente */
-              <button
-                className={styles.primaryBtn}
-                onClick={gerarSTL}
-                disabled={mode === 'generating'}
-                style={{
-                  opacity: mode === 'generating' ? 0.6 : 1,
-                  cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {mode === 'generating' ? 'A gerar STL…' : !userId ? '🔒 Login para Gerar STL' : 'Gerar STL'}
-              </button>
-            ))}
+            )}
 
-            {/* Download STL — só para makers com plano suficiente (não para consumidores) */}
-            {isMaker && !stlBloqueado && mode === 'stl' && userId && (
+            {/* Download STL — só para makers com plano suficiente */}
+            {canDownloadStl && mode === 'stl' && userId && (
               <DownloadStlButton
                 designId={designId}
                 params={paramsParaDownload}
