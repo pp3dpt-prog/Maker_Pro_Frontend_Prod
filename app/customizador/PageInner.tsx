@@ -85,6 +85,12 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
 
+  // Failsafe: garante que authLoading nunca fica preso (ex: Supabase lento/pausado)
+  useEffect(() => {
+    const timer = setTimeout(() => setAuthLoading(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Auth — usa getSession() para compatibilidade Firefox (sem depender de cookies de servidor)
   useEffect(() => {
     async function loadAuth() {

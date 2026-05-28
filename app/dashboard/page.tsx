@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 
@@ -23,10 +24,17 @@ type UserAsset = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'conta' | 'plano' | 'projetos'>('conta');
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [assets, setAssets] = useState<UserAsset[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Failsafe: liberta o loading após 10s mesmo que Supabase não responda
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 10000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     async function carregarDados() {
@@ -34,7 +42,10 @@ export default function Dashboard() {
         // getSession() lê do localStorage — funciona em todos os browsers
         // sem depender de cookies do servidor (evita bloqueios do Firefox ETP)
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        if (!session) {
+          router.replace('/login');
+          return;
+        }
         const user_id = session.user.id;
 
         const { data: perfilData } = await supabase
