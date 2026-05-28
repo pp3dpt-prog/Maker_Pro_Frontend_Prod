@@ -13,6 +13,7 @@ interface Body {
   params: Record<string, any>;
   params_resumo: ParamRow[];
   user_id: string | null;
+  stl_url?: string | null;
   contacto: Contacto;
   morada_faturacao: string;
   morada_envio: string;
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const {
     design_id, design_nome, familia, params, params_resumo,
-    user_id, contacto, morada_faturacao, morada_envio, mesma_morada, notas,
+    user_id, stl_url, contacto, morada_faturacao, morada_envio, mesma_morada, notas,
   } = body || ({} as Body);
 
   if (!design_id || !contacto?.nome || !contacto?.email || !contacto?.telefone || !morada_faturacao) {
@@ -163,12 +164,32 @@ export async function POST(request: NextRequest) {
         </div>
       `;
 
+      // Tentar buscar e anexar o STL (best-effort — não bloqueia o envio se falhar)
+      type Attachment = { filename: string; content: Buffer };
+      const attachments: Attachment[] = [];
+      if (stl_url && stl_url.startsWith('https://')) {
+        try {
+          const stlRes = await fetch(stl_url);
+          if (stlRes.ok) {
+            const buf = await stlRes.arrayBuffer();
+            // Resend tem limite de 40 MB por email
+            if (buf.byteLength < 40 * 1024 * 1024) {
+              const safeName = design_nome.replace(/[^a-zA-Z0-9_-]/g, '_');
+              attachments.push({ filename: `${safeName}.stl`, content: Buffer.from(buf) });
+            }
+          }
+        } catch (e) {
+          console.error('[pedido-orcamento] erro ao buscar STL para anexo:', e);
+        }
+      }
+
       await resend.emails.send({
         from: fromEmail,
         to: adminEmail,
         replyTo: contacto.email,
         subject: `Novo orçamento — ${design_nome} (${contacto.nome})`,
         html,
+        ...(attachments.length > 0 && { attachments }),
       });
     } catch (e) {
       console.error('[pedido-orcamento] erro Resend:', e);

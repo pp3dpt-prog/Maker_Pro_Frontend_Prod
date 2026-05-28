@@ -28,6 +28,7 @@ type Props = {
   params: Record<string, any>;
   defaultEmail?: string;
   userId?: string | null;
+  stlUrl?: string | null;
 };
 
 const HIDDEN_PARAMS = new Set(['mostrar_texto']);
@@ -46,6 +47,7 @@ export default function PedidoOrcamentoModal({
   params,
   defaultEmail,
   userId,
+  stlUrl,
 }: Props) {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState(defaultEmail ?? '');
@@ -102,6 +104,7 @@ export default function PedidoOrcamentoModal({
           params,
           params_resumo: paramsRows,
           user_id: userId ?? null,
+          stl_url: stlUrl ?? null,
           contacto: {
             nome: nome.trim(),
             email: email.trim(),
@@ -319,6 +322,32 @@ export default function PedidoOrcamentoModal({
                 />
               </Field>
             </section>
+
+            {/* Aviso STL anexado */}
+            {stlUrl && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 10,
+                background: 'rgba(14,165,233,0.08)',
+                border: '1px solid rgba(14,165,233,0.25)',
+                fontSize: 12, color: '#94a3b8', lineHeight: 1.6,
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+              }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>📎</span>
+                <span>
+                  O ficheiro STL da pré-visualização será <strong style={{ color: '#e0f2fe' }}>anexado ao email</strong> para que possamos começar a análise imediatamente.
+                </span>
+              </div>
+            )}
+
+            {/* Aviso de privacidade */}
+            <div style={{
+              padding: '10px 14px', borderRadius: 10,
+              background: 'rgba(148,163,184,0.06)',
+              border: '1px solid rgba(148,163,184,0.12)',
+              fontSize: 12, color: '#64748b', lineHeight: 1.6,
+            }}>
+              🔒 <strong style={{ color: '#94a3b8' }}>Privacidade:</strong> O nome completo, morada e número de telefone são recolhidos exclusivamente para processar a tua encomenda e organizar o envio. Estes dados não são partilhados com terceiros para fins comerciais nem utilizados para marketing.
+            </div>
 
             {erro && (
               <div style={{

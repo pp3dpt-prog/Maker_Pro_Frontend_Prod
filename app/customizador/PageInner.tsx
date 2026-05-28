@@ -397,13 +397,16 @@ export default function PageInner() {
   const tipo = userProfile?.tipo_utilizador ?? null;
   const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
 
-  // isMaker: utilizadores não autenticados, makers e "ambos" veem a secção STL.
-  // Consumidores puros nunca precisam de descarregar STL — só encomendam.
+  // isMaker: quem pode descarregar STL (makers e "ambos" com plano suficiente).
+  // Consumidores puros não descarregam, mas podem gerar pré-visualização para encomendar.
   const isMaker = !userId || tipo === 'maker' || tipo === 'ambos' || isAdmin;
 
-  // acesso_maker controla APENAS o download/geração de STL.
-  // O editor e o botão de encomendar estão sempre disponíveis para designs ativos.
-  const stlBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
+  // Consumidores autenticados podem sempre gerar STL para pré-visualização antes de encomendar.
+  const podeGerarPreview = !!userId && isClienteFinal && !isMaker;
+
+  // acesso_maker controla o download/geração de STL para makers.
+  // Consumidores nunca ficam bloqueados — geração é sempre permitida para pré-visualização.
+  const stlBloqueado = !isAdmin && !podeGerarPreview && !temAcessoPlano(userPlano, design.acesso_maker);
 
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const designRascunho = design.estado === 'rascunho' && !isAdmin;
@@ -626,8 +629,24 @@ export default function PageInner() {
               );
             })()}
 
-            {/* Botão Gerar STL — só para makers e "ambos"; consumidores puros não precisam */}
-            {isMaker && (stlBloqueado ? (
+            {/* Botão STL — comportamento diferente por tipo de utilizador */}
+            {podeGerarPreview ? (
+              /* Consumidor puro: gera pré-visualização para ver a peça antes de encomendar */
+              <button
+                className={styles.primaryBtn}
+                onClick={gerarSTL}
+                disabled={mode === 'generating'}
+                style={{
+                  opacity: mode === 'generating' ? 0.6 : 1,
+                  cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                }}
+              >
+                {mode === 'generating' ? 'A gerar pré-visualização…' : '🔍 Pré-visualizar peça em 3D'}
+              </button>
+            ) : isMaker && (stlBloqueado ? (
+              /* Maker sem plano suficiente */
               <a
                 href="/pricing"
                 style={{
@@ -642,6 +661,7 @@ export default function PageInner() {
                 🔒 {design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar STL` : 'STL não disponível neste plano'}
               </a>
             ) : (
+              /* Maker com plano suficiente */
               <button
                 className={styles.primaryBtn}
                 onClick={gerarSTL}
@@ -652,16 +672,11 @@ export default function PageInner() {
                   transition: 'all 0.2s',
                 }}
               >
-                {mode === 'generating'
-                  ? 'A gerar STL…'
-                  : !userId
-                    ? '🔒 Login para Gerar STL'
-                    : 'Gerar STL'
-                }
+                {mode === 'generating' ? 'A gerar STL…' : !userId ? '🔒 Login para Gerar STL' : 'Gerar STL'}
               </button>
             ))}
 
-            {/* Botão Download STL — só para makers */}
+            {/* Download STL — só para makers com plano suficiente (não para consumidores) */}
             {isMaker && !stlBloqueado && mode === 'stl' && userId && (
               <DownloadStlButton
                 designId={designId}
@@ -726,6 +741,7 @@ export default function PageInner() {
           generation_schema: design.generation_schema,
         }}
         params={params}
+        stlUrl={stlUrl && stlUrl.startsWith('https://') ? stlUrl : null}
         defaultEmail={userEmail ?? undefined}
         userId={userId}
       />
