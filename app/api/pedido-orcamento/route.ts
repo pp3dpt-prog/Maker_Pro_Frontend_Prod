@@ -71,46 +71,38 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Inserir em Supabase (best-effort: se a tabela ainda não existir, segue para o email)
+  // Inserir em Supabase usando sempre service role para contornar RLS
   let pedidoId: string | null = null;
   try {
-    const insertPayload = {
-      user_id: user.id,
-      design_id,
-      design_nome,
-      familia,
-      params,
-      contacto_nome: contacto.nome,
-      contacto_email: contacto.email,
-      contacto_telefone: contacto.telefone,
-      morada_faturacao,
-      morada_envio,
-      mesma_morada,
-      notas: notas || null,
-      estado: 'pendente_orcamento',
-    };
-
-    const { data, error } = await supabase
-      .from('prod_pedidos_orcamento')
-      .insert(insertPayload)
-      .select('id')
-      .maybeSingle();
-
-    if (!error && data?.id) {
-      pedidoId = data.id;
-    } else if (error) {
-      // Fallback: tentar com service role (caso RLS bloqueie utilizador não-autenticado)
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (url && serviceKey) {
-        const admin = createAdmin(url, serviceKey);
-        const { data: data2, error: error2 } = await admin
-          .from('prod_pedidos_orcamento')
-          .insert(insertPayload)
-          .select('id')
-          .maybeSingle();
-        if (!error2 && data2?.id) pedidoId = data2.id;
-        else console.error('[pedido-orcamento] insert falhou:', error2 || error);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      console.error('[pedido-orcamento] variáveis SUPABASE em falta');
+    } else {
+      const admin = createAdmin(supabaseUrl, serviceKey);
+      const insertPayload = {
+        user_id: user.id,
+        design_id,
+        design_nome,
+        familia,
+        params,
+        contacto_nome: contacto.nome,
+        contacto_email: contacto.email,
+        contacto_telefone: contacto.telefone,
+        morada_faturacao,
+        morada_envio,
+        mesma_morada,
+        notas: notas || null,
+        stl_url: stl_url || null,
+        estado: 'pendente_orcamento',
+      };
+      const { data, error } = await admin
+        .from('prod_pedidos_orcamento')
+        .insert(insertPayload)
+        .select('id')
+        .maybeSingle();
+      if (!error && data?.id) {
+        pedidoId = data.id;
       } else {
         console.error('[pedido-orcamento] insert falhou:', error);
       }
@@ -158,6 +150,12 @@ export async function POST(request: NextRequest) {
 
           <h3 style="margin:24px 0 8px">Notas</h3>
           <p style="margin:0;white-space:pre-wrap;line-height:1.6">${notas ? escapeHtml(notas) : '<em style="color:#64748b">Sem notas</em>'}</p>
+
+          <h3 style="margin:24px 0 8px">Ficheiro STL</h3>
+          ${stl_url
+            ? `<p style="margin:0;color:#16a34a;font-weight:600">&#128206; Ficheiro STL anexado.</p>`
+            : `<p style="margin:0;color:#b45309;font-weight:600">&#9888;&#65039; Nenhum ficheiro STL foi gerado antes de submeter o pedido.</p>`
+          }
 
           <hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/>
           <p style="margin:0;font-size:12px;color:#94a3b8">design_id: ${escapeHtml(design_id)} • user_id: ${escapeHtml(user_id || 'anónimo')}</p>
