@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function middleware(request: NextRequest) {
 
   if (path.startsWith('/admin')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 
     // Verificação 1: email definido em ADMIN_EMAIL (rápido, sem query à DB)
@@ -40,16 +41,22 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Verificação 2: coluna role na tabela prod_perfis
-    const { data: perfil } = await supabase
-      .from('prod_perfis')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
+    // Verificação 2: coluna role na tabela prod_perfis via service role (bypassa RLS)
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey) {
+      const adminClient = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey);
+      const { data: perfil } = await adminClient
+        .from('prod_perfis')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (perfil?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url));
+      if (perfil?.role === 'admin') {
+        return response;
+      }
     }
+
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return response;
