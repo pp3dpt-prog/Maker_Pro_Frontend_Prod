@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
       console.error('[pedido-orcamento] variáveis SUPABASE em falta');
     } else {
       const admin = createAdmin(supabaseUrl, serviceKey);
-      const insertPayload = {
+
+      const basePayload = {
         user_id: user.id,
         design_id,
         design_nome,
@@ -93,18 +94,30 @@ export async function POST(request: NextRequest) {
         morada_envio,
         mesma_morada,
         notas: notas || null,
-        stl_url: stl_url || null,
         estado: 'pendente_orcamento',
       };
-      const { data, error } = await admin
+
+      // Tenta com stl_url (requer migração SQL). Se a coluna não existir ainda, tenta sem ela.
+      let result = await admin
         .from('prod_pedidos_orcamento')
-        .insert(insertPayload)
+        .insert({ ...basePayload, stl_url: stl_url || null })
         .select('id')
         .maybeSingle();
-      if (!error && data?.id) {
-        pedidoId = data.id;
-      } else {
-        console.error('[pedido-orcamento] insert falhou:', error);
+
+      if (result.error?.message?.includes('stl_url')) {
+        // Coluna stl_url ainda não existe — inserir sem ela
+        console.warn('[pedido-orcamento] stl_url column missing, retrying without it');
+        result = await admin
+          .from('prod_pedidos_orcamento')
+          .insert(basePayload)
+          .select('id')
+          .maybeSingle();
+      }
+
+      if (!result.error && result.data?.id) {
+        pedidoId = result.data.id;
+      } else if (result.error) {
+        console.error('[pedido-orcamento] insert falhou:', result.error);
       }
     }
   } catch (e) {
