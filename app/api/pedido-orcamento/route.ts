@@ -73,11 +73,13 @@ export async function POST(request: NextRequest) {
 
   // Inserir em Supabase usando sempre service role para contornar RLS
   let pedidoId: string | null = null;
+  let dbError: string | null = null;
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceKey) {
-      console.error('[pedido-orcamento] variáveis SUPABASE em falta');
+      dbError = 'Variáveis SUPABASE_URL / SERVICE_ROLE_KEY em falta no ambiente.';
+      console.error('[pedido-orcamento]', dbError);
     } else {
       const admin = createAdmin(supabaseUrl, serviceKey);
 
@@ -104,8 +106,11 @@ export async function POST(request: NextRequest) {
         .select('id')
         .maybeSingle();
 
-      if (result.error?.message?.includes('stl_url')) {
-        // Coluna stl_url ainda não existe — inserir sem ela
+      // Retry sem stl_url se a coluna ainda não existir na BD
+      const colMissing = (msg?: string) =>
+        !!msg && (msg.includes('stl_url') || msg.includes('column') || msg.includes('schema cache'));
+
+      if (result.error && colMissing(result.error.message)) {
         console.warn('[pedido-orcamento] stl_url column missing, retrying without it');
         result = await admin
           .from('prod_pedidos_orcamento')
@@ -117,10 +122,12 @@ export async function POST(request: NextRequest) {
       if (!result.error && result.data?.id) {
         pedidoId = result.data.id;
       } else if (result.error) {
+        dbError = result.error.message || JSON.stringify(result.error);
         console.error('[pedido-orcamento] insert falhou:', result.error);
       }
     }
   } catch (e) {
+    dbError = e instanceof Error ? e.message : String(e);
     console.error('[pedido-orcamento] erro DB:', e);
   }
 
@@ -140,7 +147,8 @@ export async function POST(request: NextRequest) {
       const html = `
         <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a">
           <h2 style="margin:0 0 4px">Novo pedido de orçamento</h2>
-          <p style="margin:0 0 20px;color:#64748b">${pedidoId ? `ID: ${escapeHtml(pedidoId)}` : '(sem ID — falhou gravação na BD)'}</p>
+          <p style="margin:0 0 ${dbError ? '8px' : '20px'};color:#64748b">${pedidoId ? `ID: ${escapeHtml(pedidoId)}` : '(sem ID — falhou gravação na BD)'}</p>
+          ${dbError ? `<p style="margin:0 0 20px;padding:8px 12px;background:#fef2f2;border-left:3px solid #ef4444;border-radius:4px;font-size:12px;color:#b91c1c;font-family:monospace"><strong>Erro BD:</strong> ${escapeHtml(dbError)}</p>` : ''}
 
           <h3 style="margin:16px 0 8px">Peça</h3>
           <p style="margin:0 0 8px"><strong>${escapeHtml(design_nome)}</strong> <span style="color:#64748b">(${escapeHtml(familia)})</span></p>
