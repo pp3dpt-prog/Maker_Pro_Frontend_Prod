@@ -25,6 +25,7 @@ type Design = {
 type UserProfile = {
   role: string | null;
   plano: string;
+  tipo_utilizador: string | null;
   downloads_mes: number;
   downloads_limite: number;
 };
@@ -74,29 +75,71 @@ export default function PageInner() {
   const [liking, setLiking] = useState(false);
   const [likes, setLikes] = useState(0);
 
-  // Auth — usa getSession() para compatibilidade Firefox
+  // Auth — mesma estratégia dupla do customizador:
+  // INITIAL_SESSION como fonte autoritativa + getSession() como fallback aos 2s
   useEffect(() => {
-    async function loadAuth() {
-      try {
-        const { createClient } = await import('@/lib/supabase/client');
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-        if (session?.user) {
-          setUserId(session.user.id);
+    let profileLoaded = false;
+    let authSettled = false;
+
+    function finishAuth() {
+      if (!authSettled) { authSettled = true; setAuthLoading(false); }
+    }
+
+    async function handleSession(session: { user: { id: string; email?: string } } | null) {
+      if (session?.user && !profileLoaded) {
+        profileLoaded = true;
+        setUserId(session.user.id);
+        try {
+          const { createClient } = await import('@/lib/supabase/client');
+          const sb = createClient();
           const { data: perfil } = await sb
             .from('prod_perfis')
-            .select('role, plano, downloads_mes, downloads_limite')
+            .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
             .eq('id', session.user.id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
-        }
-      } catch (_) {
-        // continuar sem auth
-      } finally {
-        setAuthLoading(false);
+        } catch (_) { /* sem perfil — continua */ }
+      } else if (!session?.user) {
+        setUserId(null);
+        setUserProfile(null);
       }
+      finishAuth();
     }
-    loadAuth();
+
+    // Subscrição via onAuthStateChange (INITIAL_SESSION é autoritativo)
+    let subscription: { unsubscribe: () => void } | null = null;
+    import('@/lib/supabase/client').then(({ createClient }) => {
+      const sb = createClient();
+      const { data } = sb.auth.onAuthStateChange(async (event, session) => {
+        if (
+          event === 'INITIAL_SESSION' ||
+          event === 'SIGNED_IN'       ||
+          event === 'TOKEN_REFRESHED' ||
+          event === 'SIGNED_OUT'
+        ) {
+          await handleSession(session?.user ? session : null);
+        }
+      });
+      subscription = data.subscription;
+
+      // Fallback: se INITIAL_SESSION demorar >2s, tenta getSession()
+      setTimeout(async () => {
+        if (!authSettled) {
+          try {
+            const { data: { session } } = await sb.auth.getSession();
+            await handleSession(session?.user ? session : null);
+          } catch (_) { finishAuth(); }
+        }
+      }, 2000);
+    });
+
+    // Failsafe absoluto: 10s
+    const hardTimer = setTimeout(finishAuth, 10000);
+
+    return () => {
+      subscription?.unsubscribe();
+      clearTimeout(hardTimer);
+    };
   }, []);
 
   // Retry timeout
@@ -124,13 +167,13 @@ export default function PageInner() {
         setLikes(data.total_likes ?? 0);
 
         const schema = data.generation_schema;
+        const initial: Record<string, any> = {};
         if (schema?.parameters) {
-          const initial: Record<string, any> = {};
           Object.entries(schema.parameters).forEach(([k, def]: any) => {
             initial[k] = def.default ?? null;
           });
-          setParams(initial);
         }
+        setParams(initial);
 
         if (familiaParam) {
           const fRes = await fetch(`/api/designs-familia?familia=${encodeURIComponent(familiaParam)}`);
@@ -262,8 +305,15 @@ export default function PageInner() {
   if (loading || authLoading || !design || !params) return <main style={{ padding: 40, color: '#94a3b8' }}>A carregar…</main>;
 
   const isAdmin = userProfile?.role === 'admin';
-  const userPlano = userProfile?.plano ?? 'gratuito';
-  const designBloqueado = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
+  const userPlano = userProfile?.plano || 'gratuito';
+  const tipo = userProfile?.tipo_utilizador ?? null;
+  const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
+  const isMaker = !userId || tipo === 'maker' || tipo === 'ambos' || isAdmin;
+
+  // acesso_maker só bloqueia o download — qualquer utilizador autenticado pode gerar/pré-visualizar
+  const stlBloqueadoDownload = !isAdmin && !temAcessoPlano(userPlano, design.acesso_maker);
+  const canDownloadStl = isMaker && !stlBloqueadoDownload;
+
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const paramsParaDownload = filtrarParamsBackend(params);
 
@@ -312,58 +362,80 @@ export default function PageInner() {
             </div>
           </div>
 
-          {/* Parâmetros */}
-          {designBloqueado ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12, padding: '20px 0' }}>
-              <div style={{ fontSize: 40 }}>🔒</div>
-              <h4 style={{ color: '#f1f5f9', margin: 0 }}>Conteúdo Exclusivo</h4>
-              <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>Este design requer o plano <strong style={{ color: '#a78bfa' }}>{design.acesso_maker}</strong> ou superior.</p>
-              <a href="/pricing" style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Ver planos →</a>
-            </div>
-          ) : (
-            <GeneratedEditor schema={design.generation_schema} values={params} onChange={handleParamsChange} onFileUpload={handleFileUpload} />
-          )}
+          {/* Parâmetros — sempre visíveis para designs ativos */}
+          <GeneratedEditor schema={design.generation_schema} values={params} onChange={handleParamsChange} onFileUpload={handleFileUpload} />
 
           {/* Ações */}
-          {!designBloqueado && (
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {userId && (
-                <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: '#0f172a', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Downloads este mês</span>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: semDownloads ? '#f87171' : '#34d399' }}>
-                    {userProfile?.downloads_mes ?? 0} / {userProfile?.downloads_limite ?? 3}
-                  </span>
-                </div>
-              )}
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-              {semDownloads && (
-                <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#f87171', textAlign: 'center' }}>
-                  Limite mensal atingido.{' '}
-                  <a href="/pricing" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Upgrade do plano →</a>
-                </div>
-              )}
+            {/* Contador de downloads — só para makers */}
+            {isMaker && userId && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: '#0f172a', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Downloads este mês</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: semDownloads ? '#f87171' : '#34d399' }}>
+                  {userProfile?.downloads_mes ?? 0} / {userProfile?.downloads_limite ?? 3}
+                </span>
+              </div>
+            )}
 
-              <button className={styles.primaryBtn} onClick={gerarSTL} disabled={mode === 'generating'} style={{ opacity: mode === 'generating' ? 0.6 : 1, cursor: mode === 'generating' ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
-                {mode === 'generating' ? 'A gerar STL…' : !userId ? '🔒 Login para Gerar STL' : 'Gerar STL'}
+            {isMaker && semDownloads && (
+              <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#f87171', textAlign: 'center' }}>
+                Limite mensal atingido.{' '}
+                <a href="/pricing" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>Upgrade do plano →</a>
+              </div>
+            )}
+
+            {/* Botão Gerar — qualquer utilizador autenticado pode gerar para pré-visualizar */}
+            {!userId ? (
+              <button
+                className={styles.primaryBtn}
+                onClick={() => { window.location.href = `/login?redirect=${encodeURIComponent(window.location.href)}`; }}
+                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                🔒 Login para gerar pré-visualização
               </button>
+            ) : (
+              <button
+                className={styles.primaryBtn}
+                onClick={gerarSTL}
+                disabled={mode === 'generating'}
+                style={{
+                  opacity: mode === 'generating' ? 0.6 : 1,
+                  cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  ...(isClienteFinal && !isMaker && { background: 'linear-gradient(135deg, #0ea5e9, #0284c7)' }),
+                }}
+              >
+                {mode === 'generating'
+                  ? (isClienteFinal && !isMaker ? 'A gerar pré-visualização…' : 'A gerar STL…')
+                  : (isClienteFinal && !isMaker ? '🔍 Pré-visualizar peça em 3D' : 'Gerar STL')}
+              </button>
+            )}
 
-              {mode === 'done' && userId && (
-                <DownloadStlButton designId={designId} params={paramsParaDownload} onSuccess={handleDownloadSuccess} />
-              )}
+            {/* Aviso de plano para makers sem acesso ao download */}
+            {userId && isMaker && stlBloqueadoDownload && (
+              <a href="/pricing" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                🔒 {design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar STL` : 'STL não disponível neste plano'}
+              </a>
+            )}
 
-              {mode === 'done' && txtUrl && (
-                <a href={txtUrl} download="hueforge_cores.txt" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="11" x2="12" y2="17"/>
-                    <polyline points="9 14 12 17 15 14"/>
-                  </svg>
-                  Guia de Cores (TXT)
-                </a>
-              )}
-            </div>
-          )}
+            {/* Download STL — só makers com plano suficiente */}
+            {canDownloadStl && mode === 'done' && userId && (
+              <DownloadStlButton designId={designId} params={paramsParaDownload} onSuccess={handleDownloadSuccess} />
+            )}
+
+            {mode === 'done' && txtUrl && (
+              <a href={txtUrl} download="hueforge_cores.txt" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="11" x2="12" y2="17"/>
+                  <polyline points="9 14 12 17 15 14"/>
+                </svg>
+                Guia de Cores (TXT)
+              </a>
+            )}
+          </div>
         </aside>
 
         {/* ── Área direita: preview da imagem ─────────────────────────────── */}
