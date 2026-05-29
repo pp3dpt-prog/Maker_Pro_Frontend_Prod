@@ -53,12 +53,13 @@ export default function Dashboard() {
       }
     }
 
-    // Verificação imediata (fonte primária — lê cookies sincronizados pelo login)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
+    // Verificação imediata — getUser() valida o token com o servidor Supabase,
+    // evitando sessões "penduradas" onde o cookie existe mas o token expirou.
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
+      if (error || !user) {
         router.replace('/login');
       } else {
-        await carregarDados(session.user.id);
+        await carregarDados(user.id);
       }
       if (!settled) { settled = true; setLoading(false); }
     }).catch(() => {

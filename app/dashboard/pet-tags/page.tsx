@@ -30,11 +30,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function carregarDados() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { user }, error } = await supabase.auth.getUser();
 
-      if (!session) {
+      if (error || !user) {
         setLoading(false);
         return;
       }
@@ -43,7 +41,7 @@ export default function Dashboard() {
       const { data: perfilData } = await supabase
         .from('prod_perfis')
         .select('*, prod_planos(nome)')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (perfilData) {
@@ -54,7 +52,7 @@ export default function Dashboard() {
       const { data: transData } = await supabase
         .from('prod_transacoes')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .order('criado_em', { ascending: false });
 
       if (transData) {
