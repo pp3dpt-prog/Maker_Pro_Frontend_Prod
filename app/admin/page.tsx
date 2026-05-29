@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X, Mail, Loader2
+  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X, Mail, Loader2, ClipboardList
 } from 'lucide-react';
 import CreateCouponForm from '@/components/admin/CreateCouponForm';
 import {
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [tickets, setTickets] = useState<TicketSuporte[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
-  const [stats, setStats] = useState({ users: 0, tickets: 0 });
+  const [stats, setStats] = useState({ users: 0, tickets: 0, pedidosPendentes: 0 });
   const [loading, setLoading] = useState(true);
 
   // Estado do formulário de campanhas
@@ -111,11 +111,12 @@ export default function AdminDashboard() {
 
       const { count: uCount } = await supabase.from('prod_perfis').select('*', { count: 'exact', head: true });
       const { count: tOpenCount } = await supabase.from('prod_tickets_suporte').select('*', { count: 'exact', head: true }).eq('status', 'aberto');
+      const { count: pedidosCount } = await supabase.from('prod_pedidos_orcamento').select('*', { count: 'exact', head: true }).eq('estado', 'pendente_orcamento');
 
       setCupons(cData || []);
       setTickets(tData || []);
       setCampanhas(cpData || []);
-      setStats({ users: uCount || 0, tickets: tOpenCount || 0 });
+      setStats({ users: uCount || 0, tickets: tOpenCount || 0, pedidosPendentes: pedidosCount || 0 });
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
@@ -168,6 +169,15 @@ export default function AdminDashboard() {
           <MenuButton active={activeTab === 'cupons'} onClick={() => setActiveTab('cupons')} icon={<Tag size={20}/>} label="Cupões" />
           <MenuButton active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} icon={<Ticket size={20}/>} label="Tickets" />
           <MenuButton active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')} icon={<Megaphone size={20}/>} label="Campanhas" />
+          <a href="/admin/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-gray-400 hover:bg-white/5 hover:text-white transition-all w-full relative">
+            <ClipboardList size={20}/>
+            Orçamentos
+            {stats.pedidosPendentes > 0 && (
+              <span className="ml-auto bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full">
+                {stats.pedidosPendentes}
+              </span>
+            )}
+          </a>
         </nav>
       </aside>
 
@@ -186,10 +196,13 @@ export default function AdminDashboard() {
 
           {/* ECRÃ GERAL (STATS) */}
           {activeTab === 'stats' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <StatCard title="Utilizadores" value={loading ? '...' : stats.users} icon={<Users className="text-blue-400" />} />
               <StatCard title="Tickets Abertos" value={loading ? '...' : stats.tickets} icon={<Ticket className="text-amber-400" />} />
               <StatCard title="Campanhas Ativas" value={campanhas.filter(c => c.ativa).length} icon={<Megaphone className="text-indigo-400" />} />
+              <a href="/admin/pedidos" className="block no-underline">
+                <StatCard title="Orçamentos Pendentes" value={loading ? '...' : stats.pedidosPendentes} icon={<ClipboardList className="text-orange-400" />} />
+              </a>
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdmin } from '@supabase/supabase-js';
 import Link from 'next/link';
 
 interface Pedido {
@@ -29,7 +29,10 @@ function shortId(id: string): string {
 }
 
 export default async function AdminPedidosPage() {
-  const supabase = await createClient();
+  const supabase = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 
   const { data: pedidos, error } = await supabase
     .from('prod_pedidos_orcamento')
