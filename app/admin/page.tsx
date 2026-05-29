@@ -2,32 +2,59 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import {
-  Ticket, Users, Megaphone, LayoutDashboard, Tag, Plus, MessageCircle, Twitter, X, Mail, Loader2, ClipboardList
-} from 'lucide-react';
+import Link from 'next/link';
 import CreateCouponForm from '@/components/admin/CreateCouponForm';
-import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
-} from 'recharts';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
-// --- INTERFACES ---
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; }
 interface TicketSuporte { id: string; assunto: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; }
 interface Campanha { id: string; titulo: string; tipo: string; cliques: number; vistas: number; ativa: boolean; created_at: string; }
 
-interface MenuButtonProps { active: boolean; onClick: () => void; icon: ReactNode; label: string; }
-interface StatCardProps { title: string; value: number | string; icon: ReactNode; }
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-const chartData = [
-  { name: 'Seg', users: 40, cliques: 240 },
-  { name: 'Ter', users: 30, cliques: 139 },
-  { name: 'Qua', users: 65, cliques: 980 },
-  { name: 'Qui', users: 45, cliques: 390 },
-  { name: 'Sex', users: 90, cliques: 480 },
-  { name: 'Sáb', users: 70, cliques: 380 },
-  { name: 'Dom', users: 110, cliques: 430 },
-];
+const s = {
+  page: { display: 'flex', minHeight: '100vh', background: '#080c10', color: '#f1f5f9', fontFamily: 'Inter, Arial, sans-serif' } as CSSProperties,
+  sidebar: { width: 220, flexShrink: 0, borderRight: '1px solid #1e293b', padding: '28px 16px', display: 'flex', flexDirection: 'column', gap: 4 } as CSSProperties,
+  sidebarTitle: { fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: '#475569', textTransform: 'uppercase', padding: '0 12px', marginBottom: 12 } as CSSProperties,
+  main: { flex: 1, padding: '40px 32px', overflowY: 'auto' } as CSSProperties,
+  card: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: 24 } as CSSProperties,
+  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 } as CSSProperties,
+  statCard: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: '28px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 } as CSSProperties,
+  statLabel: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b' } as CSSProperties,
+  statValue: { fontSize: 36, fontWeight: 800, color: '#f1f5f9', lineHeight: 1 } as CSSProperties,
+  tableWrap: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden' } as CSSProperties,
+  thead: { background: '#0a1120', borderBottom: '1px solid #1e293b' } as CSSProperties,
+  th: { padding: '12px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' } as CSSProperties,
+  td: { padding: '14px 20px', fontSize: 14, color: '#cbd5e1', borderBottom: '1px solid #0f172a' } as CSSProperties,
+  input: { width: '100%', background: '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' } as CSSProperties,
+  label: { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 6 } as CSSProperties,
+  btn: { padding: '10px 20px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' } as CSSProperties,
+  badge: (bg: string, color: string) => ({ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: bg, color, textTransform: 'uppercase', letterSpacing: '0.05em' } as CSSProperties),
+};
+
+// ─── Sidebar button ───────────────────────────────────────────────────────────
+
+function SideBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+        borderRadius: 10, border: 'none', width: '100%', textAlign: 'left',
+        cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+        background: active ? '#1e293b' : 'transparent',
+        color: active ? '#93c5fd' : '#94a3b8',
+        transition: 'background 0.15s, color 0.15s',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas'>('stats');
@@ -38,362 +65,299 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, tickets: 0, pedidosPendentes: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Estado do formulário de campanhas
   const [campTitulo, setCampTitulo] = useState('');
   const [campCanal, setCampCanal] = useState('Feed da App');
   const [campConteudo, setCampConteudo] = useState('');
   const [campStatus, setCampStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [campErro, setCampErro] = useState('');
 
-  // Estado de envio de newsletter
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
   const [newsletterMsg, setNewsletterMsg] = useState<{ id: string; texto: string; tipo: 'ok' | 'erro' } | null>(null);
 
-  const handleCriar = async () => {
-    if (!campTitulo || !campConteudo) {
-      setCampErro('Preenche o título e o conteúdo.');
-      return;
-    }
-
-    setCampStatus('loading');
-    setCampErro('');
-
-    const { error } = await supabase
-      .from('prod_campanhas')
-      .insert([{
-        titulo: campTitulo,
-        tipo: campCanal,
-        conteudo: campConteudo,
-        ativa: true,
-        segmento: 'todos'
-      }]);
-
-    if (error) {
-      setCampErro('Erro ao criar campanha: ' + error.message);
-      setCampStatus('error');
-    } else {
-      setCampStatus('success');
-      setCampTitulo('');
-      setCampConteudo('');
-      fetchData();
-      setTimeout(() => setCampStatus('idle'), 3000);
-    }
-  };
-
-  const enviarNewsletter = async (camp: Campanha) => {
-    if (!confirm(`Enviar "${camp.titulo}" por email a todos os utilizadores?`)) return;
-    setEnviandoId(camp.id);
-    setNewsletterMsg(null);
-    try {
-      const res = await fetch('/api/enviar-campanha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campanha_id: camp.id }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Erro desconhecido');
-      setNewsletterMsg({ id: camp.id, texto: `✓ Enviado a ${json.enviados} utilizadores`, tipo: 'ok' });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar';
-      setNewsletterMsg({ id: camp.id, texto: msg, tipo: 'erro' });
-    } finally {
-      setEnviandoId(null);
-    }
-  };
-
-  // --- CARREGAMENTO DE DADOS ---
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const { data: cData } = await supabase.from('cupons').select('*').order('created_at', { ascending: false });
-      const { data: tData } = await supabase.from('prod_tickets_suporte').select('*').order('created_at', { ascending: false });
-      const { data: cpData } = await supabase.from('prod_campanhas').select('*').order('created_at', { ascending: false });
-
-      const { count: uCount } = await supabase.from('prod_perfis').select('*', { count: 'exact', head: true });
-      const { count: tOpenCount } = await supabase.from('prod_tickets_suporte').select('*', { count: 'exact', head: true }).eq('status', 'aberto');
-      const { count: pedidosCount } = await supabase.from('prod_pedidos_orcamento').select('*', { count: 'exact', head: true }).eq('estado', 'pendente_orcamento');
-
+      const [{ data: cData }, { data: tData }, { data: cpData }, { count: uCount }, { count: tOpenCount }, { count: pedidosCount }] = await Promise.all([
+        supabase.from('cupons').select('*').order('created_at', { ascending: false }),
+        supabase.from('prod_tickets_suporte').select('*').order('created_at', { ascending: false }),
+        supabase.from('prod_campanhas').select('*').order('created_at', { ascending: false }),
+        supabase.from('prod_perfis').select('*', { count: 'exact', head: true }),
+        supabase.from('prod_tickets_suporte').select('*', { count: 'exact', head: true }).eq('status', 'aberto'),
+        supabase.from('prod_pedidos_orcamento').select('*', { count: 'exact', head: true }).eq('estado', 'pendente_orcamento'),
+      ]);
       setCupons(cData || []);
       setTickets(tData || []);
       setCampanhas(cpData || []);
       setStats({ users: uCount || 0, tickets: tOpenCount || 0, pedidosPendentes: pedidosCount || 0 });
     } catch (err) {
-      console.error('Erro ao carregar dados:', err);
+      console.error('Erro ao carregar dados admin:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // --- FUNÇÕES DE AÇÃO ---
-  const shareCampaign = (plataforma: 'wa' | 'tw', camp: Campanha) => {
-    const url = encodeURIComponent(`https://oteusite.com/promo/${camp.id}`);
-    const texto = encodeURIComponent(`🔥 Nova Campanha: ${camp.titulo}! `);
-    const links = {
-      wa: `https://api.whatsapp.com/send?text=${texto}${url}`,
-      tw: `https://twitter.com/intent/tweet?text=${texto}&url=${url}`
-    };
-    window.open(links[plataforma], '_blank');
+  const handleCriarCampanha = async () => {
+    if (!campTitulo || !campConteudo) { setCampErro('Preenche o título e o conteúdo.'); return; }
+    setCampStatus('loading'); setCampErro('');
+    const { error } = await supabase.from('prod_campanhas').insert([{ titulo: campTitulo, tipo: campCanal, conteudo: campConteudo, ativa: true, segmento: 'todos' }]);
+    if (error) { setCampErro('Erro: ' + error.message); setCampStatus('error'); }
+    else { setCampStatus('success'); setCampTitulo(''); setCampConteudo(''); fetchData(); setTimeout(() => setCampStatus('idle'), 3000); }
+  };
+
+  const enviarNewsletter = async (camp: Campanha) => {
+    if (!confirm(`Enviar "${camp.titulo}" por email a todos os utilizadores?`)) return;
+    setEnviandoId(camp.id); setNewsletterMsg(null);
+    try {
+      const res = await fetch('/api/enviar-campanha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campanha_id: camp.id }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro desconhecido');
+      setNewsletterMsg({ id: camp.id, texto: `✓ Enviado a ${json.enviados} utilizadores`, tipo: 'ok' });
+    } catch (err: unknown) {
+      setNewsletterMsg({ id: camp.id, texto: err instanceof Error ? err.message : 'Erro ao enviar', tipo: 'erro' });
+    } finally { setEnviandoId(null); }
   };
 
   const deleteCoupon = async (id: number) => {
     if (!confirm('Eliminar este cupão?')) return;
     const { error } = await supabase.from('cupons').delete().eq('id', id);
-    if (error) {
-      console.error('Erro ao eliminar cupão:', error.message);
-      return;
-    }
-    fetchData();
+    if (!error) fetchData();
   };
 
-  const toggleTicketStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'aberto' ? 'fechado' : 'aberto';
-    const { error } = await supabase.from('prod_tickets_suporte').update({ status: newStatus }).eq('id', id);
-    if (error) {
-      console.error('Erro ao atualizar ticket:', error.message);
-      return;
-    }
-    fetchData();
+  const toggleTicketStatus = async (id: string, current: string) => {
+    const { error } = await supabase.from('prod_tickets_suporte').update({ status: current === 'aberto' ? 'fechado' : 'aberto' }).eq('id', id);
+    if (!error) fetchData();
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0f1e] text-white flex font-sans">
+    <div style={s.page}>
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#16162d] border-r border-white/5 p-6 flex flex-col gap-8 flex-shrink-0">
-        <div className="text-indigo-500 font-black text-2xl italic tracking-tighter">ADMIN</div>
-        <nav className="flex flex-col gap-2">
-          <MenuButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} icon={<LayoutDashboard size={20}/>} label="Geral" />
-          <MenuButton active={activeTab === 'cupons'} onClick={() => setActiveTab('cupons')} icon={<Tag size={20}/>} label="Cupões" />
-          <MenuButton active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} icon={<Ticket size={20}/>} label="Tickets" />
-          <MenuButton active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')} icon={<Megaphone size={20}/>} label="Campanhas" />
-          <a href="/admin/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-gray-400 hover:bg-white/5 hover:text-white transition-all w-full relative">
-            <ClipboardList size={20}/>
-            Orçamentos
-            {stats.pedidosPendentes > 0 && (
-              <span className="ml-auto bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full">
-                {stats.pedidosPendentes}
-              </span>
-            )}
-          </a>
-        </nav>
+      <aside style={s.sidebar}>
+        <p style={s.sidebarTitle}>Admin</p>
+
+        <SideBtn active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 Geral</SideBtn>
+        <SideBtn active={activeTab === 'cupons'} onClick={() => setActiveTab('cupons')}>🏷️ Cupões</SideBtn>
+        <SideBtn active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')}>🎫 Tickets</SideBtn>
+        <SideBtn active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')}>📣 Campanhas</SideBtn>
+
+        <div style={{ borderTop: '1px solid #1e293b', margin: '8px 0' }} />
+
+        <Link
+          href="/admin/pedidos"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>📋 Orçamentos</span>
+          {stats.pedidosPendentes > 0 && (
+            <span style={{ background: '#f59e0b', color: '#000', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20 }}>
+              {stats.pedidosPendentes}
+            </span>
+          )}
+        </Link>
       </aside>
 
-      {/* CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-10 space-y-10">
+      {/* MAIN */}
+      <main style={s.main}>
 
-          {showModal && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-              <div className="relative bg-[#16162d] p-2 rounded-3xl border border-white/10 w-full max-w-md shadow-2xl">
-                <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><X size={20}/></button>
-                <CreateCouponForm onSuccess={() => { fetchData(); setShowModal(false); }} onClose={() => setShowModal(false)} />
-              </div>
+        {/* Modal cupão */}
+        {showModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ position: 'relative', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 8, width: '100%', maxWidth: 480 }}>
+              <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              <CreateCouponForm onSuccess={() => { fetchData(); setShowModal(false); }} onClose={() => setShowModal(false)} />
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ECRÃ GERAL (STATS) */}
-          {activeTab === 'stats' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <StatCard title="Utilizadores" value={loading ? '...' : stats.users} icon={<Users className="text-blue-400" />} />
-              <StatCard title="Tickets Abertos" value={loading ? '...' : stats.tickets} icon={<Ticket className="text-amber-400" />} />
-              <StatCard title="Campanhas Ativas" value={campanhas.filter(c => c.ativa).length} icon={<Megaphone className="text-indigo-400" />} />
-              <a href="/admin/pedidos" className="block no-underline">
-                <StatCard title="Orçamentos Pendentes" value={loading ? '...' : stats.pedidosPendentes} icon={<ClipboardList className="text-orange-400" />} />
-              </a>
-            </div>
-          )}
-
-          {/* GESTÃO DE CUPÕES */}
-          {activeTab === 'cupons' && (
-            <div className="bg-[#16162d] rounded-3xl border border-white/5 overflow-hidden shadow-2xl animate-in fade-in duration-500">
-              <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                <h2 className="text-xl font-bold flex items-center gap-2"><Tag className="text-indigo-400" /> Gestão de Cupões</h2>
-                <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"><Plus size={16} /> Novo Cupão</button>
+        {/* ── TAB: GERAL ── */}
+        {activeTab === 'stats' && (
+          <>
+            <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 800 }}>Painel Geral</h1>
+            <div style={s.statGrid}>
+              <div style={s.statCard}>
+                <span style={{ fontSize: 28 }}>👥</span>
+                <p style={s.statLabel}>Utilizadores</p>
+                <p style={s.statValue}>{loading ? '…' : stats.users}</p>
               </div>
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-black/20 text-indigo-300 text-[10px] uppercase font-black tracking-widest">
-                  <tr><th className="p-5">Código</th><th className="p-5">Desconto</th><th className="p-5">Usos</th><th className="p-5 text-right">Ações</th></tr>
+              <div style={s.statCard}>
+                <span style={{ fontSize: 28 }}>🎫</span>
+                <p style={s.statLabel}>Tickets Abertos</p>
+                <p style={s.statValue}>{loading ? '…' : stats.tickets}</p>
+              </div>
+              <div style={s.statCard}>
+                <span style={{ fontSize: 28 }}>📣</span>
+                <p style={s.statLabel}>Campanhas Ativas</p>
+                <p style={s.statValue}>{loading ? '…' : campanhas.filter(c => c.ativa).length}</p>
+              </div>
+              <Link href="/admin/pedidos" style={{ textDecoration: 'none' }}>
+                <div style={{ ...s.statCard, borderColor: stats.pedidosPendentes > 0 ? '#f59e0b40' : '#1e293b', cursor: 'pointer' }}>
+                  <span style={{ fontSize: 28 }}>📋</span>
+                  <p style={s.statLabel}>Orçamentos Pendentes</p>
+                  <p style={{ ...s.statValue, color: stats.pedidosPendentes > 0 ? '#f59e0b' : '#f1f5f9' }}>{loading ? '…' : stats.pedidosPendentes}</p>
+                </div>
+              </Link>
+            </div>
+          </>
+        )}
+
+        {/* ── TAB: CUPÕES ── */}
+        {activeTab === 'cupons' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Cupões de Desconto</h1>
+              <button onClick={() => setShowModal(true)} style={{ ...s.btn, display: 'flex', alignItems: 'center', gap: 8 }}>
+                + Novo Cupão
+              </button>
+            </div>
+            <div style={s.tableWrap}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={s.thead}>
+                  <tr>
+                    {['Código', 'Desconto', 'Usos', 'Estado', ''].map(h => (
+                      <th key={h} style={s.th}>{h}</th>
+                    ))}
+                  </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  {cupons.map((c) => (
-                    <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                      <td className="p-5 font-mono text-indigo-400 font-bold">{c.codigo}</td>
-                      <td className="p-5 font-bold">{c.desconto_percent}%</td>
-                      <td className="p-5 text-gray-400 text-sm">{c.usos_atuais} / {c.max_usos}</td>
-                      <td className="p-5 text-right"><button onClick={() => deleteCoupon(c.id)} className="text-gray-500 hover:text-red-500 font-bold text-xs uppercase">Eliminar</button></td>
+                <tbody>
+                  {cupons.length === 0 ? (
+                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem cupões criados.</td></tr>
+                  ) : cupons.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd', fontWeight: 700 }}>{c.codigo}</td>
+                      <td style={s.td}>{c.desconto_percent}%</td>
+                      <td style={{ ...s.td, color: '#64748b' }}>{c.usos_atuais} / {c.max_usos}</td>
+                      <td style={s.td}>
+                        <span style={s.badge(c.ativo ? '#14532d' : '#1e293b', c.ativo ? '#86efac' : '#64748b')}>
+                          {c.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td style={{ ...s.td, textAlign: 'right' }}>
+                        <button onClick={() => deleteCoupon(c.id)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Eliminar</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
+          </>
+        )}
 
-          {/* GESTÃO DE CAMPANHAS */}
-          {activeTab === 'campanhas' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              {/* 1. Formulário */}
-              <div className="bg-[#16162d] p-8 rounded-3xl border border-white/5 shadow-2xl">
-                <h2 className="text-xl font-bold mb-6 flex items-center gap-3">Criar Nova Campanha</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Título</label>
-                    <input
-                      type="text"
-                      value={campTitulo}
-                      onChange={(e) => setCampTitulo(e.target.value)}
-                      placeholder="Ex: Promoção Flash"
-                      className="bg-[#0f0f1e] border border-white/10 p-4 rounded-xl text-white placeholder-gray-600 focus:border-indigo-500 outline-none transition-all w-full"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Canal</label>
-                    <select
-                      value={campCanal}
-                      onChange={(e) => setCampCanal(e.target.value)}
-                      className="bg-[#0f0f1e] border border-white/10 p-4 rounded-xl text-white focus:border-indigo-500 outline-none"
-                    >
-                      <option>Feed da App</option>
-                      <option>Banner Principal</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-2 md:col-span-2">
-                    <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Conteúdo da Mensagem</label>
-                    <textarea
-                      value={campConteudo}
-                      onChange={(e) => setCampConteudo(e.target.value)}
-                      placeholder="Escreve aqui..."
-                      className="bg-[#0f0f1e] border border-white/10 p-4 rounded-xl text-white h-32 resize-none focus:border-indigo-500 outline-none transition-all"
-                    />
-                  </div>
-                  {campErro && <p className="md:col-span-2 text-red-400 text-sm">{campErro}</p>}
-                  <button
-                    type="button"
-                    onClick={handleCriar}
-                    disabled={campStatus === 'loading'}
-                    className={`md:col-span-2 py-4 rounded-xl font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50 ${campStatus === 'success' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-500'}`}
-                  >
-                    {campStatus === 'loading' ? 'A publicar...' : campStatus === 'success' ? 'Publicada com Sucesso!' : 'Confirmar e Publicar'}
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. Gráfico */}
-              <div className="bg-[#16162d] p-8 rounded-3xl border border-white/5 shadow-xl">
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className="font-bold text-white text-lg tracking-tight">Impacto de Performance</h3>
-                  <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                    <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-indigo-500"></span> Cliques</span>
-                    <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-green-500"></span> Novos Users</span>
-                  </div>
-                </div>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                      <XAxis dataKey="name" stroke="#4b5563" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#4b5563" fontSize={12} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#16162d', border: '1px solid #ffffff10', borderRadius: '12px' }} />
-                      <Area type="monotone" dataKey="cliques" stroke="#6366f1" fill="url(#grad)" strokeWidth={3} />
-                      <Area type="monotone" dataKey="users" stroke="#10b981" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* 3. Tabela */}
-              <div className="bg-[#16162d] rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-black/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest">
-                    <tr><th className="p-5">Campanha</th><th className="p-5 text-center">Interações</th><th className="p-5 text-center">Partilhar</th><th className="p-5 text-center">Newsletter</th><th className="p-5 text-center">Status</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {campanhas.map((camp) => (
-                      <tr key={camp.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-5">
-                          <div className="font-bold text-gray-200">{camp.titulo}</div>
-                          <div className="text-[9px] text-gray-500 uppercase">{camp.tipo}</div>
-                          {newsletterMsg?.id === camp.id && (
-                            <div className={`text-[10px] mt-1 font-bold ${newsletterMsg.tipo === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
-                              {newsletterMsg.texto}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-5 text-center font-mono text-indigo-400 font-bold">{camp.cliques} <span className="text-[10px] text-gray-600 block">cliques</span></td>
-                        <td className="p-5"><div className="flex justify-center gap-4 text-gray-500"><button onClick={() => shareCampaign('wa', camp)} className="hover:text-green-500 transition-colors"><MessageCircle size={18}/></button><button onClick={() => shareCampaign('tw', camp)} className="hover:text-blue-400 transition-colors"><Twitter size={18}/></button></div></td>
-                        <td className="p-5 text-center">
-                          <button
-                            onClick={() => enviarNewsletter(camp)}
-                            disabled={enviandoId === camp.id}
-                            className="flex items-center gap-1.5 mx-auto px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
-                          >
-                            {enviandoId === camp.id
-                              ? <><Loader2 size={12} className="animate-spin" /> A enviar...</>
-                              : <><Mail size={12} /> Email</>
-                            }
-                          </button>
-                        </td>
-                        <td className="p-5 text-center"><span className={`h-2.5 w-2.5 rounded-full inline-block ${camp.ativa ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500'}`}></span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* TICKETS DE SUPORTE */}
-          {activeTab === 'tickets' && (
-            <div className="space-y-4 animate-in fade-in duration-500">
-              <h2 className="text-xl font-bold mb-6">Suporte ao Cliente</h2>
-              {tickets.length > 0 ? tickets.map((t) => (
-                <div key={t.id} className="bg-[#16162d] p-6 rounded-3xl border border-white/5 flex justify-between items-center group hover:border-indigo-500/20 transition-all shadow-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${t.prioridade === 'alta' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>{t.prioridade}</span>
-                      <span className="text-[10px] text-gray-500 font-mono tracking-tighter">{new Date(t.created_at).toLocaleString()}</span>
+        {/* ── TAB: TICKETS ── */}
+        {activeTab === 'tickets' && (
+          <>
+            <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 800 }}>Tickets de Suporte</h1>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {tickets.length === 0 ? (
+                <div style={{ ...s.card, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '48px 24px' }}>Sem tickets pendentes.</div>
+              ) : tickets.map(t => (
+                <div key={t.id} style={{ ...s.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <span style={s.badge(t.prioridade === 'alta' ? '#7f1d1d' : '#1e3a5f', t.prioridade === 'alta' ? '#fca5a5' : '#93c5fd')}>
+                        {t.prioridade}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#475569' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
                     </div>
-                    <h4 className="font-bold text-lg text-gray-100">{t.assunto}</h4>
-                    <p className="text-xs text-gray-400">{t.user_email}</p>
+                    <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
+                    <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{t.user_email}</p>
                   </div>
-                  <button onClick={() => toggleTicketStatus(t.id, t.status)} className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${t.status === 'aberto' ? 'bg-amber-500 text-black hover:bg-amber-400 shadow-lg shadow-amber-500/10' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}>
+                  <button
+                    onClick={() => toggleTicketStatus(t.id, t.status)}
+                    style={{ ...s.btn, background: t.status === 'aberto' ? '#f59e0b' : '#1e293b', color: t.status === 'aberto' ? '#000' : '#94a3b8', flexShrink: 0 }}
+                  >
                     {t.status === 'aberto' ? 'Resolver' : 'Reabrir'}
                   </button>
                 </div>
-              )) : (
-                <div className="py-20 text-center text-gray-500 italic">Sem tickets pendentes.</div>
-              )}
+              ))}
             </div>
-          )}
+          </>
+        )}
 
-        </div>
+        {/* ── TAB: CAMPANHAS ── */}
+        {activeTab === 'campanhas' && (
+          <>
+            <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 800 }}>Campanhas</h1>
+
+            {/* Criar campanha */}
+            <div style={{ ...s.card, marginBottom: 24 }}>
+              <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>Nova Campanha</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label style={s.label}>Título</label>
+                  <input style={s.input} value={campTitulo} onChange={e => setCampTitulo(e.target.value)} placeholder="Ex: Promoção Flash" />
+                </div>
+                <div>
+                  <label style={s.label}>Canal</label>
+                  <select style={s.input} value={campCanal} onChange={e => setCampCanal(e.target.value)}>
+                    <option>Feed da App</option>
+                    <option>Banner Principal</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={s.label}>Conteúdo</label>
+                <textarea style={{ ...s.input, height: 100, resize: 'vertical' }} value={campConteudo} onChange={e => setCampConteudo(e.target.value)} placeholder="Escreve aqui..." />
+              </div>
+              {campErro && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{campErro}</p>}
+              <button
+                onClick={handleCriarCampanha}
+                disabled={campStatus === 'loading'}
+                style={{ ...s.btn, width: '100%', padding: '14px', background: campStatus === 'success' ? '#16a34a' : '#1d4ed8' }}
+              >
+                {campStatus === 'loading' ? 'A publicar…' : campStatus === 'success' ? '✓ Publicada com sucesso!' : 'Publicar Campanha'}
+              </button>
+            </div>
+
+            {/* Lista campanhas */}
+            <div style={s.tableWrap}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={s.thead}>
+                  <tr>
+                    {['Campanha', 'Canal', 'Cliques', 'Newsletter', 'Estado'].map(h => (
+                      <th key={h} style={s.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {campanhas.length === 0 ? (
+                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
+                  ) : campanhas.map(camp => (
+                    <tr key={camp.id}>
+                      <td style={s.td}>
+                        <p style={{ margin: '0 0 2px', fontWeight: 600, color: '#f1f5f9' }}>{camp.titulo}</p>
+                        {newsletterMsg?.id === camp.id && (
+                          <p style={{ margin: 0, fontSize: 11, color: newsletterMsg.tipo === 'ok' ? '#86efac' : '#f87171' }}>{newsletterMsg.texto}</p>
+                        )}
+                      </td>
+                      <td style={{ ...s.td, color: '#64748b', fontSize: 12 }}>{camp.tipo}</td>
+                      <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd' }}>{camp.cliques}</td>
+                      <td style={s.td}>
+                        <button
+                          onClick={() => enviarNewsletter(camp)}
+                          disabled={enviandoId === camp.id}
+                          style={{ ...s.btn, padding: '6px 14px', fontSize: 12, background: '#1e293b', color: '#93c5fd', opacity: enviandoId === camp.id ? 0.5 : 1 }}
+                        >
+                          {enviandoId === camp.id ? 'A enviar…' : '✉ Email'}
+                        </button>
+                      </td>
+                      <td style={s.td}>
+                        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: camp.ativa ? '#22c55e' : '#ef4444' }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
       </main>
-    </div>
-  );
-}
-
-// --- COMPONENTES AUXILIARES ---
-function MenuButton({ active, onClick, icon, label }: MenuButtonProps) {
-  return (
-    <button onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-sm font-bold ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
-      {icon} {label}
-    </button>
-  );
-}
-
-function StatCard({ title, value, icon }: StatCardProps) {
-  return (
-    <div className="bg-[#16162d] p-8 rounded-3xl border border-white/5 shadow-xl flex flex-col items-center text-center group hover:border-indigo-500/20 transition-all">
-      <div className="p-4 bg-black/20 rounded-2xl mb-4 group-hover:scale-110 transition-transform">{icon}</div>
-      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">{title}</p>
-      <h3 className="text-4xl font-black text-white tracking-tighter">{value}</h3>
     </div>
   );
 }
