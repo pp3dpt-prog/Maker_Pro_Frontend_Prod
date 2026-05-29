@@ -83,16 +83,11 @@ export default function Dashboard() {
         <button onClick={() => setActiveTab('faturacao')}>💳 Compras e Créditos</button>
         <button onClick={() => setActiveTab('projetos')}>📂 Meus Ficheiros STL</button>
 
-        <button
-          onClick={() =>
-            supabase.auth.signOut().then(() => {
-              window.location.href = '/';
-            })
-          }
-          style={{ marginTop: 20, color: '#f87171' }}
-        >
-          Sair
-        </button>
+        <form action="/api/auth/signout" method="POST" style={{ margin: 0 }}>
+          <button type="submit" style={{ marginTop: 20, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Sair
+          </button>
+        </form>
       </aside>
 
       {/* CONTEÚDO */}
