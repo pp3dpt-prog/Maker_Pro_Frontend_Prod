@@ -81,10 +81,7 @@ export default async function AdminPedidosPage() {
                       key={p.id}
                       style={{
                         borderBottom: isLast ? 'none' : '1px solid #1e293b',
-                        transition: 'background 0.15s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#131e30')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td style={{ padding: '14px 20px', fontFamily: 'monospace', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
                         {shortId(p.id)}
