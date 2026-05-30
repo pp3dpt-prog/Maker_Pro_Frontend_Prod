@@ -96,27 +96,23 @@ export async function POST(request: NextRequest) {
 
   // 6. Send email
   const resendKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>';
   const adminEmail = process.env.PEDIDOS_ADMIN_EMAIL || 'pp3d.pt@gmail.com';
-
-  // Domínio verificado = RESEND_FROM_EMAIL definido e não usa resend.dev
-  const domainVerified = !!process.env.RESEND_FROM_EMAIL && !process.env.RESEND_FROM_EMAIL.includes('resend.dev');
 
   if (resendKey) {
     try {
       const resend = new Resend(resendKey);
 
-      // Banner de aviso no email do admin quando o domínio não está verificado
-      const adminBanner = !domainVerified ? `
+      // Banner de aviso — sempre incluído no email do admin para reencaminhar ao cliente
+      const adminBanner = `
         <div style="background:#713f12;border:1px solid #f59e0b40;border-radius:10px;padding:16px 20px;margin-bottom:24px">
           <p style="margin:0 0 6px;color:#fde68a;font-weight:700;font-size:13px">⚠️ REENCAMINHAR ao cliente</p>
           <p style="margin:0;color:#fde68a;font-size:13px">
-            Domínio não verificado no Resend. Reencaminha este email para
+            Reencaminha este email para
             <strong>${escapeHtml(pedido.contacto_email)}</strong> (${escapeHtml(pedido.contacto_nome)})
             ou copia os links de aceitar/recusar abaixo.
           </p>
         </div>
-      ` : '';
+      `;
 
       const html = `
         <div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#080c10;padding:0;border-radius:16px;overflow:hidden">
@@ -162,31 +158,19 @@ export async function POST(request: NextRequest) {
         </div>
       `;
 
-      let resendError: string | null = null;
-
-      if (domainVerified) {
-        const { error } = await resend.emails.send({
-          from: fromEmail,
-          to: pedido.contacto_email,
-          replyTo: adminEmail,
-          subject: `O teu orçamento está pronto — ${pedido.design_nome}`,
-          html,
-        });
-        if (error) resendError = error.message;
-      } else {
-        const { error } = await resend.emails.send({
-          from: fromEmail,
-          to: adminEmail,
-          replyTo: pedido.contacto_email,
-          subject: `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`,
-          html,
-        });
-        if (error) resendError = error.message;
-      }
+      // Envia sempre para o admin com onboarding@resend.dev (não precisa de domínio verificado).
+      // Quando o domínio pp3d.pt estiver verificado no Resend, mudar para enviar ao cliente.
+      const { error: resendError } = await resend.emails.send({
+        from: 'PP3D <onboarding@resend.dev>',
+        to: adminEmail,
+        replyTo: pedido.contacto_email,
+        subject: `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`,
+        html,
+      });
 
       if (resendError) {
         console.error('[enviar-orcamento] erro Resend:', resendError);
-        return NextResponse.json({ ok: true, emailError: resendError, emailTo: domainVerified ? pedido.contacto_email : adminEmail });
+        return NextResponse.json({ ok: true, emailError: resendError.message, emailTo: adminEmail });
       }
 
     } catch (e) {
@@ -196,5 +180,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, emailTo: domainVerified ? pedido.contacto_email : adminEmail });
+  return NextResponse.json({ ok: true, emailTo: adminEmail });
 }
