@@ -12,25 +12,15 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  async function checkAdminRole(userId: string): Promise<boolean> {
-    const { data: perfil } = await supabase
-      .from('prod_perfis')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle();
-
-    return perfil?.role === 'admin';
-  }
-
   useEffect(() => {
-    // onAuthStateChange dispara INITIAL_SESSION no mount (sessão existente),
-    // SIGNED_IN no login, TOKEN_REFRESHED na renovação, SIGNED_OUT no logout.
-    // Tratar todos garante que o estado nunca fica desatualizado.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser(session.user);
-        const admin = await checkAdminRole(session.user.id);
-        setIsAdmin(admin);
+        // Verificar admin via API (cobre ADMIN_EMAIL + DB role com service role)
+        fetch('/api/auth/is-admin')
+          .then(r => r.json())
+          .then(({ isAdmin }) => setIsAdmin(!!isAdmin))
+          .catch(() => setIsAdmin(false));
       } else {
         setUser(null);
         setIsAdmin(false);
@@ -42,7 +32,7 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await fetch('/api/auth/signout', { method: 'POST' });
     window.location.href = '/';
   };
 
