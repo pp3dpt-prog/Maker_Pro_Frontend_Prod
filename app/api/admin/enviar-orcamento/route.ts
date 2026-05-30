@@ -97,26 +97,23 @@ export async function POST(request: NextRequest) {
   // 6. Send email
   const resendKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>';
-  const adminEmail = process.env.PEDIDOS_ADMIN_EMAIL || process.env.RESEND_FROM_EMAIL_REPLY || 'pp3d.pt@gmail.com';
+  const adminEmail = process.env.PEDIDOS_ADMIN_EMAIL || 'pp3d.pt@gmail.com';
 
-  // Se o domínio não está verificado no Resend (usando onboarding@resend.dev),
-  // o Resend só entrega para o email da conta. Nesse caso enviamos para o admin
-  // com instruções para reencaminhar ao cliente.
-  const sandboxMode = !process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM_EMAIL.includes('resend.dev');
-  const toEmail = sandboxMode ? adminEmail : pedido.contacto_email;
+  // Domínio verificado = RESEND_FROM_EMAIL definido e não usa resend.dev
+  const domainVerified = !!process.env.RESEND_FROM_EMAIL && !process.env.RESEND_FROM_EMAIL.includes('resend.dev');
 
   if (resendKey) {
     try {
       const resend = new Resend(resendKey);
 
-      // Bloco de aviso para modo sandbox (visível apenas no email do admin)
-      const sandboxBanner = sandboxMode ? `
+      // Banner de aviso no email do admin quando o domínio não está verificado
+      const adminBanner = !domainVerified ? `
         <div style="background:#713f12;border:1px solid #f59e0b40;border-radius:10px;padding:16px 20px;margin-bottom:24px">
-          <p style="margin:0 0 6px;color:#fde68a;font-weight:700;font-size:13px">⚠️ MODO SANDBOX — reencaminhar ao cliente</p>
+          <p style="margin:0 0 6px;color:#fde68a;font-weight:700;font-size:13px">⚠️ REENCAMINHAR ao cliente</p>
           <p style="margin:0;color:#fde68a;font-size:13px">
-            Domínio não verificado no Resend. Este email foi enviado para ti em vez de ir diretamente para
-            <strong>${escapeHtml(pedido.contacto_email)}</strong> (${escapeHtml(pedido.contacto_nome)}).
-            Reencaminha-o ao cliente ou copia os links abaixo.
+            Domínio não verificado no Resend. Reencaminha este email para
+            <strong>${escapeHtml(pedido.contacto_email)}</strong> (${escapeHtml(pedido.contacto_nome)})
+            ou copia os links de aceitar/recusar abaixo.
           </p>
         </div>
       ` : '';
@@ -127,7 +124,7 @@ export async function POST(request: NextRequest) {
             <h1 style="margin:0;color:#fff;font-size:26px;font-weight:800">O teu orçamento está pronto! 🎉</h1>
           </div>
           <div style="padding:32px">
-            ${sandboxBanner}
+            ${adminBanner}
             <p style="color:#94a3b8;font-size:15px;margin:0 0 24px">Olá <strong style="color:#f1f5f9">${escapeHtml(pedido.contacto_nome)}</strong>,</p>
             <p style="color:#94a3b8;font-size:15px;margin:0 0 24px">Preparámos o teu orçamento para a peça <strong style="color:#f1f5f9">${escapeHtml(pedido.design_nome)}</strong>. Aqui estão os detalhes:</p>
 
@@ -165,15 +162,25 @@ export async function POST(request: NextRequest) {
         </div>
       `;
 
-      await resend.emails.send({
-        from: fromEmail,
-        to: toEmail,
-        replyTo: sandboxMode ? pedido.contacto_email : undefined,
-        subject: sandboxMode
-          ? `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`
-          : `O teu orçamento está pronto — ${pedido.design_nome}`,
-        html,
-      });
+      if (domainVerified) {
+        // Domínio verificado: envia ao cliente + cópia para admin
+        await resend.emails.send({
+          from: fromEmail,
+          to: pedido.contacto_email,
+          replyTo: adminEmail,
+          subject: `O teu orçamento está pronto — ${pedido.design_nome}`,
+          html,
+        });
+      } else {
+        // Sem domínio verificado: envia sempre para o admin com banner de aviso
+        await resend.emails.send({
+          from: fromEmail,
+          to: adminEmail,
+          replyTo: pedido.contacto_email,
+          subject: `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`,
+          html,
+        });
+      }
     } catch (e) {
       console.error('[enviar-orcamento] erro Resend:', e);
     }
