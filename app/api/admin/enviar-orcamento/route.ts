@@ -162,29 +162,39 @@ export async function POST(request: NextRequest) {
         </div>
       `;
 
+      let resendError: string | null = null;
+
       if (domainVerified) {
-        // Domínio verificado: envia ao cliente + cópia para admin
-        await resend.emails.send({
+        const { error } = await resend.emails.send({
           from: fromEmail,
           to: pedido.contacto_email,
           replyTo: adminEmail,
           subject: `O teu orçamento está pronto — ${pedido.design_nome}`,
           html,
         });
+        if (error) resendError = error.message;
       } else {
-        // Sem domínio verificado: envia sempre para o admin com banner de aviso
-        await resend.emails.send({
+        const { error } = await resend.emails.send({
           from: fromEmail,
           to: adminEmail,
           replyTo: pedido.contacto_email,
           subject: `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`,
           html,
         });
+        if (error) resendError = error.message;
       }
+
+      if (resendError) {
+        console.error('[enviar-orcamento] erro Resend:', resendError);
+        return NextResponse.json({ ok: true, emailError: resendError, emailTo: domainVerified ? pedido.contacto_email : adminEmail });
+      }
+
     } catch (e) {
-      console.error('[enviar-orcamento] erro Resend:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[enviar-orcamento] erro Resend exception:', msg);
+      return NextResponse.json({ ok: true, emailError: msg });
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, emailTo: domainVerified ? pedido.contacto_email : adminEmail });
 }

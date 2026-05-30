@@ -76,6 +76,11 @@ function QuoteForm({ pedido, onSent }: { pedido: Pedido; onSent: () => void }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Erro desconhecido');
       setStatus('success');
+      if (json.emailError) {
+        setErrorMsg(`Orçamento guardado, mas erro no email: ${json.emailError} (enviado para: ${json.emailTo ?? '?'})`);
+      } else if (json.emailTo) {
+        setErrorMsg(`✓ Email enviado para ${json.emailTo}`);
+      }
       onSent();
     } catch (err: unknown) {
       setStatus('error');
@@ -172,7 +177,7 @@ function QuoteForm({ pedido, onSent }: { pedido: Pedido; onSent: () => void }) {
       </div>
 
       {errorMsg && (
-        <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{errorMsg}</p>
+        <p style={{ color: errorMsg.startsWith('✓') ? '#86efac' : '#f87171', fontSize: 13, marginBottom: 12 }}>{errorMsg}</p>
       )}
 
       {status === 'success' && (
