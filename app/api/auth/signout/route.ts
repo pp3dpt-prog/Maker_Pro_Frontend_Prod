@@ -19,5 +19,6 @@ export async function POST(request: NextRequest) {
 
   await supabase.auth.signOut();
 
-  return NextResponse.redirect(new URL('/', request.url));
+  // 303 See Other força o browser a fazer GET na homepage em vez de POST
+  return NextResponse.redirect(new URL('/', request.url), { status: 303 });
 }
