@@ -9,7 +9,6 @@ INSERT INTO public.prod_designs (
   nome,
   familia,
   descricao,
-  credit_cost,
   scad_template,
   generation_schema
 )
@@ -18,7 +17,6 @@ VALUES (
   'Letras Decorativas Personalizadas',
   'letras-decorativas',
   'Letra inicial em 3D com nome decorativo personalizado. Dois ficheiros STL separados para imprimir em cores diferentes e combinar.',
-  2,
 
   -- ── SCAD TEMPLATE ────────────────────────────────────────────────
   $SCAD$
@@ -163,6 +161,5 @@ ON CONFLICT (id) DO UPDATE SET
   nome              = EXCLUDED.nome,
   familia           = EXCLUDED.familia,
   descricao         = EXCLUDED.descricao,
-  credit_cost       = EXCLUDED.credit_cost,
   scad_template     = EXCLUDED.scad_template,
   generation_schema = EXCLUDED.generation_schema;
