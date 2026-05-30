@@ -88,8 +88,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erro ao atualizar pedido.' }, { status: 500 });
   }
 
-  // 5. Build URLs
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://makerpro.pt';
+  // 5. Build URLs — usa NEXT_PUBLIC_SITE_URL, senão deriva do request origin
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    || `${new URL(request.url).protocol}//${new URL(request.url).host}`;
   const baseUrl = `${siteUrl}/orcamento/${token}`;
   const aceitarUrl = `${baseUrl}?resposta=aceitar`;
   const recusarUrl = `${baseUrl}?resposta=recusar`;
