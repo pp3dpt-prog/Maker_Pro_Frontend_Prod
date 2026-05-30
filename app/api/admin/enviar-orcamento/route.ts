@@ -94,13 +94,32 @@ export async function POST(request: NextRequest) {
   const aceitarUrl = `${baseUrl}?resposta=aceitar`;
   const recusarUrl = `${baseUrl}?resposta=recusar`;
 
-  // 6. Send email to client
+  // 6. Send email
   const resendKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>';
+  const adminEmail = process.env.PEDIDOS_ADMIN_EMAIL || process.env.RESEND_FROM_EMAIL_REPLY || 'pp3d.pt@gmail.com';
+
+  // Se o domínio não está verificado no Resend (usando onboarding@resend.dev),
+  // o Resend só entrega para o email da conta. Nesse caso enviamos para o admin
+  // com instruções para reencaminhar ao cliente.
+  const sandboxMode = !process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM_EMAIL.includes('resend.dev');
+  const toEmail = sandboxMode ? adminEmail : pedido.contacto_email;
 
   if (resendKey) {
     try {
       const resend = new Resend(resendKey);
+
+      // Bloco de aviso para modo sandbox (visível apenas no email do admin)
+      const sandboxBanner = sandboxMode ? `
+        <div style="background:#713f12;border:1px solid #f59e0b40;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+          <p style="margin:0 0 6px;color:#fde68a;font-weight:700;font-size:13px">⚠️ MODO SANDBOX — reencaminhar ao cliente</p>
+          <p style="margin:0;color:#fde68a;font-size:13px">
+            Domínio não verificado no Resend. Este email foi enviado para ti em vez de ir diretamente para
+            <strong>${escapeHtml(pedido.contacto_email)}</strong> (${escapeHtml(pedido.contacto_nome)}).
+            Reencaminha-o ao cliente ou copia os links abaixo.
+          </p>
+        </div>
+      ` : '';
 
       const html = `
         <div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#080c10;padding:0;border-radius:16px;overflow:hidden">
@@ -108,6 +127,7 @@ export async function POST(request: NextRequest) {
             <h1 style="margin:0;color:#fff;font-size:26px;font-weight:800">O teu orçamento está pronto! 🎉</h1>
           </div>
           <div style="padding:32px">
+            ${sandboxBanner}
             <p style="color:#94a3b8;font-size:15px;margin:0 0 24px">Olá <strong style="color:#f1f5f9">${escapeHtml(pedido.contacto_nome)}</strong>,</p>
             <p style="color:#94a3b8;font-size:15px;margin:0 0 24px">Preparámos o teu orçamento para a peça <strong style="color:#f1f5f9">${escapeHtml(pedido.design_nome)}</strong>. Aqui estão os detalhes:</p>
 
@@ -147,13 +167,15 @@ export async function POST(request: NextRequest) {
 
       await resend.emails.send({
         from: fromEmail,
-        to: pedido.contacto_email,
-        subject: `O teu orçamento está pronto — ${pedido.design_nome}`,
+        to: toEmail,
+        replyTo: sandboxMode ? pedido.contacto_email : undefined,
+        subject: sandboxMode
+          ? `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`
+          : `O teu orçamento está pronto — ${pedido.design_nome}`,
         html,
       });
     } catch (e) {
       console.error('[enviar-orcamento] erro Resend:', e);
-      // Don't fail the request — DB is already updated
     }
   }
 
