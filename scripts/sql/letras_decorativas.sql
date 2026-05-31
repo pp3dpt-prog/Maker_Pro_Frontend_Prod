@@ -69,8 +69,14 @@ module tampa_caixa() {
     }
 }
 
-// Preview mostra apenas a letra inicial
-corpo_caixa();
+// ── Preview: ambas as peças juntas ────────────────────
+// A letra fica na base; o nome fica à frente (faces dianteiras alinhadas)
+// para visualizar o aspecto final montado.
+union() {
+    corpo_caixa();
+    translate([0, 0, espessura_inicial - espessura_nome])
+        tampa_caixa();
+}
 $SCAD$,
 
   -- ── GENERATION SCHEMA ────────────────────────────────────────────
