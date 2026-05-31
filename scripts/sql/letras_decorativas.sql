@@ -70,9 +70,11 @@ module tampa_caixa() {
 }
 
 // ── Preview: ambas as peças juntas ────────────────────
+// sobreposicao = quantos mm o nome entra dentro da letra (para encaixe)
+// O resto do nome fica saliente para a frente da letra
 union() {
     corpo_caixa();
-    translate([0, posicao_nome, espessura_inicial - espessura_nome])
+    translate([0, 0, espessura_inicial - sobreposicao])
         tampa_caixa();
 }
 $SCAD$,
@@ -149,14 +151,14 @@ $SCAD$,
           "widget": "slider"
         }
       },
-      "posicao_nome": {
-        "default": 20,
-        "min": -100,
-        "max": 100,
+      "sobreposicao": {
+        "default": 3,
+        "min": 0,
+        "max": 15,
         "unit": "mm",
         "order": 8,
         "ui": {
-          "label": "Posição vertical do nome",
+          "label": "Sobreposição na letra (encaixe)",
           "widget": "slider"
         }
       }
