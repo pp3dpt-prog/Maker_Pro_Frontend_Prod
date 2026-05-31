@@ -70,11 +70,9 @@ module tampa_caixa() {
 }
 
 // ── Preview: ambas as peças juntas ────────────────────
-// A letra fica na base; o nome fica à frente (faces dianteiras alinhadas)
-// para visualizar o aspecto final montado.
 union() {
     corpo_caixa();
-    translate([0, 0, espessura_inicial - espessura_nome])
+    translate([0, posicao_nome, espessura_inicial - espessura_nome])
         tampa_caixa();
 }
 $SCAD$,
@@ -148,6 +146,17 @@ $SCAD$,
         "order": 7,
         "ui": {
           "label": "Espessura do nome",
+          "widget": "slider"
+        }
+      },
+      "posicao_nome": {
+        "default": 20,
+        "min": -100,
+        "max": 100,
+        "unit": "mm",
+        "order": 8,
+        "ui": {
+          "label": "Posição vertical do nome",
           "widget": "slider"
         }
       }
