@@ -69,13 +69,21 @@ module tampa_caixa() {
     }
 }
 
-// ── Preview: ambas as peças juntas ────────────────────
-// sobreposicao = quantos mm o nome entra dentro da letra (para encaixe)
-// O resto do nome fica saliente para a frente da letra
-union() {
+// ── Renderização consoante o modo ─────────────────────
+// modo="corpo"  → download da letra inicial (STL 1)
+// modo="tampa"  → download do nome (STL 2)
+// outro         → preview com ambas as peças juntas
+if (modo == "corpo") {
     corpo_caixa();
-    translate([0, posicao_nome, espessura_inicial - sobreposicao])
-        tampa_caixa();
+} else if (modo == "tampa") {
+    tampa_caixa();
+} else {
+    // Preview: ambas juntas para visualizar o resultado montado
+    union() {
+        corpo_caixa();
+        translate([0, posicao_nome, espessura_inicial - sobreposicao])
+            tampa_caixa();
+    }
 }
 $SCAD$,
 
