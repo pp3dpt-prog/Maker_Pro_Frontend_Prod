@@ -43,47 +43,56 @@ fonte_nome_real =
 // Tamanho do nome: proporcional à altura da inicial
 tamanho_nome = altura * 0.38;
 
-// ── Letra Inicial ──────────────────────────────────────
+// ── Silhueta 2D do nome (partilhada entre recorte e peça) ─
+module silhueta_nome() {
+    text(
+        nome,
+        size   = tamanho_nome,
+        font   = fonte_nome_real,
+        halign = "center",
+        valign = "center"
+    );
+}
+
+// ── Letra Inicial com recorte onde o nome encaixa ─────
 module corpo_caixa() {
-    linear_extrude(height = espessura_inicial, center = false) {
-        text(
-            letra,
-            size   = altura,
-            font   = fonte_inicial_real,
-            halign = "center",
-            valign = "center"
-        );
+    difference() {
+        // Letra sólida
+        linear_extrude(height = espessura_inicial, center = false) {
+            text(
+                letra,
+                size   = altura,
+                font   = fonte_inicial_real,
+                halign = "center",
+                valign = "center"
+            );
+        }
+        // Recorte do nome — vem da face frontal para dentro (sobreposicao mm de profundidade)
+        translate([0, posicao_nome, espessura_inicial - sobreposicao - 0.01])
+            linear_extrude(height = sobreposicao + 0.02, center = false)
+                silhueta_nome();
     }
 }
 
-// ── Nome Decorativo ────────────────────────────────────
+// ── Nome Decorativo (encaixa no recorte da letra) ─────
 module tampa_caixa() {
-    linear_extrude(height = espessura_nome, center = false) {
-        text(
-            nome,
-            size   = tamanho_nome,
-            font   = fonte_nome_real,
-            halign = "center",
-            valign = "center"
-        );
-    }
+    linear_extrude(height = espessura_nome, center = false)
+        silhueta_nome();
 }
 
 // ── Renderização consoante o modo ─────────────────────
-// modo="corpo"  → download da letra inicial (STL 1)
+// modo="corpo"  → download da letra com recorte (STL 1)
 // modo="tampa"  → download do nome (STL 2)
-// outro         → preview com ambas as peças juntas
+// outro         → preview montado
 if (modo == "corpo") {
     corpo_caixa();
 } else if (modo == "tampa") {
     tampa_caixa();
 } else {
-    // Preview: ambas juntas para visualizar o resultado montado
-    union() {
-        corpo_caixa();
-        translate([0, posicao_nome, espessura_inicial - sobreposicao])
-            tampa_caixa();
-    }
+    // Preview: letra com recorte + nome encaixado
+    corpo_caixa();
+    translate([0, posicao_nome, espessura_inicial - sobreposicao])
+        tampa_caixa();
 }
 $SCAD$,
 
