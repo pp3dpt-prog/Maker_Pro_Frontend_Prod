@@ -22,19 +22,10 @@ VALUES (
   $SCAD$
 // ══════════════════════════════════════════════════════
 //  Letras Decorativas — PP3D.pt
-//  corpo_caixa() → Letra Inicial  (ficheiro 1)
-//  tampa_caixa() → Nome           (ficheiro 2)
+//  Variáveis injetadas pelo backend antes deste template:
+//    letra, fonte_inicial, nome, fonte_nome,
+//    altura, espessura_inicial, espessura_nome
 // ══════════════════════════════════════════════════════
-
-// === PARÂMETROS (injectados pelo backend) ===
-letra            = "H";
-fonte_inicial    = "Moderno";
-nome             = "Helena";
-fonte_nome       = "Cursiva Elegante";
-altura           = 150;
-espessura_inicial = 15;
-espessura_nome   = 8;
-tem_tampa        = 1;   // sempre 1 — gera sempre os dois STLs
 
 // === MAPEAMENTO DE FONTES ===
 // Inicial
