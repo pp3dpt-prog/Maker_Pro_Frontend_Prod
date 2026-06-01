@@ -438,7 +438,7 @@ export default function PageInner() {
           </div>
         </aside>
 
-        {/* ── Área direita: preview da imagem ─────────────────────────────── */}
+        {/* ── Área direita: preview proporcional ao marcador ─────────────── */}
         <div className={styles.viewer} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 40 }}>
           {mode === 'generating' ? (
             <div style={{ textAlign: 'center', color: '#94a3b8' }}>
@@ -446,25 +446,71 @@ export default function PageInner() {
               <p style={{ fontSize: 16, fontWeight: 600 }}>A gerar STL…</p>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
-          ) : previewImageUrl ? (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ color: '#64748b', fontSize: 12, marginBottom: 12, fontWeight: 500 }}>IMAGEM CARREGADA</p>
-              <img src={previewImageUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 220px)', borderRadius: 12, border: '1px solid #1e293b', objectFit: 'contain' }} />
-              {mode === 'done' && (
-                <p style={{ color: '#34d399', fontSize: 13, marginTop: 12, fontWeight: 600 }}>✅ STL gerado com sucesso</p>
-              )}
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', color: '#334155' }}>
-              <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ marginBottom: 16 }}>
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Carrega uma imagem</p>
-              <p style={{ fontSize: 13 }}>A imagem aparecerá aqui após o upload</p>
-            </div>
-          )}
+          ) : (() => {
+            // Dimensões reais do marcador em mm
+            const larg = Number(params?.largura_mm ?? 20);
+            const alt  = Number(params?.altura_mm  ?? 150);
+            const ratio = larg / alt;
+
+            // Calcular tamanho do preview para caber no viewer (max 480px altura)
+            const maxH = 480, maxW = 280;
+            let pW: number, pH: number;
+            if (ratio > maxW / maxH) { pW = maxW; pH = Math.round(maxW / ratio); }
+            else                      { pH = maxH; pW = Math.round(maxH * ratio); }
+
+            // Parâmetros de ajuste da imagem
+            const ajuste  = params?.img_ajuste ?? 'Preencher';
+            const posX    = Number(params?.img_pos_x ?? 0);
+            const posY    = Number(params?.img_pos_y ?? 0);
+            const fitMap: Record<string, string> = {
+              'Preencher': 'cover',
+              'Ajustar':   'contain',
+              'Esticar':   'fill',
+            };
+            const objFit = fitMap[ajuste] ?? 'cover';
+            const objPos = `${50 + posX}% ${50 + posY}%`;
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                {/* Etiqueta de dimensões */}
+                <p style={{ color: '#64748b', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  {larg} × {alt} mm
+                </p>
+
+                {/* Contorno proporcional ao marcador */}
+                <div style={{
+                  width: pW, height: pH,
+                  border: '2px solid #3b82f6',
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  background: '#0f172a',
+                  boxShadow: '0 0 0 1px #1e293b, 0 8px 32px rgba(0,0,0,0.5)',
+                }}>
+                  {previewImageUrl ? (
+                    <img
+                      src={previewImageUrl}
+                      alt="Preview"
+                      style={{ width: '100%', height: '100%', objectFit: objFit as any, objectPosition: objPos, display: 'block' }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: '#334155' }}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                      <span style={{ fontSize: 11 }}>Carrega uma imagem</span>
+                    </div>
+                  )}
+                </div>
+
+                {mode === 'done' && (
+                  <p style={{ color: '#34d399', fontSize: 13, fontWeight: 600 }}>✅ STL gerado com sucesso</p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </main>
     </>
