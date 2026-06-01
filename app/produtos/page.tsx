@@ -46,14 +46,16 @@ export default async function Page() {
     userPlano = (perfil?.prod_planos as any)?.nome ?? null;
   }
 
-  const isAdmin = userRole === 'admin';
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const isAdmin = userRole === 'admin'
+    || (!!adminEmail && user?.email?.toLowerCase().trim() === adminEmail.toLowerCase().trim());
 
   // Buscar designs conforme o role
   let query = supabase
     .from('prod_designs')
     .select('id, nome, descricao, familia, tags, thumbnail_url, total_likes, total_downloads, estado');
 
-  // Admin vê tudo — utilizadores normais só veem designs activos
+  // Admin vê tudo (incluindo rascunhos) — utilizadores normais só veem designs activos
   if (!isAdmin) {
     query = query.eq('estado', 'ativo');
   }
