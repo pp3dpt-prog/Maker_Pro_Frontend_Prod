@@ -462,6 +462,7 @@ export default function PageInner() {
             const ajuste  = params?.img_ajuste ?? 'Preencher';
             const posX    = Number(params?.img_pos_x ?? 0);
             const posY    = Number(params?.img_pos_y ?? 0);
+            const zoom    = Number(params?.img_zoom  ?? 100);
             const fitMap: Record<string, string> = {
               'Preencher': 'cover',
               'Ajustar':   'contain',
@@ -491,7 +492,15 @@ export default function PageInner() {
                     <img
                       src={previewImageUrl}
                       alt="Preview"
-                      style={{ width: '100%', height: '100%', objectFit: objFit as any, objectPosition: objPos, display: 'block' }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: objFit as any,
+                        objectPosition: objPos,
+                        display: 'block',
+                        transform: `scale(${zoom / 100})`,
+                        transformOrigin: objPos,
+                      }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: '#334155' }}>
