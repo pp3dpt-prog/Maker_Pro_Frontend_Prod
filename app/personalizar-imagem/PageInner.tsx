@@ -31,6 +31,85 @@ type UserProfile = {
 };
 
 const VISUAL_PARAMS = ['mostrar_texto'];
+
+// ── Análise automática de cores da imagem ────────────────────────────────────
+
+type ColorLevel = { brightness: number; r: number; g: number; b: number; percentage: number };
+type ImageAnalysis = { suggestedColors: number; levels: ColorLevel[] };
+
+function kmeans1D(samples: number[], k: number): number[] {
+  let centers = Array.from({ length: k }, (_, i) => Math.round((i + 0.5) * 256 / k));
+  for (let iter = 0; iter < 25; iter++) {
+    const sums = new Array(k).fill(0), counts = new Array(k).fill(0);
+    for (const v of samples) {
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < k; i++) { const d = Math.abs(v - centers[i]); if (d < bestD) { bestD = d; best = i; } }
+      sums[best] += v; counts[best]++;
+    }
+    centers = centers.map((c, i) => counts[i] > 0 ? Math.round(sums[i] / counts[i]) : c);
+  }
+  return centers.sort((a, b) => a - b);
+}
+
+function wcss1D(samples: number[], centers: number[]): number {
+  return samples.reduce((s, v) => s + Math.min(...centers.map(c => (v - c) ** 2)), 0);
+}
+
+function analyzeImage(url: string): Promise<ImageAnalysis> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const W = Math.min(img.naturalWidth, 200), H = Math.min(img.naturalHeight, 200);
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, W, H);
+      const { data } = ctx.getImageData(0, 0, W, H);
+
+      // Amostrar cada 4 pixels para performance
+      const grays: number[] = [], pixels: [number,number,number][] = [];
+      for (let i = 0; i < data.length; i += 16) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        grays.push(Math.round(0.299 * r + 0.587 * g + 0.114 * b));
+        pixels.push([r, g, b]);
+      }
+
+      // Encontrar K óptimo pelo método do cotovelo
+      const wcssVals = Array.from({ length: 5 }, (_, i) => wcss1D(grays, kmeans1D(grays, i + 2)));
+      let bestK = 3, biggestDrop = 0;
+      for (let i = 0; i < wcssVals.length - 1; i++) {
+        const drop = (wcssVals[i] - wcssVals[i+1]) / (wcssVals[0] || 1);
+        if (drop > biggestDrop) { biggestDrop = drop; bestK = i + 2; }
+      }
+      bestK = Math.max(2, Math.min(6, bestK));
+
+      const centers = kmeans1D(grays, bestK);
+      const rgbSums = centers.map(() => [0,0,0]);
+      const counts = new Array(bestK).fill(0);
+
+      for (let idx = 0; idx < grays.length; idx++) {
+        let best = 0, bestD = Infinity;
+        for (let i = 0; i < bestK; i++) { const d = Math.abs(grays[idx] - centers[i]); if (d < bestD) { bestD = d; best = i; } }
+        counts[best]++;
+        rgbSums[best][0] += pixels[idx][0];
+        rgbSums[best][1] += pixels[idx][1];
+        rgbSums[best][2] += pixels[idx][2];
+      }
+
+      const total = grays.length;
+      const levels: ColorLevel[] = centers.map((brightness, i) => ({
+        brightness,
+        r: counts[i] > 0 ? Math.round(rgbSums[i][0] / counts[i]) : brightness,
+        g: counts[i] > 0 ? Math.round(rgbSums[i][1] / counts[i]) : brightness,
+        b: counts[i] > 0 ? Math.round(rgbSums[i][2] / counts[i]) : brightness,
+        percentage: Math.round(counts[i] / total * 100),
+      }));
+
+      resolve({ suggestedColors: bestK, levels });
+    };
+    img.src = url;
+  });
+}
 const PLANO_ORDEM = ['gratuito', 'pessoal', 'pessoal_plus', 'comercial'];
 
 function temAcessoPlano(userPlano: string, acesso: string | null): boolean {
@@ -74,6 +153,8 @@ export default function PageInner() {
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
   const [likes, setLikes] = useState(0);
+  const [imageAnalysis, setImageAnalysis] = useState<ImageAnalysis | null>(null);
+  const [analysing, setAnalysing] = useState(false);
 
   // Auth — mesma estratégia dupla do customizador:
   // INITIAL_SESSION como fonte autoritativa + getSession() como fallback aos 2s
@@ -206,8 +287,15 @@ export default function PageInner() {
     );
     if (!uploadResp.ok) throw new Error(`Erro no upload: ${await uploadResp.text()}`);
 
-    // Gerar preview local da imagem
-    setPreviewImageUrl(URL.createObjectURL(file));
+    // Gerar preview local e analisar cores
+    const localUrl = URL.createObjectURL(file);
+    setPreviewImageUrl(localUrl);
+    setImageAnalysis(null);
+    setAnalysing(true);
+    analyzeImage(localUrl).then(result => {
+      setImageAnalysis(result);
+      setAnalysing(false);
+    });
 
     return storagePath;
   };
@@ -516,6 +604,43 @@ export default function PageInner() {
 
                 {mode === 'done' && (
                   <p style={{ color: '#34d399', fontSize: 13, fontWeight: 600 }}>✅ STL gerado com sucesso</p>
+                )}
+
+                {/* Análise de cores */}
+                {analysing && (
+                  <p style={{ color: '#64748b', fontSize: 12 }}>🔍 A analisar cores…</p>
+                )}
+                {imageAnalysis && !analysing && (
+                  <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '16px 20px', width: pW, boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        🎨 {imageAnalysis.suggestedColors} tons detectados
+                      </p>
+                      <button
+                        onClick={() => params && setParams({ ...params, num_cores: imageAnalysis.suggestedColors })}
+                        style={{ padding: '4px 12px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {imageAnalysis.levels.map((lvl, i) => (
+                        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                          <div style={{
+                            width: 36, height: 36, borderRadius: 8,
+                            background: `rgb(${lvl.r},${lvl.g},${lvl.b})`,
+                            border: '1px solid #1e293b',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                          }} title={`R:${lvl.r} G:${lvl.g} B:${lvl.b}`} />
+                          <span style={{ fontSize: 10, color: '#64748b' }}>{lvl.percentage}%</span>
+                          <span style={{ fontSize: 9, color: '#475569' }}>filamento {i + 1}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ margin: '10px 0 0', fontSize: 11, color: '#475569', lineHeight: 1.5 }}>
+                      Filamento 1 = tom mais escuro → filamento {imageAnalysis.suggestedColors} = tom mais claro
+                    </p>
+                  </div>
                 )}
               </div>
             );
