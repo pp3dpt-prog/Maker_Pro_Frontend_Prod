@@ -547,10 +547,13 @@ export default function PageInner() {
             else                      { pH = maxH; pW = Math.round(maxH * ratio); }
 
             // Parâmetros de ajuste da imagem
-            const ajuste  = params?.img_ajuste ?? 'Preencher';
-            const posX    = Number(params?.img_pos_x ?? 0);
-            const posY    = Number(params?.img_pos_y ?? 0);
-            const zoom    = Number(params?.img_zoom  ?? 100);
+            const ajuste    = params?.img_ajuste ?? 'Preencher';
+            const posX      = Number(params?.img_pos_x  ?? 0);
+            const posY      = Number(params?.img_pos_y  ?? 0);
+            const zoom      = Number(params?.img_zoom   ?? 100);
+            const contraste = Number(params?.contraste  ?? 0);
+            const brilho    = Number(params?.brilho     ?? 0);
+            const cssFilter = `contrast(${1 + contraste}) brightness(${1 + brilho}) grayscale(1)`;
             const fitMap: Record<string, string> = {
               'Preencher': 'cover',
               'Ajustar':   'contain',
@@ -588,6 +591,7 @@ export default function PageInner() {
                         display: 'block',
                         transform: `scale(${zoom / 100})`,
                         transformOrigin: objPos,
+                        filter: cssFilter,
                       }}
                     />
                   ) : (
