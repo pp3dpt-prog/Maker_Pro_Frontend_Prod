@@ -38,7 +38,15 @@ type ColorLevel = { brightness: number; r: number; g: number; b: number; percent
 type ImageAnalysis = { suggestedColors: number; levels: ColorLevel[] };
 
 function kmeans1D(samples: number[], k: number): number[] {
-  let centers = Array.from({ length: k }, (_, i) => Math.round((i + 0.5) * 256 / k));
+  // k-means++ initialisation para centros mais distintos
+  const centers: number[] = [samples[Math.floor(Math.random() * samples.length)]];
+  while (centers.length < k) {
+    const dists = samples.map(v => Math.min(...centers.map(c => (v - c) ** 2)));
+    const total = dists.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < samples.length; i++) { r -= dists[i]; if (r <= 0) { centers.push(samples[i]); break; } }
+    if (centers.length < k) centers.push(samples[samples.length - 1]);
+  }
   for (let iter = 0; iter < 25; iter++) {
     const sums = new Array(k).fill(0), counts = new Array(k).fill(0);
     for (const v of samples) {
@@ -46,7 +54,7 @@ function kmeans1D(samples: number[], k: number): number[] {
       for (let i = 0; i < k; i++) { const d = Math.abs(v - centers[i]); if (d < bestD) { bestD = d; best = i; } }
       sums[best] += v; counts[best]++;
     }
-    centers = centers.map((c, i) => counts[i] > 0 ? Math.round(sums[i] / counts[i]) : c);
+    for (let i = 0; i < k; i++) if (counts[i] > 0) centers[i] = Math.round(sums[i] / counts[i]);
   }
   return centers.sort((a, b) => a - b);
 }
@@ -553,7 +561,8 @@ export default function PageInner() {
             const zoom      = Number(params?.img_zoom   ?? 100);
             const contraste = Number(params?.contraste  ?? 0);
             const brilho    = Number(params?.brilho     ?? 0);
-            const cssFilter = `contrast(${1 + contraste}) brightness(${1 + brilho}) grayscale(1)`;
+            const modoCor   = !!(params?.modo_cor);
+            const cssFilter = `contrast(${1 + contraste}) brightness(${1 + brilho})${modoCor ? '' : ' grayscale(1)'}`;
             const fitMap: Record<string, string> = {
               'Preencher': 'cover',
               'Ajustar':   'contain',
