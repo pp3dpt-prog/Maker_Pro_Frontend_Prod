@@ -39,10 +39,19 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
 
   const handleConfirmar = async () => {
     setLoading(true);
-    // Placeholder: substituir pela chamada ao Stripe quando configurado
-    await new Promise(r => setTimeout(r, 1000));
-    setEnviado(true);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plano_id: plano.id, intervalo }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro ao iniciar pagamento.');
+      if (json.url) window.location.href = json.url;
+    } catch (err: any) {
+      alert(err.message);
+      setLoading(false);
+    }
   };
 
   if (enviado) {
