@@ -54,24 +54,41 @@ export async function POST(req: NextRequest) {
 
         if (!userId) break;
 
+        const valor = (session.amount_total ?? 0) / 100;
+        const email = session.customer_email ?? '';
+
         // ── Download avulso: créditar 1 download ──────────────────────
         if (tipo === 'download_avulso') {
-          await admin.from('prod_perfis')
-            .update({ downloads_limite: admin.rpc('increment', { x: 1 }) as any })
-            .eq('id', userId);
-
-          // Incrementar de forma segura
           const { data: p } = await admin.from('prod_perfis').select('downloads_limite').eq('id', userId).single();
           if (p) await admin.from('prod_perfis').update({ downloads_limite: (p.downloads_limite ?? 0) + 1 }).eq('id', userId);
+
+          await admin.from('prod_pagamentos').insert({
+            user_id:          userId,
+            user_email:       email,
+            descricao:        'Download avulso STL',
+            valor,
+            tipo:             'download_avulso',
+            stripe_session_id: session.id,
+          });
           break;
         }
 
         // ── Subscrição: activar plano ──────────────────────────────────
         if (session.mode === 'subscription') {
-          const planoId  = session.metadata?.plano_id ?? '';
+          const planoId   = session.metadata?.plano_id ?? '';
           const intervalo = session.metadata?.intervalo ?? 'mensal';
-          const subId    = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? '';
+          const subId     = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? '';
           await activatePlan(userId, planoId, subId, intervalo);
+
+          const { data: plano } = await admin.from('prod_planos').select('nome').eq('id', planoId).single();
+          await admin.from('prod_pagamentos').insert({
+            user_id:          userId,
+            user_email:       email,
+            descricao:        `Subscrição ${plano?.nome ?? ''} (${intervalo})`,
+            valor,
+            tipo:             'subscricao',
+            stripe_session_id: session.id,
+          });
         }
         break;
       }

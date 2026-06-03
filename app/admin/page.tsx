@@ -57,12 +57,13 @@ function SideBtn({ active, onClick, children }: { active: boolean; onClick: () =
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas' | 'faturas'>('stats');
   const [showModal, setShowModal] = useState(false);
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [tickets, setTickets] = useState<TicketSuporte[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
-  const [stats, setStats] = useState({ users: 0, tickets: 0, pedidosPendentes: 0 });
+  const [stats, setStats] = useState({ users: 0, tickets: 0, pedidosPendentes: 0, faturasPendentes: 0 });
+  const [faturas, setFaturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [campTitulo, setCampTitulo] = useState('');
@@ -80,18 +81,20 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [{ data: cData }, { data: tData }, { data: cpData }, { count: uCount }, { count: tOpenCount }, { count: pedidosCount }] = await Promise.all([
+      const [{ data: cData }, { data: tData }, { data: cpData }, { count: uCount }, { count: tOpenCount }, { count: pedidosCount }, { data: faturasData, count: faturasCount }] = await Promise.all([
         supabase.from('cupons').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_tickets_suporte').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_campanhas').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_perfis').select('*', { count: 'exact', head: true }),
         supabase.from('prod_tickets_suporte').select('*', { count: 'exact', head: true }).eq('status', 'aberto'),
         supabase.from('prod_pedidos_orcamento').select('*', { count: 'exact', head: true }).eq('estado', 'pendente_orcamento'),
+        supabase.from('prod_pagamentos').select('*', { count: 'exact' }).eq('fatura_emitida', false).order('created_at', { ascending: false }),
       ]);
       setCupons(cData || []);
       setTickets(tData || []);
       setCampanhas(cpData || []);
-      setStats({ users: uCount || 0, tickets: tOpenCount || 0, pedidosPendentes: pedidosCount || 0 });
+      setFaturas(faturasData || []);
+      setStats({ users: uCount || 0, tickets: tOpenCount || 0, pedidosPendentes: pedidosCount || 0, faturasPendentes: faturasCount || 0 });
     } catch (err) {
       console.error('Erro ao carregar dados admin:', err);
     } finally {
@@ -163,6 +166,14 @@ export default function AdminDashboard() {
         <SideBtn active={activeTab === 'cupons'} onClick={() => setActiveTab('cupons')}>🏷️ Cupões</SideBtn>
         <SideBtn active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')}>🎫 Tickets</SideBtn>
         <SideBtn active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')}>📣 Campanhas</SideBtn>
+        <SideBtn active={activeTab === 'faturas'} onClick={() => setActiveTab('faturas')}>
+          🧾 Faturas
+          {stats.faturasPendentes > 0 && (
+            <span style={{ marginLeft: 'auto', background: '#f59e0b', color: '#000', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20 }}>
+              {stats.faturasPendentes}
+            </span>
+          )}
+        </SideBtn>
 
         <div style={{ borderTop: '1px solid #1e293b', margin: '8px 0' }} />
 
@@ -226,6 +237,68 @@ export default function AdminDashboard() {
                 </div>
               </Link>
             </div>
+          </>
+        )}
+
+        {/* ── TAB: FATURAS ── */}
+        {activeTab === 'faturas' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🧾 Faturas pendentes</h1>
+                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+                  Emite cada fatura no FIZ e clica em "Marcar emitida". O cliente foi informado que recebe em até 24h.
+                </p>
+              </div>
+            </div>
+            {faturas.length === 0 ? (
+              <div style={{ ...s.card, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '48px 24px' }}>
+                ✅ Sem faturas pendentes.
+              </div>
+            ) : (
+              <div style={s.tableWrap}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={s.thead}>
+                    <tr>
+                      {['Data', 'Email', 'Descrição', 'Valor', 'Ação'].map(h => (
+                        <th key={h} style={s.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {faturas.map((f: any) => (
+                      <tr key={f.id}>
+                        <td style={{ ...s.td, fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
+                          {new Date(f.created_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td style={s.td}>{f.user_email}</td>
+                        <td style={s.td}>{f.descricao}</td>
+                        <td style={{ ...s.td, fontWeight: 700, color: '#86efac' }}>{Number(f.valor).toFixed(2)}€</td>
+                        <td style={{ ...s.td, display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <a
+                            href="https://app.fiz.co"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...s.btn, fontSize: 11, padding: '6px 12px', textDecoration: 'none', display: 'inline-block' }}
+                          >
+                            Abrir FIZ →
+                          </a>
+                          <button
+                            onClick={async () => {
+                              await supabase.from('prod_pagamentos').update({ fatura_emitida: true, fatura_emitida_em: new Date().toISOString() }).eq('id', f.id);
+                              fetchData();
+                            }}
+                            style={{ ...s.btn, fontSize: 11, padding: '6px 12px', background: '#14532d', color: '#86efac' }}
+                          >
+                            ✓ Marcar emitida
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
 
