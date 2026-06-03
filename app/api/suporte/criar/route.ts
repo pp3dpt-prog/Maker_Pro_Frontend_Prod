@@ -25,8 +25,9 @@ export async function POST(request: Request) {
       user_email: user.email,
       assunto:    assunto.trim(),
       mensagem:   mensagem.trim(),
-      prioridade: prioridade ?? 'media',
       status:     'aberto',
+      // prioridade adicionada via SQL migration — incluída após ALTER TABLE
+      ...(prioridade ? { prioridade } : {}),
     })
     .select('id')
     .single();
