@@ -27,6 +27,9 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
   const router = useRouter();
   const [enviado, setEnviado] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [nomeCompleto, setNomeCompleto] = useState('');
+  const [nif, setNif] = useState('');
+  const [erroFaturacao, setErroFaturacao] = useState('');
 
   const preco = intervalo === 'anual'
     ? (plano.preco_anual ?? plano.preco_mensal ?? plano.preco)
@@ -38,12 +41,14 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
     : null;
 
   const handleConfirmar = async () => {
+    if (!nomeCompleto.trim()) { setErroFaturacao('O nome completo é obrigatório para a fatura.'); return; }
+    setErroFaturacao('');
     setLoading(true);
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plano_id: plano.id, intervalo }),
+        body: JSON.stringify({ plano_id: plano.id, intervalo, nome_completo: nomeCompleto.trim(), nif: nif.trim() }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Erro ao iniciar pagamento.');
@@ -173,9 +178,35 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
             <div className="bg-[#1e293b] rounded-3xl border border-white/10 p-8 shadow-xl">
               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Dados de contacto</p>
 
-              <div className="bg-[#0f172a] rounded-xl border border-white/10 px-4 py-3 mb-6">
+              <div className="bg-[#0f172a] rounded-xl border border-white/10 px-4 py-3 mb-4">
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Email</p>
                 <p className="text-white font-semibold text-sm">{userEmail}</p>
+              </div>
+
+              {/* Dados de faturação */}
+              <div className="space-y-3 mb-6">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Nome completo <span className="text-red-400">*</span></p>
+                  <input
+                    type="text"
+                    value={nomeCompleto}
+                    onChange={e => setNomeCompleto(e.target.value)}
+                    placeholder="Nome como aparece na fatura"
+                    className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">NIF (opcional)</p>
+                  <input
+                    type="text"
+                    value={nif}
+                    onChange={e => setNif(e.target.value)}
+                    placeholder="Ex: 123456789"
+                    maxLength={9}
+                    className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+                {erroFaturacao && <p className="text-red-400 text-xs">{erroFaturacao}</p>}
               </div>
 
               <button

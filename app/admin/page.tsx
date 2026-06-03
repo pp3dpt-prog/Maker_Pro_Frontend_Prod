@@ -260,7 +260,7 @@ export default function AdminDashboard() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={s.thead}>
                     <tr>
-                      {['Data', 'Email', 'Descrição', 'Valor', 'Ação'].map(h => (
+                      {['Data', 'Nome / Email / NIF', 'Plano', 'Valor', 'Ação'].map(h => (
                         <th key={h} style={s.th}>{h}</th>
                       ))}
                     </tr>
@@ -271,8 +271,15 @@ export default function AdminDashboard() {
                         <td style={{ ...s.td, fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
                           {new Date(f.created_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td style={s.td}>{f.user_email}</td>
-                        <td style={s.td}>{f.descricao}</td>
+                        <td style={s.td}>
+                          <p style={{ margin: '0 0 2px', fontWeight: 600, color: '#f1f5f9' }}>{f.user_name || '—'}</p>
+                          <p style={{ margin: '0 0 2px', fontSize: 12, color: '#64748b' }}>{f.user_email}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>NIF: {f.user_nif || 'não indicado'}</p>
+                        </td>
+                        <td style={s.td}>
+                          <p style={{ margin: 0, fontWeight: 600 }}>{f.plano_nome || f.descricao}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#475569' }}>{f.tipo}</p>
+                        </td>
                         <td style={{ ...s.td, fontWeight: 700, color: '#86efac' }}>{Number(f.valor).toFixed(2)}€</td>
                         <td style={{ ...s.td, display: 'flex', gap: 8, alignItems: 'center' }}>
                           <a

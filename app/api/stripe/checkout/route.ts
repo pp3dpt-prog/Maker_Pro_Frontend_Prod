@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
 
-  const { plano_id, intervalo } = await request.json();
+  const { plano_id, intervalo, nome_completo, nif } = await request.json();
   if (!plano_id || !intervalo) {
     return NextResponse.json({ error: 'plano_id e intervalo obrigatórios.' }, { status: 400 });
   }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     line_items: [{ price: priceId, quantity: 1 }],
     customer_email: user.email,
     client_reference_id: user.id,
-    metadata: { user_id: user.id, plano_id, intervalo },
+    metadata: { user_id: user.id, plano_id, intervalo, nome_completo: nome_completo ?? '', nif: nif ?? '' },
     success_url: `${siteUrl}/checkout/sucesso?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}/pricing`,
     locale: 'pt',

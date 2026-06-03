@@ -54,8 +54,10 @@ export async function POST(req: NextRequest) {
 
         if (!userId) break;
 
-        const valor = (session.amount_total ?? 0) / 100;
-        const email = session.customer_email ?? '';
+        const valor     = (session.amount_total ?? 0) / 100;
+        const email     = session.customer_email ?? '';
+        const userName  = session.metadata?.nome_completo ?? '';
+        const userNif   = session.metadata?.nif ?? '';
 
         // ── Download avulso: créditar 1 download ──────────────────────
         if (tipo === 'download_avulso') {
@@ -65,7 +67,10 @@ export async function POST(req: NextRequest) {
           await admin.from('prod_pagamentos').insert({
             user_id:          userId,
             user_email:       email,
+            user_name:        userName,
+            user_nif:         userNif,
             descricao:        'Download avulso STL',
+            plano_nome:       'Download Avulso',
             valor,
             tipo:             'download_avulso',
             stripe_session_id: session.id,
@@ -84,7 +89,10 @@ export async function POST(req: NextRequest) {
           await admin.from('prod_pagamentos').insert({
             user_id:          userId,
             user_email:       email,
+            user_name:        userName,
+            user_nif:         userNif,
             descricao:        `Subscrição ${plano?.nome ?? ''} (${intervalo})`,
+            plano_nome:       plano?.nome ?? '',
             valor,
             tipo:             'subscricao',
             stripe_session_id: session.id,
