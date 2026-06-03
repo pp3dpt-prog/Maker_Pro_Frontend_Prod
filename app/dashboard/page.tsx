@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
+import StarRating from '@/components/StarRating';
+import ReviewModal from '@/components/ReviewModal';
 
 type Perfil = {
   id: string;
@@ -30,6 +32,7 @@ export default function Dashboard() {
   const [assets, setAssets] = useState<UserAsset[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showReview, setShowReview] = useState(false);
 
   useEffect(() => {
     let settled = false;
@@ -103,7 +106,18 @@ export default function Dashboard() {
   const downloadsRestantes = Math.max(0, (perfil?.downloads_limite ?? 3) - (perfil?.downloads_mes ?? 0));
   const temLicencaComercial = perfil?.plano?.startsWith('comercial');
 
+  async function avaliarTicket(ticket_id: string, avaliacao: number) {
+    await fetch('/api/suporte/avaliar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket_id, avaliacao }),
+    });
+    setTickets(prev => prev.map(t => t.id === ticket_id ? { ...t, avaliacao } : t));
+  }
+
   return (
+    <>
+    {showReview && <ReviewModal onClose={() => setShowReview(false)} />}
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>
 
       {/* SIDEBAR */}
@@ -127,6 +141,10 @@ export default function Dashboard() {
         <Link href="/produtos" style={{ display: 'block', textAlign: 'center', padding: '12px', marginBottom: '10px', background: '#2563eb', color: 'white', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', textDecoration: 'none' }}>
           🛍️ Ver Catálogo
         </Link>
+        <button onClick={() => setShowReview(true)}
+          style={{ padding: '10px', background: 'transparent', color: '#f59e0b', border: '1px solid #451a00', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', fontFamily: 'inherit', width: '100%', marginBottom: 8 }}>
+          ⭐ Avaliar a PP3D
+        </button>
         <form action="/api/auth/signout" method="POST" style={{ margin: 0 }}>
           <button type="submit"
             style={{ padding: '12px', background: 'transparent', color: '#f87171', border: '1px solid #451a1a', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', fontFamily: 'inherit', width: '100%' }}>
@@ -273,12 +291,24 @@ export default function Dashboard() {
                 )}
 
                 {t.resposta ? (
-                  <div style={{ background: '#0f2a1a', border: '1px solid #166534', borderRadius: 8, padding: '10px 14px' }}>
-                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#86efac', textTransform: 'uppercase' }}>
-                      Resposta PP3D — {t.respondido_em ? new Date(t.respondido_em).toLocaleString('pt-PT') : ''}
-                    </p>
-                    <p style={{ margin: 0, fontSize: 14, color: '#d1fae5', whiteSpace: 'pre-wrap' }}>{t.resposta}</p>
-                  </div>
+                  <>
+                    <div style={{ background: '#0f2a1a', border: '1px solid #166534', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#86efac', textTransform: 'uppercase' }}>
+                        Resposta PP3D — {t.respondido_em ? new Date(t.respondido_em).toLocaleString('pt-PT') : ''}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 14, color: '#d1fae5', whiteSpace: 'pre-wrap' }}>{t.resposta}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>A resposta foi útil?</span>
+                      <StarRating
+                        value={t.avaliacao ?? 0}
+                        onChange={v => avaliarTicket(t.id, v)}
+                        size={20}
+                        readonly={!!t.avaliacao}
+                      />
+                      {t.avaliacao && <span style={{ fontSize: 12, color: '#f59e0b' }}>Obrigado!</span>}
+                    </div>
+                  </>
                 ) : (
                   <p style={{ margin: 0, fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
                     A aguardar resposta…
@@ -291,6 +321,7 @@ export default function Dashboard() {
 
       </main>
     </div>
+    </>
   );
 }
 

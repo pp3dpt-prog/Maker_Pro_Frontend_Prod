@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import ReviewsSection from '@/components/ReviewsSection';
 
 export default function HomePage() {
   return (
@@ -121,6 +122,9 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ── REVIEWS ──────────────────────────────────────────────────────── */}
+      <ReviewsSection />
 
       {/* ── MAKERS / CRIADORES ────────────────────────────────────────────── */}
       <section style={{ padding: '80px 20px', background: '#0f172a' }}>
