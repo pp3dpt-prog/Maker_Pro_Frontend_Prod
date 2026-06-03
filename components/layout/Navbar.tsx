@@ -65,8 +65,9 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <button className={styles.btnGhost} onClick={() => setShowSupport(true)} title="Suporte">
-                <LifeBuoy size={16} />
+              <button className={styles.btnGhost} onClick={() => setShowSupport(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <LifeBuoy size={15} />
+                Suporte
               </button>
 
               <Link href="/dashboard">Dashboard</Link>
