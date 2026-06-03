@@ -1,6 +1,8 @@
-// Callback GET enviado pelo IfThenPay quando pagamento é confirmado
-// URL a configurar no backoffice IfThenPay:
-// https://maker-pro-frontend-prod.vercel.app/api/ifthenpay/callback?orderId=[orderId]&amount=[amount]&requestId=[requestId]
+// Callback GET enviado pelo IfThenPay após pagamento confirmado
+// Formato: ?key=[ANTI_PHISHING_KEY]&id=[ID]&amount=[AMOUNT]&payment_datetime=[DATETIME]&payment_method=[METHOD]
+//
+// Configurar no backoffice IfThenPay (Pagamentos → Multibanco/MBWAY → Callback):
+// https://maker-pro-frontend-prod.vercel.app/api/ifthenpay/callback?key=[ANTI_PHISHING_KEY]&id=[ID]&amount=[AMOUNT]&payment_datetime=[DATETIME]&payment_method=[METHOD]
 
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,15 +14,15 @@ const admin = createAdmin(
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const orderId   = searchParams.get('orderId') ?? searchParams.get('id');
-  const amount    = searchParams.get('amount');
-  const requestId = searchParams.get('requestId');
+  const orderId        = searchParams.get('id');
+  const amount         = searchParams.get('amount');
+  const paymentMethod  = searchParams.get('payment_method') ?? 'unknown';
 
-  console.log('[ifthenpay/callback] orderId:', orderId, 'amount:', amount);
+  console.log('[ifthenpay/callback] id:', orderId, 'amount:', amount, 'method:', paymentMethod);
 
   if (!orderId) return new Response('OK', { status: 200 });
 
-  // Buscar pagamento pendente pelo orderId
+  // Buscar pagamento pelo orderId
   const { data: pagamento } = await admin
     .from('prod_pagamentos')
     .select('*')
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
     return new Response('OK', { status: 200 });
   }
 
-  // Creditiar download se for download avulso
+  // Creditar download avulso
   if (pagamento.tipo === 'download_avulso' && pagamento.user_id) {
     const { data: perfil } = await admin
       .from('prod_perfis')
@@ -48,10 +50,29 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Marcar pagamento como confirmado (fatura ainda pendente de emissão manual)
+  // Activar plano anual se aplicável
+  if (pagamento.tipo === 'subscricao_anual' && pagamento.user_id && pagamento.plano_id) {
+    const { data: plano } = await admin
+      .from('prod_planos')
+      .select('limite_downloads, validade_dias')
+      .eq('id', pagamento.plano_id)
+      .single();
+
+    if (plano) {
+      const validoAte = new Date(Date.now() + plano.validade_dias * 365 * 24 * 60 * 60 * 1000).toISOString();
+      await admin.from('prod_perfis').update({
+        plano_id:         pagamento.plano_id,
+        downloads_limite: plano.limite_downloads,
+        downloads_mes:    0,
+        plano_valido_ate: validoAte,
+      }).eq('id', pagamento.user_id);
+    }
+  }
+
+  // Marcar pagamento confirmado
   await admin
     .from('prod_pagamentos')
-    .update({ ifthenpay_pago: true })
+    .update({ ifthenpay_pago: true, ifthenpay_metodo: paymentMethod })
     .eq('ifthenpay_order_id', orderId);
 
   return new Response('OK', { status: 200 });
