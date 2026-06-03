@@ -82,6 +82,21 @@ export default function DownloadStlButton({ designId, params, onSuccess }: Props
         {loading ? (<><Spinner />A preparar download…</>) : done ? '✅ Download concluído!' : (<><DownloadIcon />Download STL</>)}
       </button>
       {error && <p style={{ margin: 0, color: '#f87171', fontSize: 12, textAlign: 'center' }}>{error}</p>}
+      {done && (
+        <a
+          href="https://ko-fi.com/pp3dpt"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '8px 14px', borderRadius: 8, textDecoration: 'none',
+            background: 'rgba(255,94,91,0.1)', border: '1px solid rgba(255,94,91,0.25)',
+            color: '#ff7875', fontSize: 12, fontWeight: 600,
+          }}
+        >
+          ☕ Gostaste? Apoia o projeto no Ko-fi
+        </a>
+      )}
     </div>
   );
 }

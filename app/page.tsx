@@ -131,7 +131,7 @@ export default function HomePage() {
             A PP3D é um projecto independente. Se gostas do que fazemos e queres ajudar a crescer — mais produtos gratuitos, melhor performance, novos modelos — podes apoiar com um café.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="https://ko-fi.com" target="_blank" rel="noopener noreferrer"
+            <a href="https://ko-fi.com/pp3dpt" target="_blank" rel="noopener noreferrer"
               style={{ textDecoration: 'none', padding: '14px 28px', borderRadius: '12px', background: '#FF5E5B', color: 'white', fontWeight: 700, fontSize: '14px' }}>
               ☕ Apoiar no Ko-fi
             </a>

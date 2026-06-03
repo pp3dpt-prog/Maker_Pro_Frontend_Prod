@@ -28,6 +28,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.className} bg-[#0a0a0a] text-white`}>
         <Navbar />
         {children}
+        <footer style={{
+          borderTop: '1px solid #1e293b',
+          padding: '24px 32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+          fontSize: 13,
+          color: '#475569',
+        }}>
+          <span>© {new Date().getFullYear()} PP3D.pt — Feito com ❤️ em Portugal</span>
+          <a
+            href="https://ko-fi.com/pp3dpt"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              color: '#ff7875', textDecoration: 'none', fontWeight: 600,
+            }}
+          >
+            ☕ Apoiar no Ko-fi
+          </a>
+        </footer>
       </body>
     </html>
   );
