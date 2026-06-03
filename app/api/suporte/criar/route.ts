@@ -21,13 +21,13 @@ export async function POST(request: Request) {
   const { data, error } = await admin
     .from('prod_tickets_suporte')
     .insert({
-      user_id:    user.id,
-      user_email: user.email,
-      assunto:    assunto.trim(),
-      mensagem:   mensagem.trim(),
-      status:     'aberto',
-      // prioridade adicionada via SQL migration — incluída após ALTER TABLE
-      ...(prioridade ? { prioridade } : {}),
+      assunto: assunto.trim(),
+      status:  'aberto',
+      // colunas adicionadas via SQL migration (ADD COLUMN IF NOT EXISTS):
+      ...(user.id    ? { user_id:    user.id }    : {}),
+      ...(user.email ? { user_email: user.email }  : {}),
+      ...(mensagem   ? { mensagem:   mensagem.trim() } : {}),
+      ...(prioridade ? { prioridade }               : {}),
     })
     .select('id')
     .single();
