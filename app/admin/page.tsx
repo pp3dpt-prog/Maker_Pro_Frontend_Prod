@@ -9,7 +9,7 @@ import type { CSSProperties, ReactNode } from 'react';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; }
-interface TicketSuporte { id: string; assunto: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; }
+interface TicketSuporte { id: string; assunto: string; mensagem?: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; resposta?: string; respondido_em?: string; }
 interface Campanha { id: string; titulo: string; tipo: string; cliques: number; vistas: number; ativa: boolean; created_at: string; }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -73,6 +73,9 @@ export default function AdminDashboard() {
 
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
   const [newsletterMsg, setNewsletterMsg] = useState<{ id: string; texto: string; tipo: 'ok' | 'erro' } | null>(null);
+  const [respostasTicket, setRespostasTicket] = useState<Record<string, string>>({});
+  const [enviandoResposta, setEnviandoResposta] = useState<string | null>(null);
+  const [respostaMsg, setRespostaMsg] = useState<{ id: string; texto: string; tipo: 'ok'|'erro' } | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -128,6 +131,26 @@ export default function AdminDashboard() {
   const toggleTicketStatus = async (id: string, current: string) => {
     const { error } = await supabase.from('prod_tickets_suporte').update({ status: current === 'aberto' ? 'fechado' : 'aberto' }).eq('id', id);
     if (!error) fetchData();
+  };
+
+  const enviarRespostaTicket = async (t: TicketSuporte) => {
+    const resposta = respostasTicket[t.id]?.trim();
+    if (!resposta) return;
+    setEnviandoResposta(t.id); setRespostaMsg(null);
+    try {
+      const res = await fetch('/api/admin/suporte/responder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket_id: t.id, resposta }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro');
+      setRespostaMsg({ id: t.id, texto: '✓ Resposta enviada e email notificado', tipo: 'ok' });
+      setRespostasTicket(prev => { const n = {...prev}; delete n[t.id]; return n; });
+      fetchData();
+    } catch (err: any) {
+      setRespostaMsg({ id: t.id, texto: err.message, tipo: 'erro' });
+    } finally { setEnviandoResposta(null); }
   };
 
   return (
@@ -256,23 +279,66 @@ export default function AdminDashboard() {
               {tickets.length === 0 ? (
                 <div style={{ ...s.card, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '48px 24px' }}>Sem tickets pendentes.</div>
               ) : tickets.map(t => (
-                <div key={t.id} style={{ ...s.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                      <span style={s.badge(t.prioridade === 'alta' ? '#7f1d1d' : '#1e3a5f', t.prioridade === 'alta' ? '#fca5a5' : '#93c5fd')}>
-                        {t.prioridade}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#475569' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
+                <div key={t.id} style={{ ...s.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Cabeçalho */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                        <span style={s.badge(t.prioridade === 'alta' ? '#7f1d1d' : t.prioridade === 'media' ? '#1e3a5f' : '#1e293b', t.prioridade === 'alta' ? '#fca5a5' : t.prioridade === 'media' ? '#93c5fd' : '#64748b')}>
+                          {t.prioridade}
+                        </span>
+                        <span style={s.badge(t.status === 'aberto' ? '#14532d' : '#1e293b', t.status === 'aberto' ? '#86efac' : '#64748b')}>
+                          {t.status}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#475569' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
+                      </div>
+                      <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{t.user_email}</p>
                     </div>
-                    <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
-                    <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{t.user_email}</p>
+                    <button onClick={() => toggleTicketStatus(t.id, t.status)}
+                      style={{ ...s.btn, background: t.status === 'aberto' ? '#f59e0b' : '#1e293b', color: t.status === 'aberto' ? '#000' : '#94a3b8', flexShrink: 0, fontSize: 12, padding: '6px 14px' }}>
+                      {t.status === 'aberto' ? 'Fechar' : 'Reabrir'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => toggleTicketStatus(t.id, t.status)}
-                    style={{ ...s.btn, background: t.status === 'aberto' ? '#f59e0b' : '#1e293b', color: t.status === 'aberto' ? '#000' : '#94a3b8', flexShrink: 0 }}
-                  >
-                    {t.status === 'aberto' ? 'Resolver' : 'Reabrir'}
-                  </button>
+
+                  {/* Mensagem do utilizador */}
+                  {t.mensagem && (
+                    <div style={{ background: '#080c10', borderRadius: 8, padding: '12px 14px' }}>
+                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#475569', textTransform: 'uppercase' }}>Mensagem</p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{t.mensagem}</p>
+                    </div>
+                  )}
+
+                  {/* Resposta existente */}
+                  {t.resposta && (
+                    <div style={{ background: '#0f2a1a', border: '1px solid #166534', borderRadius: 8, padding: '12px 14px' }}>
+                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#86efac', textTransform: 'uppercase' }}>Resposta enviada</p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#d1fae5', whiteSpace: 'pre-wrap' }}>{t.resposta}</p>
+                    </div>
+                  )}
+
+                  {/* Campo de resposta */}
+                  {t.status === 'aberto' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <textarea
+                        value={respostasTicket[t.id] ?? ''}
+                        onChange={e => setRespostasTicket(prev => ({ ...prev, [t.id]: e.target.value }))}
+                        placeholder="Escreve a resposta ao utilizador…"
+                        rows={3}
+                        style={{ ...s.input, resize: 'vertical' }}
+                      />
+                      {respostaMsg?.id === t.id && (
+                        <p style={{ margin: 0, fontSize: 12, color: respostaMsg.tipo === 'ok' ? '#86efac' : '#f87171' }}>{respostaMsg.texto}</p>
+                      )}
+                      <button
+                        onClick={() => enviarRespostaTicket(t)}
+                        disabled={enviandoResposta === t.id || !respostasTicket[t.id]?.trim()}
+                        style={{ ...s.btn, alignSelf: 'flex-end', opacity: !respostasTicket[t.id]?.trim() ? 0.5 : 1 }}
+                      >
+                        {enviandoResposta === t.id ? 'A enviar…' : '✉ Responder e notificar'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

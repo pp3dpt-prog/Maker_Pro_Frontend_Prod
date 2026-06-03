@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
-import { ShieldCheck, Menu, X } from 'lucide-react';
+import { ShieldCheck, Menu, X, LifeBuoy } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
+import SupportModal from '@/components/SupportModal';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -37,6 +39,8 @@ export default function Navbar() {
   };
 
   return (
+    <>
+    {showSupport && user && <SupportModal onClose={() => setShowSupport(false)} />}
     <header className={styles.header}>
       <nav className={styles.navbar}>
         <div className={styles.brand}>
@@ -60,6 +64,10 @@ export default function Navbar() {
                   </span>
                 </Link>
               )}
+
+              <button className={styles.btnGhost} onClick={() => setShowSupport(true)} title="Suporte">
+                <LifeBuoy size={16} />
+              </button>
 
               <Link href="/dashboard">Dashboard</Link>
 
@@ -117,5 +125,6 @@ export default function Navbar() {
         </div>
       )}
     </header>
+    </>
   );
 }

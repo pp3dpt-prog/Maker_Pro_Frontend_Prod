@@ -25,9 +25,10 @@ type UserAsset = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'conta' | 'plano' | 'projetos'>('conta');
+  const [activeTab, setActiveTab] = useState<'conta' | 'plano' | 'projetos' | 'suporte'>('conta');
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [assets, setAssets] = useState<UserAsset[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,6 +49,13 @@ export default function Dashboard() {
           .eq('user_id', user_id)
           .order('last_rendered_at', { ascending: false });
         if (assetsData) setAssets(assetsData as UserAsset[]);
+
+        const { data: ticketsData } = await supabase
+          .from('prod_tickets_suporte')
+          .select('id, assunto, mensagem, status, prioridade, resposta, respondido_em, created_at')
+          .eq('user_id', user_id)
+          .order('created_at', { ascending: false });
+        if (ticketsData) setTickets(ticketsData);
       } catch (_) {
         // erro de rede — não bloquear o loading
       }
@@ -105,9 +113,10 @@ export default function Dashboard() {
         </h2>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
           {[
-            { id: 'conta',   label: '👤 Resumo da Conta' },
-            { id: 'plano',   label: '🎯 Plano & Downloads' },
+            { id: 'conta',    label: '👤 Resumo da Conta' },
+            { id: 'plano',    label: '🎯 Plano & Downloads' },
             { id: 'projetos', label: '📂 Meus Ficheiros STL' },
+            { id: 'suporte',  label: '🎫 Suporte' },
           ].map((item) => (
             <button key={item.id} onClick={() => setActiveTab(item.id as any)}
               style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === item.id ? '#1e293b' : 'transparent', color: activeTab === item.id ? '#3b82f6' : '#94a3b8', fontWeight: 'bold', fontFamily: 'inherit' }}>
@@ -227,6 +236,56 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ABA SUPORTE */}
+        {activeTab === 'suporte' && (
+          <div style={{ maxWidth: 800 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>🎫 Os meus pedidos de suporte</h1>
+            <p style={{ color: '#94a3b8', marginBottom: 24, fontSize: 14 }}>
+              Para abrir um novo pedido clica no ícone <strong>🛟</strong> na barra de navegação.
+            </p>
+
+            {tickets.length === 0 ? (
+              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#475569' }}>
+                Ainda não tens pedidos de suporte.
+              </div>
+            ) : tickets.map(t => (
+              <div key={t.id} style={{ background: '#1e293b', borderRadius: 16, padding: 24, marginBottom: 16, border: '1px solid #334155' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
+                  <div>
+                    <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</p>
+                  </div>
+                  <span style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                    background: t.status === 'aberto' ? '#14532d' : '#1e293b',
+                    color: t.status === 'aberto' ? '#86efac' : '#64748b',
+                  }}>{t.status === 'aberto' ? 'Aberto' : 'Resolvido'}</span>
+                </div>
+
+                {t.mensagem && (
+                  <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#475569', textTransform: 'uppercase' }}>A tua mensagem</p>
+                    <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{t.mensagem}</p>
+                  </div>
+                )}
+
+                {t.resposta ? (
+                  <div style={{ background: '#0f2a1a', border: '1px solid #166534', borderRadius: 8, padding: '10px 14px' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#86efac', textTransform: 'uppercase' }}>
+                      Resposta PP3D — {t.respondido_em ? new Date(t.respondido_em).toLocaleString('pt-PT') : ''}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 14, color: '#d1fae5', whiteSpace: 'pre-wrap' }}>{t.resposta}</p>
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
+                    A aguardar resposta…
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
