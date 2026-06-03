@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -11,7 +12,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Assunto e mensagem são obrigatórios.' }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  // Usar service role para bypass de RLS
+  const admin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data, error } = await admin
     .from('prod_tickets_suporte')
     .insert({
       user_id:    user.id,
@@ -25,8 +32,8 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error('[suporte/criar]', error);
-    return NextResponse.json({ error: 'Erro ao criar ticket.' }, { status: 500 });
+    console.error('[suporte/criar]', error.message, error.details);
+    return NextResponse.json({ error: `Erro ao criar ticket: ${error.message}` }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, id: data.id });
