@@ -1,9 +1,32 @@
 import Link from 'next/link';
 import ReviewsSection from '@/components/ReviewsSection';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'PP3D.pt — Personalização 3D para toda a gente',
+  description: 'Cria produtos únicos em 3D — personaliza medidas, texto e forma. Descarrega o ficheiro STL ou recebe a peça impressa em casa. Marcadores, copos, etiquetas e muito mais.',
+  alternates: { canonical: 'https://pp3d.pt' },
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'PP3D.pt',
+  url: 'https://pp3d.pt',
+  description: 'Plataforma portuguesa de personalização e impressão 3D',
+  sameAs: ['https://ko-fi.com/pp3dpt'],
+  offers: {
+    '@type': 'AggregateOffer',
+    priceCurrency: 'EUR',
+    lowPrice: '0',
+    offerCount: '4',
+  },
+};
 
 export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0a0a0a', color: 'white', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section style={{ padding: '120px 20px 100px', textAlign: 'center', background: 'radial-gradient(ellipse at 50% 0%, #1e3a5f 0%, #0a0a0a 70%)' }}>
