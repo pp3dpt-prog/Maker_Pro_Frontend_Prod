@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, ArrowLeft, CreditCard, Shield, Zap } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, CreditCard, Shield, Zap, Lock } from 'lucide-react';
+import type { CSSProperties } from 'react';
 
 interface Plano {
   id: string;
@@ -23,13 +24,19 @@ interface Props {
   planoAtualNome: string | null;
 }
 
+const inp: CSSProperties = {
+  width: '100%', background: '#080c10', border: '1px solid #1e293b',
+  borderRadius: 10, padding: '12px 16px', color: '#f1f5f9',
+  fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color 0.15s',
+};
+
 export default function CheckoutClient({ plano, intervalo, userEmail, planoAtualNome }: Props) {
   const router = useRouter();
-  const [enviado, setEnviado] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]           = useState(false);
   const [nomeCompleto, setNomeCompleto] = useState('');
-  const [nif, setNif] = useState('');
-  const [erroFaturacao, setErroFaturacao] = useState('');
+  const [nif, setNif]                   = useState('');
+  const [erro, setErro]                 = useState('');
 
   const preco = intervalo === 'anual'
     ? (plano.preco_anual ?? plano.preco_mensal ?? plano.preco)
@@ -40,10 +47,15 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
     ? Math.round(((precoMensal * 12 - plano.preco_anual) / (precoMensal * 12)) * 100)
     : null;
 
+  const features: string[] = plano.vantagens?.length ? plano.vantagens : [
+    'Configurador 3D paramétrico completo',
+    `${plano.limite_downloads} downloads STL por mês`,
+    plano.permite_venda_comercial ? 'Licença Comercial incluída' : 'Licença de uso pessoal',
+  ];
+
   const handleConfirmar = async () => {
-    if (!nomeCompleto.trim()) { setErroFaturacao('O nome completo é obrigatório para a fatura.'); return; }
-    setErroFaturacao('');
-    setLoading(true);
+    if (!nomeCompleto.trim()) { setErro('O nome completo é obrigatório para a fatura.'); return; }
+    setErro(''); setLoading(true);
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -54,185 +66,175 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
       if (!res.ok) throw new Error(json.error || 'Erro ao iniciar pagamento.');
       if (json.url) window.location.href = json.url;
     } catch (err: any) {
-      alert(err.message);
+      setErro(err.message);
       setLoading(false);
     }
   };
 
-  if (enviado) {
-    return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6">
-        <div className="bg-[#1e293b] rounded-3xl border border-white/10 p-12 max-w-md w-full text-center shadow-2xl">
-          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="text-green-400" size={32} />
-          </div>
-          <h1 className="text-2xl font-black text-white mb-3">Pedido recebido!</h1>
-          <p className="text-slate-400 text-sm leading-relaxed mb-2">
-            Recebemos o teu pedido para o plano{' '}
-            <span className="text-white font-bold">{plano.nome}</span>{' '}
-            <span className="text-indigo-400">({intervalo})</span>.
-          </p>
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">
-            Vamos contactar-te em breve para{' '}
-            <span className="text-indigo-400 font-semibold">{userEmail}</span>{' '}
-            com as instruções de pagamento.
-          </p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all"
-          >
-            Ir para o Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white p-6 md:p-10">
-      <div className="max-w-4xl mx-auto">
+    <div style={{ minHeight: '100vh', background: '#080c10', color: '#f1f5f9', fontFamily: 'Inter, sans-serif' }}>
 
+      {/* Header */}
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px 0' }}>
         <button
           onClick={() => router.push('/pricing')}
-          className="flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-8 transition-colors"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', padding: 0, marginBottom: 40 }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#f1f5f9')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
         >
           <ArrowLeft size={16} /> Voltar aos planos
         </button>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px 80px', display: 'grid', gridTemplateColumns: '1fr 420px', gap: 24, alignItems: 'start' }}>
 
-          {/* Resumo */}
-          <div className="bg-[#1e293b] rounded-3xl border border-white/10 p-8 shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Resumo</p>
-              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
-                intervalo === 'anual'
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                  : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-              }`}>
-                {intervalo === 'anual' ? '📅 Anual' : '🗓️ Mensal'}
-              </span>
+        {/* ── Coluna esquerda: resumo do plano ─────────────────────────── */}
+        <div>
+          {/* Card principal do plano */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, overflow: 'hidden', marginBottom: 16 }}>
+            {/* Gradient top bar */}
+            <div style={{ background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)', padding: '32px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  {intervalo === 'anual' ? '📅 Plano Anual' : '🗓️ Plano Mensal'}
+                </span>
+                {poupanca && (
+                  <span style={{ background: 'rgba(74,222,128,0.2)', border: '1px solid rgba(74,222,128,0.4)', color: '#4ade80', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>
+                    Poupa {poupanca}%
+                  </span>
+                )}
+              </div>
+              <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 900, letterSpacing: '-0.5px', color: '#fff' }}>{plano.nome}</h1>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{preco}€</span>
+                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15 }}>/ {intervalo === 'anual' ? 'ano' : 'mês'}</span>
+              </div>
+              {intervalo === 'anual' && plano.preco_mensal && (
+                <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+                  Equivale a {(preco as number / 12).toFixed(2)}€/mês
+                  {plano.preco_mensal && <span style={{ marginLeft: 8, textDecoration: 'line-through' }}>{(plano.preco_mensal * 12).toFixed(0)}€/ano</span>}
+                </p>
+              )}
             </div>
 
-            <h2 className="text-2xl font-black text-white mb-1">{plano.nome}</h2>
-            {planoAtualNome && (
-              <p className="text-xs text-slate-500 mb-6">
-                Plano atual: <span className="text-slate-400">{planoAtualNome}</span>
+            {/* Detalhes */}
+            <div style={{ padding: '24px 28px' }}>
+              {[
+                { label: 'Downloads por mês', value: `${plano.limite_downloads} downloads` },
+                { label: 'Validade', value: `${plano.validade_dias} dias` },
+                { label: 'Licença', value: plano.permite_venda_comercial ? '✓ Comercial incluída' : 'Uso pessoal' },
+              ].map((row, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < 2 ? '1px solid #1e293b' : 'none' }}>
+                  <span style={{ color: '#64748b', fontSize: 14 }}>{row.label}</span>
+                  <span style={{ fontWeight: 700, color: '#f1f5f9', fontSize: 14 }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Features */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: '20px 24px' }}>
+            <p style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Incluído no plano</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {features.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <CheckCircle2 size={15} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 14, color: '#94a3b8' }}>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Coluna direita: formulário ────────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28 }}>
+            <p style={{ margin: '0 0 20px', fontSize: 11, fontWeight: 800, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+              Dados de faturação
+            </p>
+
+            {/* Email (readonly) */}
+            <div style={{ background: '#080c10', border: '1px solid #1e293b', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email</p>
+              <p style={{ margin: 0, color: '#f1f5f9', fontSize: 14, fontWeight: 600 }}>{userEmail}</p>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ margin: '0 0 6px', fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Nome completo <span style={{ color: '#f87171' }}>*</span>
+              </p>
+              <input
+                style={inp}
+                value={nomeCompleto}
+                onChange={e => setNomeCompleto(e.target.value)}
+                placeholder="Nome como aparece na fatura"
+                onFocus={e => (e.target.style.borderColor = '#6366f1')}
+                onBlur={e  => (e.target.style.borderColor = '#1e293b')}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 6px', fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>NIF (opcional)</p>
+              <input
+                style={inp}
+                value={nif}
+                onChange={e => setNif(e.target.value)}
+                placeholder="Ex: 123456789"
+                maxLength={9}
+                onFocus={e => (e.target.style.borderColor = '#6366f1')}
+                onBlur={e  => (e.target.style.borderColor = '#1e293b')}
+              />
+            </div>
+
+            {erro && (
+              <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12, padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: 8 }}>
+                {erro}
               </p>
             )}
 
-            <div className="space-y-0 mb-8">
-              {[
-                {
-                  label: intervalo === 'anual' ? 'Subscrição anual' : 'Subscrição mensal',
-                  valor: <span className="font-bold text-white">{preco}€ / {intervalo === 'anual' ? 'ano' : 'mês'}</span>
-                },
-                intervalo === 'anual' && plano.preco_anual ? {
-                  label: 'Equivalente mensal',
-                  valor: <span className="text-slate-300">{(plano.preco_anual / 12).toFixed(2)}€ / mês</span>
-                } : null,
-                poupanca ? {
-                  label: 'Poupança vs mensal',
-                  valor: <span className="font-bold text-green-400">-{poupanca}%</span>
-                } : null,
-                { label: 'Créditos incluídos', valor: <span className="font-bold text-green-400">{plano.limite_downloads} créditos</span> },
-                { label: 'Validade', valor: <span className="font-bold text-white">{plano.validade_dias} dias</span> },
-                plano.permite_venda_comercial ? {
-                  label: 'Licença comercial',
-                  valor: <span className="text-green-400 text-sm font-bold">✓ Incluída</span>
-                } : null,
-              ].filter(Boolean).map((row, i, arr) => (
-                <div key={i} className={`flex justify-between items-center py-3 ${i < arr.length - 1 ? 'border-b border-white/5' : ''}`}>
-                  <span className="text-slate-400 text-sm">{(row as {label: string; valor: React.ReactNode}).label}</span>
-                  {(row as {label: string; valor: React.ReactNode}).valor}
-                </div>
-              ))}
-            </div>
+            {/* CTA Button */}
+            <button
+              onClick={handleConfirmar}
+              disabled={loading}
+              style={{
+                width: '100%', padding: '16px', borderRadius: 12, border: 'none',
+                background: loading ? '#1e293b' : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                color: '#fff', fontWeight: 900, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                boxShadow: loading ? 'none' : '0 8px 32px rgba(99,102,241,0.35)',
+                transition: 'all 0.2s', opacity: loading ? 0.7 : 1,
+              }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <CreditCard size={16} />
+              {loading ? 'A redirecionar para pagamento…' : `Pagar ${preco}€ com cartão`}
+            </button>
 
-            <div className="flex justify-between items-center pt-4 border-t border-white/10">
-              <span className="font-bold text-white">Total</span>
-              <div className="text-right">
-                <span className="text-2xl font-black text-white">{preco}€</span>
-                {intervalo === 'anual' && plano.preco_mensal && (
-                  <p className="text-slate-500 text-xs line-through">{(plano.preco_mensal * 12).toFixed(2)}€</p>
-                )}
-              </div>
-            </div>
-
-            <ul className="mt-6 space-y-2">
-              {(plano.vantagens?.length ? plano.vantagens : [
-                'Configurador 3D completo',
-                `${plano.limite_downloads} downloads STL`,
-                plano.permite_venda_comercial ? 'Licença Comercial' : 'Uso Pessoal',
-              ]).map((v, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-slate-300">
-                  <CheckCircle2 size={13} className="text-indigo-400 flex-shrink-0" />
-                  {v}
-                </li>
-              ))}
-            </ul>
+            <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Lock size={11} /> Pagamento seguro via Stripe
+            </p>
           </div>
 
-          {/* Ação */}
-          <div className="space-y-4">
-            <div className="bg-[#1e293b] rounded-3xl border border-white/10 p-8 shadow-xl">
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Dados de contacto</p>
-
-              <div className="bg-[#0f172a] rounded-xl border border-white/10 px-4 py-3 mb-4">
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Email</p>
-                <p className="text-white font-semibold text-sm">{userEmail}</p>
+          {/* Trust badges */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {[
+              { icon: <Shield size={16} color="#4ade80" />, text: 'Dados seguros e encriptados' },
+              { icon: <Zap size={16} color="#818cf8" />,    text: 'Acesso imediato após pagamento' },
+            ].map((b, i) => (
+              <div key={i} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                {b.icon}
+                <span style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{b.text}</span>
               </div>
+            ))}
+          </div>
 
-              {/* Dados de faturação */}
-              <div className="space-y-3 mb-6">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Nome completo <span className="text-red-400">*</span></p>
-                  <input
-                    type="text"
-                    value={nomeCompleto}
-                    onChange={e => setNomeCompleto(e.target.value)}
-                    placeholder="Nome como aparece na fatura"
-                    className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">NIF (opcional)</p>
-                  <input
-                    type="text"
-                    value={nif}
-                    onChange={e => setNif(e.target.value)}
-                    placeholder="Ex: 123456789"
-                    maxLength={9}
-                    className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-                {erroFaturacao && <p className="text-red-400 text-xs">{erroFaturacao}</p>}
-              </div>
-
-              <button
-                onClick={handleConfirmar}
-                disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-widest shadow-lg shadow-indigo-500/20"
-              >
-                <CreditCard size={16} />
-                {loading ? 'A processar...' : `Confirmar pedido — ${preco}€`}
-              </button>
-
-              <p className="text-center text-slate-500 text-xs mt-4">
-                Iremos contactar-te para confirmar o pagamento.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#1e293b] rounded-2xl border border-white/5 p-4 flex items-center gap-3">
-                <Shield size={18} className="text-green-400 flex-shrink-0" />
-                <p className="text-xs text-slate-400">Dados seguros e protegidos</p>
-              </div>
-              <div className="bg-[#1e293b] rounded-2xl border border-white/5 p-4 flex items-center gap-3">
-                <Zap size={18} className="text-indigo-400 flex-shrink-0" />
-                <p className="text-xs text-slate-400">Acesso imediato após pagamento</p>
-              </div>
-            </div>
+          {/* Fatura info */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span style={{ fontSize: 16 }}>🧾</span>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
+              A fatura será enviada para o teu email em <strong style={{ color: '#94a3b8' }}>até 24 horas</strong>.
+            </p>
           </div>
         </div>
       </div>
