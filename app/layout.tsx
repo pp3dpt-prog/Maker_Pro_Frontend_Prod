@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
+
+const GA_ID = 'G-7KJCGXHW9Q';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -51,6 +54,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Footer />
         <Analytics />
+        {/* Google Analytics 4 */}
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+        <Script id="ga4" strategy="afterInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}', { page_path: window.location.pathname });
+        `}</Script>
       </body>
     </html>
   );
