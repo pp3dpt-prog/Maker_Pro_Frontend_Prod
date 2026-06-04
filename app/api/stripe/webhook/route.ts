@@ -23,13 +23,20 @@ async function activatePlan(userId: string, planoId: string, subscriptionId: str
   const dias = intervalo === 'anual' ? plano.validade_dias * 12 : plano.validade_dias;
   const validoAte = new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString();
 
+  // Actualizar campos base (sempre existem)
   await admin.from('prod_perfis').update({
-    plano_id:          planoId,
-    downloads_limite:  plano.limite_downloads,
-    downloads_mes:     0,
-    stripe_subscription_id: subscriptionId,
-    plano_valido_ate:  validoAte,
+    plano_id:         planoId,
+    downloads_limite: plano.limite_downloads,
+    downloads_mes:    0,
   }).eq('id', userId);
+
+  // Actualizar campos opcionais (só se as colunas existirem)
+  try {
+    await admin.from('prod_perfis').update({
+      stripe_subscription_id: subscriptionId,
+      plano_valido_ate:       validoAte,
+    }).eq('id', userId);
+  } catch (_) { /* colunas ainda não existem — ignorar */ }
 }
 
 export async function POST(req: NextRequest) {
