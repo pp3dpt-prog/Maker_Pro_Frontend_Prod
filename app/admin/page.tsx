@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import CreateCouponForm from '@/components/admin/CreateCouponForm';
+import ThumbnailsTab from '@/components/admin/ThumbnailsTab';
 import type { CSSProperties, ReactNode } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ function SideBtn({ active, onClick, children }: { active: boolean; onClick: () =
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas' | 'faturas'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas' | 'faturas' | 'thumbnails'>('stats');
   const [showModal, setShowModal] = useState(false);
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [tickets, setTickets] = useState<TicketSuporte[]>([]);
@@ -166,6 +167,7 @@ export default function AdminDashboard() {
         <SideBtn active={activeTab === 'cupons'} onClick={() => setActiveTab('cupons')}>🏷️ Cupões</SideBtn>
         <SideBtn active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')}>🎫 Tickets</SideBtn>
         <SideBtn active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')}>📣 Campanhas</SideBtn>
+        <SideBtn active={activeTab === 'thumbnails'} onClick={() => setActiveTab('thumbnails')}>🖼️ Thumbnails</SideBtn>
         <SideBtn active={activeTab === 'faturas'} onClick={() => setActiveTab('faturas')}>
           🧾 Faturas
           {stats.faturasPendentes > 0 && (
@@ -239,6 +241,9 @@ export default function AdminDashboard() {
             </div>
           </>
         )}
+
+        {/* ── TAB: THUMBNAILS ── */}
+        {activeTab === 'thumbnails' && <ThumbnailsTab />}
 
         {/* ── TAB: FATURAS ── */}
         {activeTab === 'faturas' && (
