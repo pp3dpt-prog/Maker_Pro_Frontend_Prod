@@ -1,34 +1,24 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import ThumbnailCapture from './ThumbnailCapture';
 
 type Design = {
   id: string;
   nome: string;
   familia: string;
   thumbnail_url: string | null;
-  generation_schema: any;
-  stl_file_path: string | null;
-};
-
-type DesignState = {
-  stlUrl: string | null;
-  status: 'idle' | 'fetching' | 'rendering' | 'done' | 'skip' | 'error';
-  thumbnailUrl: string | null;
-  error: string | null;
 };
 
 export default function ThumbnailsTab() {
-  const [designs, setDesigns]   = useState<Design[]>([]);
-  const [states, setStates]     = useState<Record<string, DesignState>>({});
-  const [loading, setLoading]   = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [designs, setDesigns] = useState<Design[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     supabase.from('prod_designs')
-      .select('id, nome, familia, thumbnail_url, generation_schema, stl_file_path')
+      .select('id, nome, familia, thumbnail_url')
       .order('familia')
       .then(({ data }) => {
         setDesigns(data || []);
@@ -36,196 +26,138 @@ export default function ThumbnailsTab() {
       });
   }, []);
 
-  const hasImageUpload = (d: Design) =>
-    Object.values(d.generation_schema?.parameters ?? {})
-      .some((p: any) => p?.ui?.widget === 'image_upload');
-
-  const getDefaultParams = (d: Design): Record<string, any> => {
-    const params: Record<string, any> = {};
-    for (const [k, v] of Object.entries(d.generation_schema?.parameters ?? {})) {
-      const def = (v as any).default;
-      if (def !== null && def !== undefined) params[k] = def;
-    }
-    return params;
-  };
-
-  const isLegacy = (d: Design) =>
-    !!d.generation_schema?.base_geometry || d.familia === 'pet-tags' || d.familia === 'portachaves';
-
-  const generateOne = useCallback(async (design: Design) => {
-    const id = design.id;
-
-    // Designs com image_upload não podem ser auto-gerados
-    if (hasImageUpload(design)) {
-      setStates(s => ({ ...s, [id]: { stlUrl: null, status: 'skip', thumbnailUrl: null, error: 'Requer imagem do utilizador' } }));
-      return;
-    }
-
-    setStates(s => ({ ...s, [id]: { stlUrl: null, status: 'fetching', thumbnailUrl: null, error: null } }));
+  const handleUpload = async (design: Design, file: File) => {
+    if (!file) return;
+    setUploading(design.id);
 
     try {
-      // STL estático (sem parâmetros)
-      if (design.stl_file_path && !design.generation_schema?.parameters) {
-        const { data } = await supabase.storage.from('makers_pro_stl_prod').createSignedUrl(design.stl_file_path, 3600);
-        if (data?.signedUrl) {
-          setStates(s => ({ ...s, [id]: { stlUrl: data.signedUrl, status: 'rendering', thumbnailUrl: null, error: null } }));
-          return;
-        }
-      }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target?.result as string;
 
-      const params  = getDefaultParams(design);
-      const system  = isLegacy(design) ? 'legacy' : 'scad';
+        const res = await fetch('/api/admin/thumbnail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ design_id: design.id, image_base64: base64 }),
+        });
 
-      // Gerar STL preview com params default
-      const res = await fetch('/api/gerar-stl-pro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: design.id, mode: 'preview', system, ...params }),
-      });
-
-      if (!res.ok) throw new Error('Erro ao gerar STL');
-
-      const ct = res.headers.get('content-type') ?? '';
-      if (ct.includes('application/json')) {
         const json = await res.json();
-        const url = json.url ?? json.stlUrl;
-        if (url) {
-          setStates(s => ({ ...s, [id]: { stlUrl: url, status: 'rendering', thumbnailUrl: null, error: null } }));
-          return;
-        }
-      }
+        if (!res.ok) throw new Error(json.error);
 
-      // Resposta directa em STL binário
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      setStates(s => ({ ...s, [id]: { stlUrl: url, status: 'rendering', thumbnailUrl: null, error: null } }));
-
+        setDesigns(prev => prev.map(d =>
+          d.id === design.id ? { ...d, thumbnail_url: json.url } : d
+        ));
+      };
+      reader.readAsDataURL(file);
     } catch (e: any) {
-      setStates(s => ({ ...s, [id]: { stlUrl: null, status: 'error', thumbnailUrl: null, error: e.message } }));
+      alert('Erro ao carregar imagem: ' + e.message);
+    } finally {
+      setUploading(null);
     }
-  }, []);
-
-  const generateAll = async () => {
-    setGenerating(true);
-    const missing = designs.filter(d => !d.thumbnail_url && !hasImageUpload(d));
-    for (const d of missing) {
-      await generateOne(d);
-      await new Promise(r => setTimeout(r, 500)); // pequena pausa entre requests
-    }
-    setGenerating(false);
   };
 
-  const sem  = designs.filter(d => !d.thumbnail_url);
-  const com  = designs.filter(d => d.thumbnail_url);
+  const sem = designs.filter(d => !d.thumbnail_url);
+  const com = designs.filter(d => d.thumbnail_url);
 
   if (loading) return <p style={{ color: '#64748b' }}>A carregar designs…</p>;
 
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+  const DesignCard = ({ d }: { d: Design }) => (
+    <div key={d.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden' }}>
+      {/* Preview da imagem */}
+      <div
+        onClick={() => fileRefs.current[d.id]?.click()}
+        style={{
+          height: 160, background: '#080c10', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', cursor: 'pointer', position: 'relative', overflow: 'hidden',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+      >
+        {d.thumbnail_url ? (
+          <img src={d.thumbnail_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={d.nome} />
+        ) : (
+          <div style={{ textAlign: 'center', color: '#334155' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
+            <p style={{ margin: 0, fontSize: 12 }}>Clica para carregar</p>
+          </div>
+        )}
+
+        {/* Overlay ao hover */}
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          opacity: 0, transition: 'opacity 0.2s',
+        }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+        >
+          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
+            {uploading === d.id ? '⏳ A carregar…' : d.thumbnail_url ? '↺ Substituir' : '+ Carregar imagem'}
+          </span>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🖼️ Thumbnails</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
-            {com.length} com thumbnail · {sem.length} sem thumbnail
-          </p>
+          <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14 }}>{d.nome}</p>
+          <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>{d.familia}</p>
         </div>
         <button
-          onClick={generateAll}
-          disabled={generating || sem.filter(d => !hasImageUpload(d)).length === 0}
-          style={{ padding: '10px 20px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13, opacity: generating ? 0.6 : 1 }}
+          onClick={() => fileRefs.current[d.id]?.click()}
+          disabled={uploading === d.id}
+          style={{
+            padding: '6px 14px', background: '#1e293b', color: '#93c5fd',
+            border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            opacity: uploading === d.id ? 0.5 : 1,
+          }}
         >
-          {generating ? '⏳ A gerar…' : '⚡ Gerar todos automaticamente'}
+          {uploading === d.id ? '⏳' : d.thumbnail_url ? '↺' : '+ Imagem'}
         </button>
       </div>
 
-      {/* Designs sem thumbnail */}
+      {/* Input de ficheiro oculto */}
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        ref={el => { fileRefs.current[d.id] = el; }}
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) handleUpload(d, file);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🖼️ Thumbnails</h1>
+        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+          {com.length} com thumbnail · {sem.length} sem thumbnail — clica em cada card para carregar a imagem
+        </p>
+      </div>
+
       {sem.length > 0 && (
         <>
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Sem thumbnail</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 16, marginBottom: 32 }}>
-            {sem.map(d => {
-              const st = states[d.id];
-              return (
-                <div key={d.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <div>
-                      <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 15 }}>{d.nome}</p>
-                      <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>{d.familia}</p>
-                    </div>
-                    {!st && (
-                      <button
-                        onClick={() => generateOne(d)}
-                        style={{ padding: '6px 14px', background: '#1e293b', color: '#93c5fd', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                      >
-                        Gerar
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Estados */}
-                  {!st && (
-                    <div style={{ height: 100, background: '#080c10', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 12 }}>
-                      Clica em "Gerar" para criar o thumbnail
-                    </div>
-                  )}
-                  {st?.status === 'skip' && (
-                    <div style={{ padding: '12px', background: '#1e293b', borderRadius: 8, color: '#64748b', fontSize: 12 }}>
-                      ⚠️ {st.error}
-                    </div>
-                  )}
-                  {st?.status === 'error' && (
-                    <div style={{ padding: '12px', background: '#7f1d1d', borderRadius: 8, color: '#fca5a5', fontSize: 12 }}>
-                      ❌ {st.error}
-                    </div>
-                  )}
-                  {st?.status === 'done' && st.thumbnailUrl && (
-                    <img src={st.thumbnailUrl} style={{ width: '100%', borderRadius: 8 }} alt="thumbnail" />
-                  )}
-                  {(st?.status === 'fetching') && (
-                    <div style={{ height: 100, background: '#080c10', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12 }}>
-                      ⏳ A gerar STL…
-                    </div>
-                  )}
-                  {st?.status === 'rendering' && st.stlUrl && (
-                    <ThumbnailCapture
-                      stlUrl={st.stlUrl}
-                      designId={d.id}
-                      onCaptured={(url) => {
-                        setStates(s => ({ ...s, [d.id]: { ...s[d.id], status: 'done', thumbnailUrl: url } }));
-                        setDesigns(prev => prev.map(x => x.id === d.id ? { ...x, thumbnail_url: url } : x));
-                      }}
-                      onError={(err) => setStates(s => ({ ...s, [d.id]: { ...s[d.id], status: 'error', error: err } }))}
-                    />
-                  )}
-                </div>
-              );
-            })}
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+            Sem thumbnail ({sem.length})
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 32 }}>
+            {sem.map(d => <DesignCard key={d.id} d={d} />)}
           </div>
         </>
       )}
 
-      {/* Designs com thumbnail */}
       {com.length > 0 && (
         <>
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Com thumbnail</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {com.map(d => (
-              <div key={d.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden' }}>
-                <img src={d.thumbnail_url!} style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} alt={d.nome} />
-                <div style={{ padding: '10px 12px' }}>
-                  <p style={{ margin: '0 0 2px', fontWeight: 600, fontSize: 13 }}>{d.nome}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>{d.familia}</p>
-                    <button
-                      onClick={() => generateOne(d)}
-                      style={{ padding: '3px 10px', background: 'transparent', color: '#475569', border: '1px solid #1e293b', borderRadius: 6, cursor: 'pointer', fontSize: 10 }}
-                    >
-                      ↺ Regenerar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+            Com thumbnail ({com.length})
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+            {com.map(d => <DesignCard key={d.id} d={d} />)}
           </div>
         </>
       )}
