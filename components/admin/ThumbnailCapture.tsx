@@ -107,7 +107,7 @@ export default function ThumbnailCapture({ stlUrl, designId, onCaptured, onError
       animate();
     },
     undefined,
-    (err) => {
+    (err: unknown) => {
       console.error('[ThumbnailCapture] erro:', err);
       setStatus('error');
       onError('Erro ao carregar STL');
