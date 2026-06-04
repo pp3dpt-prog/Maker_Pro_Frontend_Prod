@@ -49,6 +49,9 @@ export default function ThumbnailsTab() {
     return params;
   };
 
+  const isLegacy = (d: Design) =>
+    !!d.generation_schema?.base_geometry || d.familia === 'pet-tags' || d.familia === 'portachaves';
+
   const generateOne = useCallback(async (design: Design) => {
     const id = design.id;
 
@@ -61,7 +64,7 @@ export default function ThumbnailsTab() {
     setStates(s => ({ ...s, [id]: { stlUrl: null, status: 'fetching', thumbnailUrl: null, error: null } }));
 
     try {
-      // Se tem STL estático usa directamente
+      // STL estático (sem parâmetros)
       if (design.stl_file_path && !design.generation_schema?.parameters) {
         const { data } = await supabase.storage.from('makers_pro_stl_prod').createSignedUrl(design.stl_file_path, 3600);
         if (data?.signedUrl) {
@@ -70,12 +73,14 @@ export default function ThumbnailsTab() {
         }
       }
 
+      const params  = getDefaultParams(design);
+      const system  = isLegacy(design) ? 'legacy' : 'scad';
+
       // Gerar STL preview com params default
-      const params = getDefaultParams(design);
       const res = await fetch('/api/gerar-stl-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: design.id, mode: 'preview', system: 'scad', ...params }),
+        body: JSON.stringify({ id: design.id, mode: 'preview', system, ...params }),
       });
 
       if (!res.ok) throw new Error('Erro ao gerar STL');
