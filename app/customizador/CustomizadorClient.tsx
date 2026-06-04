@@ -10,6 +10,7 @@ type Props = {
   params: Record<string, any>;
   stlUrl?: string | null;
   stlFilePath?: string | null; // caminho do modelo em branco (pet-tags)
+  thumbnailUrl?: string | null; // imagem de preview para produtos sem preview nativo
 };
 
 export default function CustomizadorClient({
@@ -18,15 +19,31 @@ export default function CustomizadorClient({
   params,
   stlUrl,
   stlFilePath,
+  thumbnailUrl,
 }: Props) {
+  // Pet-tags têm preview nativo (stlFilePath); outros produtos usam thumbnail se disponível
+  const hasPetTagPreview = !!stlFilePath;
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {mode === 'preview' && (
         <>
-          <Preview3D
-            params={params}
-            stlFilePath={stlFilePath}
-          />
+          {hasPetTagPreview ? (
+            /* Pet-tags: preview 3D nativo com texto em tempo real */
+            <Preview3D params={params} stlFilePath={stlFilePath} />
+          ) : thumbnailUrl ? (
+            /* Outros produtos: mostrar thumbnail como preview */
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
+              <img
+                src={thumbnailUrl}
+                alt="Preview do produto"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              />
+            </div>
+          ) : (
+            /* Sem thumbnail: cubo genérico */
+            <Preview3D params={params} stlFilePath={null} />
+          )}
           <div
             style={{
               position: 'absolute',
@@ -47,10 +64,12 @@ export default function CustomizadorClient({
               maxWidth: 520,
             }}
           >
-            <strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}
-            As letras podem mostrar pequenas irregularidades aqui que{' '}
-            <strong>não aparecem no ficheiro STL final</strong>. Podes gerar o STL
-            as vezes que quiseres — só pagas quando fizeres o <strong>download</strong>.
+            {hasPetTagPreview
+              ? <><strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}As letras podem mostrar pequenas irregularidades que <strong>não aparecem no STL final</strong>.</>
+              : thumbnailUrl
+                ? <><strong style={{ color: '#60a5fa' }}>Exemplo do produto.</strong>{' '}Gera o STL para ver o resultado exacto com os teus parâmetros.</>
+                : <><strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}Gera o STL para ver o modelo com os teus parâmetros.</>
+            }
           </div>
         </>
       )}

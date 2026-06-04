@@ -21,6 +21,7 @@ type Design = {
   familia: string;
   generation_schema: GenerationSchema;
   stl_file_path?: string | null;
+  thumbnail_url?: string | null;
   total_likes: number;
   total_downloads: number;
   estado: string;
@@ -747,6 +748,7 @@ export default function PageInner() {
           params={params}
           stlUrl={stlUrl}
           stlFilePath={design.stl_file_path}
+          thumbnailUrl={design.thumbnail_url}
         />
       </section>
     </main>
