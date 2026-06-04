@@ -69,6 +69,7 @@ export default function PageInner() {
   const [params, setParams] = useState<Record<string, any> | null>(null);
   const [mode, setMode] = useState<'preview' | 'stl' | 'generating'>('preview');
   const [stlUrl, setStlUrl] = useState<string | null>(null);
+  const [paramsChanged, setParamsChanged] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -225,6 +226,7 @@ export default function PageInner() {
       setStlUrl(null);
       setTxtUrl(null);
     }
+    setParamsChanged(true);
   };
 
   // Upload de imagem para o Supabase Storage
@@ -278,6 +280,7 @@ export default function PageInner() {
 
     try {
       setMode('generating');
+      setParamsChanged(false);
       const paramsBackend = filtrarParamsBackend(params);
 
       // Detetar sistema: 'scad' para novos produtos (sem base_geometry),
@@ -641,23 +644,40 @@ export default function PageInner() {
               </button>
             ) : (
               /* Autenticado: pode sempre gerar */
-              <button
-                className={styles.primaryBtn}
-                onClick={gerarSTL}
-                disabled={mode === 'generating'}
-                style={{
-                  opacity: mode === 'generating' ? 0.6 : 1,
-                  cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  ...(isClienteFinal && !isMaker && {
-                    background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-                  }),
-                }}
-              >
-                {mode === 'generating'
-                  ? (isClienteFinal && !isMaker ? 'A gerar pré-visualização…' : 'A gerar STL…')
-                  : (isClienteFinal && !isMaker ? '🔍 Pré-visualizar peça em 3D' : 'Gerar STL')}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {paramsChanged && mode !== 'generating' && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 12px', borderRadius: 8,
+                    background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)',
+                    fontSize: 12, color: '#fbbf24', fontWeight: 600,
+                  }}>
+                    <span style={{ animation: 'pulse 1.5s infinite', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#fbbf24' }} />
+                    Parâmetros alterados — clica para actualizar
+                  </div>
+                )}
+                <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
+                <button
+                  className={styles.primaryBtn}
+                  onClick={gerarSTL}
+                  disabled={mode === 'generating'}
+                  style={{
+                    opacity: mode === 'generating' ? 0.6 : 1,
+                    cursor: mode === 'generating' ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    ...(paramsChanged && mode !== 'generating' && {
+                      boxShadow: '0 0 0 2px rgba(251,191,36,0.5)',
+                    }),
+                    ...(isClienteFinal && !isMaker && {
+                      background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                    }),
+                  }}
+                >
+                  {mode === 'generating'
+                    ? (isClienteFinal && !isMaker ? 'A gerar pré-visualização…' : 'A gerar STL…')
+                    : (isClienteFinal && !isMaker ? '🔍 Pré-visualizar peça em 3D' : 'Gerar STL')}
+                </button>
+              </div>
             )}
 
             {/* Aviso de plano para makers sem acesso ao download */}
