@@ -44,7 +44,7 @@ export default function ThumbnailCapture({ stlUrl, designId, onCaptured, onError
     const loader = new STLLoader();
     setStatus('loading');
 
-    loader.load(stlUrl, (geometry) => {
+    loader.load(stlUrl, (geometry: THREE.BufferGeometry) => {
       setStatus('rendering');
       geometry.computeBoundingBox();
       const box    = geometry.boundingBox!;
