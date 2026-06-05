@@ -4,6 +4,7 @@ import { logInfo, logWarn } from '@/lib/logger';
 import { verificarAbuso, getIP, alertarSeguranca } from '@/lib/abuse';
 
 export const runtime = 'nodejs';
+export const maxDuration = 120; // permite geração lenta (ex: nomes longos com twist)
 
 export function GET() {
   return new Response('This endpoint requires POST', { status: 405 });

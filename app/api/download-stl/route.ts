@@ -4,6 +4,7 @@ import { logInfo, logWarn } from '@/lib/logger';
 import { verificarAbuso, getIP, alertarSeguranca } from '@/lib/abuse';
 
 export const runtime = 'nodejs';
+export const maxDuration = 120; // geração de STL pode demorar (nomes longos, etc.)
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
