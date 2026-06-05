@@ -1,4 +1,7 @@
 import { NextRequest } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { logInfo, logWarn } from '@/lib/logger';
+import { verificarAbuso, getIP } from '@/lib/abuse';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +24,24 @@ export async function POST(req: NextRequest) {
   if (!designId || !params) {
     return new Response('INVALID_REQUEST', { status: 400 });
   }
+
+  // ── Identificar quem pede (email autenticado ou IP) ──
+  let quem = getIP(req);
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) quem = user.email;
+  } catch { /* anónimo — usa IP */ }
+
+  // ── Detecção de abuso: máx 20 gerações por minuto ──
+  const { bloqueado, total } = await verificarAbuso(quem, 'geracao', 20, 60);
+  if (bloqueado) {
+    await logWarn('seguranca', `Possível abuso de geração STL — ${total} pedidos/min`, { design: designId, system, total }, quem);
+    return new Response('RATE_LIMITED', { status: 429 });
+  }
+
+  // Registar a geração (também serve de contador para o rate-limit)
+  await logInfo('geracao', `Geração STL: ${designId}`, { system }, quem);
 
   // ── SISTEMA NOVO: produtos com scad_template (copo, etiquetas, etc.) ──
   if (system === 'scad') {

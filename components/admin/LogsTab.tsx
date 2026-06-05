@@ -23,6 +23,7 @@ export default function LogsTab() {
   const [dias, setDias]       = useState<string[]>([]);
   const [diaSel, setDiaSel]   = useState<string>(new Date().toISOString().slice(0, 10));
   const [levelSel, setLevelSel] = useState<string>('');
+  const [catSel, setCatSel]   = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
 
@@ -31,12 +32,13 @@ export default function LogsTab() {
     const params = new URLSearchParams();
     if (diaSel) params.set('dia', diaSel);
     if (levelSel) params.set('level', levelSel);
+    if (catSel) params.set('categoria', catSel);
     const res = await fetch(`/api/admin/logs?${params.toString()}`);
     const json = await res.json();
     setLogs(json.logs ?? []);
     if (json.dias?.length) setDias(json.dias);
     setLoading(false);
-  }, [diaSel, levelSel]);
+  }, [diaSel, levelSel, catSel]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -68,6 +70,18 @@ export default function LogsTab() {
             <option value="info">Info</option>
             <option value="warn">Avisos</option>
             <option value="error">Erros</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Categoria</label>
+          <select value={catSel} onChange={e => setCatSel(e.target.value)} style={selectStyle}>
+            <option value="">Todas</option>
+            <option value="seguranca">🛡️ Segurança</option>
+            <option value="pagamento">Pagamentos</option>
+            <option value="geracao">Geração STL</option>
+            <option value="download">Downloads</option>
+            <option value="suporte">Suporte</option>
+            <option value="geral">Geral</option>
           </select>
         </div>
         <button onClick={carregar} style={{ ...selectStyle, alignSelf: 'flex-end', color: '#93c5fd', fontWeight: 600 }}>

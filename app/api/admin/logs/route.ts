@@ -16,8 +16,9 @@ export async function GET(request: Request) {
   if (!(await isAdmin())) return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
 
   const { searchParams } = new URL(request.url);
-  const dia   = searchParams.get('dia');   // YYYY-MM-DD
-  const level = searchParams.get('level');  // info|warn|error
+  const dia       = searchParams.get('dia');       // YYYY-MM-DD
+  const level     = searchParams.get('level');     // info|warn|error
+  const categoria = searchParams.get('categoria'); // geral|pagamento|seguranca|...
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
     query = query.gte('created_at', inicio).lte('created_at', fim);
   }
   if (level) query = query.eq('level', level);
+  if (categoria) query = query.eq('categoria', categoria);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
