@@ -27,10 +27,11 @@ export async function GET() {
 
   // Verificar colunas necessárias em prod_perfis
   let colunasPerfis = '✅';
-  try {
-    await admin.from('prod_perfis').select('stripe_subscription_id, plano_valido_ate').limit(1);
-  } catch (e: any) {
-    colunasPerfis = `❌ ${e.message}`;
+  const colsCheck: Record<string, string> = {};
+  for (const col of ['plano', 'plano_id', 'stripe_subscription_id', 'plano_valido_ate', 'downloads_limite', 'downloads_mes']) {
+    const { error } = await admin.from('prod_perfis').select(col).limit(1);
+    colsCheck[col] = error ? `❌ ${error.message}` : '✅';
+    if (error) colunasPerfis = '❌ ver detalhe';
   }
 
   // Verificar tabela prod_pagamentos
@@ -48,8 +49,8 @@ export async function GET() {
       NEXT_PUBLIC_SITE_URL:  process.env.NEXT_PUBLIC_SITE_URL ?? '❌ EM FALTA',
     },
     bd: {
-      colunas_perfis_stripe: colunasPerfis,
-      tabela_pagamentos:     tabelaPagamentos,
+      colunas_perfis: colsCheck,
+      tabela_pagamentos: tabelaPagamentos,
     },
     planos: (planos ?? []).map(p => ({
       nome: p.nome,
