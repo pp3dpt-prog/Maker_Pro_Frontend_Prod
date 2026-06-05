@@ -6,11 +6,33 @@ type Props = {
   designId: string;
   designNome: string;
   params: Record<string, any>;
+  isAdmin?: boolean;
 };
 
-export default function IfThenPayDownloadButton({ designId, designNome, params }: Props) {
+export default function IfThenPayDownloadButton({ designId, designNome, params, isAdmin }: Props) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [simulado, setSimulado] = useState(false);
+
+  const simular = async () => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const res = await fetch('/api/ifthenpay/simular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao: `Download: ${designNome}`, valor: 0.99, design_id: designId, params }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro na simulação.');
+      setSimulado(true);
+      setTimeout(() => window.location.reload(), 1200); // recarrega para mostrar +1 download
+    } catch (err: any) {
+      setErro(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const comprar = async () => {
     setLoading(true);
@@ -66,6 +88,23 @@ export default function IfThenPayDownloadButton({ designId, designNome, params }
         </button>
       </div>
       {erro && <p style={{ margin: 0, color: '#f87171', fontSize: 12, textAlign: 'center' }}>{erro}</p>}
+
+      {/* Botão de simulação — só admin, para testar sem pagar */}
+      {isAdmin && (
+        <button
+          onClick={simular}
+          disabled={loading || simulado}
+          style={{
+            padding: '8px 14px', borderRadius: 8,
+            background: simulado ? 'rgba(52,211,153,0.15)' : 'rgba(167,139,250,0.1)',
+            border: `1px dashed ${simulado ? '#34d399' : '#a78bfa'}`,
+            color: simulado ? '#34d399' : '#a78bfa', fontSize: 12, fontWeight: 700,
+            cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {simulado ? '✓ Simulado — a recarregar…' : '🧪 Simular pagamento (admin)'}
+        </button>
+      )}
     </div>
   );
 }

@@ -714,6 +714,7 @@ export default function PageInner() {
                 designId={designId}
                 designNome={design.nome}
                 params={paramsParaDownload}
+                isAdmin={isAdmin}
               />
             )}
 
