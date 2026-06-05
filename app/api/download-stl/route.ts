@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logInfo, logWarn } from '@/lib/logger';
-import { verificarAbuso, getIP } from '@/lib/abuse';
+import { verificarAbuso, getIP, alertarSeguranca } from '@/lib/abuse';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   const { bloqueado, total } = await verificarAbuso(quem, 'download', 15, 60);
   if (bloqueado) {
     await logWarn('seguranca', `Possível abuso de downloads — ${total} pedidos/min`, { total }, quem);
+    await alertarSeguranca(quem, 'downloads');
     return new Response('RATE_LIMITED', { status: 429 });
   }
 
