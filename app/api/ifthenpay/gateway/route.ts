@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
 
-  const { descricao, valor, nome_completo, nif, tipo } = await request.json();
+  const { descricao, valor, nome_completo, nif, tipo, design_id, params } = await request.json();
   if (!valor) return NextResponse.json({ error: 'Valor obrigatório.' }, { status: 400 });
 
   const gatewayKey = process.env.IFTHENPAY_GATEWAY_KEY;
@@ -16,9 +16,9 @@ export async function POST(request: Request) {
   // ID numérico até 15 dígitos (timestamp ms = 13 dígitos)
   const orderId = Date.now().toString();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://maker-pro-frontend-prod.vercel.app';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
 
-  // Registar pagamento pendente
+  // Registar pagamento pendente (guarda design_id + params para download após pagamento)
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   await admin.from('prod_pagamentos').insert({
     user_id:            user.id,
@@ -31,7 +31,13 @@ export async function POST(request: Request) {
     tipo:               tipo ?? 'download_avulso',
     ifthenpay_order_id: orderId,
     fatura_emitida:     false,
+    metadata:           design_id ? { design_id, params: params ?? {} } : null,
   });
+
+  // success_url leva de volta ao produto certo após pagamento
+  const successUrl = design_id
+    ? `${siteUrl}/checkout/download-sucesso?order=${orderId}`
+    : `${siteUrl}/checkout/download-sucesso`;
 
   // Chamar API Gateway IfThenPay
   const res = await fetch(`https://api.ifthenpay.com/gateway/pinpay/${gatewayKey}`, {
@@ -42,9 +48,9 @@ export async function POST(request: Request) {
       amount:      Number(valor).toFixed(2),
       description: descricao ?? 'PP3D.pt',
       lang:        'pt',
-      success_url: `${siteUrl}/checkout/download-sucesso`,
+      success_url: successUrl,
       error_url:   `${siteUrl}/checkout/erro`,
-      cancel_url:  `${siteUrl}/pricing`,
+      cancel_url:  design_id ? `${siteUrl}/customizador?id=${design_id}` : `${siteUrl}/pricing`,
     }),
   });
 

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import CustomizadorClient from './CustomizadorClient';
 import DownloadStlButton from '@/components/DownloadStlButton';
+import IfThenPayDownloadButton from '@/components/IfThenPayDownloadButton';
 import PedidoOrcamentoModal from '@/components/PedidoOrcamentoModal';
 import styles from './ConfiguratorLayout.module.css';
 
@@ -698,12 +699,21 @@ export default function PageInner() {
               </a>
             )}
 
-            {/* Download STL — só para makers com plano suficiente */}
-            {canDownloadStl && mode === 'stl' && userId && (
+            {/* Download STL — só para makers com plano suficiente e com downloads */}
+            {canDownloadStl && mode === 'stl' && userId && !semDownloads && (
               <DownloadStlButton
                 designId={designId}
                 params={paramsParaDownload}
                 onSuccess={handleDownloadSuccess}
+              />
+            )}
+
+            {/* Compra de ficheiro único (0,99€) — quando sem downloads disponíveis */}
+            {canDownloadStl && mode === 'stl' && userId && semDownloads && (
+              <IfThenPayDownloadButton
+                designId={designId}
+                designNome={design.nome}
+                params={paramsParaDownload}
               />
             )}
 
