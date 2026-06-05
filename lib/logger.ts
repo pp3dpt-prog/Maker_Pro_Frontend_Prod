@@ -1,11 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // Logger server-side — escreve eventos na tabela prod_logs.
 // Nunca lança erro: logging falhado não deve quebrar a aplicação.
 
 type LogLevel = 'info' | 'warn' | 'error';
 
-let _admin: ReturnType<typeof createClient> | null = null;
+let _admin: SupabaseClient | null = null;
 function getAdmin() {
   if (_admin) return _admin;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
