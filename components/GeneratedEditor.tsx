@@ -28,13 +28,25 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
   const nomeAtual = String(values.Text ?? values.nome ?? '');
   const numLetras = nomeAtual.length;
 
-  // Esconde parâmetros por-letra (letter_N_space / letter_N_height) que não
-  // correspondem a nenhuma letra do nome actual — só mostra até ao nº de letras.
+  // Esconde parâmetros por-letra que não se aplicam ao nome actual.
+  //  - altura (letter_N_height) controla a letra N  → mostrar até N = numLetras
+  //  - espaço (letter_N_space) controla a letra N+1 → mostrar até N = numLetras-1
   const paramRelevante = ([name]: [string, any]): boolean => {
     const m = name.match(/^letter_(\d+)_(space|height)$/);
     if (!m) return true;
     if (numLetras === 0) return true; // sem nome ainda — mostra os defaults
-    return Number(m[1]) <= numLetras;
+    const n = Number(m[1]);
+    return m[2] === 'space' ? n <= numLetras - 1 : n <= numLetras;
+  };
+
+  // Rótulo honesto para os parâmetros por-letra:
+  //  - letter_N_height → "Altura da letra N"
+  //  - letter_N_space  → "Espaço da letra N+1" (porque controla a letra seguinte)
+  const rotuloLetra = (name: string, fallback: string): string => {
+    const m = name.match(/^letter_(\d+)_(space|height)$/);
+    if (!m) return fallback;
+    const n = Number(m[1]);
+    return m[2] === 'height' ? `Altura da letra ${n}` : `Espaço da letra ${n + 1}`;
   };
 
   const parameters = Object.entries(schema.parameters)
@@ -45,7 +57,7 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
     <div className="space-y-4">
       {parameters.map(([name, def]: any) => {
         const ui     = def.ui || {};
-        const label  = ui.label || name;
+        const label  = rotuloLetra(name, ui.label || name);
         const step   = ui.step ?? 1;
         const type   = ui.widget;
         const unit   = def.unit;
