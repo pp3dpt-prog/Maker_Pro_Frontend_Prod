@@ -24,7 +24,21 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
     );
   }
 
+  // Nº de letras do nome actual (porta-chaves usa `Text`; outros podem usar `nome`)
+  const nomeAtual = String(values.Text ?? values.nome ?? '');
+  const numLetras = nomeAtual.length;
+
+  // Esconde parâmetros por-letra (letter_N_space / letter_N_height) que não
+  // correspondem a nenhuma letra do nome actual — só mostra até ao nº de letras.
+  const paramRelevante = ([name]: [string, any]): boolean => {
+    const m = name.match(/^letter_(\d+)_(space|height)$/);
+    if (!m) return true;
+    if (numLetras === 0) return true; // sem nome ainda — mostra os defaults
+    return Number(m[1]) <= numLetras;
+  };
+
   const parameters = Object.entries(schema.parameters)
+    .filter(paramRelevante)
     .sort(([, a]: any, [, b]: any) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
