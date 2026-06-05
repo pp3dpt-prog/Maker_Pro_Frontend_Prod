@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { logInfo } from '@/lib/logger';
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -35,6 +36,8 @@ export async function POST(request: Request) {
     console.error('[suporte/criar]', error.message, error.details);
     return NextResponse.json({ error: `Erro ao criar ticket: ${error.message}` }, { status: 500 });
   }
+
+  await logInfo('suporte', `Novo ticket: ${assunto.trim()}`, { ticket_id: data.id, prioridade: prioridade ?? 'media' }, user.email ?? undefined);
 
   return NextResponse.json({ ok: true, id: data.id });
 }

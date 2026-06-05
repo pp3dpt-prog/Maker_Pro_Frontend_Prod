@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { logInfo, logError } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
   }).eq('id', user.id);
 
   if (updErr) {
+    await logError('pagamento', 'Falha ao activar plano após pagamento', { erro: updErr.message, stripe_session: session.id }, user.email ?? undefined);
     return NextResponse.json({ error: 'Erro ao actualizar perfil.', detalhe: updErr.message }, { status: 500 });
   }
 
@@ -109,5 +111,9 @@ export async function POST(request: Request) {
     stripe_session_id: session.id,
   });
 
-  return NextResponse.json({ ok: true, plano: plano.nome, downloads: plano.limite_downloads });
+  await logInfo('pagamento', `Subscrição activada: ${plano.nome} (${intervalo})`, {
+    valor, novoLimite, restantes_anteriores: restantes, stripe_session: session.id,
+  }, session.customer_email ?? user.email ?? undefined);
+
+  return NextResponse.json({ ok: true, plano: plano.nome, downloads: novoLimite });
 }

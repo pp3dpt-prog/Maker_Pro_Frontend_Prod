@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import CreateCouponForm from '@/components/admin/CreateCouponForm';
 import ThumbnailsTab from '@/components/admin/ThumbnailsTab';
+import LogsTab from '@/components/admin/LogsTab';
 import type { CSSProperties, ReactNode } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ function SideBtn({ active, onClick, children }: { active: boolean; onClick: () =
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas' | 'faturas' | 'thumbnails'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'cupons' | 'tickets' | 'campanhas' | 'faturas' | 'thumbnails' | 'logs'>('stats');
   const [showModal, setShowModal] = useState(false);
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [tickets, setTickets] = useState<TicketSuporte[]>([]);
@@ -168,6 +169,7 @@ export default function AdminDashboard() {
         <SideBtn active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')}>🎫 Tickets</SideBtn>
         <SideBtn active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')}>📣 Campanhas</SideBtn>
         <SideBtn active={activeTab === 'thumbnails'} onClick={() => setActiveTab('thumbnails')}>🖼️ Thumbnails</SideBtn>
+        <SideBtn active={activeTab === 'logs'} onClick={() => setActiveTab('logs')}>📋 Logs</SideBtn>
         <SideBtn active={activeTab === 'faturas'} onClick={() => setActiveTab('faturas')}>
           🧾 Faturas
           {stats.faturasPendentes > 0 && (
@@ -244,6 +246,9 @@ export default function AdminDashboard() {
 
         {/* ── TAB: THUMBNAILS ── */}
         {activeTab === 'thumbnails' && <ThumbnailsTab />}
+
+        {/* ── TAB: LOGS ── */}
+        {activeTab === 'logs' && <LogsTab />}
 
         {/* ── TAB: FATURAS ── */}
         {activeTab === 'faturas' && (
