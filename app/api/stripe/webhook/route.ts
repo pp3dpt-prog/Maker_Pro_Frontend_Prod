@@ -24,11 +24,20 @@ async function activatePlan(userId: string, planoId: string, subscriptionId: str
   const validoAte = new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString();
   const tier = plano.tier || (plano.permite_venda_comercial ? 'comercial' : 'pessoal');
 
+  // Somar downloads restantes do plano actual aos do plano novo
+  const { data: perfilAtual } = await admin
+    .from('prod_perfis')
+    .select('downloads_limite, downloads_mes')
+    .eq('id', userId)
+    .single();
+  const restantes  = Math.max(0, (perfilAtual?.downloads_limite ?? 0) - (perfilAtual?.downloads_mes ?? 0));
+  const novoLimite = restantes + plano.limite_downloads;
+
   // Actualizar campos base (sempre existem) — plano (texto) é o que o dashboard lê
   await admin.from('prod_perfis').update({
     plano:            tier,
     plano_id:         planoId,
-    downloads_limite: plano.limite_downloads,
+    downloads_limite: novoLimite,
     downloads_mes:    0,
   }).eq('id', userId);
 

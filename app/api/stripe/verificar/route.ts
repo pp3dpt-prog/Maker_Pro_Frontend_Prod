@@ -69,10 +69,19 @@ export async function POST(request: Request) {
   // tier (texto) é a fonte de verdade lida pelo dashboard e controlo de acessos
   const tier = plano.tier || (plano.permite_venda_comercial ? 'comercial' : 'pessoal');
 
+  // Somar downloads restantes do plano actual aos do plano novo
+  const { data: perfilAtual } = await admin
+    .from('prod_perfis')
+    .select('downloads_limite, downloads_mes')
+    .eq('id', user.id)
+    .single();
+  const restantes  = Math.max(0, (perfilAtual?.downloads_limite ?? 0) - (perfilAtual?.downloads_mes ?? 0));
+  const novoLimite = restantes + plano.limite_downloads;
+
   const { error: updErr } = await admin.from('prod_perfis').update({
     plano:            tier,
     plano_id:         planoId,
-    downloads_limite: plano.limite_downloads,
+    downloads_limite: novoLimite,
     downloads_mes:    0,
   }).eq('id', user.id);
 
