@@ -21,18 +21,22 @@ export default function CustomizadorClient({
   stlFilePath,
   thumbnailUrl,
 }: Props) {
-  // Pet-tags têm preview nativo (stlFilePath); outros produtos usam thumbnail se disponível
+  // Preview ao vivo (3D em tempo real):
+  //  - pet-tags: têm stlFilePath (modelo em branco + texto sobreposto)
+  //  - porta-chaves nome: params Text + Font_name (letras 3D geradas no browser)
   const hasPetTagPreview = !!stlFilePath;
+  const isNameKey = typeof params?.Text === 'string' && typeof params?.Font_name === 'string';
+  const temPreviewVivo = hasPetTagPreview || isNameKey;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {mode === 'preview' && (
         <>
-          {hasPetTagPreview ? (
-            /* Pet-tags: preview 3D nativo com texto em tempo real */
+          {temPreviewVivo ? (
+            /* Preview 3D ao vivo — actualiza com os parâmetros em tempo real */
             <Preview3D params={params} stlFilePath={stlFilePath} />
           ) : thumbnailUrl ? (
-            /* Outros produtos: mostrar thumbnail como preview */
+            /* Produtos sem preview ao vivo: mostrar thumbnail como exemplo */
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
               <img
                 src={thumbnailUrl}
@@ -41,7 +45,7 @@ export default function CustomizadorClient({
               />
             </div>
           ) : (
-            /* Sem thumbnail: cubo genérico */
+            /* Sem thumbnail nem preview ao vivo: cubo genérico */
             <Preview3D params={params} stlFilePath={null} />
           )}
           <div
@@ -64,8 +68,8 @@ export default function CustomizadorClient({
               maxWidth: 520,
             }}
           >
-            {hasPetTagPreview
-              ? <><strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}As letras podem mostrar pequenas irregularidades que <strong>não aparecem no STL final</strong>.</>
+            {temPreviewVivo
+              ? <><strong style={{ color: '#60a5fa' }}>Pré-visualização em tempo real.</strong>{' '}Pode mostrar pequenas irregularidades que <strong>não aparecem no STL final</strong>.</>
               : thumbnailUrl
                 ? <><strong style={{ color: '#60a5fa' }}>Exemplo do produto.</strong>{' '}Gera o STL para ver o resultado exacto com os teus parâmetros.</>
                 : <><strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}Gera o STL para ver o modelo com os teus parâmetros.</>
