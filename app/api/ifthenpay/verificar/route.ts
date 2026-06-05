@@ -17,9 +17,6 @@ export async function POST(request: Request) {
   const { order } = await request.json();
   if (!order) return NextResponse.json({ error: 'order obrigatório.' }, { status: 400 });
 
-  const boKey = process.env.IFTHENPAY_BACKOFFICE_KEY;
-  if (!boKey) return NextResponse.json({ error: 'IFTHENPAY_BACKOFFICE_KEY não configurada.' }, { status: 500 });
-
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   // Buscar o pagamento pendente
@@ -33,39 +30,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Pedido não encontrado.' }, { status: 404 });
   }
 
+  const meta = (pag.metadata ?? {}) as { design_id?: string; pinCode?: string };
+
   // Já confirmado anteriormente?
   if (pag.ifthenpay_pago) {
-    const meta = (pag.metadata ?? {}) as { design_id?: string };
     return NextResponse.json({ pago: true, design_id: meta.design_id ?? null });
   }
 
-  // Consultar IfThenPay (últimos 2 dias)
-  const fmt = (d: Date) => {
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-  };
-  const agora = new Date();
-  const inicio = new Date(agora.getTime() - 2 * 24 * 60 * 60 * 1000);
-
   let pago = false;
-  try {
-    const res = await fetch('https://api.ifthenpay.com/v2/payments/read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        boKey,
-        orderId:   order,
-        dateStart: fmt(inicio),
-        dateEnd:   fmt(agora),
-      }),
-    });
-    const data = await res.json();
-    // A resposta é uma lista de pagamentos efectuados que correspondem ao filtro.
-    const lista = Array.isArray(data) ? data : (data?.Data ?? data?.payments ?? []);
-    pago = Array.isArray(lista) && lista.length > 0;
-  } catch (e) {
-    console.error('[ifthenpay/verificar] erro consulta:', e);
-    return NextResponse.json({ pago: false, erro: 'consulta_falhou' });
+
+  // ── Método 1: estado do gateway via PinCode (usa Gateway Key, sem boKey) ──
+  if (meta.pinCode) {
+    try {
+      const r = await fetch(`https://api.ifthenpay.com/gateway/transaction/status/get?id=${encodeURIComponent(meta.pinCode)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (r.ok) {
+        const d = await r.json();
+        // pago se a resposta tiver método/data de pagamento
+        const estado = (d?.Status ?? d?.status ?? '').toString().toLowerCase();
+        pago = !!(d?.PaymentMethod || d?.payment_method || d?.RequestId || estado === 'paid' || estado === 'pago');
+      }
+    } catch (e) {
+      console.error('[ifthenpay/verificar] erro status gateway:', e);
+    }
+  }
+
+  // ── Método 2 (fallback): v2/payments/read com Backoffice Key ──
+  const boKey = process.env.IFTHENPAY_BACKOFFICE_KEY;
+  if (!pago && boKey) {
+    const fmt = (d: Date) => {
+      const p = (n: number) => String(n).padStart(2, '0');
+      return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    };
+    const agora = new Date();
+    const inicio = new Date(agora.getTime() - 2 * 24 * 60 * 60 * 1000);
+    try {
+      const res = await fetch('https://api.ifthenpay.com/v2/payments/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ boKey, orderId: order, dateStart: fmt(inicio), dateEnd: fmt(agora) }),
+      });
+      const data = await res.json();
+      const lista = Array.isArray(data) ? data : (data?.Data ?? data?.payments ?? []);
+      pago = Array.isArray(lista) && lista.length > 0;
+    } catch (e) {
+      console.error('[ifthenpay/verificar] erro v2/payments/read:', e);
+    }
   }
 
   if (!pago) {
@@ -86,6 +98,5 @@ export async function POST(request: Request) {
 
   await logInfo('pagamento', `IfThenPay confirmado: ${pag.descricao}`, { order, valor: pag.valor }, pag.user_email);
 
-  const meta = (pag.metadata ?? {}) as { design_id?: string };
   return NextResponse.json({ pago: true, design_id: meta.design_id ?? null });
 }

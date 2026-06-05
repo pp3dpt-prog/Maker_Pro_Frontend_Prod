@@ -63,5 +63,12 @@ export async function POST(request: Request) {
   const data = await res.json();
   // Resposta: { PinCode: '...', RedirectUrl: 'https://gateway.ifthenpay.com/...' }
 
+  // Guardar o PinCode para consulta de estado posterior
+  if (data.PinCode) {
+    await admin.from('prod_pagamentos')
+      .update({ metadata: { design_id: design_id ?? null, params: params ?? {}, pinCode: data.PinCode } })
+      .eq('ifthenpay_order_id', orderId);
+  }
+
   return NextResponse.json({ ok: true, redirectUrl: data.RedirectUrl, orderId });
 }
