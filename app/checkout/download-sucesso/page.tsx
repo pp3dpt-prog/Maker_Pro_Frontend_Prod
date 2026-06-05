@@ -17,10 +17,15 @@ function DownloadSucessoInner() {
     let cancelado = false;
     const verificar = async () => {
       try {
-        const res = await fetch(`/api/ifthenpay/order?order=${order}`);
+        // Consulta activa ao IfThenPay (não depende de callback)
+        const res = await fetch('/api/ifthenpay/verificar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order }),
+        });
         const json = await res.json();
         if (cancelado) return;
-        setDesignId(json.design_id ?? null);
+        if (json.design_id) setDesignId(json.design_id);
         if (json.pago) { setPago(true); return; }
         // Pagamento ainda não confirmado (MB WAY/Multibanco pode demorar)
         if (tentativas < 10) {
