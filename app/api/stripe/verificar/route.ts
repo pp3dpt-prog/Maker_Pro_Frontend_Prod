@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   // Activar plano
   const { data: plano } = await admin
     .from('prod_planos')
-    .select('nome, limite_downloads, validade_dias')
+    .select('nome, tier, limite_downloads, validade_dias, permite_venda_comercial')
     .eq('id', planoId)
     .single();
 
@@ -66,11 +66,19 @@ export async function POST(request: Request) {
   const dias = intervalo === 'anual' ? plano.validade_dias * 12 : plano.validade_dias;
   const validoAte = new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString();
 
-  await admin.from('prod_perfis').update({
+  // tier (texto) é a fonte de verdade lida pelo dashboard e controlo de acessos
+  const tier = plano.tier || (plano.permite_venda_comercial ? 'comercial' : 'pessoal');
+
+  const { error: updErr } = await admin.from('prod_perfis').update({
+    plano:            tier,
     plano_id:         planoId,
     downloads_limite: plano.limite_downloads,
     downloads_mes:    0,
   }).eq('id', user.id);
+
+  if (updErr) {
+    return NextResponse.json({ error: 'Erro ao actualizar perfil.', detalhe: updErr.message }, { status: 500 });
+  }
 
   try {
     await admin.from('prod_perfis').update({
