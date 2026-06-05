@@ -5,7 +5,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { logInfo } from '@/lib/logger';
+import { logInfo, logWarn } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -46,14 +46,17 @@ export async function POST(request: Request) {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
-      if (r.ok) {
-        const d = await r.json();
-        // pago se a resposta tiver método/data de pagamento
+      const raw = await r.text();
+      let d: any = null;
+      try { d = JSON.parse(raw); } catch { /* resposta não-JSON */ }
+      // Diagnóstico: registar a resposta crua para validar a deteção no 1º teste real
+      await logInfo('pagamento', 'IfThenPay status gateway (resposta)', { http: r.status, raw: raw.slice(0, 500), order }, user.email ?? undefined);
+      if (d) {
         const estado = (d?.Status ?? d?.status ?? '').toString().toLowerCase();
         pago = !!(d?.PaymentMethod || d?.payment_method || d?.RequestId || estado === 'paid' || estado === 'pago');
       }
     } catch (e) {
-      console.error('[ifthenpay/verificar] erro status gateway:', e);
+      await logWarn('pagamento', 'Erro consulta status gateway IfThenPay', { erro: String(e), order }, user.email ?? undefined);
     }
   }
 
@@ -72,11 +75,14 @@ export async function POST(request: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ boKey, orderId: order, dateStart: fmt(inicio), dateEnd: fmt(agora) }),
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: any = null;
+      try { data = JSON.parse(raw); } catch { /* não-JSON */ }
+      await logInfo('pagamento', 'IfThenPay v2/payments/read (resposta)', { http: res.status, raw: raw.slice(0, 500), order }, user.email ?? undefined);
       const lista = Array.isArray(data) ? data : (data?.Data ?? data?.payments ?? []);
       pago = Array.isArray(lista) && lista.length > 0;
     } catch (e) {
-      console.error('[ifthenpay/verificar] erro v2/payments/read:', e);
+      await logWarn('pagamento', 'Erro v2/payments/read IfThenPay', { erro: String(e), order }, user.email ?? undefined);
     }
   }
 
