@@ -125,9 +125,14 @@ export async function POST(req: NextRequest) {
         // Só tratar renovações (a 1ª fatura é tratada por checkout.session.completed)
         if (invoice.billing_reason !== 'subscription_cycle') break;
 
-        const subId = typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription?.id;
+        // A localização de "subscription" mudou entre versões da API Stripe.
+        const inv = invoice as any;
+        const subRaw =
+          inv.subscription ??
+          inv.parent?.subscription_details?.subscription ??
+          inv.lines?.data?.[0]?.subscription ??
+          null;
+        const subId = typeof subRaw === 'string' ? subRaw : subRaw?.id;
         if (!subId) break;
 
         // Encontrar o perfil por subscrição
