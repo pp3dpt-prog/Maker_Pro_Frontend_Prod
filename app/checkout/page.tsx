@@ -27,11 +27,14 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
 
   const { data: perfil } = await supabase
     .from('prod_perfis')
-    .select('plano_id, prod_planos(nome)')
+    .select('plano_id, role, prod_planos(nome)')
     .eq('id', user.id)
     .maybeSingle();
 
   const planoAtualNome = (perfil?.prod_planos as { nome?: string } | null)?.nome ?? null;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const isAdmin = perfil?.role === 'admin'
+    || (!!adminEmail && user.email?.toLowerCase() === adminEmail.toLowerCase());
 
   return (
     <CheckoutClient
@@ -39,6 +42,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
       intervalo={billingInterval}
       userEmail={user.email ?? ''}
       planoAtualNome={planoAtualNome}
+      isAdmin={isAdmin}
     />
   );
 }

@@ -22,6 +22,7 @@ interface Props {
   intervalo: 'mensal' | 'anual';
   userEmail: string;
   planoAtualNome: string | null;
+  isAdmin?: boolean;
 }
 
 const inp: CSSProperties = {
@@ -31,7 +32,7 @@ const inp: CSSProperties = {
   transition: 'border-color 0.15s',
 };
 
-export default function CheckoutClient({ plano, intervalo, userEmail, planoAtualNome }: Props) {
+export default function CheckoutClient({ plano, intervalo, userEmail, planoAtualNome, isAdmin }: Props) {
   const router = useRouter();
   const [loading, setLoading]           = useState(false);
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -89,6 +90,23 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
     } catch (err: any) {
       setErro(err.message);
       setLoading(false);
+    }
+  };
+
+  // Simulação admin (só anual IfThenPay) — testa sem pagar
+  const simularAnual = async () => {
+    setLoading(true); setErro('');
+    try {
+      const res = await fetch('/api/ifthenpay/simular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao: `Subscrição anual ${plano.nome}`, valor: preco, tipo: 'subscricao_anual', plano_id: plano.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro na simulação.');
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      setErro(err.message); setLoading(false);
     }
   };
 
@@ -229,12 +247,31 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
             >
               <CreditCard size={16} />
-              {loading ? 'A redirecionar para pagamento…' : `Pagar ${preco}€ com cartão`}
+              {loading
+                ? 'A redirecionar para pagamento…'
+                : intervalo === 'anual'
+                  ? `Pagar ${preco}€ (MB WAY / Multibanco)`
+                  : `Pagar ${preco}€ com cartão`}
             </button>
 
             <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-              <Lock size={11} /> Pagamento seguro via Stripe
+              <Lock size={11} /> Pagamento seguro via {intervalo === 'anual' ? 'IfThenPay' : 'Stripe'}
             </p>
+
+            {/* Simulação admin — só plano anual, testa sem pagar */}
+            {isAdmin && intervalo === 'anual' && (
+              <button
+                onClick={simularAnual}
+                disabled={loading}
+                style={{
+                  width: '100%', marginTop: 10, padding: '10px', borderRadius: 8,
+                  background: 'rgba(167,139,250,0.1)', border: '1px dashed #a78bfa',
+                  color: '#a78bfa', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                🧪 Simular pagamento anual (admin)
+              </button>
+            )}
           </div>
 
           {/* Trust badges */}
