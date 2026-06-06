@@ -11,6 +11,7 @@ type Perfil = {
   email: string;
   role: string | null;
   plano: string;
+  prod_planos?: { nome: string } | null;
   tipo_utilizador: string;
   downloads_mes: number;
   downloads_limite: number;
@@ -41,7 +42,7 @@ export default function Dashboard() {
       try {
         const { data: perfilData } = await supabase
           .from('prod_perfis')
-          .select('id, email, role, plano, tipo_utilizador, downloads_mes, downloads_limite')
+          .select('id, email, role, plano, tipo_utilizador, downloads_mes, downloads_limite, prod_planos(nome)')
           .eq('id', user_id)
           .maybeSingle();
         if (perfilData) setPerfil(perfilData as Perfil);
@@ -163,7 +164,7 @@ export default function Dashboard() {
               Olá, {perfil?.email?.split('@')[0]}
             </h1>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '40px' }}>
-              <StatCard label="PLANO ATIVO" value={perfil?.plano ?? 'Gratuito'} color="#4ade80" />
+              <StatCard label="PLANO ATIVO" value={perfil?.prod_planos?.nome ?? perfil?.plano ?? 'Gratuito'} color="#4ade80" />
               <StatCard label="DOWNLOADS RESTANTES" value={String(downloadsRestantes)} color="#3b82f6" />
               <StatCard label="FICHEIROS STL" value={String(assets.length)} color="#a78bfa" />
             </div>
@@ -193,7 +194,7 @@ export default function Dashboard() {
             <div style={{ padding: '30px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
-                  <h3 style={{ margin: 0, color: '#f1f5f9', textTransform: 'capitalize' }}>{perfil?.plano ?? 'Gratuito'}</h3>
+                  <h3 style={{ margin: 0, color: '#f1f5f9', textTransform: 'capitalize' }}>{perfil?.prod_planos?.nome ?? perfil?.plano ?? 'Gratuito'}</h3>
                   <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>Plano atual</p>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
