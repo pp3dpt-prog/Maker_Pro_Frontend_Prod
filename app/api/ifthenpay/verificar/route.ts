@@ -39,30 +39,9 @@ export async function POST(request: Request) {
 
   let pago = false;
 
-  // ── Método 1: estado do gateway via PinCode (usa Gateway Key, sem boKey) ──
-  if (meta.pinCode) {
-    try {
-      const r = await fetch(`https://api.ifthenpay.com/gateway/transaction/status/get?id=${encodeURIComponent(meta.pinCode)}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const raw = await r.text();
-      let d: any = null;
-      try { d = JSON.parse(raw); } catch { /* resposta não-JSON */ }
-      // Diagnóstico: registar a resposta crua para validar a deteção no 1º teste real
-      await logInfo('pagamento', 'IfThenPay status gateway (resposta)', { http: r.status, raw: raw.slice(0, 500), order }, user.email ?? undefined);
-      if (d) {
-        const estado = (d?.Status ?? d?.status ?? '').toString().toLowerCase();
-        pago = !!(d?.PaymentMethod || d?.payment_method || d?.RequestId || estado === 'paid' || estado === 'pago');
-      }
-    } catch (e) {
-      await logWarn('pagamento', 'Erro consulta status gateway IfThenPay', { erro: String(e), order }, user.email ?? undefined);
-    }
-  }
-
-  // ── Método 2 (fallback): v2/payments/read com Backoffice Key ──
+  // ── Consulta v2/payments/read por intervalo de datas; cruza pelo nosso order ──
   const boKey = process.env.IFTHENPAY_BACKOFFICE_KEY;
-  if (!pago && boKey) {
+  if (boKey) {
     const fmt = (d: Date) => {
       const p = (n: number) => String(n).padStart(2, '0');
       return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
@@ -70,17 +49,33 @@ export async function POST(request: Request) {
     const agora = new Date();
     const inicio = new Date(agora.getTime() - 2 * 24 * 60 * 60 * 1000);
     try {
+      // Sem filtro orderId — o IfThenPay pode guardar o nosso id noutro campo.
       const res = await fetch('https://api.ifthenpay.com/v2/payments/read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ boKey, orderId: order, dateStart: fmt(inicio), dateEnd: fmt(agora) }),
+        body: JSON.stringify({ boKey, dateStart: fmt(inicio), dateEnd: fmt(agora) }),
       });
       const raw = await res.text();
       let data: any = null;
       try { data = JSON.parse(raw); } catch { /* não-JSON */ }
-      await logInfo('pagamento', 'IfThenPay v2/payments/read (resposta)', { http: res.status, raw: raw.slice(0, 500), order }, user.email ?? undefined);
-      const lista = Array.isArray(data) ? data : (data?.Data ?? data?.payments ?? []);
-      pago = Array.isArray(lista) && lista.length > 0;
+      const lista: any[] = Array.isArray(data) ? data : (data?.payments ?? data?.Data ?? []);
+
+      // Cruzar por qualquer campo que contenha o nosso order id
+      const valorEsperado = Number(pag.valor).toFixed(2);
+      const match = lista.find((p) => {
+        const campos = [p.orderId, p.OrderId, p.id, p.Id, p.reference, p.Reference, p.requestId, p.RequestId]
+          .filter(Boolean).map(String);
+        const idMatch  = campos.includes(order);
+        const amt = String(p.amount ?? p.Amount ?? '').replace(',', '.');
+        const amtMatch = amt === valorEsperado;
+        return idMatch || amtMatch;
+      });
+
+      pago = !!match;
+      await logInfo('pagamento', 'IfThenPay v2/payments/read (resposta)', {
+        http: res.status, total: lista.length, match: !!match,
+        amostra: lista.slice(0, 2), order,
+      }, user.email ?? undefined);
     } catch (e) {
       await logWarn('pagamento', 'Erro v2/payments/read IfThenPay', { erro: String(e), order }, user.email ?? undefined);
     }
