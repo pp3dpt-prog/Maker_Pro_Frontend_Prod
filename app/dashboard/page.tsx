@@ -196,9 +196,24 @@ export default function Dashboard() {
                   <h3 style={{ margin: 0, color: '#f1f5f9', textTransform: 'capitalize' }}>{perfil?.plano ?? 'Gratuito'}</h3>
                   <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>Plano atual</p>
                 </div>
-                <a href="/pricing" style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
-                  Fazer upgrade
-                </a>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {perfil?.plano && perfil.plano !== 'gratuito' && (
+                    <button
+                      onClick={async () => {
+                        const res = await fetch('/api/stripe/portal', { method: 'POST' });
+                        const json = await res.json();
+                        if (res.ok && json.url) window.location.href = json.url;
+                        else alert(json.error || 'Sem subscrição para gerir.');
+                      }}
+                      style={{ padding: '10px 20px', borderRadius: '10px', background: 'transparent', color: '#94a3b8', fontWeight: 700, fontSize: '13px', border: '1px solid #334155', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Gerir / Cancelar
+                    </button>
+                  )}
+                  <a href="/pricing" style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: 'white', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
+                    Fazer upgrade
+                  </a>
+                </div>
               </div>
               {/* Barra de progresso de downloads */}
               <div>
