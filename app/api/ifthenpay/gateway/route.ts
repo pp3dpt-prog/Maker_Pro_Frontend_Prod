@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
 
-  const { descricao, valor, nome_completo, nif, tipo, design_id, params } = await request.json();
+  const { descricao, valor, nome_completo, nif, tipo, design_id, params, plano_id } = await request.json();
   if (!valor) return NextResponse.json({ error: 'Valor obrigatório.' }, { status: 400 });
 
   const gatewayKey = process.env.IFTHENPAY_GATEWAY_KEY;
@@ -31,13 +31,16 @@ export async function POST(request: Request) {
     tipo:               tipo ?? 'download_avulso',
     ifthenpay_order_id: orderId,
     fatura_emitida:     false,
-    metadata:           design_id ? { design_id, params: params ?? {} } : null,
+    metadata:           {
+      ...(design_id ? { design_id, params: params ?? {} } : {}),
+      ...(plano_id ? { plano_id } : {}),
+    },
   });
 
-  // success_url leva de volta ao produto certo após pagamento
-  const successUrl = design_id
-    ? `${siteUrl}/checkout/download-sucesso?order=${orderId}`
-    : `${siteUrl}/checkout/download-sucesso`;
+  // success_url consoante o tipo de pagamento
+  const successUrl = plano_id
+    ? `${siteUrl}/checkout/sucesso?order=${orderId}`            // subscrição anual
+    : `${siteUrl}/checkout/download-sucesso?order=${orderId}`;  // download avulso
 
   // Chamar API Gateway IfThenPay
   const res = await fetch(`https://api.ifthenpay.com/gateway/pinpay/${gatewayKey}`, {

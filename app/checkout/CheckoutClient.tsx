@@ -57,6 +57,27 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
     if (!nomeCompleto.trim()) { setErro('O nome completo é obrigatório para a fatura.'); return; }
     setErro(''); setLoading(true);
     try {
+      if (intervalo === 'anual') {
+        // Anual → IfThenPay (pagamento único, renovação manual com avisos)
+        const res = await fetch('/api/ifthenpay/gateway', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descricao: `Subscrição anual ${plano.nome}`,
+            valor: preco,
+            tipo: 'subscricao_anual',
+            plano_id: plano.id,
+            nome_completo: nomeCompleto.trim(),
+            nif: nif.trim(),
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Erro ao iniciar pagamento.');
+        if (json.redirectUrl) { window.location.href = json.redirectUrl; return; }
+        throw new Error('Não foi possível obter o link de pagamento.');
+      }
+
+      // Mensal → Stripe (subscrição com renovação automática)
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

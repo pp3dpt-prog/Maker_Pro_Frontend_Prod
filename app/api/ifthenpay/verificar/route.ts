@@ -97,6 +97,32 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── Subscrição anual: activar plano por 365 dias (renovação manual c/ avisos) ──
+  const metaPlanoId = (meta as { plano_id?: string }).plano_id;
+  if (pag.tipo === 'subscricao_anual' && metaPlanoId) {
+    const { data: plano } = await admin
+      .from('prod_planos')
+      .select('nome, tier, limite_downloads, validade_dias, permite_venda_comercial')
+      .eq('id', metaPlanoId)
+      .single();
+    if (plano) {
+      const tier = plano.tier || (plano.permite_venda_comercial ? 'comercial' : 'pessoal');
+      const validoAte = new Date(Date.now() + (plano.validade_dias || 30) * 12 * 24 * 60 * 60 * 1000).toISOString();
+      // Somar downloads restantes aos do plano (como na subscrição Stripe)
+      const { data: perfilAtual } = await admin.from('prod_perfis')
+        .select('downloads_limite, downloads_mes').eq('id', pag.user_id).single();
+      const restantes  = Math.max(0, (perfilAtual?.downloads_limite ?? 0) - (perfilAtual?.downloads_mes ?? 0));
+      await admin.from('prod_perfis').update({
+        plano:            tier,
+        plano_id:         metaPlanoId,
+        downloads_limite: restantes + plano.limite_downloads,
+        downloads_mes:    0,
+        plano_valido_ate: validoAte,
+        stripe_subscription_id: null, // anual é manual — gerido pelo cron de avisos
+      }).eq('id', pag.user_id);
+    }
+  }
+
   await admin.from('prod_pagamentos').update({ ifthenpay_pago: true }).eq('ifthenpay_order_id', order);
 
   await logInfo('pagamento', `IfThenPay confirmado: ${pag.descricao}`, { order, valor: pag.valor }, pag.user_email);

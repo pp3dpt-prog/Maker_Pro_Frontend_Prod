@@ -6,34 +6,38 @@ import Link from 'next/link';
 
 function SucessoInner() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
+  const sessionId = searchParams.get('session_id'); // Stripe (mensal)
+  const order     = searchParams.get('order');       // IfThenPay (anual)
   const [estado, setEstado] = useState<'verificando' | 'ok' | 'erro'>('verificando');
   const [detalhe, setDetalhe] = useState('');
   const [plano, setPlano] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId) { setEstado('ok'); return; } // sem session_id, assume ok (webhook tratou)
+    if (!sessionId && !order) { setEstado('ok'); return; }
 
     let tries = 0;
     const verificar = async () => {
       try {
-        const res = await fetch('/api/stripe/verificar', {
+        // Stripe (session_id) ou IfThenPay (order)
+        const endpoint = sessionId ? '/api/stripe/verificar' : '/api/ifthenpay/verificar';
+        const body = sessionId ? { session_id: sessionId } : { order };
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId }),
+          body: JSON.stringify(body),
         });
         const json = await res.json();
 
-        if (res.ok && (json.ok || json.jaProcessado)) {
+        if (res.ok && (json.ok || json.jaProcessado || json.pago)) {
           setPlano(json.plano ?? null);
           setEstado('ok');
           return;
         }
 
-        // Pagamento ainda a processar — tentar de novo
-        if (json.pago === false && tries < 5) {
+        // Pagamento ainda a processar (MB WAY/Multibanco pode demorar) — tentar de novo
+        if (json.pago === false && tries < 10) {
           tries++;
-          setTimeout(verificar, 2000);
+          setTimeout(verificar, 3000);
           return;
         }
 
@@ -46,7 +50,7 @@ function SucessoInner() {
     };
 
     verificar();
-  }, [sessionId]);
+  }, [sessionId, order]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#080c10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', color: 'white' }}>
