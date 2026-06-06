@@ -30,11 +30,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Pedido não encontrado.' }, { status: 404 });
   }
 
-  const meta = (pag.metadata ?? {}) as { design_id?: string; pinCode?: string };
+  const meta = (pag.metadata ?? {}) as { design_id?: string; pinCode?: string; params?: Record<string, unknown> };
 
   // Já confirmado anteriormente?
   if (pag.ifthenpay_pago) {
-    return NextResponse.json({ pago: true, design_id: meta.design_id ?? null });
+    return NextResponse.json({ pago: true, design_id: meta.design_id ?? null, params: meta.params ?? {} });
   }
 
   let pago = false;
@@ -104,5 +104,5 @@ export async function POST(request: Request) {
 
   await logInfo('pagamento', `IfThenPay confirmado: ${pag.descricao}`, { order, valor: pag.valor }, pag.user_email);
 
-  return NextResponse.json({ pago: true, design_id: meta.design_id ?? null });
+  return NextResponse.json({ pago: true, design_id: meta.design_id ?? null, params: meta.params ?? {} });
 }

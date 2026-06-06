@@ -3,12 +3,14 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import DownloadStlButton from '@/components/DownloadStlButton';
 
 function DownloadSucessoInner() {
   const searchParams = useSearchParams();
   const order = searchParams.get('order');
   const [pago, setPago] = useState<boolean | null>(null);
   const [designId, setDesignId] = useState<string | null>(null);
+  const [params, setParams] = useState<Record<string, any> | null>(null);
   const [tentativas, setTentativas] = useState(0);
 
   useEffect(() => {
@@ -26,6 +28,7 @@ function DownloadSucessoInner() {
         const json = await res.json();
         if (cancelado) return;
         if (json.design_id) setDesignId(json.design_id);
+        if (json.params) setParams(json.params);
         if (json.pago) { setPago(true); return; }
         // Pagamento ainda não confirmado (MB WAY/Multibanco pode demorar)
         if (tentativas < 10) {
@@ -61,12 +64,23 @@ function DownloadSucessoInner() {
             <p style={{ color: '#64748b', fontSize: 16, marginBottom: 16, lineHeight: 1.6 }}>
               Foi creditado <strong style={{ color: '#34d399' }}>1 download</strong> à tua conta. Já podes descarregar o ficheiro.
             </p>
-            <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '14px 20px', marginBottom: 28, fontSize: 14, color: '#94a3b8' }}>
+            <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '14px 20px', marginBottom: 24, fontSize: 14, color: '#94a3b8' }}>
               🧾 A fatura será enviada para o teu email em <strong style={{ color: '#f1f5f9' }}>até 24 horas</strong>.
             </div>
-            <Link href={designId ? `/customizador?id=${designId}` : '/produtos'} style={btn}>
-              {designId ? 'Voltar ao produto e descarregar →' : 'Ver produtos'}
-            </Link>
+
+            {/* Download directo do ficheiro comprado */}
+            {designId && params ? (
+              <div style={{ maxWidth: 320, margin: '0 auto' }}>
+                <DownloadStlButton designId={designId} params={params} />
+                <Link href={`/customizador?id=${designId}`} style={{ display: 'block', marginTop: 14, color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
+                  ou voltar ao produto →
+                </Link>
+              </div>
+            ) : (
+              <Link href={designId ? `/customizador?id=${designId}` : '/produtos'} style={btn}>
+                {designId ? 'Voltar ao produto e descarregar →' : 'Ver produtos'}
+              </Link>
+            )}
           </>
         ) : (
           <>
