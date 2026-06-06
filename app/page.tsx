@@ -185,10 +185,23 @@ export default function HomePage() {
             { name: 'Privacidade', href: '/privacy' },
             { name: 'Licenças', href: '/licenses' },
             { name: 'DMCA', href: '/dmca' },
+            { name: 'Livro de Reclamações', href: 'https://www.livroreclamacoes.pt/inicio', external: true },
           ].map((link) => (
-            <Link key={link.name} href={link.href} style={{ color: '#475569', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
-              {link.name}
-            </Link>
+            link.external ? (
+              <a
+                key={link.name}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#475569', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}
+              >
+                {link.name}
+              </a>
+            ) : (
+              <Link key={link.name} href={link.href} style={{ color: '#475569', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
+                {link.name}
+              </Link>
+            )
           ))}
         </div>
         <p style={{ color: '#334155', fontSize: '12px' }}>© 2026 PP3D.PT — Todos os direitos reservados.</p>
