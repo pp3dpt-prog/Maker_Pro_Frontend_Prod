@@ -46,14 +46,16 @@ export async function POST(request: Request) {
       const p = (n: number) => String(n).padStart(2, '0');
       return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     };
-    const agora = new Date();
-    const inicio = new Date(agora.getTime() - 2 * 24 * 60 * 60 * 1000);
+    // Janela generosa para evitar problemas de fuso horário (PT vs UTC):
+    // 3 dias para trás, 1 dia para a frente.
+    const inicio = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const fim    = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000);
     try {
       // Sem filtro orderId — o IfThenPay pode guardar o nosso id noutro campo.
       const res = await fetch('https://api.ifthenpay.com/v2/payments/read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ boKey, dateStart: fmt(inicio), dateEnd: fmt(agora) }),
+        body: JSON.stringify({ boKey, dateStart: fmt(inicio), dateEnd: fmt(fim) }),
       });
       const raw = await res.text();
       let data: any = null;
