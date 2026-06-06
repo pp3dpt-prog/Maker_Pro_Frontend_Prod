@@ -48,6 +48,8 @@ export async function POST(request: Request) {
       amount:      Number(valor).toFixed(2),
       description: descricao ?? 'PP3D.pt',
       lang:        'pt',
+      // Métodos a oferecer (MB WAY + Multibanco). Configurável via env var.
+      accounts:    process.env.IFTHENPAY_ACCOUNTS || 'MBWAY|UTX-466289;MB|CFW-591434',
       success_url: successUrl,
       error_url:   `${siteUrl}/checkout/erro`,
       cancel_url:  design_id ? `${siteUrl}/customizador?id=${design_id}` : `${siteUrl}/pricing`,
