@@ -45,7 +45,7 @@ export default function Dashboard() {
           .select('id, email, role, plano, tipo_utilizador, downloads_mes, downloads_limite, prod_planos(nome)')
           .eq('id', user_id)
           .maybeSingle();
-        if (perfilData) setPerfil(perfilData as Perfil);
+        if (perfilData) setPerfil(perfilData as unknown as Perfil);
 
         const { data: assetsData } = await supabase
           .from('prod_user_assets')
