@@ -119,6 +119,53 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case 'invoice.paid': {
+        // Renovação automática mensal — repõe downloads e estende validade.
+        const invoice = event.data.object as Stripe.Invoice;
+        // Só tratar renovações (a 1ª fatura é tratada por checkout.session.completed)
+        if (invoice.billing_reason !== 'subscription_cycle') break;
+
+        const subId = typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription?.id;
+        if (!subId) break;
+
+        // Encontrar o perfil por subscrição
+        const { data: perfil } = await admin
+          .from('prod_perfis')
+          .select('id, email, plano_id')
+          .eq('stripe_subscription_id', subId)
+          .maybeSingle();
+        if (!perfil?.plano_id) break;
+
+        const { data: plano } = await admin
+          .from('prod_planos')
+          .select('nome, limite_downloads, validade_dias')
+          .eq('id', perfil.plano_id)
+          .single();
+        if (!plano) break;
+
+        const validoAte = new Date(Date.now() + (plano.validade_dias || 30) * 24 * 60 * 60 * 1000).toISOString();
+
+        // Renovar a zero: quota do plano, mês a zero (downloads comprados mantêm-se)
+        await admin.from('prod_perfis').update({
+          downloads_limite: plano.limite_downloads,
+          downloads_mes:    0,
+          plano_valido_ate: validoAte,
+        }).eq('id', perfil.id);
+
+        await admin.from('prod_pagamentos').insert({
+          user_id:    perfil.id,
+          user_email: perfil.email ?? '',
+          descricao:  `Renovação ${plano.nome}`,
+          plano_nome: plano.nome,
+          valor:      (invoice.amount_paid ?? 0) / 100,
+          tipo:       'subscricao',
+          stripe_session_id: invoice.id,
+        });
+        break;
+      }
+
       case 'customer.subscription.deleted': {
         const sub    = event.data.object as Stripe.Subscription;
         const userId = sub.metadata?.user_id;

@@ -36,10 +36,13 @@ export async function GET(req: NextRequest) {
 
   // Para cada plano, renovar todos os perfis com esse plano à quota base
   for (const plano of planos) {
+    // Subscrições Stripe renovam na sua data de cobrança (via webhook),
+    // por isso o cron mensal só renova planos manuais (gratuito/anual).
     const { data, error } = await admin
       .from('prod_perfis')
       .update({ downloads_limite: plano.limite_downloads, downloads_mes: 0 })
       .eq('plano_id', plano.id)
+      .is('stripe_subscription_id', null)
       .select('id');
 
     if (!error && data) {

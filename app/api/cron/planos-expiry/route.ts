@@ -67,10 +67,13 @@ export async function GET(req: NextRequest) {
 
   // Buscar utilizadores com plano a expirar em 30 dias (aviso antecipado)
   // e em 7 dias (aviso urgente)
+  // Excluir subscrições Stripe (renovam automaticamente — o Stripe gere).
+  // Só avisa planos manuais (anual IfThenPay).
   const { data: perfis } = await admin
     .from('prod_perfis')
     .select('id, email, nome_completo, plano_valido_ate, prod_planos(nome)')
     .not('plano_valido_ate', 'is', null)
+    .is('stripe_subscription_id', null)
     .eq('prod_planos.gratuito', false)
     .lte('plano_valido_ate', em30dias.toISOString())
     .gte('plano_valido_ate', hoje.toISOString());
@@ -128,6 +131,7 @@ export async function GET(req: NextRequest) {
         plano_valido_ate:      null,
       })
       .lt('plano_valido_ate', hoje.toISOString())
+      .is('stripe_subscription_id', null)  // não fazer downgrade a subscrições Stripe activas
       .not('plano_id', 'eq', free.id);
   }
 
