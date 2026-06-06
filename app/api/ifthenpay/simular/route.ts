@@ -40,11 +40,11 @@ export async function POST(request: Request) {
     metadata:           { design_id: design_id ?? null, params: params ?? {}, teste: true },
   });
 
-  // Creditar +1 download
-  const { data: perfil } = await admin.from('prod_perfis').select('downloads_limite').eq('id', user.id).single();
+  // Creditar +1 download comprado (funciona em qualquer design)
+  const { data: perfil } = await admin.from('prod_perfis').select('downloads_comprados').eq('id', user.id).single();
   if (perfil) {
     await admin.from('prod_perfis')
-      .update({ downloads_limite: (perfil.downloads_limite ?? 0) + 1 })
+      .update({ downloads_comprados: (perfil.downloads_comprados ?? 0) + 1 })
       .eq('id', user.id);
   }
 

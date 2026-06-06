@@ -92,10 +92,10 @@ export async function POST(request: Request) {
 
   // ── Confirmado: creditar download e marcar pago ──
   if (pag.tipo === 'download_avulso') {
-    const { data: perfil } = await admin.from('prod_perfis').select('downloads_limite').eq('id', pag.user_id).single();
+    const { data: perfil } = await admin.from('prod_perfis').select('downloads_comprados').eq('id', pag.user_id).single();
     if (perfil) {
       await admin.from('prod_perfis')
-        .update({ downloads_limite: (perfil.downloads_limite ?? 0) + 1 })
+        .update({ downloads_comprados: (perfil.downloads_comprados ?? 0) + 1 })
         .eq('id', pag.user_id);
     }
   }

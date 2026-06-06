@@ -38,14 +38,14 @@ export async function GET(req: NextRequest) {
   if (pagamento.tipo === 'download_avulso' && pagamento.user_id) {
     const { data: perfil } = await admin
       .from('prod_perfis')
-      .select('downloads_limite')
+      .select('downloads_comprados')
       .eq('id', pagamento.user_id)
       .single();
 
     if (perfil) {
       await admin
         .from('prod_perfis')
-        .update({ downloads_limite: (perfil.downloads_limite ?? 0) + 1 })
+        .update({ downloads_comprados: (perfil.downloads_comprados ?? 0) + 1 })
         .eq('id', pagamento.user_id);
     }
   }

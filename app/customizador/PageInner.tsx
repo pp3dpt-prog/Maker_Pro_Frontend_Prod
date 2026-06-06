@@ -36,6 +36,7 @@ type UserProfile = {
   tipo_utilizador: string | null;
   downloads_mes: number;
   downloads_limite: number;
+  downloads_comprados: number;
 };
 
 const VISUAL_PARAMS = ['mostrar_texto'];
@@ -107,7 +108,7 @@ export default function PageInner() {
         try {
           const { data: perfil } = await supabase
             .from('prod_perfis')
-            .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite')
+            .select('role, plano, tipo_utilizador, downloads_mes, downloads_limite, downloads_comprados')
             .eq('id', session.user.id)
             .maybeSingle();
           setUserProfile(perfil as UserProfile ?? null);
@@ -358,7 +359,14 @@ export default function PageInner() {
   };
 
   const handleDownloadSuccess = () => {
-    setUserProfile((prev) => prev ? { ...prev, downloads_mes: prev.downloads_mes + 1 } : prev);
+    setUserProfile((prev) => {
+      if (!prev) return prev;
+      // Consome primeiro os comprados (igual ao backend), senão a quota mensal
+      if ((prev.downloads_comprados ?? 0) > 0) {
+        return { ...prev, downloads_comprados: prev.downloads_comprados - 1 };
+      }
+      return { ...prev, downloads_mes: prev.downloads_mes + 1 };
+    });
   };
 
   if (!designId) return <main className={styles.fallback}>Produto inválido</main>;
@@ -414,6 +422,10 @@ export default function PageInner() {
   const canDownloadStl = isMaker && !stlBloqueadoDownload;
 
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
+  // Downloads avulsos comprados (0,99€) — funcionam em qualquer design, ignoram o gate de plano
+  const hasComprado = (userProfile?.downloads_comprados ?? 0) > 0;
+  // Pode descarregar grátis: tem plano + tem quota mensal
+  const podeDescarregarGratis = canDownloadStl && !semDownloads;
   const designRascunho = design.estado === 'rascunho' && !isAdmin;
   const designInativo = design.estado === 'inativo' && !isAdmin;
 
@@ -682,40 +694,43 @@ export default function PageInner() {
               </div>
             )}
 
-            {/* Aviso de plano para makers sem acesso ao download */}
-            {userId && isMaker && stlBloqueadoDownload && (
-              <a
-                href="/pricing"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '10px 16px', borderRadius: 10,
-                  background: 'rgba(167,139,250,0.1)',
-                  border: '1px solid rgba(167,139,250,0.3)',
-                  color: '#a78bfa', fontWeight: 700, fontSize: 13,
-                  textDecoration: 'none',
-                }}
-              >
-                🔒 {design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar STL` : 'STL não disponível neste plano'}
-              </a>
-            )}
-
-            {/* Download STL — só para makers com plano suficiente e com downloads */}
-            {canDownloadStl && mode === 'stl' && userId && !semDownloads && (
-              <DownloadStlButton
-                designId={designId}
-                params={paramsParaDownload}
-                onSuccess={handleDownloadSuccess}
-              />
-            )}
-
-            {/* Compra de ficheiro único (0,99€) — quando sem downloads disponíveis */}
-            {canDownloadStl && mode === 'stl' && userId && semDownloads && (
-              <IfThenPayDownloadButton
-                designId={designId}
-                designNome={design.nome}
-                params={paramsParaDownload}
-                isAdmin={isAdmin}
-              />
+            {/* Acções de download — quando STL gerado e autenticado */}
+            {mode === 'stl' && userId && (
+              (podeDescarregarGratis || hasComprado) ? (
+                /* Pode descarregar: por plano+quota grátis OU com download comprado */
+                <>
+                  <DownloadStlButton
+                    designId={designId}
+                    params={paramsParaDownload}
+                    onSuccess={handleDownloadSuccess}
+                  />
+                  {!podeDescarregarGratis && hasComprado && (
+                    <p style={{ margin: 0, fontSize: 12, color: '#34d399', textAlign: 'center' }}>
+                      ✓ Tens {userProfile?.downloads_comprados} download(s) comprado(s) disponível(eis)
+                    </p>
+                  )}
+                </>
+              ) : (
+                /* Não pode descarregar grátis e não tem comprados → comprar 0,99€ */
+                <>
+                  <IfThenPayDownloadButton
+                    designId={designId}
+                    designNome={design.nome}
+                    params={paramsParaDownload}
+                    isAdmin={isAdmin}
+                  />
+                  {stlBloqueadoDownload && (
+                    <a href="/pricing" style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      padding: '8px 14px', borderRadius: 8,
+                      background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)',
+                      color: '#a78bfa', fontWeight: 600, fontSize: 12, textDecoration: 'none',
+                    }}>
+                      🔒 ou subscreve o plano {design.acesso_maker} para downloads incluídos →
+                    </a>
+                  )}
+                </>
+              )
             )}
 
             {/* Botão Download TXT — só aparece para HueForge */}
