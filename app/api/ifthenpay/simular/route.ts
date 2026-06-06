@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const ehAnual = tipo === 'subscricao_anual' && plano_id;
 
   // Registar pagamento já confirmado
-  await admin.from('prod_pagamentos').insert({
+  const { error: insErr } = await admin.from('prod_pagamentos').insert({
     user_id:            user.id,
     user_email:         user.email,
     descricao:          `[TESTE] ${descricao ?? (ehAnual ? 'Subscrição anual' : 'Download avulso')}`,
@@ -40,6 +40,9 @@ export async function POST(request: Request) {
     fatura_emitida:     false,
     metadata:           { design_id: design_id ?? null, params: params ?? {}, plano_id: plano_id ?? null, teste: true },
   });
+  if (insErr) {
+    return NextResponse.json({ error: `Erro ao registar pagamento: ${insErr.message}` }, { status: 500 });
+  }
 
   if (ehAnual) {
     // Activar plano anual (igual ao verificar)
@@ -52,13 +55,16 @@ export async function POST(request: Request) {
       const { data: perfilAtual } = await admin.from('prod_perfis')
         .select('downloads_limite, downloads_mes').eq('id', user.id).single();
       const restantes = Math.max(0, (perfilAtual?.downloads_limite ?? 0) - (perfilAtual?.downloads_mes ?? 0));
-      await admin.from('prod_perfis').update({
+      const { error: updErr } = await admin.from('prod_perfis').update({
         plano: tier, plano_id,
         downloads_limite: restantes + plano.limite_downloads,
         downloads_mes: 0,
         plano_valido_ate: validoAte,
         stripe_subscription_id: null,
       }).eq('id', user.id);
+      if (updErr) {
+        return NextResponse.json({ error: `Erro ao activar plano: ${updErr.message}` }, { status: 500 });
+      }
     }
   } else {
     // Creditar +1 download comprado
