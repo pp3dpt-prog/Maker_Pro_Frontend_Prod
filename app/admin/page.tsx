@@ -90,7 +90,11 @@ export default function AdminDashboard() {
         supabase.from('prod_perfis').select('*', { count: 'exact', head: true }),
         supabase.from('prod_tickets_suporte').select('*', { count: 'exact', head: true }).eq('status', 'aberto'),
         supabase.from('prod_pedidos_orcamento').select('*', { count: 'exact', head: true }).eq('estado', 'pendente_orcamento'),
-        supabase.from('prod_pagamentos').select('*', { count: 'exact' }).eq('fatura_emitida', false).order('created_at', { ascending: false }),
+        // Só pagamentos CONFIRMADOS sem fatura: Stripe (sem ifthenpay_order_id) ou IfThenPay pago
+        supabase.from('prod_pagamentos').select('*', { count: 'exact' })
+          .eq('fatura_emitida', false)
+          .or('ifthenpay_order_id.is.null,ifthenpay_pago.eq.true')
+          .order('created_at', { ascending: false }),
       ]);
       setCupons(cData || []);
       setTickets(tData || []);

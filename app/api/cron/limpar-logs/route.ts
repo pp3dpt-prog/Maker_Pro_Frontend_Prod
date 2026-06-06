@@ -27,5 +27,19 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, eliminados: data?.length ?? 0 });
+  // Limpar tentativas de pagamento IfThenPay abandonadas (não pagas, > 2 dias)
+  const limiteAbandono = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: abandonadas } = await admin
+    .from('prod_pagamentos')
+    .delete()
+    .eq('ifthenpay_pago', false)
+    .not('ifthenpay_order_id', 'is', null)
+    .lt('created_at', limiteAbandono)
+    .select('id');
+
+  return NextResponse.json({
+    ok: true,
+    logsEliminados: data?.length ?? 0,
+    pagamentosAbandonadosEliminados: abandonadas?.length ?? 0,
+  });
 }
