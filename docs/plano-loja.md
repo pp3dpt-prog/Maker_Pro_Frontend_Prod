@@ -327,6 +327,13 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
 - Persona = `tipo_utilizador` (`consumidor|maker|ambos`), escolhida em `/bem-vindo`. `role` = só admin.
 - **Fase 1 entregue**: `scripts/sql/loja_modulo.sql` (tabelas, variantes, config, RLS, helper
   `is_admin()`, policies de escrita admin, bucket `loja_produtos`).
+- **Fase 4 entregue** (Loja pública, em `/loja`): `lib/loja.ts` (constantes + helpers puros,
+  `DISCORD_URL` placeholder), `lib/loja-server.ts` (`getViewer`, `fetchCatalogo`, `fetchProduto`,
+  `getPrazoConfig`); `/loja` + `/loja/[categoria]` (`StoreCatalog`); `/produto/[slug]` com
+  `generateMetadata` (OG) + `ProdutoDetalhe` (galeria, variantes, preço/mensagem-maker, prazo,
+  personalizador, partilha). Regra de preços opção B (oculta a maker/ambos). Link "Loja" na Navbar;
+  loja no `sitemap.ts`. Carrinho = stub ("em breve") até à Fase 5. `tsc` limpo.
+  Pendente: trocar `DISCORD_URL`; mudar raiz `/` para a loja (quando aprovado).
 - **Fase 3 entregue** (Admin): link "🛒 Loja" na sidebar de `app/admin/page.tsx`;
   `app/admin/loja/_ui.ts` (estilos + slugify + eur); `app/admin/loja/page.tsx` (lista);
   `app/admin/loja/categorias/page.tsx`; `app/admin/loja/definicoes/page.tsx` (portes);
