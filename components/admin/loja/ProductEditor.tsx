@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import { s, slugify } from '@/app/admin/loja/_ui';
+import { s, slugify, prazoEntrega, PRAZO_DEFAULT, type PrazoConfig } from '@/app/admin/loja/_ui';
 
 interface Categoria { id: string; nome: string; }
 interface DesignOpt { id: string; nome: string; }
@@ -54,6 +54,8 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   const [designId, setDesignId] = useState('');
   const [permitePersonalizar, setPermitePersonalizar] = useState(false);
   const [duasCores, setDuasCores] = useState(false);
+  const [sobEncomenda, setSobEncomenda] = useState(false);
+  const [prazoCfg, setPrazoCfg] = useState<PrazoConfig>(PRAZO_DEFAULT);
   const [portes, setPortes] = useState('');
   const [pesoGramas, setPesoGramas] = useState('');
   const [stockSimples, setStockSimples] = useState('0'); // usado se sem variantes
@@ -74,12 +76,14 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   // Carregar opções (categorias + designs)
   useEffect(() => {
     (async () => {
-      const [{ data: cats }, { data: dsgs }] = await Promise.all([
+      const [{ data: cats }, { data: dsgs }, { data: cfg }] = await Promise.all([
         supabase.from('prod_loja_categorias').select('id, nome').order('ordem'),
         supabase.from('prod_designs').select('id, nome').order('nome'),
+        supabase.from('prod_loja_config').select('prazo_stock_min, prazo_stock_max, prazo_producao_min, prazo_producao_max').eq('id', 1).maybeSingle(),
       ]);
       setCategorias((cats ?? []) as Categoria[]);
       setDesigns((dsgs ?? []) as DesignOpt[]);
+      if (cfg) setPrazoCfg(cfg as PrazoConfig);
     })();
   }, []);
 
@@ -103,6 +107,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     setDesignId(p.design_id ?? '');
     setPermitePersonalizar(!!p.permite_personalizar);
     setDuasCores(!!p.duas_cores);
+    setSobEncomenda(!!p.sob_encomenda);
     setPortes(toEuros(p.portes_cents));
     setPesoGramas(p.peso_gramas != null ? String(p.peso_gramas) : '');
     setStockSimples(String(p.stock ?? 0));
@@ -190,6 +195,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       design_id: designId || null,
       permite_personalizar: permitePersonalizar,
       duas_cores: duasCores,
+      sob_encomenda: sobEncomenda,
       portes_cents: toCents(portes),
       peso_gramas: pesoGramas.trim() === '' ? null : parseInt(pesoGramas, 10),
       stock: variantes.length > 0 ? 0 : (parseInt(stockSimples, 10) || 0),
@@ -235,6 +241,8 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
   const fieldRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 };
   const gridCols = duasCores ? '1fr 1fr 1fr 1fr 70px 80px 36px' : '1fr 1fr 1fr 80px 90px 36px';
+  const stockAtual = variantes.length > 0 ? variantes.reduce((a, v) => a + (v.stock || 0), 0) : (parseInt(stockSimples, 10) || 0);
+  const prazo = prazoEntrega({ stockTotal: stockAtual, sobEncomenda }, prazoCfg);
 
   return (
     <div style={s.page}>
@@ -362,6 +370,30 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
               <p style={{ fontSize: 12, color: '#475569', margin: '4px 0 0' }}>Com variantes, o stock é por variante. Preço vazio herda o preço base.</p>
             </div>
           )}
+        </div>
+
+        {/* Disponibilidade & prazo */}
+        <div style={{ ...s.card, marginBottom: 20 }}>
+          <label style={{ ...s.label, marginBottom: 12 }}>Disponibilidade &amp; prazo de entrega</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
+            <input type="checkbox" checked={sobEncomenda} onChange={e => setSobEncomenda(e.target.checked)} />
+            <span style={{ fontSize: 14, color: '#cbd5e1' }}>Esta peça é feita por produção (sob encomenda)</span>
+          </label>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 10,
+            background: prazo.tipo === 'stock' ? 'rgba(52,211,153,0.08)' : 'rgba(251,191,36,0.08)',
+            border: `1px solid ${prazo.tipo === 'stock' ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
+          }}>
+            <span style={s.badge(
+              prazo.tipo === 'stock' ? 'rgba(52,211,153,0.18)' : 'rgba(251,191,36,0.18)',
+              prazo.tipo === 'stock' ? '#34d399' : '#fbbf24',
+            )}>{prazo.label}</span>
+            <span style={{ fontSize: 14, color: '#e2e8f0' }}>Envio em <strong>{prazo.dias}</strong></span>
+          </div>
+          <p style={{ fontSize: 12, color: '#475569', margin: '10px 0 0' }}>
+            Calculado: com stock e sem ser sob encomenda → prazo de stock; caso contrário → prazo de produção.
+            Os prazos definem-se em <Link href="/admin/loja/definicoes" style={{ color: '#60a5fa' }}>Definições</Link>.
+          </p>
         </div>
 
         {/* Fotos */}

@@ -55,6 +55,7 @@ create table if not exists public.prod_loja_produtos (
   design_id text references public.prod_designs(id) on delete set null, -- prod_designs.id é TEXT
   permite_personalizar boolean default false,
   duas_cores boolean default false,         -- peça pode ter cor base + cor secundária
+  sob_encomenda boolean default false,      -- feito por produção (sempre prazo de produção)
   estado text not null default 'rascunho',  -- rascunho | ativo | inativo
   peso_gramas int,
   created_at timestamptz default now(),
@@ -78,7 +79,12 @@ create table if not exists public.prod_loja_variantes (
 
 -- Migração de colunas/constraint para DBs já criadas (idempotente)
 alter table public.prod_loja_produtos  add column if not exists duas_cores boolean default false;
+alter table public.prod_loja_produtos  add column if not exists sob_encomenda boolean default false;
 alter table public.prod_loja_variantes add column if not exists cor_secundaria text;
+alter table public.prod_loja_config add column if not exists prazo_stock_min int not null default 1;
+alter table public.prod_loja_config add column if not exists prazo_stock_max int not null default 3;
+alter table public.prod_loja_config add column if not exists prazo_producao_min int not null default 3;
+alter table public.prod_loja_config add column if not exists prazo_producao_max int not null default 5;
 do $$
 begin
   if exists (select 1 from pg_constraint where conname = 'prod_loja_variantes_produto_id_cor_tamanho_key') then
@@ -105,6 +111,10 @@ create table if not exists public.prod_loja_config (
   id int primary key default 1,
   portes_cents int not null default 0,
   portes_gratis_acima_cents int,
+  prazo_stock_min int not null default 1,       -- dias úteis quando há stock
+  prazo_stock_max int not null default 3,
+  prazo_producao_min int not null default 3,    -- dias úteis quando é por produção
+  prazo_producao_max int not null default 5,
   check (id = 1)
 );
 insert into public.prod_loja_config (id, portes_cents)

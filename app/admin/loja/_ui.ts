@@ -40,3 +40,21 @@ export function eur(cents?: number | null): string {
   if (cents == null) return '—';
   return (cents / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
 }
+
+// ── Prazo de entrega (em stock vs por produção) ──
+export interface PrazoConfig {
+  prazo_stock_min: number; prazo_stock_max: number;
+  prazo_producao_min: number; prazo_producao_max: number;
+}
+export const PRAZO_DEFAULT: PrazoConfig = { prazo_stock_min: 1, prazo_stock_max: 3, prazo_producao_min: 3, prazo_producao_max: 5 };
+
+// Em stock só quando NÃO é sob encomenda e há stock; caso contrário, por produção.
+export function prazoEntrega(
+  opts: { stockTotal: number; sobEncomenda: boolean },
+  cfg: PrazoConfig = PRAZO_DEFAULT,
+): { tipo: 'stock' | 'producao'; label: string; dias: string } {
+  if (!opts.sobEncomenda && opts.stockTotal > 0) {
+    return { tipo: 'stock', label: 'Em stock', dias: `${cfg.prazo_stock_min} a ${cfg.prazo_stock_max} dias úteis` };
+  }
+  return { tipo: 'producao', label: 'Por produção', dias: `${cfg.prazo_producao_min} a ${cfg.prazo_producao_max} dias úteis` };
+}

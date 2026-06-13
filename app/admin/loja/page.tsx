@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import { s, estadoBadge, eur } from './_ui';
+import { s, estadoBadge, eur, prazoEntrega, PRAZO_DEFAULT, type PrazoConfig } from './_ui';
 
 interface Variante { stock: number; ativo: boolean; }
 interface Produto {
@@ -13,6 +13,7 @@ interface Produto {
   preco_cents: number;
   preco_promo_cents: number | null;
   stock: number;
+  sob_encomenda: boolean;
   estado: string;
   prod_loja_categorias: { nome: string } | null;
   prod_loja_variantes: Variante[];
@@ -27,17 +28,22 @@ function stockTotal(p: Produto): number {
 
 export default function LojaAdminPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [prazoCfg, setPrazoCfg] = useState<PrazoConfig>(PRAZO_DEFAULT);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
   const fetchProdutos = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('prod_loja_produtos')
-      .select('id, nome, slug, preco_cents, preco_promo_cents, stock, estado, prod_loja_categorias(nome), prod_loja_variantes(stock, ativo)')
-      .order('updated_at', { ascending: false });
+    const [{ data, error }, { data: cfg }] = await Promise.all([
+      supabase
+        .from('prod_loja_produtos')
+        .select('id, nome, slug, preco_cents, preco_promo_cents, stock, sob_encomenda, estado, prod_loja_categorias(nome), prod_loja_variantes(stock, ativo)')
+        .order('updated_at', { ascending: false }),
+      supabase.from('prod_loja_config').select('prazo_stock_min, prazo_stock_max, prazo_producao_min, prazo_producao_max').eq('id', 1).maybeSingle(),
+    ]);
     if (error) setErro(error.message);
     else setProdutos((data ?? []) as unknown as Produto[]);
+    if (cfg) setPrazoCfg(cfg as PrazoConfig);
     setLoading(false);
   }, []);
 
@@ -83,6 +89,7 @@ export default function LojaAdminPage() {
                   <th style={s.th}>Categoria</th>
                   <th style={s.th}>Preço</th>
                   <th style={s.th}>Stock</th>
+                  <th style={s.th}>Entrega</th>
                   <th style={s.th}>Estado</th>
                   <th style={{ ...s.th, textAlign: 'right' }}>Ações</th>
                 </tr>
@@ -90,6 +97,7 @@ export default function LojaAdminPage() {
               <tbody>
                 {produtos.map(p => {
                   const st = stockTotal(p);
+                  const prazo = prazoEntrega({ stockTotal: st, sobEncomenda: p.sob_encomenda }, prazoCfg);
                   return (
                     <tr key={p.id}>
                       <td style={s.td}>
@@ -106,6 +114,10 @@ export default function LojaAdminPage() {
                       <td style={s.td}>
                         <span style={{ color: st === 0 ? '#f87171' : st < 5 ? '#fbbf24' : '#cbd5e1', fontWeight: 600 }}>{st}</span>
                         {p.prod_loja_variantes.length > 0 && <span style={{ fontSize: 11, color: '#475569' }}> ({p.prod_loja_variantes.length} var.)</span>}
+                      </td>
+                      <td style={s.td}>
+                        <div style={{ fontSize: 12, color: prazo.tipo === 'stock' ? '#34d399' : '#fbbf24', fontWeight: 700 }}>{prazo.label}</div>
+                        <div style={{ fontSize: 11, color: '#475569' }}>{prazo.dias}</div>
                       </td>
                       <td style={s.td}><span style={estadoBadge[p.estado] ?? estadoBadge.rascunho}>{p.estado}</span></td>
                       <td style={{ ...s.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
