@@ -362,6 +362,10 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
   (recalcula preços server-side, ramifica orçamento vs Stripe `mode:'payment'`); webhook estendido
   (`tipo:'loja'` → marca `pago` + decrementa stock); `app/checkout-loja/sucesso` (limpa carrinho).
   Portes da config + override por produto + grátis acima do limiar.
+- **Admin de encomendas entregue**: `app/admin/loja/encomendas` (lista + filtro por estado, detalhe
+  com itens/morada, mudar estado, definir valor final do orçamento + `app/api/admin/loja/gerar-pagamento`
+  que cria link Stripe). RLS: policies admin em `prod_loja_encomendas`/`_itens`.
+- **Preçário**: link no topo agora só aparece a `maker`/`ambos`/admin (Navbar lê `tipo_utilizador`).
 - **FALTA**: integração customizador→carrinho (passar `?produto=`, botão add-to-cart com params);
-  admin de encomendas (lista + estados + definir valor final do orçamento → link de pagamento);
-  ifthenpay (MB Way/Multibanco) como alternativa. Não testável localmente (Stripe só em produção).
+  ifthenpay (MB Way/Multibanco) como alternativa; email ao cliente com o link de orçamento.
+  Não testável localmente (Stripe só em produção).

@@ -8,10 +8,12 @@ import { ShieldCheck, Menu, X, LifeBuoy, ShoppingCart } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import SupportModal from '@/components/SupportModal';
 import { useCart } from '@/components/loja/CartContext';
+import { isMakerTipo } from '@/lib/loja';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMaker, setIsMaker] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const { count } = useCart();
@@ -25,9 +27,17 @@ export default function Navbar() {
           .then(r => r.json())
           .then(({ isAdmin }) => setIsAdmin(!!isAdmin))
           .catch(() => setIsAdmin(false));
+        // Persona (preçário só aparece a makers)
+        (async () => {
+          try {
+            const { data } = await supabase.from('prod_perfis').select('tipo_utilizador').eq('id', session.user.id).maybeSingle();
+            setIsMaker(isMakerTipo(data?.tipo_utilizador));
+          } catch { setIsMaker(false); }
+        })();
       } else {
         setUser(null);
         setIsAdmin(false);
+        setIsMaker(false);
         setMobileOpen(false);
       }
     });
@@ -55,7 +65,7 @@ export default function Navbar() {
         {/* Links desktop */}
         <div className={styles.desktopLinks}>
           <Link href="/loja">Loja</Link>
-          <Link href="/pricing">Preçário</Link>
+          {(isMaker || isAdmin) && <Link href="/pricing">Preçário</Link>}
 
           <Link href="/carrinho" aria-label="Carrinho" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
             <ShoppingCart size={20} />
@@ -112,7 +122,7 @@ export default function Navbar() {
         <div className={styles.mobileMenu} role="menu">
           <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
           <Link href="/carrinho" onClick={() => setMobileOpen(false)}>Carrinho{count > 0 ? ` (${count})` : ''}</Link>
-          <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>
+          {(isMaker || isAdmin) && <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>}
 
           {user ? (
             <>

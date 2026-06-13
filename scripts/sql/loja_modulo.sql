@@ -269,6 +269,14 @@ drop policy if exists loja_config_admin on public.prod_loja_config;
 create policy loja_config_admin on public.prod_loja_config
   for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists loja_encomendas_admin on public.prod_loja_encomendas;
+create policy loja_encomendas_admin on public.prod_loja_encomendas
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists loja_enc_itens_admin on public.prod_loja_encomenda_itens;
+create policy loja_enc_itens_admin on public.prod_loja_encomenda_itens
+  for all using (public.is_admin()) with check (public.is_admin());
+
 -- ----------------------------------------------------------------------------
 -- 5. Storage bucket para fotos de produtos
 --    Criar bucket público 'loja_produtos' (uma vez). Upload via API service_role.

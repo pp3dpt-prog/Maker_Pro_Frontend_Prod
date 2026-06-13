@@ -66,6 +66,7 @@ export default function LojaAdminPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Link href="/admin" style={s.btnGhost}>← Admin</Link>
+            <Link href="/admin/loja/encomendas" style={s.btnGhost}>Encomendas</Link>
             <Link href="/admin/loja/categorias" style={s.btnGhost}>Categorias</Link>
             <Link href="/admin/loja/definicoes" style={s.btnGhost}>Portes</Link>
             <Link href="/admin/loja/novo" style={{ ...s.btn, textDecoration: 'none' }}>+ Novo produto</Link>
