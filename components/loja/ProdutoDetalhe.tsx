@@ -120,6 +120,19 @@ export default function ProdutoDetalhe({
                   Falar no Discord
                 </a>
               </div>
+            ) : produto.requer_orcamento ? (
+              <div style={{ marginBottom: 22 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 24, fontWeight: 900, color: '#fbbf24' }}>Sob orçamento</span>
+                </div>
+                <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 14px' }}>
+                  Esta peça é orçamentada (o tamanho pode variar). Adiciona ao carrinho — o <strong style={{ color: '#cbd5e1' }}>valor final é confirmado antes do pagamento</strong>.
+                </p>
+                <button onClick={() => setMsg('Carrinho disponível em breve.')} style={{ padding: '14px 28px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                  Adicionar ao carrinho (a orçamentar)
+                </button>
+                {msg && <p style={{ fontSize: 13, color: '#fbbf24', margin: '10px 0 0' }}>{msg}</p>}
+              </div>
             ) : (
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 18 }}>

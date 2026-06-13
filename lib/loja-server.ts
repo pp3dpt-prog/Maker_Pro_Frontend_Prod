@@ -36,6 +36,7 @@ export interface CatalogoProduto {
   preco_promo_cents: number | null;
   stock: number;
   sob_encomenda: boolean;
+  requer_orcamento: boolean;
   categoria_id: string | null;
   prod_loja_imagens: { url: string; ordem: number }[];
   prod_loja_variantes: { stock: number; ativo: boolean }[];
@@ -58,7 +59,7 @@ export async function fetchCatalogo(categoriaSlug?: string): Promise<{
 
   let q = supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, preco_cents, preco_promo_cents, stock, sob_encomenda, categoria_id, prod_loja_imagens(url, ordem), prod_loja_variantes(stock, ativo)')
+    .select('id, slug, nome, preco_cents, preco_promo_cents, stock, sob_encomenda, requer_orcamento, categoria_id, prod_loja_imagens(url, ordem), prod_loja_variantes(stock, ativo)')
     .eq('estado', 'ativo')
     .order('updated_at', { ascending: false });
 
@@ -81,7 +82,7 @@ export interface ProdutoVariante {
 export interface ProdutoDetalhe {
   id: string; slug: string; nome: string; descricao: string | null;
   preco_cents: number; preco_promo_cents: number | null; stock: number;
-  sob_encomenda: boolean; duas_cores: boolean;
+  sob_encomenda: boolean; duas_cores: boolean; requer_orcamento: boolean;
   permite_personalizar: boolean; design_id: string | null;
   prod_loja_categorias: { slug: string; nome: string } | null;
   prod_loja_imagens: ProdutoImagem[];
@@ -93,7 +94,7 @@ export async function fetchProduto(slug: string): Promise<ProdutoDetalhe | null>
   const supabase = await createClient();
   const { data } = await supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, descricao, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, permite_personalizar, design_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
+    .select('id, slug, nome, descricao, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, requer_orcamento, permite_personalizar, design_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
     .eq('slug', slug)
     .eq('estado', 'ativo')
     .maybeSingle();

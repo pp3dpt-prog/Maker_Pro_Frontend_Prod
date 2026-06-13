@@ -66,6 +66,8 @@ export default function StoreCatalog({
                 <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   {ocultarPrecos ? (
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa' }}>Preço sob consulta</span>
+                  ) : p.requer_orcamento ? (
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#fbbf24' }}>Sob orçamento</span>
                   ) : (
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                       <span style={{ fontSize: 18, fontWeight: 800, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(temPromo ? p.preco_promo_cents : p.preco_cents)}</span>

@@ -344,3 +344,16 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
 ### Decisões fechadas (gating)
 - `tipo_utilizador IN ('maker','ambos')` → sem preços (msg Discord/ticket) + com downloads.
 - `consumidor` / visitante → vê preços, sem downloads.
+
+### Modelo Carrinho + Personalização + Orçamento (Fase 5 — decidido)
+- Personalização entra no carrinho: produto de loja com `permite_personalizar`+`design_id`; o
+  customizador recebe o produto e o botão passa a **"Adicionar ao carrinho"** (params em
+  `prod_loja_carrinho_itens.personalizacao`). Fluxo `PedidoOrcamentoModal`/`prod_pedidos_orcamento`
+  mantém-se como **fallback** (designs sem produto de loja ligado).
+- **Preço de personalizados:** peça de tamanho único → **preço fixo do produto** (igual perso ou não).
+  Peça que varia (ex.: caixa) → flag **`prod_loja_produtos.requer_orcamento=true`** → sem preço fixo.
+- **Checkout ramifica:** se o carrinho tiver **qualquer** item `requer_orcamento` → a encomenda inteira
+  vira **pedido de orçamento**; cliente só paga **depois** do admin entregar o valor final. Caso
+  contrário → pagamento imediato (Stripe/ifthenpay).
+- Flag `requer_orcamento` entregue (SQL + admin + display "Sob orçamento" na loja). Falta: carrinho,
+  integração customizador→carrinho, checkout ramificado. **Pendente: checkout convidado vs login.**

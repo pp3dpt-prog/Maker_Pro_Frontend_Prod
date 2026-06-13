@@ -55,6 +55,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   const [permitePersonalizar, setPermitePersonalizar] = useState(false);
   const [duasCores, setDuasCores] = useState(false);
   const [sobEncomenda, setSobEncomenda] = useState(false);
+  const [requerOrcamento, setRequerOrcamento] = useState(false);
   const [prazoCfg, setPrazoCfg] = useState<PrazoConfig>(PRAZO_DEFAULT);
   const [portes, setPortes] = useState('');
   const [pesoGramas, setPesoGramas] = useState('');
@@ -108,6 +109,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     setPermitePersonalizar(!!p.permite_personalizar);
     setDuasCores(!!p.duas_cores);
     setSobEncomenda(!!p.sob_encomenda);
+    setRequerOrcamento(!!p.requer_orcamento);
     setPortes(toEuros(p.portes_cents));
     setPesoGramas(p.peso_gramas != null ? String(p.peso_gramas) : '');
     setStockSimples(String(p.stock ?? 0));
@@ -181,7 +183,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   // ── Guardar ──
   async function guardar() {
     if (!nome.trim()) { setErro('O nome é obrigatório.'); return; }
-    if (toCents(preco) == null) { setErro('Preço inválido.'); return; }
+    if (!requerOrcamento && toCents(preco) == null) { setErro('Preço inválido (ou marca "requer orçamento").'); return; }
     setSaving(true); setErro('');
 
     const payload = {
@@ -189,13 +191,14 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       slug: slug.trim() || slugify(nome),
       descricao: descricao.trim() || null,
       categoria_id: categoriaId || null,
-      preco_cents: toCents(preco),
+      preco_cents: toCents(preco) ?? 0,
       preco_promo_cents: toCents(precoPromo),
       estado,
       design_id: designId || null,
       permite_personalizar: permitePersonalizar,
       duas_cores: duasCores,
       sob_encomenda: sobEncomenda,
+      requer_orcamento: requerOrcamento,
       portes_cents: toCents(portes),
       peso_gramas: pesoGramas.trim() === '' ? null : parseInt(pesoGramas, 10),
       stock: variantes.length > 0 ? 0 : (parseInt(stockSimples, 10) || 0),
@@ -375,9 +378,18 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
         {/* Disponibilidade & prazo */}
         <div style={{ ...s.card, marginBottom: 20 }}>
           <label style={{ ...s.label, marginBottom: 12 }}>Disponibilidade &amp; prazo de entrega</label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={sobEncomenda} onChange={e => setSobEncomenda(e.target.checked)} />
             <span style={{ fontSize: 14, color: '#cbd5e1' }}>Esta peça é feita por produção (sob encomenda)</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
+            <input type="checkbox" checked={requerOrcamento} onChange={e => setRequerOrcamento(e.target.checked)} style={{ marginTop: 3 }} />
+            <span style={{ fontSize: 14, color: '#cbd5e1' }}>
+              Requer orçamento (preço não fixo — ex.: peça que varia muito de tamanho)
+              <span style={{ display: 'block', fontSize: 12, color: '#475569', marginTop: 2 }}>
+                No carrinho fica "a orçamentar"; se a encomenda tiver alguma peça destas, o checkout vira pedido de orçamento. O preço acima passa a ser opcional (estimativa).
+              </span>
+            </span>
           </label>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 10,

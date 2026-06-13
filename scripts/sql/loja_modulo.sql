@@ -56,6 +56,7 @@ create table if not exists public.prod_loja_produtos (
   permite_personalizar boolean default false,
   duas_cores boolean default false,         -- peça pode ter cor base + cor secundária
   sob_encomenda boolean default false,      -- feito por produção (sempre prazo de produção)
+  requer_orcamento boolean default false,   -- preço não fixo (ex.: caixa que varia) -> checkout vira orçamento
   estado text not null default 'rascunho',  -- rascunho | ativo | inativo
   peso_gramas int,
   created_at timestamptz default now(),
@@ -80,6 +81,7 @@ create table if not exists public.prod_loja_variantes (
 -- Migração de colunas/constraint para DBs já criadas (idempotente)
 alter table public.prod_loja_produtos  add column if not exists duas_cores boolean default false;
 alter table public.prod_loja_produtos  add column if not exists sob_encomenda boolean default false;
+alter table public.prod_loja_produtos  add column if not exists requer_orcamento boolean default false;
 alter table public.prod_loja_variantes add column if not exists cor_secundaria text;
 alter table public.prod_loja_config add column if not exists prazo_stock_min int not null default 1;
 alter table public.prod_loja_config add column if not exists prazo_stock_max int not null default 3;
