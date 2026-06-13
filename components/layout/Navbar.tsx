@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
-import { ShieldCheck, Menu, X, LifeBuoy } from 'lucide-react';
+import { ShieldCheck, Menu, X, LifeBuoy, ShoppingCart } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import SupportModal from '@/components/SupportModal';
+import { useCart } from '@/components/loja/CartContext';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const { count } = useCart();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -54,6 +56,15 @@ export default function Navbar() {
         <div className={styles.desktopLinks}>
           <Link href="/loja">Loja</Link>
           <Link href="/pricing">Preçário</Link>
+
+          <Link href="/carrinho" aria-label="Carrinho" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <ShoppingCart size={20} />
+            {count > 0 && (
+              <span style={{ position: 'absolute', top: -8, right: -10, background: '#2563eb', color: '#fff', fontSize: 10, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                {count}
+              </span>
+            )}
+          </Link>
 
           {user ? (
             <>
@@ -100,6 +111,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className={styles.mobileMenu} role="menu">
           <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
+          <Link href="/carrinho" onClick={() => setMobileOpen(false)}>Carrinho{count > 0 ? ` (${count})` : ''}</Link>
           <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>
 
           {user ? (

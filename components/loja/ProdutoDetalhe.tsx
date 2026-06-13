@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { eur, prazoEntrega, DISCORD_URL, type PrazoConfig } from '@/lib/loja';
 import type { ProdutoDetalhe as Produto, ProdutoVariante } from '@/lib/loja-server';
+import { useCart } from '@/components/loja/CartContext';
 
 function varianteLabel(v: ProdutoVariante): string {
   return [v.cor, v.cor_secundaria, v.tamanho].filter(Boolean).join(' / ') || 'Variante';
@@ -23,6 +24,7 @@ export default function ProdutoDetalhe({
   const [fotoSel, setFotoSel] = useState(0);
   const [varId, setVarId] = useState<string>(temVariantes ? variantes[0].id : '');
   const [msg, setMsg] = useState('');
+  const { addItem } = useCart();
 
   const varSel = variantes.find(v => v.id === varId) ?? null;
 
@@ -38,6 +40,23 @@ export default function ProdutoDetalhe({
   const prazo = prazoEntrega({ stockTotal: stockParaPrazo, sobEncomenda: produto.sob_encomenda }, prazoCfg);
 
   const semStock = temVariantes ? (varSel ? varSel.stock <= 0 : true) : produto.stock <= 0;
+
+  function adicionar() {
+    addItem({
+      produto_id: produto.id,
+      slug: produto.slug,
+      nome: produto.nome,
+      foto: fotos[0]?.url ?? null,
+      variante_id: varSel?.id ?? null,
+      variante_label: varSel ? varianteLabel(varSel) : null,
+      preco_cents: produto.requer_orcamento ? null : precoEfetivo,
+      requer_orcamento: produto.requer_orcamento,
+      personalizacao: null,
+      personalizacao_label: null,
+    });
+    setMsg('Adicionado ao carrinho ✓');
+    setTimeout(() => setMsg(''), 2500);
+  }
 
   function partilhar() {
     const url = typeof window !== 'undefined' ? window.location.href : '';
@@ -128,10 +147,10 @@ export default function ProdutoDetalhe({
                 <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 14px' }}>
                   Esta peça é orçamentada (o tamanho pode variar). Adiciona ao carrinho — o <strong style={{ color: '#cbd5e1' }}>valor final é confirmado antes do pagamento</strong>.
                 </p>
-                <button onClick={() => setMsg('Carrinho disponível em breve.')} style={{ padding: '14px 28px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                <button onClick={adicionar} style={{ padding: '14px 28px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
                   Adicionar ao carrinho (a orçamentar)
                 </button>
-                {msg && <p style={{ fontSize: 13, color: '#fbbf24', margin: '10px 0 0' }}>{msg}</p>}
+                {msg && <p style={{ fontSize: 13, color: '#34d399', margin: '10px 0 0' }}>{msg}</p>}
               </div>
             ) : (
               <>
@@ -141,13 +160,13 @@ export default function ProdutoDetalhe({
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
                   <button
-                    onClick={() => setMsg('Carrinho disponível em breve.')}
+                    onClick={adicionar}
                     disabled={semStock && !produto.sob_encomenda}
                     style={{ padding: '14px 28px', background: (semStock && !produto.sob_encomenda) ? '#1e293b' : '#2563eb', color: (semStock && !produto.sob_encomenda) ? '#64748b' : '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: (semStock && !produto.sob_encomenda) ? 'not-allowed' : 'pointer' }}>
                     {(semStock && !produto.sob_encomenda) ? 'Esgotado' : 'Adicionar ao carrinho'}
                   </button>
                 </div>
-                {msg && <p style={{ fontSize: 13, color: '#fbbf24', margin: '4px 0 0' }}>{msg}</p>}
+                {msg && <p style={{ fontSize: 13, color: '#34d399', margin: '4px 0 0' }}>{msg}</p>}
               </>
             )}
 
