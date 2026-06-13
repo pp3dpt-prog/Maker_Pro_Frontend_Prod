@@ -11,7 +11,8 @@ interface DesignOpt { id: string; nome: string; }
 
 interface Variante {
   id?: string;          // presente = já existe na DB
-  cor: string;
+  cor: string;          // cor base
+  cor_secundaria: string; // só se duasCores
   tamanho: string;
   sku: string;
   stock: number;
@@ -52,6 +53,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   const [estado, setEstado] = useState('rascunho');
   const [designId, setDesignId] = useState('');
   const [permitePersonalizar, setPermitePersonalizar] = useState(false);
+  const [duasCores, setDuasCores] = useState(false);
   const [portes, setPortes] = useState('');
   const [pesoGramas, setPesoGramas] = useState('');
   const [stockSimples, setStockSimples] = useState('0'); // usado se sem variantes
@@ -100,11 +102,12 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     setEstado(p.estado ?? 'rascunho');
     setDesignId(p.design_id ?? '');
     setPermitePersonalizar(!!p.permite_personalizar);
+    setDuasCores(!!p.duas_cores);
     setPortes(toEuros(p.portes_cents));
     setPesoGramas(p.peso_gramas != null ? String(p.peso_gramas) : '');
     setStockSimples(String(p.stock ?? 0));
     setVariantes(((p.prod_loja_variantes ?? []) as any[]).map(v => ({
-      id: v.id, cor: v.cor ?? '', tamanho: v.tamanho ?? '', sku: v.sku ?? '',
+      id: v.id, cor: v.cor ?? '', cor_secundaria: v.cor_secundaria ?? '', tamanho: v.tamanho ?? '', sku: v.sku ?? '',
       stock: v.stock ?? 0, preco_cents: v.preco_cents, ativo: v.ativo ?? true,
     })));
     setImagens(((p.prod_loja_imagens ?? []) as any[]).map(i => ({ id: i.id, url: i.url, ordem: i.ordem ?? 0 })).sort((a, b) => a.ordem - b.ordem));
@@ -115,7 +118,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
   // ── Variantes ──
   function addVariante() {
-    setVariantes(prev => [...prev, { cor: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true }]);
+    setVariantes(prev => [...prev, { cor: '', cor_secundaria: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true }]);
   }
   function updVariante(i: number, patch: Partial<Variante>) {
     setVariantes(prev => prev.map((v, idx) => idx === i ? { ...v, ...patch } : v));
@@ -186,6 +189,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       estado,
       design_id: designId || null,
       permite_personalizar: permitePersonalizar,
+      duas_cores: duasCores,
       portes_cents: toCents(portes),
       peso_gramas: pesoGramas.trim() === '' ? null : parseInt(pesoGramas, 10),
       stock: variantes.length > 0 ? 0 : (parseInt(stockSimples, 10) || 0),
@@ -207,7 +211,8 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     for (let i = 0; i < variantes.length; i++) {
       const v = variantes[i];
       const row = {
-        produto_id: id, cor: v.cor || null, tamanho: v.tamanho || null, sku: v.sku || null,
+        produto_id: id, cor: v.cor || null, cor_secundaria: duasCores ? (v.cor_secundaria || null) : null,
+        tamanho: v.tamanho || null, sku: v.sku || null,
         stock: v.stock || 0, preco_cents: v.preco_cents, ordem: i, ativo: v.ativo,
       };
       if (v.id) await supabase.from('prod_loja_variantes').update(row).eq('id', v.id);
@@ -229,6 +234,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   if (loading) return <div style={s.page}><div style={s.wrap}><p style={{ color: '#64748b' }}>A carregar…</p></div></div>;
 
   const fieldRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 };
+  const gridCols = duasCores ? '1fr 1fr 1fr 1fr 70px 80px 36px' : '1fr 1fr 1fr 80px 90px 36px';
 
   return (
     <div style={s.page}>
@@ -318,9 +324,15 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
         {/* Variantes */}
         <div style={{ ...s.card, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <label style={{ ...s.label, margin: 0 }}>Variantes (cor / tamanho)</label>
+            <label style={{ ...s.label, margin: 0 }}>Variantes{duasCores ? ' (cor base / cor secundária / tamanho)' : ' (cor / tamanho)'}</label>
             <button style={s.btnGhost} onClick={addVariante} type="button">+ Adicionar variante</button>
           </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
+            <input type="checkbox" checked={duasCores} onChange={e => setDuasCores(e.target.checked)} />
+            <span style={{ fontSize: 14, color: '#cbd5e1' }}>A peça pode ter duas cores (cor base + cor secundária)</span>
+          </label>
+
           {variantes.length === 0 ? (
             <div>
               <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>Sem variantes — usa o stock simples do produto:</p>
@@ -331,12 +343,15 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 90px 36px', gap: 8, fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
-                <span>Cor</span><span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span><span></span>
+              <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
+                <span>{duasCores ? 'Cor base' : 'Cor'}</span>
+                {duasCores && <span>Cor secundária</span>}
+                <span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span><span></span>
               </div>
               {variantes.map((v, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 90px 36px', gap: 8, alignItems: 'center' }}>
-                  <input style={s.input} value={v.cor} onChange={e => updVariante(i, { cor: e.target.value })} placeholder="Preto" />
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, alignItems: 'center' }}>
+                  <input style={s.input} value={v.cor} onChange={e => updVariante(i, { cor: e.target.value })} placeholder={duasCores ? 'Preto' : 'Preto'} />
+                  {duasCores && <input style={s.input} value={v.cor_secundaria} onChange={e => updVariante(i, { cor_secundaria: e.target.value })} placeholder="Branco" />}
                   <input style={s.input} value={v.tamanho} onChange={e => updVariante(i, { tamanho: e.target.value })} placeholder="M" />
                   <input style={s.input} value={v.sku} onChange={e => updVariante(i, { sku: e.target.value })} placeholder="SKU" />
                   <input style={s.input} value={v.stock} onChange={e => updVariante(i, { stock: parseInt(e.target.value, 10) || 0 })} inputMode="numeric" />

@@ -54,6 +54,7 @@ create table if not exists public.prod_loja_produtos (
   portes_cents int,                         -- override por produto (null = usa config global)
   design_id text references public.prod_designs(id) on delete set null, -- prod_designs.id é TEXT
   permite_personalizar boolean default false,
+  duas_cores boolean default false,         -- peça pode ter cor base + cor secundária
   estado text not null default 'rascunho',  -- rascunho | ativo | inativo
   peso_gramas int,
   created_at timestamptz default now(),
@@ -64,15 +65,31 @@ create table if not exists public.prod_loja_produtos (
 create table if not exists public.prod_loja_variantes (
   id uuid primary key default gen_random_uuid(),
   produto_id uuid references public.prod_loja_produtos(id) on delete cascade,
-  cor text,
+  cor text,                                 -- cor base
+  cor_secundaria text,                      -- só se o produto for duas_cores
   tamanho text,
   sku text,
   stock int not null default 0,
   preco_cents int,                          -- override do preço base (null = herda)
   ordem int default 0,
   ativo boolean default true,
-  unique (produto_id, cor, tamanho)
+  unique (produto_id, cor, cor_secundaria, tamanho)
 );
+
+-- Migração de colunas/constraint para DBs já criadas (idempotente)
+alter table public.prod_loja_produtos  add column if not exists duas_cores boolean default false;
+alter table public.prod_loja_variantes add column if not exists cor_secundaria text;
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'prod_loja_variantes_produto_id_cor_tamanho_key') then
+    alter table public.prod_loja_variantes drop constraint prod_loja_variantes_produto_id_cor_tamanho_key;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'prod_loja_variantes_produto_id_cor_cor_secundaria_tamanho_key') then
+    alter table public.prod_loja_variantes
+      add constraint prod_loja_variantes_produto_id_cor_cor_secundaria_tamanho_key
+      unique (produto_id, cor, cor_secundaria, tamanho);
+  end if;
+end $$;
 
 create table if not exists public.prod_loja_imagens (
   id uuid primary key default gen_random_uuid(),
