@@ -202,6 +202,19 @@ export default function AdminDashboard() {
             </span>
           )}
         </Link>
+
+        <Link
+          href="/admin/loja"
+          style={{
+            display: 'flex', alignItems: 'center',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🛒 Loja</span>
+        </Link>
       </aside>
 
       {/* MAIN */}
