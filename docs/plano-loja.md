@@ -355,5 +355,13 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
 - **Checkout ramifica:** se o carrinho tiver **qualquer** item `requer_orcamento` → a encomenda inteira
   vira **pedido de orçamento**; cliente só paga **depois** do admin entregar o valor final. Caso
   contrário → pagamento imediato (Stripe/ifthenpay).
-- Flag `requer_orcamento` entregue (SQL + admin + display "Sob orçamento" na loja). Falta: carrinho,
-  integração customizador→carrinho, checkout ramificado. **Pendente: checkout convidado vs login.**
+- Flag `requer_orcamento` entregue (SQL + admin + display "Sob orçamento" na loja).
+- **Carrinho entregue**: `CartContext` (localStorage), badge na navbar, add-to-cart na página de
+  produto, `/carrinho`.
+- **Checkout entregue** (exige login): `app/checkout-loja` (morada + resumo) → `app/api/loja/checkout`
+  (recalcula preços server-side, ramifica orçamento vs Stripe `mode:'payment'`); webhook estendido
+  (`tipo:'loja'` → marca `pago` + decrementa stock); `app/checkout-loja/sucesso` (limpa carrinho).
+  Portes da config + override por produto + grátis acima do limiar.
+- **FALTA**: integração customizador→carrinho (passar `?produto=`, botão add-to-cart com params);
+  admin de encomendas (lista + estados + definir valor final do orçamento → link de pagamento);
+  ifthenpay (MB Way/Multibanco) como alternativa. Não testável localmente (Stripe só em produção).

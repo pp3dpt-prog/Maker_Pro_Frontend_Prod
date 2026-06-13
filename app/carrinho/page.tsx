@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/components/loja/CartContext';
 import { eur } from '@/lib/loja';
 
 export default function CarrinhoPage() {
+  const router = useRouter();
   const { items, ready, count, totalFixoCents, temOrcamento, setQty, removeItem } = useCart();
-  const [msg, setMsg] = useState('');
 
   if (!ready) {
     return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
@@ -73,11 +73,10 @@ export default function CarrinhoPage() {
           )}
 
           <button
-            onClick={() => setMsg('Checkout no próximo passo (exige login). Em construção.')}
+            onClick={() => router.push('/checkout-loja')}
             style={{ width: '100%', padding: '14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
             {temOrcamento ? 'Pedir orçamento' : 'Finalizar compra'}
           </button>
-          {msg && <p style={{ fontSize: 12, color: '#fbbf24', margin: '10px 0 0', textAlign: 'center' }}>{msg}</p>}
 
           <Link href="/loja" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Continuar a comprar</Link>
         </div>

@@ -96,6 +96,40 @@ export async function POST(req: NextRequest) {
           break;
         }
 
+        // ── Loja: marcar encomenda paga + decrementar stock ───────────
+        if (tipo === 'loja') {
+          const encomendaId = session.metadata?.encomenda_id;
+          if (encomendaId) {
+            await admin.from('prod_loja_encomendas')
+              .update({ estado: 'pago', payment_ref: session.id })
+              .eq('id', encomendaId);
+
+            const { data: itens } = await admin
+              .from('prod_loja_encomenda_itens')
+              .select('produto_id, variante_id, quantidade')
+              .eq('encomenda_id', encomendaId);
+
+            for (const it of itens ?? []) {
+              if (it.variante_id) {
+                const { data: v } = await admin.from('prod_loja_variantes').select('stock').eq('id', it.variante_id).single();
+                if (v) await admin.from('prod_loja_variantes').update({ stock: Math.max(0, (v.stock ?? 0) - it.quantidade) }).eq('id', it.variante_id);
+              } else {
+                const { data: p } = await admin.from('prod_loja_produtos').select('stock').eq('id', it.produto_id).single();
+                if (p) await admin.from('prod_loja_produtos').update({ stock: Math.max(0, (p.stock ?? 0) - it.quantidade) }).eq('id', it.produto_id);
+              }
+            }
+
+            try {
+              await admin.from('prod_pagamentos').insert({
+                user_id: userId, user_email: email, user_name: userName, user_nif: userNif,
+                descricao: 'Compra na loja', plano_nome: 'Loja', valor, tipo: 'loja',
+                stripe_session_id: session.id,
+              });
+            } catch (_) { /* tipo 'loja' pode não ser aceite por constraint — ignorar */ }
+          }
+          break;
+        }
+
         // ── Subscrição: activar plano ──────────────────────────────────
         if (session.mode === 'subscription') {
           const planoId   = session.metadata?.plano_id ?? '';
