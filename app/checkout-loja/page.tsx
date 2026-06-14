@@ -11,6 +11,7 @@ export default function CheckoutLojaPage() {
   const router = useRouter();
   const { items, ready, totalFixoCents, temOrcamento, entrega, clear } = useCart();
   const emMaos = entrega === 'maos';
+  const viaOrcamento = temOrcamento || emMaos;
 
   const [authChecked, setAuthChecked] = useState(false);
   const [logado, setLogado] = useState(false);
@@ -87,7 +88,7 @@ export default function CheckoutLojaPage() {
 
   return (
     <main style={wrap}>
-      <h1 style={h1}>Finalizar {temOrcamento ? 'pedido' : 'compra'}</h1>
+      <h1 style={h1}>Finalizar {viaOrcamento ? 'pedido' : 'compra'}</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 24, alignItems: 'start' }}>
         {/* Dados */}
@@ -130,22 +131,24 @@ export default function CheckoutLojaPage() {
             </div>
           ))}
           <div style={{ borderTop: '1px solid #1e293b', margin: '12px 0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800 }}>
-            <span>{temOrcamento ? 'Estimativa' : 'Subtotal'}</span>
+            <span>{viaOrcamento ? 'Estimativa' : 'Subtotal'}</span>
             <span>{eur(totalFixoCents)}</span>
           </div>
 
-          {temOrcamento && (
+          {viaOrcamento && (
             <p style={{ fontSize: 12, color: '#fbbf24', lineHeight: 1.5, marginBottom: 14 }}>
-              Tens peças a orçamentar — não há pagamento agora. Confirmamos o valor final e depois pagas.
+              {emMaos
+                ? 'Entrega em mãos (Oeiras, Carnaxide ou Linda-a-Velha) — não há pagamento agora. Combinamos a entrega e o pagamento depois.'
+                : 'Tens peças a orçamentar — não há pagamento agora. Confirmamos o valor final e depois pagas.'}
             </p>
           )}
-          {!temOrcamento && <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
+          {!viaOrcamento && <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
 
           {erro && <p style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>{erro}</p>}
 
           <button onClick={finalizar} disabled={submitting}
             style={{ width: '100%', padding: 14, background: submitting ? '#1e3a5f' : '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer' }}>
-            {submitting ? 'A processar…' : temOrcamento ? 'Enviar pedido de orçamento' : 'Pagar com cartão'}
+            {submitting ? 'A processar…' : viaOrcamento ? 'Enviar pedido' : 'Pagar com cartão'}
           </button>
           <Link href="/carrinho" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Voltar ao carrinho</Link>
         </div>

@@ -51,6 +51,8 @@ export async function POST(request: Request) {
   if (linhas.length === 0) return NextResponse.json({ error: 'Sem itens válidos.' }, { status: 400 });
 
   const temOrcamento = linhas.some(l => l.requer_orcamento);
+  // Entrega em mãos é coordenada com o admin e paga depois -> segue sempre como orçamento.
+  const viaOrcamento = temOrcamento || entrega === 'maos';
   const subtotal = linhas.reduce((a, l) => a + (l.requer_orcamento ? 0 : l.unit * l.qtd), 0);
 
   // Portes: 0 se entrega em mãos; senão global + override por produto (máximo), grátis acima do limiar
@@ -62,16 +64,16 @@ export async function POST(request: Request) {
     if (cfg?.portes_gratis_acima_cents != null && subtotal >= cfg.portes_gratis_acima_cents) portes = 0;
   }
 
-  const estado = temOrcamento ? 'orcamento' : 'pendente';
-  const totalCents = temOrcamento ? subtotal : subtotal + portes;
+  const estado = viaOrcamento ? 'orcamento' : 'pendente';
+  const totalCents = viaOrcamento ? subtotal : subtotal + portes;
 
   const { data: enc, error: encErr } = await admin.from('prod_loja_encomendas').insert({
     user_id: user.id,
     estado,
     entrega,
     total_cents: totalCents,
-    portes_cents: temOrcamento ? 0 : portes,
-    metodo_pagamento: temOrcamento ? null : 'stripe',
+    portes_cents: viaOrcamento ? 0 : portes,
+    metodo_pagamento: viaOrcamento ? null : 'stripe',
     morada_envio: morada,
     nif: nif || null,
   }).select('id, numero').single();
@@ -92,8 +94,8 @@ export async function POST(request: Request) {
     personalizacao: l.personalizacao,
   })));
 
-  // ── Orçamento: sem pagamento agora ──
-  if (temOrcamento) {
+  // ── Orçamento: sem pagamento agora (itens a orçamentar ou entrega em mãos) ──
+  if (viaOrcamento) {
     return NextResponse.json({ ok: true, tipo: 'orcamento', numero: enc.numero });
   }
 

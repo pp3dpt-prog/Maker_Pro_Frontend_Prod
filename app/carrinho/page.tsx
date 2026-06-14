@@ -70,15 +70,17 @@ export default function CarrinhoPage() {
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>Entrega</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <OpcaoEntrega ativo={entrega === 'envio'} onClick={() => setEntrega('envio')} titulo="Envio para casa" sub="Portes calculados no checkout" />
-              <OpcaoEntrega ativo={entrega === 'maos'} onClick={() => setEntrega('maos')} titulo="Entrega em mãos" sub="Sem portes — combinamos a entrega" />
+              <OpcaoEntrega ativo={entrega === 'maos'} onClick={() => setEntrega('maos')} titulo="Entrega em mãos" sub="Só Oeiras, Carnaxide e Linda-a-Velha · paga depois" />
             </div>
           </div>
 
-          {temOrcamento && (
+          {(temOrcamento || entrega === 'maos') && (
             <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <p style={{ fontSize: 13, color: '#fbbf24', fontWeight: 700, margin: '0 0 4px' }}>Encomenda com orçamento</p>
+              <p style={{ fontSize: 13, color: '#fbbf24', fontWeight: 700, margin: '0 0 4px' }}>Segue como orçamento</p>
               <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                Tens peças a orçamentar. Ao finalizar, a encomenda segue como pedido de orçamento — pagas depois de confirmarmos o valor final.
+                {entrega === 'maos'
+                  ? 'A entrega em mãos é coordenada connosco (só Oeiras, Carnaxide e Linda-a-Velha) e o pagamento é feito depois. Ao finalizar, envias um pedido — confirmamos os detalhes e o valor.'
+                  : 'Tens peças a orçamentar. Ao finalizar, a encomenda segue como pedido de orçamento — pagas depois de confirmarmos o valor final.'}
               </p>
             </div>
           )}
@@ -86,7 +88,7 @@ export default function CarrinhoPage() {
           <button
             onClick={() => router.push('/checkout-loja')}
             style={{ width: '100%', padding: '14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-            {temOrcamento ? 'Pedir orçamento' : 'Finalizar compra'}
+            {(temOrcamento || entrega === 'maos') ? 'Pedir orçamento' : 'Finalizar compra'}
           </button>
 
           <Link href="/loja" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Continuar a comprar</Link>
