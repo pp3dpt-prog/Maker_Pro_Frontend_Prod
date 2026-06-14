@@ -65,6 +65,7 @@ export default function Navbar() {
         {/* Links desktop */}
         <div className={styles.desktopLinks}>
           <Link href="/loja">Loja</Link>
+          <Link href="/makers" style={{ opacity: 0.7 }}>Makers</Link>
           {(isMaker || isAdmin) && <Link href="/pricing">Preçário</Link>}
 
           <Link href="/carrinho" aria-label="Carrinho" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -121,6 +122,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className={styles.mobileMenu} role="menu">
           <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
+          <Link href="/makers" onClick={() => setMobileOpen(false)}>Makers</Link>
           <Link href="/carrinho" onClick={() => setMobileOpen(false)}>Carrinho{count > 0 ? ` (${count})` : ''}</Link>
           {(isMaker || isAdmin) && <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>}
 

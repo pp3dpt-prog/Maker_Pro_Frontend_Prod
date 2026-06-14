@@ -377,6 +377,10 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
 - **Emails (Resend)**: `lib/loja-email.ts` notifica o admin (PEDIDOS_ADMIN_EMAIL, from onboarding@
   resend.dev) em **novo orçamento** (checkout) e **encomenda paga** (webhook). Domínio pp3d.pt ainda
   não verificado → envia para o admin, não para o cliente.
+- **FASE 6 entregue** (/makers): `app/makers/page.tsx` — login obrigatório (landing com CTA se anónimo);
+  banner de plano + downloads disponíveis (créditos); catálogo de designs agrupado por família
+  (reusa `FamilyCard`), exclusivos bloqueados → `/pricing`; download/geração continua no `/customizador`.
+  Link discreto "Makers" na Navbar; `/makers` no sitemap.
 - **FASE 5 FECHADA.** Opcionais futuros: ifthenpay (MB Way/Multibanco); enviar email direto ao cliente
   (requer domínio verificado no Resend). Pendente geral: trocar DISCORD_URL, mudar raiz `/` para a
   loja. Stripe só testável em produção. **Próximo: Fase 6 (/makers).**
