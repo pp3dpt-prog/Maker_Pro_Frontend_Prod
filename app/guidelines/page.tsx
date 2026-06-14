@@ -27,6 +27,27 @@ export default function GuidelinesPage() {
             </ul>
           </section>
 
+          <section>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px', color: '#34d399' }}>Comprar na Loja</h2>
+            <ul style={{ color: '#94a3b8', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
+              <li>Explora a <Link href="/loja" style={{ color: '#3b82f6' }}>Loja</Link> por categorias — produtos prontos e personalizáveis.</li>
+              <li>Para personalizar, abre o produto e usa o botão <strong style={{ color: 'white' }}>Personalizar</strong>; pré-visualiza a peça e adiciona ao carrinho.</li>
+              <li>O carrinho e a finalização exigem sessão iniciada.</li>
+              <li>Escolhe <strong style={{ color: 'white' }}>envio para casa</strong> ou <strong style={{ color: 'white' }}>entrega em mãos</strong> (Oeiras, Carnaxide e Linda-a-Velha).</li>
+              <li>Alguns artigos são vendidos sob <strong style={{ color: 'white' }}>orçamento</strong> — confirmamos o valor final antes de pagares.</li>
+              <li>Consulta os <Link href="/purchase-terms" style={{ color: '#3b82f6' }}>Termos de Compra</Link> para envio, prazos e devoluções.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px', color: '#a78bfa' }}>Parcerias e revenda</h2>
+            <p style={{ color: '#94a3b8', lineHeight: '1.8' }}>
+              Tens uma loja ou marca e queres revender os nossos produtos? Estamos abertos a parcerias. Fala connosco em{' '}
+              <a href="mailto:pp3d.pt@gmail.com?subject=Parceria%2FRevenda%20PP3D" style={{ color: '#3b82f6' }}>pp3d.pt@gmail.com</a>{' '}
+              ou no <a href="https://discord.gg/cNK85ZQgGe" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>Discord</a>.
+            </p>
+          </section>
+
           <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '32px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '20px' }}>Regras da plataforma</h2>
             <ul style={{ color: '#94a3b8', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>

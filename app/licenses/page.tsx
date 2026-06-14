@@ -12,7 +12,7 @@ export default function LicensesPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Licenças
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: maio de 2026</p>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: junho de 2026</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
@@ -50,6 +50,23 @@ export default function LicensesPage() {
               <strong style={{ color: 'white' }}>Importante:</strong> a licença comercial está vinculada a uma subscrição ativa.
               Se a subscrição expirar, a licença comercial caduca automaticamente — mesmo para ficheiros gerados
               durante o período ativo. Consulta a página <Link href="/creators" style={{ color: '#3b82f6' }}>For Creators</Link> para mais detalhes.
+            </p>
+          </div>
+
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '32px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '20px', color: '#34d399' }}>Produtos comprados na Loja</h2>
+            <p style={{ color: '#94a3b8', lineHeight: '1.8', marginBottom: '16px' }}>
+              Ao comprares um produto físico na <Link href="/loja" style={{ color: '#3b82f6' }}>Loja</Link> adquires o
+              <strong style={{ color: 'white' }}> artigo</strong> para uso pessoal. A compra:
+            </p>
+            <ul style={{ color: '#94a3b8', lineHeight: '2', paddingLeft: '20px', marginBottom: '20px' }}>
+              <li>Dá-te a posse da peça física que recebes.</li>
+              <li>Inclui as personalizações que escolheste para essa encomenda.</li>
+            </ul>
+            <p style={{ color: '#94a3b8', lineHeight: '1.8' }}>
+              <strong style={{ color: 'white' }}>Não concede</strong> qualquer licença sobre o design ou o ficheiro: não
+              autoriza reproduzir, fabricar em série ou revender cópias do produto. Para revenda ou produção comercial,
+              é necessária uma licença comercial ou um acordo de parceria connosco.
             </p>
           </div>
 

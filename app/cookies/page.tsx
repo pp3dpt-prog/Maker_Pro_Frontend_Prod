@@ -12,7 +12,7 @@ export default function CookiesPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Política de Cookies
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: maio de 2026</p>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: junho de 2026</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '36px', color: '#94a3b8', lineHeight: '1.8' }}>
 
@@ -42,6 +42,23 @@ export default function CookiesPage() {
                 <p style={{ margin: 0 }}>
                   Guardam as tuas preferências de navegação, como o modelo selecionado ou configurações do customizador,
                   para melhorar a tua experiência entre sessões.
+                </p>
+              </div>
+
+              <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '24px' }}>
+                <h3 style={{ color: 'white', fontWeight: '700', marginBottom: '8px' }}>Armazenamento local — Carrinho</h3>
+                <p style={{ margin: 0 }}>
+                  O conteúdo do teu carrinho de compras é guardado no armazenamento local (<em>localStorage</em>) do teu
+                  navegador, apenas com sessão iniciada, para que não percas os artigos enquanto navegas. É removido ao
+                  terminar sessão e não é partilhado com terceiros.
+                </p>
+              </div>
+
+              <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '24px' }}>
+                <h3 style={{ color: 'white', fontWeight: '700', marginBottom: '8px' }}>Pagamento (Stripe)</h3>
+                <p style={{ margin: 0 }}>
+                  Ao finalizar uma compra és encaminhado para o checkout seguro da <strong style={{ color: 'white' }}>Stripe</strong>,
+                  que pode definir cookies próprios no domínio dela para processar o pagamento e prevenir fraude.
                 </p>
               </div>
 
