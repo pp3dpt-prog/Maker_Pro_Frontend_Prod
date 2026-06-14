@@ -172,7 +172,7 @@ export default function ProdutoDetalhe({
 
             {/* Personalizador */}
             {produto.permite_personalizar && produto.design_id && (
-              <Link href={`/customizador?id=${produto.design_id}`} style={{ display: 'inline-block', marginTop: 14, padding: '12px 22px', background: 'transparent', color: '#93c5fd', border: '1px solid #1e40af', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+              <Link href={`/customizador?id=${produto.design_id}&produto=${produto.slug}`} style={{ display: 'inline-block', marginTop: 14, padding: '12px 22px', background: 'transparent', color: '#93c5fd', border: '1px solid #1e40af', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
                 ✨ Personalizar este produto
               </Link>
             )}

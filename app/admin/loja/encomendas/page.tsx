@@ -96,6 +96,20 @@ export default function EncomendasAdminPage() {
     } finally { setBusy(false); }
   }
 
+  async function descarregarStl(path: string) {
+    try {
+      const res = await fetch('/api/admin/loja/stl-url', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erro');
+      window.open(data.url, '_blank');
+    } catch (e: any) {
+      alert('Erro ao obter STL: ' + (e.message ?? ''));
+    }
+  }
+
   function badge(estado: string) {
     const [bg, c] = estadoCor[estado] ?? estadoCor.pendente;
     return s.badge(bg, c);
@@ -142,8 +156,15 @@ export default function EncomendasAdminPage() {
                       {/* Itens */}
                       <div style={{ marginBottom: 16 }}>
                         {lista.map(it => (
-                          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cbd5e1', padding: '4px 0' }}>
-                            <span>{it.quantidade}× {it.nome}{it.cor || it.tamanho ? ` (${[it.cor, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}</span>
+                          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: '#cbd5e1', padding: '4px 0' }}>
+                            <span>
+                              {it.quantidade}× {it.nome}{it.cor || it.tamanho ? ` (${[it.cor, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}
+                              {it.personalizacao?.stl_path && (
+                                <button onClick={() => descarregarStl(it.personalizacao.stl_path)} style={{ marginLeft: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                  ⬇ STL
+                                </button>
+                              )}
+                            </span>
                             <span>{it.preco_cents == null ? 'a orçamentar' : eur(it.preco_cents * it.quantidade)}</span>
                           </div>
                         ))}

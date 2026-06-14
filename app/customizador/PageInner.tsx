@@ -9,7 +9,14 @@ import CustomizadorClient from './CustomizadorClient';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import IfThenPayDownloadButton from '@/components/IfThenPayDownloadButton';
 import PedidoOrcamentoModal from '@/components/PedidoOrcamentoModal';
+import { useCart } from '@/components/loja/CartContext';
 import styles from './ConfiguratorLayout.module.css';
+
+type LojaProduto = {
+  id: string; slug: string; nome: string;
+  preco_cents: number; preco_promo_cents: number | null;
+  requer_orcamento: boolean; foto: string | null;
+};
 
 type GenerationSchema = {
   parameters: Record<string, any>;
@@ -66,6 +73,12 @@ export default function PageInner() {
   const router = useRouter();
   const designId = searchParams.get('id');
   const familiaParam = searchParams.get('familia');
+  const produtoParam = searchParams.get('produto');
+  const { addItem } = useCart();
+
+  const [lojaProduto, setLojaProduto] = useState<LojaProduto | null>(null);
+  const [stlPath, setStlPath] = useState<string | null>(null);
+  const [addedMsg, setAddedMsg] = useState('');
 
   const [design, setDesign] = useState<Design | null>(null);
   const [familyDesigns, setFamilyDesigns] = useState<Design[]>([]);
@@ -274,6 +287,46 @@ export default function PageInner() {
     router.push(`/customizador?${p.toString()}`);
   };
 
+  // Carregar produto da loja ligado (quando se chega via /produto/[slug] → Personalizar)
+  useEffect(() => {
+    if (!produtoParam) return;
+    (async () => {
+      const { data } = await supabase
+        .from('prod_loja_produtos')
+        .select('id, slug, nome, preco_cents, preco_promo_cents, requer_orcamento, prod_loja_imagens(url, ordem)')
+        .eq('slug', produtoParam)
+        .eq('estado', 'ativo')
+        .maybeSingle();
+      if (data) {
+        const fotos = ((data as any).prod_loja_imagens ?? []).sort((a: any, b: any) => a.ordem - b.ordem);
+        setLojaProduto({
+          id: data.id, slug: data.slug, nome: data.nome,
+          preco_cents: data.preco_cents, preco_promo_cents: data.preco_promo_cents,
+          requer_orcamento: !!data.requer_orcamento, foto: fotos[0]?.url ?? null,
+        });
+      }
+    })();
+  }, [produtoParam]);
+
+  function adicionarPersonalizadoAoCarrinho() {
+    if (!lojaProduto) return;
+    const preco = lojaProduto.requer_orcamento ? null : (lojaProduto.preco_promo_cents ?? lojaProduto.preco_cents);
+    addItem({
+      produto_id: lojaProduto.id,
+      slug: lojaProduto.slug,
+      nome: lojaProduto.nome,
+      foto: lojaProduto.foto,
+      variante_id: null,
+      variante_label: null,
+      preco_cents: preco,
+      requer_orcamento: lojaProduto.requer_orcamento,
+      personalizacao: { params: params ? filtrarParamsBackend(params) : null, stl_url: stlUrl, stl_path: stlPath },
+      personalizacao_label: 'Peça personalizada',
+    });
+    setAddedMsg('Adicionado ao carrinho ✓');
+    setTimeout(() => setAddedMsg(''), 3000);
+  }
+
   const gerarSTL = async () => {
     if (!userId) {
       router.push('/login');
@@ -323,6 +376,7 @@ export default function PageInner() {
         const data = await res.json();
         if (!data?.url) throw new Error('URL do STL não recebida');
         setStlUrl(data.url);
+        setStlPath(data.storagePath ?? null);
         // HueForge: URL do ficheiro TXT com instruções de cor
         if (data.txtUrl) setTxtUrl(data.txtUrl);
         else setTxtUrl(null);
@@ -624,6 +678,36 @@ export default function PageInner() {
                     <Link href="/bem-vindo" style={{ color: '#a78bfa', fontWeight: 700, textDecoration: 'none' }}>
                       Alterar perfil →
                     </Link>
+                  </div>
+                );
+              }
+
+              // Produto da loja ligado → adicionar ao carrinho (com o STL); senão, fallback para orçamento
+              if (lojaProduto) {
+                const stlPronto = mode === 'stl' && !!stlPath;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={adicionarPersonalizadoAoCarrinho}
+                      disabled={!stlPronto}
+                      style={{
+                        padding: '12px 16px', borderRadius: 10,
+                        background: stlPronto ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#1e293b',
+                        color: stlPronto ? 'white' : '#64748b', border: 'none', fontWeight: 800, fontSize: 14,
+                        cursor: stlPronto ? 'pointer' : 'not-allowed',
+                        boxShadow: stlPronto ? '0 8px 20px rgba(37,99,235,0.35)' : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      }}
+                    >
+                      🛒 Adicionar ao carrinho
+                    </button>
+                    {!stlPronto && <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>Pré-visualiza a peça primeiro para a adicionares.</p>}
+                    {addedMsg && (
+                      <p style={{ margin: 0, fontSize: 13, color: '#34d399', textAlign: 'center' }}>
+                        {addedMsg} <Link href="/carrinho" style={{ color: '#60a5fa', fontWeight: 700 }}>Ver carrinho →</Link>
+                      </p>
+                    )}
                   </div>
                 );
               }

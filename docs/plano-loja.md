@@ -366,6 +366,11 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
   com itens/morada, mudar estado, definir valor final do orçamento + `app/api/admin/loja/gerar-pagamento`
   que cria link Stripe). RLS: policies admin em `prod_loja_encomendas`/`_itens`.
 - **Preçário**: link no topo agora só aparece a `maker`/`ambos`/admin (Navbar lê `tipo_utilizador`).
-- **FALTA**: integração customizador→carrinho (passar `?produto=`, botão add-to-cart com params);
-  ifthenpay (MB Way/Multibanco) como alternativa; email ao cliente com o link de orçamento.
-  Não testável localmente (Stripe só em produção).
+- **Integração customizador→carrinho entregue**: página de produto passa `?produto=<slug>` ao
+  customizador; lá, ao gerar/pré-visualizar o STL captura-se o `storagePath`; o botão passa a
+  "🛒 Adicionar ao carrinho" (fallback orçamento se sem produto ligado). A linha guarda
+  `personalizacao = { params, stl_url, stl_path }`, que segue para `encomenda_itens`. Admin descarrega
+  o STL no detalhe da encomenda via `app/api/admin/loja/stl-url` (URL assinada, bucket privado).
+  Nota: designs "legacy" (binário, sem storagePath) entram no carrinho sem STL anexado.
+- **FALTA**: ifthenpay (MB Way/Multibanco); email ao cliente com link de orçamento. Pendente:
+  trocar DISCORD_URL, mudar raiz `/` para a loja. Stripe só testável em produção.
