@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { notificarAdminEncomenda } from '@/lib/loja-email';
 
 export const runtime = 'nodejs';
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
 
             const { data: itens } = await admin
               .from('prod_loja_encomenda_itens')
-              .select('produto_id, variante_id, quantidade')
+              .select('produto_id, variante_id, quantidade, nome, cor, tamanho, preco_cents')
               .eq('encomenda_id', encomendaId);
 
             for (const it of itens ?? []) {
@@ -126,6 +127,16 @@ export async function POST(req: NextRequest) {
                 stripe_session_id: session.id,
               });
             } catch (_) { /* tipo 'loja' pode não ser aceite por constraint — ignorar */ }
+
+            // Notificar admin
+            const { data: encInfo } = await admin
+              .from('prod_loja_encomendas').select('numero, total_cents, entrega').eq('id', encomendaId).maybeSingle();
+            await notificarAdminEncomenda({
+              numero: encInfo?.numero ?? 0, tipo: 'pago', entrega: encInfo?.entrega,
+              clienteEmail: email, clienteNome: userName,
+              totalCents: encInfo?.total_cents ?? Math.round(valor * 100),
+              itens: (itens ?? []).map((i: any) => ({ nome: i.nome, quantidade: i.quantidade, label: [i.cor, i.tamanho].filter(Boolean).join(' / ') || null, preco_cents: i.preco_cents })),
+            });
           }
           break;
         }

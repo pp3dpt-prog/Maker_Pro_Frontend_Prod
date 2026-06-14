@@ -372,5 +372,11 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
   `personalizacao = { params, stl_url, stl_path }`, que segue para `encomenda_itens`. Admin descarrega
   o STL no detalhe da encomenda via `app/api/admin/loja/stl-url` (URL assinada, bucket privado).
   Nota: designs "legacy" (binário, sem storagePath) entram no carrinho sem STL anexado.
-- **FALTA**: ifthenpay (MB Way/Multibanco); email ao cliente com link de orçamento. Pendente:
-  trocar DISCORD_URL, mudar raiz `/` para a loja. Stripe só testável em produção.
+- **Entrega em mãos** (carrinho): coordenada com admin, só Oeiras/Carnaxide/Linda-a-Velha, paga depois
+  → força caminho de **orçamento** (sem pagamento imediato, portes 0). Coluna `entrega` na encomenda.
+- **Emails (Resend)**: `lib/loja-email.ts` notifica o admin (PEDIDOS_ADMIN_EMAIL, from onboarding@
+  resend.dev) em **novo orçamento** (checkout) e **encomenda paga** (webhook). Domínio pp3d.pt ainda
+  não verificado → envia para o admin, não para o cliente.
+- **FASE 5 FECHADA.** Opcionais futuros: ifthenpay (MB Way/Multibanco); enviar email direto ao cliente
+  (requer domínio verificado no Resend). Pendente geral: trocar DISCORD_URL, mudar raiz `/` para a
+  loja. Stripe só testável em produção. **Próximo: Fase 6 (/makers).**

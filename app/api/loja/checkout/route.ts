@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { notificarAdminEncomenda } from '@/lib/loja-email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -96,6 +97,12 @@ export async function POST(request: Request) {
 
   // ── Orçamento: sem pagamento agora (itens a orçamentar ou entrega em mãos) ──
   if (viaOrcamento) {
+    await notificarAdminEncomenda({
+      numero: enc.numero, tipo: 'orcamento', entrega,
+      clienteEmail: user.email, clienteNome: morada?.nome ?? nomeCompleto,
+      totalCents: subtotal,
+      itens: linhas.map(l => ({ nome: l.p.nome, quantidade: l.qtd, label: l.label, preco_cents: l.requer_orcamento ? null : l.unit })),
+    });
     return NextResponse.json({ ok: true, tipo: 'orcamento', numero: enc.numero });
   }
 
