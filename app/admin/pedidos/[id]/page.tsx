@@ -325,9 +325,19 @@ export default function AdminPedidoDetailPage() {
               )}
               {pedido.stl_url ? (
                 <div style={{ marginTop: 12 }}>
-                  <a href={pedido.stl_url} target="_blank" rel="noreferrer" style={{ color: '#86efac', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const r = await fetch('/api/admin/loja/stl-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: pedido.stl_url }) });
+                        const d = await r.json();
+                        if (!r.ok) throw new Error(d.error ?? 'Erro');
+                        window.open(d.url, '_blank');
+                      } catch (e: any) { alert('Erro ao obter STL: ' + (e.message ?? '')); }
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#86efac', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
                     📎 Ver ficheiro STL
-                  </a>
+                  </button>
                 </div>
               ) : (
                 <p style={{ margin: '12px 0 0', color: '#b45309', fontSize: 13 }}>⚠️ Nenhum STL gerado antes da submissão</p>
