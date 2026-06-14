@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { eur, prazoEntrega, DISCORD_URL, type PrazoConfig } from '@/lib/loja';
 import type { ProdutoDetalhe as Produto, ProdutoVariante } from '@/lib/loja-server';
 import { useCart } from '@/components/loja/CartContext';
@@ -24,7 +25,8 @@ export default function ProdutoDetalhe({
   const [fotoSel, setFotoSel] = useState(0);
   const [varId, setVarId] = useState<string>(temVariantes ? variantes[0].id : '');
   const [msg, setMsg] = useState('');
-  const { addItem } = useCart();
+  const { addItem, isLogged } = useCart();
+  const router = useRouter();
 
   const varSel = variantes.find(v => v.id === varId) ?? null;
 
@@ -42,6 +44,10 @@ export default function ProdutoDetalhe({
   const semStock = temVariantes ? (varSel ? varSel.stock <= 0 : true) : produto.stock <= 0;
 
   function adicionar() {
+    if (!isLogged) {
+      router.push(`/login?redirect=${encodeURIComponent(`/produto/${produto.slug}`)}`);
+      return;
+    }
     addItem({
       produto_id: produto.id,
       slug: produto.slug,

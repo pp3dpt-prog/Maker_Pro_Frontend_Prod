@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
 const STORAGE_KEY = 'pp3d_carrinho_v1';
 const ENTREGA_KEY = 'pp3d_entrega_v1';
@@ -27,6 +28,7 @@ export type NovoItem = Omit<CartItem, 'key' | 'quantidade'> & { quantidade?: num
 interface CartCtx {
   items: CartItem[];
   ready: boolean;
+  isLogged: boolean;                 // carrinho só existe com sessão iniciada
   count: number;
   totalFixoCents: number;            // soma só dos itens com preço fixo
   temOrcamento: boolean;             // algum item requer orçamento
@@ -48,22 +50,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [entrega, setEntregaState] = useState<MetodoEntrega>('envio');
   const [ready, setReady] = useState(false);
+  const [isLogged, setIsLogged] = useState(false);
 
-  // Hidratar do localStorage (evita mismatch SSR)
+  // O carrinho só existe com sessão. Hidrata do localStorage se logado; limpa ao terminar sessão.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw));
-      const e = localStorage.getItem(ENTREGA_KEY);
-      if (e === 'envio' || e === 'maos') setEntregaState(e);
-    } catch { /* ignora */ }
-    setReady(true);
+    let mounted = true;
+    const hidratar = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) setItems(JSON.parse(raw));
+        const e = localStorage.getItem(ENTREGA_KEY);
+        if (e === 'envio' || e === 'maos') setEntregaState(e);
+      } catch { /* ignora */ }
+    };
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!mounted) return;
+      if (user) { setIsLogged(true); hidratar(); }
+      else { setIsLogged(false); setItems([]); try { localStorage.removeItem(STORAGE_KEY); } catch {} }
+      setReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user) { setIsLogged(true); }
+      else { setIsLogged(false); setItems([]); try { localStorage.removeItem(STORAGE_KEY); } catch {} }
+    });
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  // Persistir
+  // Persistir só com sessão
   useEffect(() => {
-    if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, ready]);
+    if (ready && isLogged) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items, ready, isLogged]);
   useEffect(() => {
     if (ready) localStorage.setItem(ENTREGA_KEY, entrega);
   }, [entrega, ready]);
@@ -71,6 +89,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setEntrega = useCallback((m: MetodoEntrega) => setEntregaState(m), []);
 
   const addItem = useCallback((novo: NovoItem) => {
+    if (!isLogged) return;            // sem sessão não há carrinho (UI deve redirecionar para login)
     const key = makeKey(novo);
     const qtd = novo.quantidade ?? 1;
     setItems(prev => {
@@ -78,7 +97,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existente) return prev.map(i => i.key === key ? { ...i, quantidade: i.quantidade + qtd } : i);
       return [...prev, { ...novo, key, quantidade: qtd }];
     });
-  }, []);
+  }, [isLogged]);
 
   const setQty = useCallback((key: string, q: number) => {
     setItems(prev => q <= 0 ? prev.filter(i => i.key !== key) : prev.map(i => i.key === key ? { ...i, quantidade: q } : i));
@@ -92,7 +111,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const temOrcamento = items.some(i => i.requer_orcamento || i.preco_cents == null);
 
   return (
-    <Ctx.Provider value={{ items, ready, count, totalFixoCents, temOrcamento, entrega, setEntrega, addItem, setQty, removeItem, clear }}>
+    <Ctx.Provider value={{ items, ready, isLogged, count, totalFixoCents, temOrcamento, entrega, setEntrega, addItem, setQty, removeItem, clear }}>
       {children}
     </Ctx.Provider>
   );

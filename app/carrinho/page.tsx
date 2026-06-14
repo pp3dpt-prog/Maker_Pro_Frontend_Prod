@@ -7,10 +7,25 @@ import { eur } from '@/lib/loja';
 
 export default function CarrinhoPage() {
   const router = useRouter();
-  const { items, ready, count, totalFixoCents, temOrcamento, entrega, setEntrega, setQty, removeItem } = useCart();
+  const { items, ready, isLogged, count, totalFixoCents, temOrcamento, entrega, setEntrega, setQty, removeItem } = useCart();
 
   if (!ready) {
     return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
+  }
+
+  if (!isLogged) {
+    return (
+      <main style={wrap}>
+        <h1 style={h1}>O teu carrinho</h1>
+        <div style={{ ...card, textAlign: 'center', color: '#94a3b8' }}>
+          <p style={{ margin: '0 0 16px' }}>Inicia sessão para usar o carrinho e finalizar a compra.</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/login?redirect=/carrinho" style={{ padding: '12px 22px', background: '#2563eb', color: '#fff', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
+            <Link href="/register" style={{ padding: '12px 22px', background: 'transparent', color: '#93c5fd', border: '1px solid #1e40af', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>Criar conta</Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (items.length === 0) {
