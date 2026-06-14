@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/admin', '/checkout', '/api/'],
+        disallow: ['/dashboard', '/admin', '/checkout', '/checkout-loja', '/carrinho', '/login', '/register', '/forgot-password', '/update-password', '/api/'],
       },
     ],
     sitemap: 'https://pp3d.pt/sitemap.xml',
