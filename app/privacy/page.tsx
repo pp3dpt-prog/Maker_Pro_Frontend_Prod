@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Política de Privacidade
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: maio de 2026</p>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: junho de 2026</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '36px', color: '#94a3b8', lineHeight: '1.8' }}>
 
@@ -31,8 +31,9 @@ export default function PrivacyPage() {
               <li><strong style={{ color: 'white' }}>Dados de conta:</strong> endereço de email e palavra-passe (armazenada de forma encriptada).</li>
               <li><strong style={{ color: 'white' }}>Dados de utilização:</strong> modelos acedidos, parâmetros utilizados e ficheiros STL gerados.</li>
               <li><strong style={{ color: 'white' }}>Dados de subscrição:</strong> informação sobre o plano ativo e histórico de pagamentos.</li>
+              <li><strong style={{ color: 'white' }}>Dados de encomenda (Loja):</strong> nome, morada de entrega, código postal, localidade, telefone e NIF (quando indicado para fatura), bem como os produtos e personalizações encomendados.</li>
             </ul>
-            <p style={{ marginTop: '12px' }}>Não recolhemos dados de cartão de crédito — os pagamentos são processados por plataformas externas certificadas.</p>
+            <p style={{ marginTop: '12px' }}>Não recolhemos nem armazenamos dados de cartão de crédito — os pagamentos da Loja e das subscrições são processados de forma segura pela <strong style={{ color: 'white' }}>Stripe</strong>, prestador certificado PCI-DSS.</p>
           </section>
 
           <section>
@@ -42,7 +43,8 @@ export default function PrivacyPage() {
               <li>Gestão da tua conta e autenticação.</li>
               <li>Fornecimento do serviço de geração de ficheiros STL.</li>
               <li>Gestão de subscrições e licenças.</li>
-              <li>Comunicações relacionadas com o serviço (atualizações, alterações de conta).</li>
+              <li>Processamento, faturação e envio das encomendas efetuadas na Loja.</li>
+              <li>Comunicações relacionadas com o serviço e com as tuas encomendas (confirmações, orçamentos, estado de entrega).</li>
               <li>Melhoria da Plataforma com base em padrões de utilização anónimos.</li>
             </ul>
           </section>
@@ -60,8 +62,9 @@ export default function PrivacyPage() {
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'white' }}>5. Partilha de Dados</h2>
             <p>
               Não vendemos nem partilhamos os teus dados pessoais com terceiros para fins comerciais.
-              Os dados podem ser partilhados com prestadores de serviços técnicos (como Supabase) exclusivamente
-              para o funcionamento da Plataforma, e sempre sob acordos de confidencialidade.
+              Os dados podem ser partilhados com prestadores de serviços técnicos (como Supabase, para alojamento;
+              Stripe, para pagamentos; e transportadoras, para a entrega das encomendas) exclusivamente
+              para o funcionamento da Plataforma e o cumprimento das tuas encomendas, e sempre sob acordos de confidencialidade.
             </p>
           </section>
 

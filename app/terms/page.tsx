@@ -12,7 +12,7 @@ export default function TermsPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Termos e Condições
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: maio de 2026</p>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: junho de 2026</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '36px', color: '#94a3b8', lineHeight: '1.8' }}>
 
@@ -31,6 +31,12 @@ export default function TermsPage() {
               A PP3D é uma plataforma de personalização paramétrica de modelos 3D. Permite aos utilizadores configurar
               modelos através de parâmetros ajustáveis (texto, dimensões, etc.) e gerar ficheiros STL para impressão 3D.
               Os ficheiros gerados são armazenados de forma segura e acessíveis através da conta do utilizador.
+            </p>
+            <p style={{ marginTop: '12px' }}>
+              A PP3D dispõe ainda de uma <Link href="/loja" style={{ color: '#3b82f6' }}>Loja</Link> de produtos físicos
+              impressos em 3D, prontos ou personalizáveis, com envio ou entrega em mãos. As compras na Loja regem-se
+              pelos <Link href="/purchase-terms" style={{ color: '#3b82f6' }}>Termos de Compra</Link>, que incluem condições
+              de pagamento, envio, orçamentos e devoluções.
             </p>
           </section>
 
