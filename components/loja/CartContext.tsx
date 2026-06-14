@@ -3,6 +3,9 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 
 const STORAGE_KEY = 'pp3d_carrinho_v1';
+const ENTREGA_KEY = 'pp3d_entrega_v1';
+
+export type MetodoEntrega = 'envio' | 'maos';
 
 export interface CartItem {
   key: string;                       // único: produto+variante+personalização
@@ -27,6 +30,8 @@ interface CartCtx {
   count: number;
   totalFixoCents: number;            // soma só dos itens com preço fixo
   temOrcamento: boolean;             // algum item requer orçamento
+  entrega: MetodoEntrega;            // envio | maos
+  setEntrega: (m: MetodoEntrega) => void;
   addItem: (item: NovoItem) => void;
   setQty: (key: string, q: number) => void;
   removeItem: (key: string) => void;
@@ -41,6 +46,7 @@ function makeKey(i: NovoItem): string {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [entrega, setEntregaState] = useState<MetodoEntrega>('envio');
   const [ready, setReady] = useState(false);
 
   // Hidratar do localStorage (evita mismatch SSR)
@@ -48,6 +54,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setItems(JSON.parse(raw));
+      const e = localStorage.getItem(ENTREGA_KEY);
+      if (e === 'envio' || e === 'maos') setEntregaState(e);
     } catch { /* ignora */ }
     setReady(true);
   }, []);
@@ -56,6 +64,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, ready]);
+  useEffect(() => {
+    if (ready) localStorage.setItem(ENTREGA_KEY, entrega);
+  }, [entrega, ready]);
+
+  const setEntrega = useCallback((m: MetodoEntrega) => setEntregaState(m), []);
 
   const addItem = useCallback((novo: NovoItem) => {
     const key = makeKey(novo);
@@ -79,7 +92,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const temOrcamento = items.some(i => i.requer_orcamento || i.preco_cents == null);
 
   return (
-    <Ctx.Provider value={{ items, ready, count, totalFixoCents, temOrcamento, addItem, setQty, removeItem, clear }}>
+    <Ctx.Provider value={{ items, ready, count, totalFixoCents, temOrcamento, entrega, setEntrega, addItem, setQty, removeItem, clear }}>
       {children}
     </Ctx.Provider>
   );

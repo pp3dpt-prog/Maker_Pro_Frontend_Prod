@@ -25,6 +25,7 @@ export async function POST(request: Request) {
   const morada = body.morada ?? null;
   const nif: string = body.nif ?? '';
   const nomeCompleto: string = body.nome_completo ?? '';
+  const entrega: 'envio' | 'maos' = body.entrega === 'maos' ? 'maos' : 'envio';
   if (itens.length === 0) return NextResponse.json({ error: 'Carrinho vazio.' }, { status: 400 });
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -52,11 +53,14 @@ export async function POST(request: Request) {
   const temOrcamento = linhas.some(l => l.requer_orcamento);
   const subtotal = linhas.reduce((a, l) => a + (l.requer_orcamento ? 0 : l.unit * l.qtd), 0);
 
-  // Portes: global, com override por produto (máximo), grátis acima do limiar
-  let portes = cfg?.portes_cents ?? 0;
-  const overrides = linhas.map(l => l.p.portes_cents).filter((x): x is number => x != null);
-  if (overrides.length) portes = Math.max(portes, ...overrides);
-  if (cfg?.portes_gratis_acima_cents != null && subtotal >= cfg.portes_gratis_acima_cents) portes = 0;
+  // Portes: 0 se entrega em mãos; senão global + override por produto (máximo), grátis acima do limiar
+  let portes = 0;
+  if (entrega !== 'maos') {
+    portes = cfg?.portes_cents ?? 0;
+    const overrides = linhas.map(l => l.p.portes_cents).filter((x): x is number => x != null);
+    if (overrides.length) portes = Math.max(portes, ...overrides);
+    if (cfg?.portes_gratis_acima_cents != null && subtotal >= cfg.portes_gratis_acima_cents) portes = 0;
+  }
 
   const estado = temOrcamento ? 'orcamento' : 'pendente';
   const totalCents = temOrcamento ? subtotal : subtotal + portes;
@@ -64,6 +68,7 @@ export async function POST(request: Request) {
   const { data: enc, error: encErr } = await admin.from('prod_loja_encomendas').insert({
     user_id: user.id,
     estado,
+    entrega,
     total_cents: totalCents,
     portes_cents: temOrcamento ? 0 : portes,
     metodo_pagamento: temOrcamento ? null : 'stripe',

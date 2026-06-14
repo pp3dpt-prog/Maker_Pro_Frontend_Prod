@@ -7,7 +7,7 @@ import { eur } from '@/lib/loja';
 
 export default function CarrinhoPage() {
   const router = useRouter();
-  const { items, ready, count, totalFixoCents, temOrcamento, setQty, removeItem } = useCart();
+  const { items, ready, count, totalFixoCents, temOrcamento, entrega, setEntrega, setQty, removeItem } = useCart();
 
   if (!ready) {
     return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
@@ -61,7 +61,18 @@ export default function CarrinhoPage() {
             <span>Subtotal (itens com preço)</span>
             <strong>{eur(totalFixoCents)}</strong>
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>Portes calculados no checkout.</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+            {entrega === 'maos' ? 'Entrega em mãos — sem portes.' : 'Portes calculados no checkout.'}
+          </div>
+
+          {/* Método de entrega */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>Entrega</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <OpcaoEntrega ativo={entrega === 'envio'} onClick={() => setEntrega('envio')} titulo="Envio para casa" sub="Portes calculados no checkout" />
+              <OpcaoEntrega ativo={entrega === 'maos'} onClick={() => setEntrega('maos')} titulo="Entrega em mãos" sub="Sem portes — combinamos a entrega" />
+            </div>
+          </div>
 
           {temOrcamento && (
             <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, padding: 14, marginBottom: 16 }}>
@@ -82,6 +93,23 @@ export default function CarrinhoPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function OpcaoEntrega({ ativo, onClick, titulo, sub }: { ativo: boolean; onClick: () => void; titulo: string; sub: string }) {
+  return (
+    <button onClick={onClick} style={{
+      display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer',
+      padding: '10px 12px', borderRadius: 10, fontFamily: 'inherit',
+      background: ativo ? 'rgba(37,99,235,0.1)' : '#0a1120',
+      border: `1px solid ${ativo ? '#2563eb' : '#1e293b'}`,
+    }}>
+      <span style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, border: `2px solid ${ativo ? '#2563eb' : '#334155'}`, background: ativo ? '#2563eb' : 'transparent' }} />
+      <span>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>{titulo}</span>
+        <span style={{ display: 'block', fontSize: 11, color: '#64748b' }}>{sub}</span>
+      </span>
+    </button>
   );
 }
 

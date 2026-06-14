@@ -18,7 +18,7 @@ const estadoCor: Record<string, [string, string]> = {
 };
 
 interface Encomenda {
-  id: string; numero: number; created_at: string; estado: string;
+  id: string; numero: number; created_at: string; estado: string; entrega: string | null;
   total_cents: number; portes_cents: number | null; metodo_pagamento: string | null;
   morada_envio: any; nif: string | null; user_id: string | null; payment_ref: string | null;
 }
@@ -170,13 +170,19 @@ export default function EncomendasAdminPage() {
                         ))}
                       </div>
 
-                      {/* Morada */}
-                      {enc.morada_envio && (
-                        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16, lineHeight: 1.6 }}>
-                          <strong style={{ color: '#cbd5e1' }}>Envio:</strong> {enc.morada_envio.nome}, {enc.morada_envio.morada}, {enc.morada_envio.codigo_postal} {enc.morada_envio.cidade}
-                          {enc.morada_envio.telefone ? ` · ${enc.morada_envio.telefone}` : ''}{enc.nif ? ` · NIF ${enc.nif}` : ''}
-                        </div>
-                      )}
+                      {/* Entrega / Morada */}
+                      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16, lineHeight: 1.6 }}>
+                        <span style={s.badge(enc.entrega === 'maos' ? 'rgba(52,211,153,0.18)' : 'rgba(96,165,250,0.18)', enc.entrega === 'maos' ? '#34d399' : '#60a5fa')}>
+                          {enc.entrega === 'maos' ? '🤝 Entrega em mãos' : '📦 Envio'}
+                        </span>
+                        {enc.morada_envio && (
+                          <span style={{ marginLeft: 10 }}>
+                            {enc.morada_envio.nome}
+                            {enc.entrega !== 'maos' && enc.morada_envio.morada ? `, ${enc.morada_envio.morada}, ${enc.morada_envio.codigo_postal} ${enc.morada_envio.cidade}` : ''}
+                            {enc.morada_envio.telefone ? ` · ${enc.morada_envio.telefone}` : ''}{enc.nif ? ` · NIF ${enc.nif}` : ''}
+                          </span>
+                        )}
+                      </div>
 
                       {/* Ações */}
                       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>

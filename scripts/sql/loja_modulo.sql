@@ -82,6 +82,7 @@ create table if not exists public.prod_loja_variantes (
 alter table public.prod_loja_produtos  add column if not exists duas_cores boolean default false;
 alter table public.prod_loja_produtos  add column if not exists sob_encomenda boolean default false;
 alter table public.prod_loja_produtos  add column if not exists requer_orcamento boolean default false;
+alter table public.prod_loja_encomendas add column if not exists entrega text default 'envio';
 alter table public.prod_loja_variantes add column if not exists cor_secundaria text;
 alter table public.prod_loja_config add column if not exists prazo_stock_min int not null default 1;
 alter table public.prod_loja_config add column if not exists prazo_stock_max int not null default 3;
@@ -138,6 +139,7 @@ create table if not exists public.prod_loja_encomendas (
   user_id uuid references auth.users(id),
   numero serial,
   estado text default 'pendente',           -- pendente|pago|enviado|entregue|cancelado
+  entrega text default 'envio',             -- envio | maos (entrega em mãos, sem portes)
   total_cents int not null,
   portes_cents int default 0,
   metodo_pagamento text,                    -- stripe | ifthenpay

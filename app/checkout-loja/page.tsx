@@ -9,7 +9,8 @@ import { eur } from '@/lib/loja';
 
 export default function CheckoutLojaPage() {
   const router = useRouter();
-  const { items, ready, totalFixoCents, temOrcamento, clear } = useCart();
+  const { items, ready, totalFixoCents, temOrcamento, entrega, clear } = useCart();
+  const emMaos = entrega === 'maos';
 
   const [authChecked, setAuthChecked] = useState(false);
   const [logado, setLogado] = useState(false);
@@ -51,8 +52,9 @@ export default function CheckoutLojaPage() {
   }
 
   async function finalizar() {
-    if (!nome.trim() || !morada.trim() || !codigoPostal.trim() || !cidade.trim()) {
-      setErro('Preenche o nome e a morada completa.');
+    if (!nome.trim()) { setErro('Indica o teu nome.'); return; }
+    if (!emMaos && (!morada.trim() || !codigoPostal.trim() || !cidade.trim())) {
+      setErro('Preenche a morada completa (ou escolhe entrega em mãos no carrinho).');
       return;
     }
     setSubmitting(true); setErro('');
@@ -62,7 +64,8 @@ export default function CheckoutLojaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           itens: items.map(i => ({ produto_id: i.produto_id, variante_id: i.variante_id, quantidade: i.quantidade, personalizacao: i.personalizacao })),
-          morada: { nome, morada, codigo_postal: codigoPostal, cidade, telefone },
+          entrega,
+          morada: { nome, morada: emMaos ? '' : morada, codigo_postal: emMaos ? '' : codigoPostal, cidade: emMaos ? '' : cidade, telefone },
           nome_completo: nome,
           nif,
         }),
@@ -87,17 +90,32 @@ export default function CheckoutLojaPage() {
       <h1 style={h1}>Finalizar {temOrcamento ? 'pedido' : 'compra'}</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 24, alignItems: 'start' }}>
-        {/* Morada */}
+        {/* Dados */}
         <div style={card}>
-          <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 16px' }}>Dados de envio</h2>
-          <Field label="Nome completo *" value={nome} onChange={setNome} />
-          <Field label="Morada *" value={morada} onChange={setMorada} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Código postal *" value={codigoPostal} onChange={setCodigoPostal} />
-            <Field label="Cidade *" value={cidade} onChange={setCidade} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>{emMaos ? 'Os teus dados' : 'Dados de envio'}</h2>
+            <span style={{ fontSize: 12, fontWeight: 700, color: emMaos ? '#34d399' : '#60a5fa' }}>{emMaos ? '🤝 Entrega em mãos' : '📦 Envio'}</span>
           </div>
+
+          {emMaos && (
+            <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 16px', lineHeight: 1.6 }}>
+              Escolheste <strong style={{ color: '#cbd5e1' }}>entrega em mãos</strong> — sem portes. Combinamos contigo o local e a hora.{' '}
+              <Link href="/carrinho" style={{ color: '#60a5fa' }}>Mudar</Link>
+            </p>
+          )}
+
+          <Field label="Nome completo *" value={nome} onChange={setNome} />
+          {!emMaos && (
+            <>
+              <Field label="Morada *" value={morada} onChange={setMorada} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Código postal *" value={codigoPostal} onChange={setCodigoPostal} />
+                <Field label="Cidade *" value={cidade} onChange={setCidade} />
+              </div>
+            </>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Telefone" value={telefone} onChange={setTelefone} />
+            <Field label={emMaos ? 'Telefone *' : 'Telefone'} value={telefone} onChange={setTelefone} />
             <Field label="NIF (fatura)" value={nif} onChange={setNif} />
           </div>
         </div>
