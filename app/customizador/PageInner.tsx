@@ -684,7 +684,7 @@ export default function PageInner() {
 
               // Produto da loja ligado → adicionar ao carrinho (com o STL); senão, fallback para orçamento
               if (lojaProduto) {
-                const stlPronto = mode === 'stl' && !!stlPath;
+                const stlPronto = mode === 'stl';   // basta a pré-visualização estar gerada
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <button
