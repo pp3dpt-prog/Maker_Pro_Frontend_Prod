@@ -80,7 +80,7 @@ export default function ProdutoDetalhe({
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 80px' }}>
-        <Link href="/" style={{ color: '#3b82f6', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>← Voltar à loja</Link>
+        <Link href="/loja" style={{ color: '#3b82f6', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>← Voltar à loja</Link>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 40, marginTop: 24 }}>
           {/* Galeria */}

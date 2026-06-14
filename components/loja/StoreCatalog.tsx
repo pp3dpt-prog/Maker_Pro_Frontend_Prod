@@ -36,7 +36,7 @@ export default function StoreCatalog({
 
         {/* Chips de categoria */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 28 }}>
-          <Chip href="/" label="Todos" active={!categoriaAtual} />
+          <Chip href="/loja" label="Todos" active={!categoriaAtual} />
           {categorias.map(c => (
             <Chip key={c.id} href={`/loja/${c.slug}`} label={c.nome} active={categoriaAtual?.id === c.id} />
           ))}
