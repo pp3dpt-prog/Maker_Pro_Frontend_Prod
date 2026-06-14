@@ -91,7 +91,11 @@ export default function CarrinhoPage() {
             {(temOrcamento || entrega === 'maos') ? 'Pedir orçamento' : 'Finalizar compra'}
           </button>
 
-          <Link href="/loja" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Continuar a comprar</Link>
+          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, fontSize: 12, color: '#64748b' }}>
+            🔒 Pagamento seguro via Stripe
+          </p>
+
+          <Link href="/loja" style={{ display: 'block', textAlign: 'center', marginTop: 10, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Continuar a comprar</Link>
         </div>
       </div>
     </main>

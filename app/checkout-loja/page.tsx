@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useCart } from '@/components/loja/CartContext';
 import { eur } from '@/lib/loja';
+import { ShieldCheck, Lock } from 'lucide-react';
 
 export default function CheckoutLojaPage() {
   const router = useRouter();
@@ -150,6 +151,22 @@ export default function CheckoutLojaPage() {
             style={{ width: '100%', padding: 14, background: submitting ? '#1e3a5f' : '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer' }}>
             {submitting ? 'A processar…' : viaOrcamento ? 'Enviar pedido' : 'Pagar com cartão'}
           </button>
+          {/* Pagamento seguro */}
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #1e293b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#34d399', marginBottom: 6 }}>
+              <ShieldCheck size={16} />
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Pagamento seguro</span>
+            </div>
+            <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
+              {viaOrcamento
+                ? 'O pagamento, quando aplicável, é processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'
+                : 'Processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#475569', fontSize: 11, fontWeight: 600 }}>
+              <Lock size={12} /> Visa · Mastercard · via Stripe
+            </div>
+          </div>
+
           <Link href="/carrinho" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Voltar ao carrinho</Link>
         </div>
       </div>
