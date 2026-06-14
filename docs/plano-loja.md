@@ -377,6 +377,9 @@ Segue o padrão de `app/admin/page.tsx` e `/admin/campanhas`:
 - **Emails (Resend)**: `lib/loja-email.ts` notifica o admin (PEDIDOS_ADMIN_EMAIL, from onboarding@
   resend.dev) em **novo orçamento** (checkout) e **encomenda paga** (webhook). Domínio pp3d.pt ainda
   não verificado → envia para o admin, não para o cliente.
+- **Raiz = Loja**: `app/page.tsx` passou a render o catálogo da loja (canonical pp3d.pt). Homepage de
+  marketing antiga preservada em `/sobre`. `/loja` redireciona para `/`. Navbar "Loja" → `/`.
+  `DISCORD_URL` real definido em `lib/loja.ts`.
 - **FASE 6 entregue** (/makers): `app/makers/page.tsx` — login obrigatório (landing com CTA se anónimo);
   banner de plano + downloads disponíveis (créditos); catálogo de designs agrupado por família
   (reusa `FamilyCard`), exclusivos bloqueados → `/pricing`; download/geração continua no `/customizador`.

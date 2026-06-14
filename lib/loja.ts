@@ -1,7 +1,7 @@
 // Helpers e constantes partilhados pela Loja (admin + público). Puro, sem imports de servidor.
 
-// TODO: trocar pelo convite real do Discord (usado na mensagem de preços ao maker).
-export const DISCORD_URL = 'https://discord.gg/PLACEHOLDER';
+// Convite do Discord (usado na mensagem de preços ao maker).
+export const DISCORD_URL = 'https://discord.gg/cNK85ZQgGe';
 
 // Personas que NÃO veem preços (ver docs/plano-loja.md).
 export const MAKER_TIPOS = ['maker', 'ambos'];
