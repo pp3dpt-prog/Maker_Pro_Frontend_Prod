@@ -159,8 +159,8 @@ export default function EncomendasAdminPage() {
                           <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: '#cbd5e1', padding: '4px 0' }}>
                             <span>
                               {it.quantidade}× {it.nome}{it.cor || it.tamanho ? ` (${[it.cor, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}
-                              {it.personalizacao?.stl_path && (
-                                <button onClick={() => descarregarStl(it.personalizacao.stl_path)} style={{ marginLeft: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                              {(it.personalizacao?.stl_path || it.personalizacao?.stl_url) && (
+                                <button onClick={() => descarregarStl(it.personalizacao.stl_path || it.personalizacao.stl_url)} style={{ marginLeft: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                                   ⬇ STL
                                 </button>
                               )}
