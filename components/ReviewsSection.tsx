@@ -6,14 +6,16 @@ async function getReviews() {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    const { data } = await admin
-      .from('prod_reviews')
-      .select('id, user_name, avaliacao, comentario, created_at')
-      .eq('aprovado', true)
-      .order('created_at', { ascending: false })
-      .limit(6);
-    return data ?? [];
-  } catch { return []; }
+    const [{ data: display }, { data: todas }] = await Promise.all([
+      admin.from('prod_reviews').select('id, user_name, avaliacao, comentario, created_at')
+        .eq('aprovado', true).order('created_at', { ascending: false }).limit(6),
+      admin.from('prod_reviews').select('avaliacao').eq('aprovado', true),
+    ]);
+    const ratings = (todas ?? []).map((r: any) => r.avaliacao as number);
+    const total = ratings.length;
+    const media = total ? ratings.reduce((s, n) => s + n, 0) / total : 0;
+    return { display: display ?? [], total, media };
+  } catch { return { display: [], total: 0, media: 0 }; }
 }
 
 function Stars({ n }: { n: number }) {
@@ -25,13 +27,34 @@ function Stars({ n }: { n: number }) {
 }
 
 export default async function ReviewsSection() {
-  const reviews = await getReviews();
+  const { display: reviews, total, media } = await getReviews();
   if (reviews.length === 0) return null;
 
-  const media = reviews.reduce((s: number, r: any) => s + r.avaliacao, 0) / reviews.length;
+  // Schema.org — AggregateRating + reviews sobre a organização (estrelas nos resultados)
+  const reviewsLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'PP3D.pt',
+    url: 'https://pp3d.pt',
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: media.toFixed(1),
+      reviewCount: total,
+      bestRating: 5,
+      worstRating: 1,
+    },
+    review: reviews.slice(0, 5).map((r: any) => ({
+      '@type': 'Review',
+      author: { '@type': 'Person', name: r.user_name },
+      reviewRating: { '@type': 'Rating', ratingValue: r.avaliacao, bestRating: 5, worstRating: 1 },
+      reviewBody: r.comentario ?? undefined,
+      datePublished: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : undefined,
+    })),
+  };
 
   return (
     <section style={{ padding: '80px 20px', background: '#080c10' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsLd) }} />
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         {/* Cabeçalho */}
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
@@ -42,7 +65,7 @@ export default async function ReviewsSection() {
             Avaliado com {media.toFixed(1)} ⭐
           </h2>
           <p style={{ color: '#64748b', fontSize: 15 }}>
-            Com base em {reviews.length} avaliação{reviews.length !== 1 ? 'ões' : ''} de utilizadores reais
+            Com base em {total} avaliação{total !== 1 ? 'ões' : ''} de utilizadores reais
           </p>
         </div>
 

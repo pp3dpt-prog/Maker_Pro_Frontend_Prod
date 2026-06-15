@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { DISCORD_URL } from '@/lib/loja';
+import ReviewsSection from '@/components/ReviewsSection';
 
 export const metadata: Metadata = {
   title: { absolute: 'PP3D.pt — Produtos únicos, impressos em 3D' },
@@ -172,6 +173,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* REVIEWS (com AggregateRating schema) */}
+      <ReviewsSection />
 
       {/* PARCERIAS / REVENDA */}
       <section className="ll-section" style={{ paddingTop: 20 }}>
