@@ -38,26 +38,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
   }
 
-  // Buscar todos os emails dos utilizadores via admin API (service role)
   const adminClient = createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: { users }, error: usersErr } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-  if (usersErr) {
-    return NextResponse.json({ error: 'Erro ao buscar utilizadores' }, { status: 500 });
+  // ── Filtrar destinatários por segmento ──
+  // 'todos' = todos os perfis | 'maker' = makers + ambos | 'consumidor' = clientes finais + ambos
+  const segmento: string = campanha.segmento ?? 'todos';
+
+  let perfisQuery = adminClient
+    .from('prod_perfis')
+    .select('email')
+    .not('email', 'is', null);
+
+  if (segmento === 'maker') {
+    perfisQuery = perfisQuery.in('tipo_utilizador', ['maker', 'ambos']);
+  } else if (segmento === 'consumidor') {
+    perfisQuery = perfisQuery.in('tipo_utilizador', ['consumidor', 'ambos']);
   }
 
-  const emails = users.map(u => u.email).filter((e): e is string => Boolean(e));
+  const { data: perfisData, error: perfisErr } = await perfisQuery;
+  if (perfisErr) {
+    return NextResponse.json({ error: 'Erro ao buscar destinatários' }, { status: 500 });
+  }
+
+  const emails = [...new Set((perfisData ?? []).map(p => p.email).filter((e): e is string => Boolean(e)))];
   if (emails.length === 0) {
-    return NextResponse.json({ error: 'Nenhum destinatário encontrado' }, { status: 400 });
+    return NextResponse.json({ error: 'Nenhum destinatário encontrado para este segmento' }, { status: 400 });
   }
 
   const resend = new Resend(resendKey);
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>';
 
-  const html = `
+  // ── Corpo do email: HTML personalizado (se existir) ou template automático ──
+  const corpoPersonalizado = campanha.conteudo_html?.trim();
+
+  const html = corpoPersonalizado ? corpoPersonalizado : `
     <!DOCTYPE html>
     <html>
     <body style="margin:0;padding:0;background:#0f0f1e;font-family:sans-serif;color:#f1f5f9;">
@@ -93,5 +110,5 @@ export async function POST(request: NextRequest) {
     enviados += lote.length;
   }
 
-  return NextResponse.json({ success: true, enviados });
+  return NextResponse.json({ success: true, enviados, segmento });
 }

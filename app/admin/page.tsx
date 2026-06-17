@@ -12,7 +12,13 @@ import type { CSSProperties, ReactNode } from 'react';
 
 interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; }
 interface TicketSuporte { id: string; assunto: string; mensagem?: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; resposta?: string; respondido_em?: string; }
-interface Campanha { id: string; titulo: string; tipo: string; cliques: number; vistas: number; ativa: boolean; created_at: string; }
+interface Campanha { id: string; titulo: string; tipo: string; segmento: string; conteudo_html?: string | null; cliques: number; vistas: number; ativa: boolean; created_at: string; }
+
+const SEGMENTO_LABEL: Record<string, string> = {
+  todos: 'Todos',
+  maker: 'Makers',
+  consumidor: 'Clientes finais',
+};
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -69,8 +75,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   const [campTitulo, setCampTitulo] = useState('');
-  const [campCanal, setCampCanal] = useState('Feed da App');
+  const [campCanal, setCampCanal] = useState('novidade');
+  const [campSegmento, setCampSegmento] = useState('todos');
   const [campConteudo, setCampConteudo] = useState('');
+  const [usarHtml, setUsarHtml] = useState(false);
+  const [campHtml, setCampHtml] = useState('');
   const [campStatus, setCampStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [campErro, setCampErro] = useState('');
 
@@ -111,21 +120,37 @@ export default function AdminDashboard() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleCriarCampanha = async () => {
-    if (!campTitulo || !campConteudo) { setCampErro('Preenche o título e o conteúdo.'); return; }
+    if (!campTitulo) { setCampErro('Preenche o título.'); return; }
+    if (usarHtml && !campHtml.trim()) { setCampErro('Cola o HTML do email.'); return; }
+    if (!usarHtml && !campConteudo) { setCampErro('Preenche o conteúdo.'); return; }
+
     setCampStatus('loading'); setCampErro('');
-    const { error } = await supabase.from('prod_campanhas').insert([{ titulo: campTitulo, tipo: campCanal, conteudo: campConteudo, ativa: true, segmento: 'todos' }]);
+    const { error } = await supabase.from('prod_campanhas').insert([{
+      titulo: campTitulo,
+      tipo: campCanal,
+      segmento: campSegmento,
+      conteudo: campConteudo,
+      conteudo_html: usarHtml ? campHtml : null,
+      ativa: true,
+    }]);
     if (error) { setCampErro('Erro: ' + error.message); setCampStatus('error'); }
-    else { setCampStatus('success'); setCampTitulo(''); setCampConteudo(''); fetchData(); setTimeout(() => setCampStatus('idle'), 3000); }
+    else {
+      setCampStatus('success');
+      setCampTitulo(''); setCampConteudo(''); setCampHtml(''); setUsarHtml(false);
+      fetchData();
+      setTimeout(() => setCampStatus('idle'), 3000);
+    }
   };
 
   const enviarNewsletter = async (camp: Campanha) => {
-    if (!confirm(`Enviar "${camp.titulo}" por email a todos os utilizadores?`)) return;
+    const segLabel = SEGMENTO_LABEL[camp.segmento] ?? camp.segmento;
+    if (!confirm(`Enviar "${camp.titulo}" por email a: ${segLabel}?`)) return;
     setEnviandoId(camp.id); setNewsletterMsg(null);
     try {
       const res = await fetch('/api/enviar-campanha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campanha_id: camp.id }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Erro desconhecido');
-      setNewsletterMsg({ id: camp.id, texto: `✓ Enviado a ${json.enviados} utilizadores`, tipo: 'ok' });
+      setNewsletterMsg({ id: camp.id, texto: `✓ Enviado a ${json.enviados} utilizadores (${segLabel})`, tipo: 'ok' });
     } catch (err: unknown) {
       setNewsletterMsg({ id: camp.id, texto: err instanceof Error ? err.message : 'Erro ao enviar', tipo: 'erro' });
     } finally { setEnviandoId(null); }
@@ -460,7 +485,8 @@ export default function AdminDashboard() {
             {/* Criar campanha */}
             <div style={{ ...s.card, marginBottom: 24 }}>
               <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>Nova Campanha</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={s.label}>Título</label>
                   <input style={s.input} value={campTitulo} onChange={e => setCampTitulo(e.target.value)} placeholder="Ex: Promoção Flash" />
@@ -468,15 +494,77 @@ export default function AdminDashboard() {
                 <div>
                   <label style={s.label}>Canal</label>
                   <select style={s.input} value={campCanal} onChange={e => setCampCanal(e.target.value)}>
-                    <option>Feed da App</option>
-                    <option>Banner Principal</option>
+                    <option value="novidade">Feed da App (Novidade)</option>
+                    <option value="banner">Banner Principal</option>
+                    <option value="email">Email</option>
+                    <option value="promo">Promoção</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={s.label}>Enviar para</label>
+                  <select style={s.input} value={campSegmento} onChange={e => setCampSegmento(e.target.value)}>
+                    <option value="todos">Todos os utilizadores</option>
+                    <option value="maker">Makers</option>
+                    <option value="consumidor">Clientes finais</option>
                   </select>
                 </div>
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={s.label}>Conteúdo</label>
-                <textarea style={{ ...s.input, height: 100, resize: 'vertical' }} value={campConteudo} onChange={e => setCampConteudo(e.target.value)} placeholder="Escreve aqui..." />
+
+              {/* Toggle modo HTML */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => setUsarHtml(v => !v)}
+                  style={{
+                    width: 38, height: 22, borderRadius: 20, border: 'none', cursor: 'pointer',
+                    background: usarHtml ? '#4f46e5' : '#1e293b', position: 'relative', transition: 'background 0.2s',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: usarHtml ? 18 : 2,
+                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.2s',
+                  }} />
+                </button>
+                <span style={{ fontSize: 13, fontWeight: 600, color: usarHtml ? '#a5b4fc' : '#94a3b8' }}>
+                  Editor HTML personalizado
+                </span>
+                <span style={{ fontSize: 11, color: '#475569' }}>
+                  {usarHtml ? '— controla todo o design do email' : '— usa o template automático (título + texto)'}
+                </span>
               </div>
+
+              {!usarHtml ? (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={s.label}>Conteúdo</label>
+                  <textarea style={{ ...s.input, height: 100, resize: 'vertical' }} value={campConteudo} onChange={e => setCampConteudo(e.target.value)} placeholder="Escreve aqui..." />
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={s.label}>HTML do email</label>
+                    <textarea
+                      style={{ ...s.input, height: 280, resize: 'vertical', fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5 }}
+                      value={campHtml}
+                      onChange={e => setCampHtml(e.target.value)}
+                      placeholder={`<div style="background:#0f0f1e;padding:40px;color:#fff">\n  <h1>O teu título aqui</h1>\n  <p>O teu texto...</p>\n</div>`}
+                    />
+                  </div>
+                  <div>
+                    <label style={s.label}>Pré-visualização</label>
+                    <div style={{ height: 280, overflow: 'auto', background: '#fff', borderRadius: 8, border: '1px solid #1e293b' }}>
+                      {campHtml.trim() ? (
+                        <div dangerouslySetInnerHTML={{ __html: campHtml }} />
+                      ) : (
+                        <div style={{ padding: 20, color: '#94a3b8', fontSize: 13, fontFamily: 'Inter, Arial, sans-serif' }}>
+                          A pré-visualização aparece aqui…
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {campErro && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{campErro}</p>}
               <button
                 onClick={handleCriarCampanha}
@@ -492,23 +580,31 @@ export default function AdminDashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={s.thead}>
                   <tr>
-                    {['Campanha', 'Canal', 'Cliques', 'Newsletter', 'Estado'].map(h => (
+                    {['Campanha', 'Canal', 'Enviar para', 'Cliques', 'Newsletter', 'Estado'].map(h => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {campanhas.length === 0 ? (
-                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
+                    <tr><td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
                   ) : campanhas.map(camp => (
                     <tr key={camp.id}>
                       <td style={s.td}>
                         <p style={{ margin: '0 0 2px', fontWeight: 600, color: '#f1f5f9' }}>{camp.titulo}</p>
+                        {camp.conteudo_html && (
+                          <span style={{ fontSize: 10, color: '#a5b4fc' }}>✦ HTML personalizado</span>
+                        )}
                         {newsletterMsg?.id === camp.id && (
-                          <p style={{ margin: 0, fontSize: 11, color: newsletterMsg.tipo === 'ok' ? '#86efac' : '#f87171' }}>{newsletterMsg.texto}</p>
+                          <p style={{ margin: '4px 0 0', fontSize: 11, color: newsletterMsg.tipo === 'ok' ? '#86efac' : '#f87171' }}>{newsletterMsg.texto}</p>
                         )}
                       </td>
                       <td style={{ ...s.td, color: '#64748b', fontSize: 12 }}>{camp.tipo}</td>
+                      <td style={s.td}>
+                        <span style={s.badge('rgba(99,102,241,0.15)', '#a5b4fc')}>
+                          {SEGMENTO_LABEL[camp.segmento] ?? camp.segmento ?? 'Todos'}
+                        </span>
+                      </td>
                       <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd' }}>{camp.cliques}</td>
                       <td style={s.td}>
                         <button
