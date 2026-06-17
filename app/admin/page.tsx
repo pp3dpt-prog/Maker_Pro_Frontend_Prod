@@ -12,7 +12,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; }
 interface TicketSuporte { id: string; assunto: string; mensagem?: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; resposta?: string; respondido_em?: string; }
-interface Campanha { id: string; titulo: string; tipo: string; segmento: string; conteudo_html?: string | null; cliques: number; vistas: number; ativa: boolean; created_at: string; }
+interface Campanha { id: string; titulo: string; tipo: string; segmento: string; conteudo_html?: string | null; cliques: number; vistas: number; ativa: boolean; expira_em?: string | null; created_at: string; }
 
 const SEGMENTO_LABEL: Record<string, string> = {
   todos: 'Todos',
@@ -78,6 +78,7 @@ export default function AdminDashboard() {
   const [campCanal, setCampCanal] = useState('novidade');
   const [campSegmento, setCampSegmento] = useState('todos');
   const [campConteudo, setCampConteudo] = useState('');
+  const [campExpira, setCampExpira] = useState('');
   const [usarHtml, setUsarHtml] = useState(false);
   const [campHtml, setCampHtml] = useState('');
   const [campStatus, setCampStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -131,12 +132,13 @@ export default function AdminDashboard() {
       segmento: campSegmento,
       conteudo: campConteudo,
       conteudo_html: usarHtml ? campHtml : null,
+      expira_em: campExpira ? new Date(campExpira).toISOString() : null,
       ativa: true,
     }]);
     if (error) { setCampErro('Erro: ' + error.message); setCampStatus('error'); }
     else {
       setCampStatus('success');
-      setCampTitulo(''); setCampConteudo(''); setCampHtml(''); setUsarHtml(false);
+      setCampTitulo(''); setCampConteudo(''); setCampHtml(''); setUsarHtml(false); setCampExpira('');
       fetchData();
       setTimeout(() => setCampStatus('idle'), 3000);
     }
@@ -154,6 +156,11 @@ export default function AdminDashboard() {
     } catch (err: unknown) {
       setNewsletterMsg({ id: camp.id, texto: err instanceof Error ? err.message : 'Erro ao enviar', tipo: 'erro' });
     } finally { setEnviandoId(null); }
+  };
+
+  const toggleCampanhaAtiva = async (camp: Campanha) => {
+    const { error } = await supabase.from('prod_campanhas').update({ ativa: !camp.ativa }).eq('id', camp.id);
+    if (!error) fetchData();
   };
 
   const deleteCoupon = async (id: number) => {
@@ -486,7 +493,7 @@ export default function AdminDashboard() {
             <div style={{ ...s.card, marginBottom: 24 }}>
               <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>Nova Campanha</h2>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={s.label}>Título</label>
                   <input style={s.input} value={campTitulo} onChange={e => setCampTitulo(e.target.value)} placeholder="Ex: Promoção Flash" />
@@ -507,6 +514,15 @@ export default function AdminDashboard() {
                     <option value="maker">Makers</option>
                     <option value="consumidor">Clientes finais</option>
                   </select>
+                </div>
+                <div>
+                  <label style={s.label}>Expira em (opcional)</label>
+                  <input
+                    type="datetime-local"
+                    style={s.input}
+                    value={campExpira}
+                    onChange={e => setCampExpira(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -580,15 +596,17 @@ export default function AdminDashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={s.thead}>
                   <tr>
-                    {['Campanha', 'Canal', 'Enviar para', 'Cliques', 'Newsletter', 'Estado'].map(h => (
+                    {['Campanha', 'Canal', 'Enviar para', 'Cliques', 'Expira', 'Newsletter', 'Estado'].map(h => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {campanhas.length === 0 ? (
-                    <tr><td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
-                  ) : campanhas.map(camp => (
+                    <tr><td colSpan={7} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
+                  ) : campanhas.map(camp => {
+                    const expirada = !!camp.expira_em && new Date(camp.expira_em) < new Date();
+                    return (
                     <tr key={camp.id}>
                       <td style={s.td}>
                         <p style={{ margin: '0 0 2px', fontWeight: 600, color: '#f1f5f9' }}>{camp.titulo}</p>
@@ -607,6 +625,15 @@ export default function AdminDashboard() {
                       </td>
                       <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd' }}>{camp.cliques}</td>
                       <td style={s.td}>
+                        {camp.expira_em ? (
+                          <span style={{ fontSize: 12, color: expirada ? '#f87171' : '#94a3b8' }}>
+                            {expirada ? '⏰ Expirou' : new Date(camp.expira_em).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 12, color: '#475569' }}>Sem prazo</span>
+                        )}
+                      </td>
+                      <td style={s.td}>
                         <button
                           onClick={() => enviarNewsletter(camp)}
                           disabled={enviandoId === camp.id}
@@ -616,10 +643,18 @@ export default function AdminDashboard() {
                         </button>
                       </td>
                       <td style={s.td}>
-                        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: camp.ativa ? '#22c55e' : '#ef4444' }} />
+                        <button
+                          onClick={() => toggleCampanhaAtiva(camp)}
+                          style={{
+                            ...s.badge(camp.ativa ? '#14532d' : '#1e293b', camp.ativa ? '#86efac' : '#64748b'),
+                            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                          }}
+                        >
+                          {camp.ativa ? 'Ativa' : 'Inativa'}
+                        </button>
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>

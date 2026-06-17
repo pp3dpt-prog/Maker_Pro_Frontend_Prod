@@ -25,12 +25,15 @@ export default function NotificationBell({ userId }: { userId: string | null }) 
     }
 
     async function load() {
+      const agora = new Date().toISOString();
+
       const [{ data: camps }, { data: vistas }] = await Promise.all([
         supabase
           .from('prod_campanhas')
           .select('id, titulo, conteudo, created_at')
           .eq('tipo', 'novidade')
           .eq('ativa', true)
+          .or(`expira_em.is.null,expira_em.gt.${agora}`)
           .order('created_at', { ascending: false })
           .limit(20),
         supabase
