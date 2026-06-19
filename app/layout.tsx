@@ -41,13 +41,11 @@ export const metadata: Metadata = {
     siteName: 'PP3D.pt',
     locale: 'pt_PT',
     type: 'website',
-    images: [{ url: `${siteUrl}/og-image.png`, width: 1200, height: 630, alt: 'PP3D.pt — Personalização 3D' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PP3D.pt — Brincos e Personalização 3D',
     description: 'Brincos, porta-chaves e figuras feitos em impressão 3D e personalizados à medida.',
-    images: [`${siteUrl}/og-image.png`],
   },
   alternates: {
     canonical: siteUrl,
