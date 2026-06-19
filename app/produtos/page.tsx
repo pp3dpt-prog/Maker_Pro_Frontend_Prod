@@ -1,8 +1,16 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import FamilyCard from '@/components/cards/FamilyCard';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Produtos 3D Personalizáveis',
+  description: 'Personaliza o teu produto 3D à medida — brincos, porta-chaves com imagem, placas para animais, copos e muito mais. Descarrega o STL ou recebe impresso em casa.',
+  keywords: ['produtos 3D personalizáveis', 'personalizar brincos', 'STL personalizado', 'impressão 3D à medida Portugal'],
+  alternates: { canonical: 'https://pp3d.pt/produtos' },
+};
 
 type Design = {
   id: string;
