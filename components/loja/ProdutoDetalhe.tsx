@@ -94,7 +94,7 @@ export default function ProdutoDetalhe({
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 {fotos.map((f, i) => (
                   <button key={f.id} onClick={() => setFotoSel(i)} style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', border: i === fotoSel ? '2px solid #3b82f6' : '1px solid #1e293b', padding: 0, cursor: 'pointer', background: '#0a1120' }}>
-                    <img src={f.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={f.url} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </button>
                 ))}
               </div>

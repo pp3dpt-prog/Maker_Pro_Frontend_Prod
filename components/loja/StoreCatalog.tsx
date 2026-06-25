@@ -58,7 +58,7 @@ export default function StoreCatalog({
             <Link key={p.id} href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {foto
-                  ? <img src={foto} alt={p.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <img src={foto} alt={p.nome} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : <span style={{ fontSize: 40, opacity: 0.3 }}>📦</span>}
               </div>
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>

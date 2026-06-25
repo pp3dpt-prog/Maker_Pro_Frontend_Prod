@@ -49,17 +49,17 @@ function LoginForm() {
             {erro && <p style={{ color: '#f87171', fontSize: '14px', margin: 0, padding: '12px', background: 'rgba(248,113,113,0.1)', borderRadius: '8px', border: '1px solid rgba(248,113,113,0.2)' }}>{erro}</p>}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Email</label>
-              <input type="email" placeholder="o@teu.email" value={email} onChange={e => setEmail(e.target.value)} required
+              <label htmlFor="login-email" style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Email</label>
+              <input id="login-email" autoComplete="email" type="email" placeholder="o@teu.email" value={email} onChange={e => setEmail(e.target.value)} required
                 style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0a0a0a', color: 'white', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Password</label>
+                <label htmlFor="login-password" style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Password</label>
                 <Link href="/forgot-password" style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none' }}>Esqueceste?</Link>
               </div>
-              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required
+              <input id="login-password" autoComplete="current-password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required
                 style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0a0a0a', color: 'white', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
             </div>
 
