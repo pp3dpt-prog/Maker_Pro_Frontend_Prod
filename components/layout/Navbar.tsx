@@ -5,15 +5,17 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
-import { ShieldCheck, Menu, X } from 'lucide-react';
+import { ShieldCheck, Menu, X, ShoppingCart } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import NotificationBell from './NotificationBell';
+import { useCart } from '@/components/loja/CartContext';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
+  const { count } = useCart();
 
   async function checkAdminRole(userId: string): Promise<boolean> {
     const { data: perfil } = await supabase
@@ -70,12 +72,24 @@ export default function Navbar() {
     <header className={styles.header}>
       <nav className={styles.navbar}>
         <div className={styles.brand}>
-          <Link href="/">MakerPro</Link>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <img src="/favicon.ico" alt="" aria-hidden="true" style={{ width: '38px', height: '38px', borderRadius: '50%' }} />
+            <span style={{ fontWeight: 900, letterSpacing: '-0.5px', color: 'white' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
+          </Link>
         </div>
 
         {/* Links desktop */}
         <div className={styles.desktopLinks}>
-          <Link href="/precario">Preçário</Link>
+          <Link href="/loja">Loja</Link>
+          <Link href="/makers">Makers</Link>
+          <Link href="/pricing">Preçário</Link>
+
+          <Link href="/carrinho" aria-label={`Carrinho${count > 0 ? ` (${count} itens)` : ''}`} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <ShoppingCart size={20} aria-hidden="true" />
+            {count > 0 && (
+              <span style={{ position: 'absolute', top: -8, right: -10, background: '#2563eb', color: '#fff', fontSize: 10, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{count}</span>
+            )}
+          </Link>
 
           {user ? (
             <>
@@ -99,7 +113,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login">Login</Link>
-              <Link href="/registo">Registo</Link>
+              <Link href="/register">Registo</Link>
             </>
           )}
         </div>
@@ -118,7 +132,10 @@ export default function Navbar() {
       {/* Menu mobile */}
       {mobileOpen && (
         <div className={styles.mobileMenu} role="menu">
-          <Link href="/precario" onClick={() => setMobileOpen(false)}>Preçário</Link>
+          <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
+          <Link href="/makers" onClick={() => setMobileOpen(false)}>Makers</Link>
+          <Link href="/carrinho" onClick={() => setMobileOpen(false)}>Carrinho{count > 0 ? ` (${count})` : ''}</Link>
+          <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>
 
           {user ? (
             <>
@@ -145,7 +162,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" onClick={() => setMobileOpen(false)}>Login</Link>
-              <Link href="/registo" onClick={() => setMobileOpen(false)}>Registo</Link>
+              <Link href="/register" onClick={() => setMobileOpen(false)}>Registo</Link>
             </>
           )}
         </div>
