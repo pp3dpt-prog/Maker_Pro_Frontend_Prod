@@ -10,7 +10,7 @@ const inp: React.CSSProperties = {
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
 };
 const lbl: React.CSSProperties = {
-  display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b',
+  display: 'block', fontSize: 11, fontWeight: 700, color: '#8a96aa',
   textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
 };
 
@@ -51,14 +51,14 @@ export default function SupportModal({ onClose }: Props) {
       }}>
         <button onClick={onClose} style={{
           position: 'absolute', top: 16, right: 16, background: 'none',
-          border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20,
+          border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 20,
         }}>✕</button>
 
         {status === 'ok' ? (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
             <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Pedido enviado!</h3>
-            <p style={{ color: '#64748b', margin: '0 0 24px', fontSize: 14 }}>
+            <p style={{ color: '#8a96aa', margin: '0 0 24px', fontSize: 14 }}>
               Iremos responder por email assim que possível.
             </p>
             <button onClick={onClose} style={{
@@ -69,7 +69,7 @@ export default function SupportModal({ onClose }: Props) {
         ) : (
           <form onSubmit={handleSubmit}>
             <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>Abrir pedido de suporte</h2>
-            <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 24px' }}>
+            <p style={{ color: '#8a96aa', fontSize: 13, margin: '0 0 24px' }}>
               Descreve o problema e respondemos o mais breve possível.
             </p>
 

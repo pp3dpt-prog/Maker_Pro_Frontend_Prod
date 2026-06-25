@@ -65,7 +65,7 @@ export default function PricingPage() {
   };
 
   if (loading) return (
-    <div style={{ background: BG_PAGE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 14 }}>
+    <div style={{ background: BG_PAGE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a96aa', fontSize: 14 }}>
       A carregar planos...
     </div>
   );
@@ -92,7 +92,7 @@ export default function PricingPage() {
         <h1 style={{ fontSize: 'clamp(32px,5vw,52px)', fontWeight: 900, letterSpacing: '-0.03em', margin: '0 0 16px', lineHeight: 1.1 }}>
           Simples e transparente
         </h1>
-        <p style={{ color: '#64748b', fontSize: 16, maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
+        <p style={{ color: '#8a96aa', fontSize: 16, maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
           Começa grátis. Evolui quando precisares.
         </p>
       </div>
@@ -164,9 +164,9 @@ export default function PricingPage() {
                     <>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>0€</span>
-                        <span style={{ fontSize: 14, color: '#475569' }}>/mês</span>
+                        <span style={{ fontSize: 14, color: '#828fa3' }}>/mês</span>
                       </div>
-                      <p style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+                      <p style={{ fontSize: 11, color: '#828fa3', marginTop: 6 }}>
                         Sem cartão de crédito · Válido por {plano.validade_dias} dias
                         {plano.recarga_creditos_mensal > 0 && ', renova automaticamente'}
                       </p>
@@ -175,10 +175,10 @@ export default function PricingPage() {
                     <>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>{precoMensal}€</span>
-                        <span style={{ fontSize: 14, color: '#475569' }}>/mês</span>
+                        <span style={{ fontSize: 14, color: '#828fa3' }}>/mês</span>
                       </div>
                       {precoAnual && (
-                        <p style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+                        <p style={{ fontSize: 12, color: '#828fa3', marginTop: 6 }}>
                           ou{' '}
                           <span style={{ color: '#94a3b8', fontWeight: 600 }}>{precoAnual}€/ano</span>
                           {poupanca && poupanca > 0 && (
@@ -199,10 +199,10 @@ export default function PricingPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1 }}>{plano.limite_downloads}</span>
-                        <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>downloads / mês</span>
+                        <span style={{ fontSize: 12, color: '#828fa3', fontWeight: 600 }}>downloads / mês</span>
                       </div>
                       {!plano.gratuito && precoAnual && (
-                        <p style={{ fontSize: 11, color: '#334155', marginTop: 3 }}>
+                        <p style={{ fontSize: 11, color: '#7f8da2', marginTop: 3 }}>
                           até {plano.limite_downloads * 12} downloads no plano anual
                         </p>
                       )}
@@ -264,7 +264,7 @@ export default function PricingPage() {
                     {precoAnual ? (
                       <button
                         onClick={() => router.push(`/checkout?plan=${plano.id}&intervalo=anual`)}
-                        style={{ width: '100%', padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'color 0.15s' }}
+                        style={{ width: '100%', padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#8a96aa', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'color 0.15s' }}
                         onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; }}
                         onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
                       >

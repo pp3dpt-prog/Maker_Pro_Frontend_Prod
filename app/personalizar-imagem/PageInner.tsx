@@ -449,7 +449,7 @@ export default function PageInner() {
                 {formatCount(likes)}
               </button>
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#8a96aa' }}>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 11h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -467,7 +467,7 @@ export default function PageInner() {
             {/* Contador de downloads — só para makers */}
             {isMaker && userId && (
               <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: '#0f172a', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Downloads este mês</span>
+                <span style={{ fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>Downloads este mês</span>
                 <span style={{ fontSize: 14, fontWeight: 800, color: semDownloads ? '#f87171' : '#34d399' }}>
                   {userProfile?.downloads_mes ?? 0} / {userProfile?.downloads_limite ?? 3}
                 </span>
@@ -574,7 +574,7 @@ export default function PageInner() {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                 {/* Etiqueta de dimensões */}
-                <p style={{ color: '#64748b', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                <p style={{ color: '#8a96aa', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                   {larg} × {alt} mm
                 </p>
 
@@ -604,7 +604,7 @@ export default function PageInner() {
                       }}
                     />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: '#334155' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: '#7f8da2' }}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="3" y="3" width="18" height="18" rx="2"/>
                         <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -621,7 +621,7 @@ export default function PageInner() {
 
                 {/* Análise de cores */}
                 {analysing && (
-                  <p style={{ color: '#64748b', fontSize: 12 }}>🔍 A analisar cores…</p>
+                  <p style={{ color: '#8a96aa', fontSize: 12 }}>🔍 A analisar cores…</p>
                 )}
                 {imageAnalysis && !analysing && (
                   <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '16px 20px', width: pW, boxSizing: 'border-box' }}>
@@ -645,12 +645,12 @@ export default function PageInner() {
                             border: '1px solid #1e293b',
                             boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
                           }} title={`R:${lvl.r} G:${lvl.g} B:${lvl.b}`} />
-                          <span style={{ fontSize: 10, color: '#64748b' }}>{lvl.percentage}%</span>
-                          <span style={{ fontSize: 9, color: '#475569' }}>filamento {i + 1}</span>
+                          <span style={{ fontSize: 10, color: '#8a96aa' }}>{lvl.percentage}%</span>
+                          <span style={{ fontSize: 9, color: '#828fa3' }}>filamento {i + 1}</span>
                         </div>
                       ))}
                     </div>
-                    <p style={{ margin: '10px 0 0', fontSize: 11, color: '#475569', lineHeight: 1.5 }}>
+                    <p style={{ margin: '10px 0 0', fontSize: 11, color: '#828fa3', lineHeight: 1.5 }}>
                       Filamento 1 = tom mais escuro → filamento {imageAnalysis.suggestedColors} = tom mais claro
                     </p>
                   </div>

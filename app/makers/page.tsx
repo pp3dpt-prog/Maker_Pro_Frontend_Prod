@@ -45,7 +45,7 @@ export default async function MakersPage() {
           <h1 style={{ fontSize: 'clamp(30px,5vw,48px)', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em', margin: '0 0 16px', lineHeight: 1.1 }}>
             Tens impressora 3D?<br /><span style={{ color: '#3b82f6' }}>Descarrega os ficheiros.</span>
           </h1>
-          <p style={{ fontSize: 16, color: '#64748b', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 32px' }}>
+          <p style={{ fontSize: 16, color: '#8a96aa', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 32px' }}>
             Acede a designs paramétricos, personaliza as medidas, gera o STL e descarrega.
             Modelos gratuitos para todos os makers e exclusivos com plano.
           </p>
@@ -53,7 +53,7 @@ export default async function MakersPage() {
             <Link href="/login?redirect=/makers" style={{ padding: '14px 28px', background: '#2563eb', color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
             <Link href="/register" style={{ padding: '14px 28px', background: 'transparent', color: '#93c5fd', border: '1px solid #1e40af', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>Criar conta grátis</Link>
           </div>
-          <p style={{ fontSize: 13, color: '#475569', marginTop: 24 }}>
+          <p style={{ fontSize: 13, color: '#828fa3', marginTop: 24 }}>
             Vê os <Link href="/pricing" style={{ color: '#60a5fa' }}>planos</Link> ou volta à <Link href="/loja" style={{ color: '#60a5fa' }}>loja</Link>.
           </p>
         </div>
@@ -105,19 +105,19 @@ export default async function MakersPage() {
         <h1 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em', margin: '0 0 12px' }}>
           Designs para <span style={{ color: '#3b82f6' }}>impressão 3D</span>
         </h1>
-        <p style={{ fontSize: 16, color: '#64748b', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 16, color: '#8a96aa', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
           Personaliza, gera o STL e descarrega. Modelos gratuitos e exclusivos com plano.
         </p>
 
         {/* Banner de créditos */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 28, padding: '18px 22px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>Plano</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' }}>Plano</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9' }}>{planoNome}</div>
           </div>
           <div style={{ width: 1, height: 32, background: '#1e293b' }} />
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>Downloads disponíveis</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' }}>Downloads disponíveis</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: restantes > 0 ? '#34d399' : '#f87171' }}>{restantes}</div>
           </div>
           <Link href="/pricing" style={{ marginLeft: 'auto', padding: '10px 18px', background: '#2563eb', color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>

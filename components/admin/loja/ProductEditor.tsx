@@ -240,7 +240,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     router.push('/admin/loja');
   }
 
-  if (loading) return <div style={s.page}><div style={s.wrap}><p style={{ color: '#64748b' }}>A carregar…</p></div></div>;
+  if (loading) return <div style={s.page}><div style={s.wrap}><p style={{ color: '#8a96aa' }}>A carregar…</p></div></div>;
 
   const fieldRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 };
   const gridCols = duasCores ? '1fr 1fr 1fr 1fr 70px 80px 36px' : '1fr 1fr 1fr 80px 90px 36px';
@@ -346,7 +346,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
           {variantes.length === 0 ? (
             <div>
-              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>Sem variantes — usa o stock simples do produto:</p>
+              <p style={{ fontSize: 13, color: '#8a96aa', marginBottom: 12 }}>Sem variantes — usa o stock simples do produto:</p>
               <div style={{ maxWidth: 200 }}>
                 <label style={s.label}>Stock</label>
                 <input style={s.input} value={stockSimples} onChange={e => setStockSimples(e.target.value)} inputMode="numeric" />
@@ -354,7 +354,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, fontSize: 10, fontWeight: 700, color: '#828fa3', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
                 <span>{duasCores ? 'Cor base' : 'Cor'}</span>
                 {duasCores && <span>Cor secundária</span>}
                 <span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span><span></span>
@@ -370,7 +370,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
                   <button style={{ ...s.btnDanger, padding: '8px 0' }} onClick={() => rmVariante(i)} type="button" title="Remover">✕</button>
                 </div>
               ))}
-              <p style={{ fontSize: 12, color: '#475569', margin: '4px 0 0' }}>Com variantes, o stock é por variante. Preço vazio herda o preço base.</p>
+              <p style={{ fontSize: 12, color: '#828fa3', margin: '4px 0 0' }}>Com variantes, o stock é por variante. Preço vazio herda o preço base.</p>
             </div>
           )}
         </div>
@@ -386,7 +386,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             <input type="checkbox" checked={requerOrcamento} onChange={e => setRequerOrcamento(e.target.checked)} style={{ marginTop: 3 }} />
             <span style={{ fontSize: 14, color: '#cbd5e1' }}>
               Requer orçamento (preço não fixo — ex.: peça que varia muito de tamanho)
-              <span style={{ display: 'block', fontSize: 12, color: '#475569', marginTop: 2 }}>
+              <span style={{ display: 'block', fontSize: 12, color: '#828fa3', marginTop: 2 }}>
                 No carrinho fica "a orçamentar"; se a encomenda tiver alguma peça destas, o checkout vira pedido de orçamento. O preço acima passa a ser opcional (estimativa).
               </span>
             </span>
@@ -402,7 +402,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             )}>{prazo.label}</span>
             <span style={{ fontSize: 14, color: '#e2e8f0' }}>Envio em <strong>{prazo.dias}</strong></span>
           </div>
-          <p style={{ fontSize: 12, color: '#475569', margin: '10px 0 0' }}>
+          <p style={{ fontSize: 12, color: '#828fa3', margin: '10px 0 0' }}>
             Calculado: com stock e sem ser sob encomenda → prazo de stock; caso contrário → prazo de produção.
             Os prazos definem-se em <Link href="/admin/loja/definicoes" style={{ color: '#60a5fa' }}>Definições</Link>.
           </p>
@@ -418,7 +418,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             </label>
           </div>
           {imagens.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#64748b' }}>Sem fotos. A primeira foto é a principal.</p>
+            <p style={{ fontSize: 13, color: '#8a96aa' }}>Sem fotos. A primeira foto é a principal.</p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
               {imagens.map((img, i) => (

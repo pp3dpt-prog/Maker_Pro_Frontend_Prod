@@ -76,9 +76,9 @@ export default function LojaAdminPage() {
         {erro && <p style={{ color: '#f87171', marginBottom: 16 }}>Erro: {erro}</p>}
 
         {loading ? (
-          <p style={{ color: '#64748b' }}>A carregar…</p>
+          <p style={{ color: '#8a96aa' }}>A carregar…</p>
         ) : produtos.length === 0 ? (
-          <div style={{ ...s.card, textAlign: 'center', color: '#64748b' }}>
+          <div style={{ ...s.card, textAlign: 'center', color: '#8a96aa' }}>
             Ainda não há produtos. <Link href="/admin/loja/novo" style={{ color: '#60a5fa' }}>Cria o primeiro →</Link>
           </div>
         ) : (
@@ -103,22 +103,22 @@ export default function LojaAdminPage() {
                     <tr key={p.id}>
                       <td style={s.td}>
                         <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{p.nome}</div>
-                        <div style={{ fontSize: 12, color: '#475569' }}>/{p.slug}</div>
+                        <div style={{ fontSize: 12, color: '#828fa3' }}>/{p.slug}</div>
                       </td>
                       <td style={s.td}>{p.prod_loja_categorias?.nome ?? '—'}</td>
                       <td style={s.td}>
                         {p.preco_promo_cents != null ? (
                           <span><span style={{ color: '#34d399', fontWeight: 700 }}>{eur(p.preco_promo_cents)}</span>{' '}
-                            <span style={{ textDecoration: 'line-through', color: '#475569', fontSize: 12 }}>{eur(p.preco_cents)}</span></span>
+                            <span style={{ textDecoration: 'line-through', color: '#828fa3', fontSize: 12 }}>{eur(p.preco_cents)}</span></span>
                         ) : eur(p.preco_cents)}
                       </td>
                       <td style={s.td}>
                         <span style={{ color: st === 0 ? '#f87171' : st < 5 ? '#fbbf24' : '#cbd5e1', fontWeight: 600 }}>{st}</span>
-                        {p.prod_loja_variantes.length > 0 && <span style={{ fontSize: 11, color: '#475569' }}> ({p.prod_loja_variantes.length} var.)</span>}
+                        {p.prod_loja_variantes.length > 0 && <span style={{ fontSize: 11, color: '#828fa3' }}> ({p.prod_loja_variantes.length} var.)</span>}
                       </td>
                       <td style={s.td}>
                         <div style={{ fontSize: 12, color: prazo.tipo === 'stock' ? '#34d399' : '#fbbf24', fontWeight: 700 }}>{prazo.label}</div>
-                        <div style={{ fontSize: 11, color: '#475569' }}>{prazo.dias}</div>
+                        <div style={{ fontSize: 11, color: '#828fa3' }}>{prazo.dias}</div>
                       </td>
                       <td style={s.td}><span style={estadoBadge[p.estado] ?? estadoBadge.rascunho}>{p.estado}</span></td>
                       <td style={{ ...s.td, textAlign: 'right', whiteSpace: 'nowrap' }}>

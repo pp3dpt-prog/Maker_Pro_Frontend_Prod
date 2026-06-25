@@ -121,7 +121,7 @@ export default function ProdutoDetalhe({
             {/* Variantes */}
             {temVariantes && (
               <div style={{ marginBottom: 22 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa', marginBottom: 8 }}>
                   {produto.duas_cores ? 'Cor base / Cor secundária / Tamanho' : 'Opção'}
                 </label>
                 <select value={varId} onChange={e => setVarId(e.target.value)} style={{ width: '100%', maxWidth: 360, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px', color: '#f1f5f9', fontSize: 15, outline: 'none' }}>
@@ -162,7 +162,7 @@ export default function ProdutoDetalhe({
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 18 }}>
                   <span style={{ fontSize: 30, fontWeight: 900, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(precoEfetivo)}</span>
-                  {temPromo && <span style={{ fontSize: 16, textDecoration: 'line-through', color: '#475569' }}>{eur(produto.preco_cents)}</span>}
+                  {temPromo && <span style={{ fontSize: 16, textDecoration: 'line-through', color: '#828fa3' }}>{eur(produto.preco_cents)}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
                   <button
@@ -185,7 +185,7 @@ export default function ProdutoDetalhe({
 
             {/* Partilha */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28, paddingTop: 20, borderTop: '1px solid #1e293b' }}>
-              <span style={{ fontSize: 13, color: '#64748b' }}>Partilhar:</span>
+              <span style={{ fontSize: 13, color: '#8a96aa' }}>Partilhar:</span>
               <button onClick={partilhar} style={shareBtn}>🔗 Partilhar</button>
               <a href={`https://wa.me/?text=${shareUrl}`} target="_blank" rel="noopener noreferrer" style={shareBtn}>WhatsApp</a>
               <a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener noreferrer" style={shareBtn}>Facebook</a>

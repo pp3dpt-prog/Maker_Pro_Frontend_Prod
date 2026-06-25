@@ -8,7 +8,7 @@ export default function Loading() {
       `}</style>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 40, height: 40, border: '3px solid #1e293b', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-        <p style={{ color: '#475569', fontSize: 14 }}>A carregar configurador…</p>
+        <p style={{ color: '#828fa3', fontSize: 14 }}>A carregar configurador…</p>
       </div>
     </div>
   );

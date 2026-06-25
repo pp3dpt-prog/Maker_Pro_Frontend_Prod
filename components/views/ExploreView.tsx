@@ -90,7 +90,7 @@ export default function ExploreView() {
                         }}
                       />
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#475569', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#828fa3', fontSize: '12px' }}>
                         SEM PRÉ-VISUALIZAÇÃO
                       </div>
                     )}

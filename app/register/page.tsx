@@ -56,7 +56,7 @@ export default function Register() {
             <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '44px', height: '44px', borderRadius: '50%' }} />
             <span style={{ fontSize: '24px', fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
           </Link>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '12px' }}>Cria a tua conta gratuita</p>
+          <p style={{ color: '#8a96aa', fontSize: '14px', marginTop: '12px' }}>Cria a tua conta gratuita</p>
         </div>
 
         {/* Card */}
@@ -70,7 +70,7 @@ export default function Register() {
                 Enviámos um link para <strong style={{ color: '#f1f5f9' }}>{email}</strong>.<br />
                 Clica no link para ativar a conta e continuar.
               </p>
-              <p style={{ color: '#64748b', fontSize: '13px', marginTop: '16px' }}>
+              <p style={{ color: '#8a96aa', fontSize: '13px', marginTop: '16px' }}>
                 Já confirmaste?{' '}
                 <Link href="/login" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
               </p>
@@ -78,7 +78,7 @@ export default function Register() {
           ) : (
             <>
           <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', textAlign: 'center' }}>Criar conta</h1>
-          <p style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', marginBottom: '28px' }}>
+          <p style={{ color: '#8a96aa', fontSize: '13px', textAlign: 'center', marginBottom: '28px' }}>
             3 downloads gratuitos para começar
           </p>
 
@@ -109,7 +109,7 @@ export default function Register() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginTop: '24px' }}>
+          <p style={{ textAlign: 'center', color: '#8a96aa', fontSize: '14px', marginTop: '24px' }}>
             Já tens conta?{' '}
             <Link href="/login" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
           </p>
@@ -117,10 +117,10 @@ export default function Register() {
           )}
         </div>
 
-        <p style={{ textAlign: 'center', color: '#334155', fontSize: '12px', marginTop: '20px' }}>
+        <p style={{ textAlign: 'center', color: '#7f8da2', fontSize: '12px', marginTop: '20px' }}>
           Ao criares conta aceitas os nossos{' '}
-          <Link href="/terms" style={{ color: '#475569', textDecoration: 'none' }}>Termos</Link> e{' '}
-          <Link href="/privacy" style={{ color: '#475569', textDecoration: 'none' }}>Política de Privacidade</Link>
+          <Link href="/terms" style={{ color: '#828fa3', textDecoration: 'none' }}>Termos</Link> e{' '}
+          <Link href="/privacy" style={{ color: '#828fa3', textDecoration: 'none' }}>Política de Privacidade</Link>
         </p>
       </div>
     </div>

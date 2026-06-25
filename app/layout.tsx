@@ -81,9 +81,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.className} bg-[#0a0a0a] text-white`}>
+        <a href="#conteudo" className="skip-link">Saltar para o conteúdo</a>
         <CartProvider>
           <Navbar />
-          {children}
+          <div id="conteudo" tabIndex={-1}>
+            {children}
+          </div>
           <Footer />
         </CartProvider>
         <Analytics />

@@ -75,7 +75,7 @@ export default function BemVindo() {
           <h1 style={{ fontSize: '26px', fontWeight: 800, marginTop: '28px', marginBottom: '8px' }}>
             Bem-vindo! 👋
           </h1>
-          <p style={{ color: '#64748b', fontSize: '15px' }}>
+          <p style={{ color: '#8a96aa', fontSize: '15px' }}>
             Uma pergunta rápida para personalizarmos a tua experiência:
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function BemVindo() {
                 <div style={{ fontSize: '16px', fontWeight: 700, color: selecionado === op.id ? op.cor : '#f1f5f9', marginBottom: '4px' }}>
                   {op.titulo}
                 </div>
-                <div style={{ fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>{op.desc}</div>
+                <div style={{ fontSize: '13px', color: '#8a96aa', lineHeight: 1.5 }}>{op.desc}</div>
               </div>
               <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
                 <div style={{
@@ -131,7 +131,7 @@ export default function BemVindo() {
           {loading ? 'A guardar…' : 'Continuar →'}
         </button>
 
-        <p style={{ textAlign: 'center', color: '#334155', fontSize: '13px', marginTop: '20px' }}>
+        <p style={{ textAlign: 'center', color: '#7f8da2', fontSize: '13px', marginTop: '20px' }}>
           Podes mudar isto a qualquer momento no teu perfil.
         </p>
       </div>

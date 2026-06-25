@@ -129,8 +129,8 @@ export default function EncomendasAdminPage() {
           </div>
         </div>
 
-        {loading ? <p style={{ color: '#64748b' }}>A carregar…</p> : encomendas.length === 0 ? (
-          <div style={{ ...s.card, color: '#64748b', textAlign: 'center' }}>Sem encomendas.</div>
+        {loading ? <p style={{ color: '#8a96aa' }}>A carregar…</p> : encomendas.length === 0 ? (
+          <div style={{ ...s.card, color: '#8a96aa', textAlign: 'center' }}>Sem encomendas.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {encomendas.map(enc => {
@@ -143,12 +143,12 @@ export default function EncomendasAdminPage() {
                     <span style={{ fontWeight: 800, color: '#f1f5f9' }}>#{enc.numero}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emails[enc.user_id ?? ''] ?? enc.morada_envio?.nome ?? '—'}</div>
-                      <div style={{ fontSize: 11, color: '#475569' }}>{new Date(enc.created_at).toLocaleString('pt-PT')}</div>
+                      <div style={{ fontSize: 11, color: '#828fa3' }}>{new Date(enc.created_at).toLocaleString('pt-PT')}</div>
                     </div>
                     <span style={badge(enc.estado)}>{enc.estado}</span>
                     <span style={{ fontWeight: 700, color: '#f1f5f9' }}>{eur(enc.total_cents)}</span>
                     <span style={{ fontSize: 12, color: ehOrcamento ? '#fbbf24' : '#64748b' }}>{ehOrcamento ? 'orçamento' : (enc.metodo_pagamento ?? '—')}</span>
-                    <span style={{ color: '#64748b', textAlign: 'center' }}>{aberto ? '▴' : '▾'}</span>
+                    <span style={{ color: '#8a96aa', textAlign: 'center' }}>{aberto ? '▴' : '▾'}</span>
                   </div>
 
                   {aberto && (

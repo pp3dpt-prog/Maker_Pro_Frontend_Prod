@@ -6,7 +6,7 @@ export default function CheckoutErro() {
       <div style={{ textAlign: 'center', maxWidth: 480, padding: 32 }}>
         <div style={{ fontSize: 64, marginBottom: 24 }}>❌</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>Pagamento não concluído</h1>
-        <p style={{ color: '#64748b', fontSize: 15, marginBottom: 32, lineHeight: 1.6 }}>
+        <p style={{ color: '#8a96aa', fontSize: 15, marginBottom: 32, lineHeight: 1.6 }}>
           O pagamento foi cancelado ou ocorreu um erro. Não foi debitado qualquer valor.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>

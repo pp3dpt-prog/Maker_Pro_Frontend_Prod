@@ -139,7 +139,7 @@ export default function OrcamentoPage() {
   if (pageState === 'loading' || pageState === 'responding') {
     return (
       <div style={containerStyle}>
-        <div style={{ textAlign: 'center', color: '#64748b' }}>
+        <div style={{ textAlign: 'center', color: '#8a96aa' }}>
           <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
           <p style={{ margin: 0, fontSize: 16 }}>
             {pageState === 'responding' ? 'A processar a tua resposta...' : 'A carregar orçamento...'}
@@ -156,7 +156,7 @@ export default function OrcamentoPage() {
         <div style={{ ...cardStyle, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
           <h1 style={{ margin: '0 0 12px', fontSize: 22, fontWeight: 800 }}>Orçamento não encontrado</h1>
-          <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 28px' }}>
+          <p style={{ color: '#8a96aa', fontSize: 14, margin: '0 0 28px' }}>
             O link pode estar incorreto ou o orçamento pode ter sido removido.
           </p>
           <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#93c5fd', fontSize: 14 }}>Contacta-nos para ajuda</a>
@@ -172,7 +172,7 @@ export default function OrcamentoPage() {
         <div style={{ ...cardStyle, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
           <h1 style={{ margin: '0 0 12px', fontSize: 22, fontWeight: 800 }}>Link expirado</h1>
-          <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 28px' }}>
+          <p style={{ color: '#8a96aa', fontSize: 14, margin: '0 0 28px' }}>
             O prazo de 7 dias para responder a este orçamento terminou.
             Contacta-nos diretamente para solicitar um novo orçamento.
           </p>
@@ -192,12 +192,12 @@ export default function OrcamentoPage() {
           <h1 style={{ margin: '0 0 12px', fontSize: 22, fontWeight: 800 }}>
             Já respondeste a este orçamento
           </h1>
-          <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 8px' }}>
+          <p style={{ color: '#8a96aa', fontSize: 14, margin: '0 0 8px' }}>
             A tua resposta foi: <strong style={{ color: isAceite ? '#86efac' : '#fca5a5' }}>
               {isAceite ? 'Aceite' : 'Recusado'}
             </strong>
           </p>
-          <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>
+          <p style={{ color: '#828fa3', fontSize: 13, margin: 0 }}>
             Se precisas de alterar a tua decisão, <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#93c5fd' }}>contacta-nos</a>.
           </p>
         </div>
@@ -262,7 +262,7 @@ export default function OrcamentoPage() {
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
             <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800 }}>O teu orçamento</h1>
-            <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 14 }}>
+            <p style={{ margin: '6px 0 0', color: '#8a96aa', fontSize: 14 }}>
               Olá, {orcamento.contacto_nome}! Aqui estão os detalhes do teu pedido.
             </p>
           </div>
@@ -271,34 +271,34 @@ export default function OrcamentoPage() {
           <div style={cardStyle}>
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>{orcamento.design_nome}</h2>
-              {orcamento.familia && <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>{orcamento.familia}</p>}
+              {orcamento.familia && <p style={{ margin: 0, color: '#8a96aa', fontSize: 13 }}>{orcamento.familia}</p>}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
               <div style={{ background: '#080c10', borderRadius: 12, padding: '18px 20px', textAlign: 'center' }}>
-                <p style={{ margin: '0 0 4px', fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preço</p>
+                <p style={{ margin: '0 0 4px', fontSize: 11, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preço</p>
                 <p style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#86efac' }}>
                   €{orcamento.preco_estimado != null ? Number(orcamento.preco_estimado).toFixed(2) : '—'}
                 </p>
               </div>
               <div style={{ background: '#080c10', borderRadius: 12, padding: '18px 20px', textAlign: 'center' }}>
-                <p style={{ margin: '0 0 4px', fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Prazo</p>
+                <p style={{ margin: '0 0 4px', fontSize: 11, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Prazo</p>
                 <p style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#93c5fd' }}>
                   {orcamento.prazo_entrega_dias ?? '—'}
-                  <span style={{ fontSize: 14, fontWeight: 400, color: '#64748b' }}> dias</span>
+                  <span style={{ fontSize: 14, fontWeight: 400, color: '#8a96aa' }}> dias</span>
                 </p>
               </div>
             </div>
 
             {orcamento.notas_orcamento && (
               <div style={{ background: '#080c10', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
-                <p style={{ margin: '0 0 4px', fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notas</p>
+                <p style={{ margin: '0 0 4px', fontSize: 11, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notas</p>
                 <p style={{ margin: 0, fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{orcamento.notas_orcamento}</p>
               </div>
             )}
 
             {daysLeft != null && (
-              <p style={{ margin: '0 0 24px', fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 24px', fontSize: 12, color: '#8a96aa', textAlign: 'center' }}>
                 ⏰ Este orçamento expira em <strong style={{ color: daysLeft <= 1 ? '#f87171' : '#fde68a' }}>{daysLeft} {daysLeft === 1 ? 'dia' : 'dias'}</strong>
               </p>
             )}
@@ -346,7 +346,7 @@ export default function OrcamentoPage() {
             </div>
           </div>
 
-          <p style={{ textAlign: 'center', marginTop: 20, color: '#475569', fontSize: 12 }}>
+          <p style={{ textAlign: 'center', marginTop: 20, color: '#828fa3', fontSize: 12 }}>
             Dúvidas?{' '}
             <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#93c5fd' }}>pp3d.pt@gmail.com</a>
           </p>

@@ -12,7 +12,7 @@ export default function CreatorsPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           For Creators
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: maio de 2026</p>
+        <p style={{ color: '#8a96aa', fontSize: '14px', marginBottom: '60px' }}>Última atualização: maio de 2026</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
 

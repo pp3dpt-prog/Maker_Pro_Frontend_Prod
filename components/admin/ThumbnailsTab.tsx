@@ -59,7 +59,7 @@ export default function ThumbnailsTab() {
   const sem = designs.filter(d => !d.thumbnail_url);
   const com = designs.filter(d => d.thumbnail_url);
 
-  if (loading) return <p style={{ color: '#64748b' }}>A carregar designs…</p>;
+  if (loading) return <p style={{ color: '#8a96aa' }}>A carregar designs…</p>;
 
   const DesignCard = ({ d }: { d: Design }) => (
     <div key={d.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden' }}>
@@ -76,7 +76,7 @@ export default function ThumbnailsTab() {
         {d.thumbnail_url ? (
           <img src={d.thumbnail_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={d.nome} />
         ) : (
-          <div style={{ textAlign: 'center', color: '#334155' }}>
+          <div style={{ textAlign: 'center', color: '#7f8da2' }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
             <p style={{ margin: 0, fontSize: 12 }}>Clica para carregar</p>
           </div>
@@ -101,7 +101,7 @@ export default function ThumbnailsTab() {
       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14 }}>{d.nome}</p>
-          <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>{d.familia}</p>
+          <p style={{ margin: 0, fontSize: 11, color: '#828fa3' }}>{d.familia}</p>
         </div>
         <button
           onClick={() => fileRefs.current[d.id]?.click()}
@@ -135,14 +135,14 @@ export default function ThumbnailsTab() {
     <div>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🖼️ Thumbnails</h1>
-        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+        <p style={{ margin: '4px 0 0', color: '#8a96aa', fontSize: 13 }}>
           {com.length} com thumbnail · {sem.length} sem thumbnail — clica em cada card para carregar a imagem
         </p>
       </div>
 
       {sem.length > 0 && (
         <>
-          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
             Sem thumbnail ({sem.length})
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 32 }}>
@@ -153,7 +153,7 @@ export default function ThumbnailsTab() {
 
       {com.length > 0 && (
         <>
-          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
             Com thumbnail ({com.length})
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>

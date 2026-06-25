@@ -60,7 +60,7 @@ function SucessoInner() {
           <>
             <div style={{ fontSize: 48, marginBottom: 24, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⚙️</div>
             <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12 }}>A confirmar o pagamento…</h1>
-            <p style={{ color: '#64748b', fontSize: 15 }}>Um momento, estamos a activar o teu plano.</p>
+            <p style={{ color: '#8a96aa', fontSize: 15 }}>Um momento, estamos a activar o teu plano.</p>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </>
         )}
@@ -71,7 +71,7 @@ function SucessoInner() {
             <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 12 }}>
               {plano ? `Plano ${plano} activado!` : 'Subscrição activada!'}
             </h1>
-            <p style={{ color: '#64748b', fontSize: 16, marginBottom: 16, lineHeight: 1.6 }}>
+            <p style={{ color: '#8a96aa', fontSize: 16, marginBottom: 16, lineHeight: 1.6 }}>
               O teu plano foi activado com sucesso. Os downloads estão disponíveis no teu dashboard.
             </p>
             <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '14px 20px', marginBottom: 32, fontSize: 14, color: '#94a3b8' }}>
@@ -87,10 +87,10 @@ function SucessoInner() {
           <>
             <div style={{ fontSize: 64, marginBottom: 24 }}>⚠️</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>Pagamento recebido</h1>
-            <p style={{ color: '#64748b', fontSize: 15, marginBottom: 8, lineHeight: 1.6 }}>
+            <p style={{ color: '#8a96aa', fontSize: 15, marginBottom: 8, lineHeight: 1.6 }}>
               O pagamento foi processado, mas houve um problema a activar o plano automaticamente.
             </p>
-            <p style={{ color: '#475569', fontSize: 13, marginBottom: 24 }}>{detalhe}</p>
+            <p style={{ color: '#828fa3', fontSize: 13, marginBottom: 24 }}>{detalhe}</p>
             <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
               Contacta-nos em <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#60a5fa' }}>pp3d.pt@gmail.com</a> e activamos manualmente.
             </p>

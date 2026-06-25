@@ -105,7 +105,7 @@ function QuoteForm({ pedido, onSent }: { pedido: Pedido; onSent: () => void }) {
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
-    color: '#64748b',
+    color: '#8a96aa',
     marginBottom: 6,
   };
 
@@ -132,7 +132,7 @@ function QuoteForm({ pedido, onSent }: { pedido: Pedido; onSent: () => void }) {
         <div style={{ background: '#1e3a5f', border: '1px solid #1d4ed820', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: '#93c5fd', fontSize: 13 }}>
           Orçamento já enviado ao cliente. Podes reenviar com valores atualizados.
           {pedido.token_expira_em && (
-            <span style={{ display: 'block', marginTop: 4, color: '#64748b' }}>
+            <span style={{ display: 'block', marginTop: 4, color: '#8a96aa' }}>
               Expira em: {new Date(pedido.token_expira_em).toLocaleString('pt-PT')}
             </span>
           )}
@@ -211,7 +211,7 @@ function QuoteForm({ pedido, onSent }: { pedido: Pedido; onSent: () => void }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: '24px', marginBottom: 20 }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>{title}</h3>
+      <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' }}>{title}</h3>
       {children}
     </div>
   );
@@ -220,7 +220,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, value }: { label: string; value: string | number | null | undefined }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 2 }}>{label}</span>
+      <span style={{ display: 'block', fontSize: 11, color: '#8a96aa', marginBottom: 2 }}>{label}</span>
       <span style={{ fontSize: 14, color: value ? '#f1f5f9' : '#475569', fontStyle: value ? 'normal' : 'italic' }}>
         {value ?? 'Não indicado'}
       </span>
@@ -254,7 +254,7 @@ export default function AdminPedidoDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#080c10', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'Inter, Arial, sans-serif' }}>
+      <div style={{ minHeight: '100vh', background: '#080c10', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a96aa', fontFamily: 'Inter, Arial, sans-serif' }}>
         A carregar...
       </div>
     );
@@ -278,10 +278,10 @@ export default function AdminPedidoDetailPage() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
           <div>
-            <Link href="/admin/pedidos" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>← Todos os pedidos</Link>
+            <Link href="/admin/pedidos" style={{ color: '#8a96aa', fontSize: 13, textDecoration: 'none' }}>← Todos os pedidos</Link>
             <h1 style={{ margin: '8px 0 4px', fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px' }}>{pedido.design_nome}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748b' }}>{pedido.id.slice(0, 8).toUpperCase()}</span>
+              <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#8a96aa' }}>{pedido.id.slice(0, 8).toUpperCase()}</span>
               <span style={{
                 padding: '3px 10px',
                 borderRadius: 20,
@@ -294,7 +294,7 @@ export default function AdminPedidoDetailPage() {
               }}>
                 {badge.label}
               </span>
-              <span style={{ fontSize: 12, color: '#64748b' }}>
+              <span style={{ fontSize: 12, color: '#8a96aa' }}>
                 {new Date(pedido.created_at).toLocaleString('pt-PT')}
               </span>
             </div>
@@ -310,12 +310,12 @@ export default function AdminPedidoDetailPage() {
               <Field label="Família" value={pedido.familia} />
               {pedido.params && Object.keys(pedido.params).length > 0 && (
                 <div>
-                  <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 6 }}>Parâmetros</span>
+                  <span style={{ display: 'block', fontSize: 11, color: '#8a96aa', marginBottom: 6 }}>Parâmetros</span>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <tbody>
                       {Object.entries(pedido.params).map(([k, v]) => (
                         <tr key={k} style={{ borderBottom: '1px solid #1e293b' }}>
-                          <td style={{ padding: '6px 0', color: '#64748b' }}>{k}</td>
+                          <td style={{ padding: '6px 0', color: '#8a96aa' }}>{k}</td>
                           <td style={{ padding: '6px 0', color: '#f1f5f9', fontWeight: 600 }}>{String(v)}</td>
                         </tr>
                       ))}

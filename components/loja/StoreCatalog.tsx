@@ -30,7 +30,7 @@ export default function StoreCatalog({
         <h1 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em', margin: '0 0 12px' }}>
           {categoriaAtual ? categoriaAtual.nome : <>Produtos <span style={{ color: '#3b82f6' }}>impressos em 3D</span></>}
         </h1>
-        <p style={{ fontSize: 16, color: '#64748b', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 16, color: '#8a96aa', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
           Peças prontas e personalizáveis. Recebe em casa — ou personaliza ao teu gosto.
         </p>
 
@@ -48,7 +48,7 @@ export default function StoreCatalog({
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 22,
       }}>
         {produtos.length === 0 ? (
-          <p style={{ color: '#64748b', gridColumn: '1/-1' }}>Sem produtos nesta categoria.</p>
+          <p style={{ color: '#8a96aa', gridColumn: '1/-1' }}>Sem produtos nesta categoria.</p>
         ) : produtos.map(p => {
           const foto = primeiraFoto(p);
           const st = stockTotal(p);
@@ -71,7 +71,7 @@ export default function StoreCatalog({
                   ) : (
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                       <span style={{ fontSize: 18, fontWeight: 800, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(temPromo ? p.preco_promo_cents : p.preco_cents)}</span>
-                      {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#475569' }}>{eur(p.preco_cents)}</span>}
+                      {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#828fa3' }}>{eur(p.preco_cents)}</span>}
                     </span>
                   )}
                   <span style={{ fontSize: 10, fontWeight: 700, color: prazo.tipo === 'stock' ? '#34d399' : '#fbbf24' }}>{prazo.label}</span>

@@ -38,7 +38,7 @@ function LoginForm() {
             <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '44px', height: '44px', borderRadius: '50%' }} />
             <span style={{ fontSize: '24px', fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
           </Link>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '12px' }}>Bem-vindo de volta</p>
+          <p style={{ color: '#8a96aa', fontSize: '14px', marginTop: '12px' }}>Bem-vindo de volta</p>
         </div>
 
         {/* Card */}
@@ -69,7 +69,7 @@ function LoginForm() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginTop: '24px' }}>
+          <p style={{ textAlign: 'center', color: '#8a96aa', fontSize: '14px', marginTop: '24px' }}>
             Ainda não tens conta?{' '}
             <Link href="/register" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>Criar conta grátis</Link>
           </p>

@@ -122,7 +122,7 @@ export default function NotificationBell({ userId }: { userId: string | null }) 
           </div>
 
           {campanhas.length === 0 ? (
-            <p style={{ padding: 24, color: '#64748b', fontSize: 13, textAlign: 'center', margin: 0 }}>
+            <p style={{ padding: 24, color: '#8a96aa', fontSize: 13, textAlign: 'center', margin: 0 }}>
               Sem novidades por agora.
             </p>
           ) : (
@@ -132,7 +132,7 @@ export default function NotificationBell({ userId }: { userId: string | null }) 
                 {c.conteudo && (
                   <p style={{ margin: '0 0 4px', fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>{c.conteudo}</p>
                 )}
-                <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
+                <p style={{ margin: 0, fontSize: 11, color: '#828fa3' }}>
                   {new Date(c.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}
                 </p>
               </div>

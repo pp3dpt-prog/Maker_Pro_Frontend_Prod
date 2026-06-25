@@ -301,7 +301,7 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
                       <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>
                         Clica para carregar imagem
                       </div>
-                      <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: '#828fa3', marginTop: 2 }}>
                         PNG, JPG, WEBP · máx. 8 MB
                       </div>
                     </>

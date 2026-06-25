@@ -217,12 +217,12 @@ export default function PedidoOrcamentoModal({
               }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#f1f5f9' }}>
                   {design.nome}
-                  <span style={{ color: '#64748b', fontWeight: 500, marginLeft: 8, fontSize: 12 }}>
+                  <span style={{ color: '#8a96aa', fontWeight: 500, marginLeft: 8, fontSize: 12 }}>
                     ({design.familia})
                   </span>
                 </div>
                 {paramsRows.length === 0 ? (
-                  <div style={{ fontSize: 13, color: '#64748b' }}>Sem parâmetros configuráveis.</div>
+                  <div style={{ fontSize: 13, color: '#8a96aa' }}>Sem parâmetros configuráveis.</div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
                     {paramsRows.map(row => (
@@ -344,7 +344,7 @@ export default function PedidoOrcamentoModal({
               padding: '10px 14px', borderRadius: 10,
               background: 'rgba(148,163,184,0.06)',
               border: '1px solid rgba(148,163,184,0.12)',
-              fontSize: 12, color: '#64748b', lineHeight: 1.6,
+              fontSize: 12, color: '#8a96aa', lineHeight: 1.6,
             }}>
               🔒 <strong style={{ color: '#94a3b8' }}>Privacidade:</strong> O nome completo, morada e número de telefone são recolhidos exclusivamente para processar a tua encomenda e organizar o envio. Estes dados não são partilhados com terceiros para fins comerciais nem utilizados para marketing.
             </div>

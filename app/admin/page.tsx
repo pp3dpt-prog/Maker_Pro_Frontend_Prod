@@ -25,19 +25,19 @@ const SEGMENTO_LABEL: Record<string, string> = {
 const s = {
   page: { display: 'flex', minHeight: '100vh', background: '#080c10', color: '#f1f5f9', fontFamily: 'Inter, Arial, sans-serif' } as CSSProperties,
   sidebar: { width: 220, flexShrink: 0, borderRight: '1px solid #1e293b', padding: '28px 16px', display: 'flex', flexDirection: 'column', gap: 4 } as CSSProperties,
-  sidebarTitle: { fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: '#475569', textTransform: 'uppercase', padding: '0 12px', marginBottom: 12 } as CSSProperties,
+  sidebarTitle: { fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: '#828fa3', textTransform: 'uppercase', padding: '0 12px', marginBottom: 12 } as CSSProperties,
   main: { flex: 1, padding: '40px 32px', overflowY: 'auto' } as CSSProperties,
   card: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: 24 } as CSSProperties,
   statGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 } as CSSProperties,
   statCard: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: '28px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 } as CSSProperties,
-  statLabel: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b' } as CSSProperties,
+  statLabel: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8a96aa' } as CSSProperties,
   statValue: { fontSize: 36, fontWeight: 800, color: '#f1f5f9', lineHeight: 1 } as CSSProperties,
   tableWrap: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden' } as CSSProperties,
   thead: { background: '#0a1120', borderBottom: '1px solid #1e293b' } as CSSProperties,
-  th: { padding: '12px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' } as CSSProperties,
+  th: { padding: '12px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' } as CSSProperties,
   td: { padding: '14px 20px', fontSize: 14, color: '#cbd5e1', borderBottom: '1px solid #0f172a' } as CSSProperties,
   input: { width: '100%', background: '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' } as CSSProperties,
-  label: { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 6 } as CSSProperties,
+  label: { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa', marginBottom: 6 } as CSSProperties,
   btn: { padding: '10px 20px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' } as CSSProperties,
   badge: (bg: string, color: string) => ({ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: bg, color, textTransform: 'uppercase', letterSpacing: '0.05em' } as CSSProperties),
 };
@@ -256,7 +256,7 @@ export default function AdminDashboard() {
         {showModal && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ position: 'relative', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 8, width: '100%', maxWidth: 480 }}>
-              <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 20 }}>✕</button>
               <CreateCouponForm onSuccess={() => { fetchData(); setShowModal(false); }} onClose={() => setShowModal(false)} />
             </div>
           </div>
@@ -305,13 +305,13 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <div>
                 <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🧾 Faturas pendentes</h1>
-                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
+                <p style={{ margin: '4px 0 0', color: '#8a96aa', fontSize: 13 }}>
                   Emite cada fatura no FIZ e clica em "Marcar emitida". O cliente foi informado que recebe em até 24h.
                 </p>
               </div>
             </div>
             {faturas.length === 0 ? (
-              <div style={{ ...s.card, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '48px 24px' }}>
+              <div style={{ ...s.card, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '48px 24px' }}>
                 ✅ Sem faturas pendentes.
               </div>
             ) : (
@@ -327,17 +327,17 @@ export default function AdminDashboard() {
                   <tbody>
                     {faturas.map((f: any) => (
                       <tr key={f.id}>
-                        <td style={{ ...s.td, fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
+                        <td style={{ ...s.td, fontSize: 12, color: '#8a96aa', whiteSpace: 'nowrap' }}>
                           {new Date(f.created_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td style={s.td}>
                           <p style={{ margin: '0 0 2px', fontWeight: 600, color: '#f1f5f9' }}>{f.user_name || '—'}</p>
-                          <p style={{ margin: '0 0 2px', fontSize: 12, color: '#64748b' }}>{f.user_email}</p>
-                          <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>NIF: {f.user_nif || 'não indicado'}</p>
+                          <p style={{ margin: '0 0 2px', fontSize: 12, color: '#8a96aa' }}>{f.user_email}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#828fa3' }}>NIF: {f.user_nif || 'não indicado'}</p>
                         </td>
                         <td style={s.td}>
                           <p style={{ margin: 0, fontWeight: 600 }}>{f.plano_nome || f.descricao}</p>
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#475569' }}>{f.tipo}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#828fa3' }}>{f.tipo}</p>
                         </td>
                         <td style={{ ...s.td, fontWeight: 700, color: '#86efac' }}>{Number(f.valor).toFixed(2)}€</td>
                         <td style={{ ...s.td, display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -388,19 +388,19 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {cupons.length === 0 ? (
-                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem cupões criados.</td></tr>
+                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '40px 20px' }}>Sem cupões criados.</td></tr>
                   ) : cupons.map(c => (
                     <tr key={c.id}>
                       <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd', fontWeight: 700 }}>{c.codigo}</td>
                       <td style={s.td}>{c.desconto_percent}%</td>
-                      <td style={{ ...s.td, color: '#64748b' }}>{c.usos_atuais} / {c.max_usos}</td>
+                      <td style={{ ...s.td, color: '#8a96aa' }}>{c.usos_atuais} / {c.max_usos}</td>
                       <td style={s.td}>
                         <span style={s.badge(c.ativo ? '#14532d' : '#1e293b', c.ativo ? '#86efac' : '#64748b')}>
                           {c.ativo ? 'Ativo' : 'Inativo'}
                         </span>
                       </td>
                       <td style={{ ...s.td, textAlign: 'right' }}>
-                        <button onClick={() => deleteCoupon(c.id)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Eliminar</button>
+                        <button onClick={() => deleteCoupon(c.id)} style={{ background: 'none', border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Eliminar</button>
                       </td>
                     </tr>
                   ))}
@@ -416,7 +416,7 @@ export default function AdminDashboard() {
             <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 800 }}>Tickets de Suporte</h1>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {tickets.length === 0 ? (
-                <div style={{ ...s.card, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '48px 24px' }}>Sem tickets pendentes.</div>
+                <div style={{ ...s.card, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '48px 24px' }}>Sem tickets pendentes.</div>
               ) : tickets.map(t => (
                 <div key={t.id} style={{ ...s.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {/* Cabeçalho */}
@@ -429,10 +429,10 @@ export default function AdminDashboard() {
                         <span style={s.badge(t.status === 'aberto' ? '#14532d' : '#1e293b', t.status === 'aberto' ? '#86efac' : '#64748b')}>
                           {t.status}
                         </span>
-                        <span style={{ fontSize: 12, color: '#475569' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
+                        <span style={{ fontSize: 12, color: '#828fa3' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
                       </div>
                       <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
-                      <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{t.user_email}</p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#8a96aa' }}>{t.user_email}</p>
                     </div>
                     <button onClick={() => toggleTicketStatus(t.id, t.status)}
                       style={{ ...s.btn, background: t.status === 'aberto' ? '#f59e0b' : '#1e293b', color: t.status === 'aberto' ? '#000' : '#94a3b8', flexShrink: 0, fontSize: 12, padding: '6px 14px' }}>
@@ -443,7 +443,7 @@ export default function AdminDashboard() {
                   {/* Mensagem do utilizador */}
                   {t.mensagem && (
                     <div style={{ background: '#080c10', borderRadius: 8, padding: '12px 14px' }}>
-                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#475569', textTransform: 'uppercase' }}>Mensagem</p>
+                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#828fa3', textTransform: 'uppercase' }}>Mensagem</p>
                       <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{t.mensagem}</p>
                     </div>
                   )}
@@ -545,7 +545,7 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: 13, fontWeight: 600, color: usarHtml ? '#a5b4fc' : '#94a3b8' }}>
                   Editor HTML personalizado
                 </span>
-                <span style={{ fontSize: 11, color: '#475569' }}>
+                <span style={{ fontSize: 11, color: '#828fa3' }}>
                   {usarHtml ? '— controla todo o design do email' : '— usa o template automático (título + texto)'}
                 </span>
               </div>
@@ -603,7 +603,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {campanhas.length === 0 ? (
-                    <tr><td colSpan={7} style={{ ...s.td, textAlign: 'center', color: '#475569', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
+                    <tr><td colSpan={7} style={{ ...s.td, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
                   ) : campanhas.map(camp => {
                     const expirada = !!camp.expira_em && new Date(camp.expira_em) < new Date();
                     return (
@@ -617,7 +617,7 @@ export default function AdminDashboard() {
                           <p style={{ margin: '4px 0 0', fontSize: 11, color: newsletterMsg.tipo === 'ok' ? '#86efac' : '#f87171' }}>{newsletterMsg.texto}</p>
                         )}
                       </td>
-                      <td style={{ ...s.td, color: '#64748b', fontSize: 12 }}>{camp.tipo}</td>
+                      <td style={{ ...s.td, color: '#8a96aa', fontSize: 12 }}>{camp.tipo}</td>
                       <td style={s.td}>
                         <span style={s.badge('rgba(99,102,241,0.15)', '#a5b4fc')}>
                           {SEGMENTO_LABEL[camp.segmento] ?? camp.segmento ?? 'Todos'}
@@ -630,7 +630,7 @@ export default function AdminDashboard() {
                             {expirada ? '⏰ Expirou' : new Date(camp.expira_em).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         ) : (
-                          <span style={{ fontSize: 12, color: '#475569' }}>Sem prazo</span>
+                          <span style={{ fontSize: 12, color: '#828fa3' }}>Sem prazo</span>
                         )}
                       </td>
                       <td style={s.td}>

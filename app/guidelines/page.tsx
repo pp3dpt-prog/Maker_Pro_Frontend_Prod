@@ -12,7 +12,7 @@ export default function GuidelinesPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Guidelines
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Como tirar o máximo partido da PP3D e da nossa comunidade</p>
+        <p style={{ color: '#8a96aa', fontSize: '14px', marginBottom: '60px' }}>Como tirar o máximo partido da PP3D e da nossa comunidade</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
 

@@ -52,7 +52,7 @@ function DownloadSucessoInner() {
           <>
             <div style={{ fontSize: 48, marginBottom: 24, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⚙️</div>
             <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12 }}>A confirmar o pagamento…</h1>
-            <p style={{ color: '#64748b', fontSize: 15 }}>
+            <p style={{ color: '#8a96aa', fontSize: 15 }}>
               Se pagaste por MB WAY, confirma na app. Multibanco pode demorar alguns minutos.
             </p>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -61,7 +61,7 @@ function DownloadSucessoInner() {
           <>
             <div style={{ fontSize: 64, marginBottom: 24 }}>✅</div>
             <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 12 }}>Pagamento confirmado!</h1>
-            <p style={{ color: '#64748b', fontSize: 16, marginBottom: 16, lineHeight: 1.6 }}>
+            <p style={{ color: '#8a96aa', fontSize: 16, marginBottom: 16, lineHeight: 1.6 }}>
               Foi creditado <strong style={{ color: '#34d399' }}>1 download</strong> à tua conta. Já podes descarregar o ficheiro.
             </p>
             <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '14px 20px', marginBottom: 24, fontSize: 14, color: '#94a3b8' }}>
@@ -72,7 +72,7 @@ function DownloadSucessoInner() {
             {designId && params ? (
               <div style={{ maxWidth: 320, margin: '0 auto' }}>
                 <DownloadStlButton designId={designId} params={params} />
-                <Link href={`/customizador?id=${designId}`} style={{ display: 'block', marginTop: 14, color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
+                <Link href={`/customizador?id=${designId}`} style={{ display: 'block', marginTop: 14, color: '#8a96aa', fontSize: 13, textDecoration: 'none' }}>
                   ou voltar ao produto →
                 </Link>
               </div>
@@ -86,7 +86,7 @@ function DownloadSucessoInner() {
           <>
             <div style={{ fontSize: 64, marginBottom: 24 }}>⏳</div>
             <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12 }}>Pagamento em processamento</h1>
-            <p style={{ color: '#64748b', fontSize: 15, marginBottom: 28, lineHeight: 1.6 }}>
+            <p style={{ color: '#8a96aa', fontSize: 15, marginBottom: 28, lineHeight: 1.6 }}>
               Ainda não confirmámos o pagamento. Se pagaste por Multibanco pode demorar alguns minutos —
               o download fica disponível no teu dashboard assim que for confirmado.
             </p>

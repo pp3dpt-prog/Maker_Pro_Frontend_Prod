@@ -36,13 +36,13 @@ export default function ReviewModal({ onClose }: Props) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 32, width: '100%', maxWidth: 440, position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 20 }}>✕</button>
 
         {status === 'ok' ? (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🙏</div>
             <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Obrigado pelo feedback!</h3>
-            <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 24px' }}>
+            <p style={{ color: '#8a96aa', fontSize: 14, margin: '0 0 24px' }}>
               {avaliacao >= 4 ? 'A tua review vai aparecer na página principal.' : 'O teu feedback vai ajudar-nos a melhorar.'}
             </p>
             <button onClick={onClose} style={{ padding: '12px 28px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fechar</button>
@@ -50,30 +50,30 @@ export default function ReviewModal({ onClose }: Props) {
         ) : (
           <form onSubmit={handleSubmit}>
             <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>Avaliar a PP3D</h2>
-            <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 24px' }}>A tua opinião ajuda-nos a melhorar e outros utilizadores a escolher.</p>
+            <p style={{ color: '#8a96aa', fontSize: 13, margin: '0 0 24px' }}>A tua opinião ajuda-nos a melhorar e outros utilizadores a escolher.</p>
 
             <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <StarRating value={avaliacao} onChange={setAvaliacao} size={36} />
-              <span style={{ fontSize: 13, color: '#64748b' }}>
+              <span style={{ fontSize: 13, color: '#8a96aa' }}>
                 {avaliacao === 0 ? 'Clica para avaliar' : ['', 'Muito mau', 'Mau', 'Razoável', 'Bom', 'Excelente!'][avaliacao]}
               </span>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                 O teu nome (opcional)
               </label>
               <input style={inp} value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Pedro" maxLength={40} />
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                 Comentário (opcional)
               </label>
               <textarea style={{ ...inp, height: 90, resize: 'vertical' }}
                 value={comentario} onChange={e => setComentario(e.target.value)}
                 placeholder="O que gostaste mais? O que podemos melhorar?" maxLength={300} />
-              <span style={{ fontSize: 11, color: '#475569' }}>{comentario.length}/300</span>
+              <span style={{ fontSize: 11, color: '#828fa3' }}>{comentario.length}/300</span>
             </div>
 
             {erro && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{erro}</p>}

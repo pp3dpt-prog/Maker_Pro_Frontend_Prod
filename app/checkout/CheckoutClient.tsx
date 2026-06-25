@@ -117,7 +117,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px 0' }}>
         <button
           onClick={() => router.push('/pricing')}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', padding: 0, marginBottom: 40 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', padding: 0, marginBottom: 40 }}
           onMouseEnter={e => (e.currentTarget.style.color = '#f1f5f9')}
           onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
         >
@@ -164,7 +164,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
                 { label: 'Licença', value: plano.permite_venda_comercial ? '✓ Comercial incluída' : 'Uso pessoal' },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < 2 ? '1px solid #1e293b' : 'none' }}>
-                  <span style={{ color: '#64748b', fontSize: 14 }}>{row.label}</span>
+                  <span style={{ color: '#8a96aa', fontSize: 14 }}>{row.label}</span>
                   <span style={{ fontWeight: 700, color: '#f1f5f9', fontSize: 14 }}>{row.value}</span>
                 </div>
               ))}
@@ -173,7 +173,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
 
           {/* Features */}
           <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: '20px 24px' }}>
-            <p style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Incluído no plano</p>
+            <p style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 800, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Incluído no plano</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {features.map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -194,12 +194,12 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
 
             {/* Email (readonly) */}
             <div style={{ background: '#080c10', border: '1px solid #1e293b', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
-              <p style={{ margin: '0 0 2px', fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email</p>
+              <p style={{ margin: '0 0 2px', fontSize: 10, color: '#828fa3', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email</p>
               <p style={{ margin: 0, color: '#f1f5f9', fontSize: 14, fontWeight: 600 }}>{userEmail}</p>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <p style={{ margin: '0 0 6px', fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <p style={{ margin: '0 0 6px', fontSize: 10, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Nome completo <span style={{ color: '#f87171' }}>*</span>
               </p>
               <input
@@ -213,7 +213,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: '0 0 6px', fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>NIF (opcional)</p>
+              <p style={{ margin: '0 0 6px', fontSize: 10, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>NIF (opcional)</p>
               <input
                 style={inp}
                 value={nif}
@@ -254,7 +254,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
                   : `Pagar ${preco}€ com cartão`}
             </button>
 
-            <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: '#7f8da2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <Lock size={11} /> Pagamento seguro via {intervalo === 'anual' ? 'IfThenPay' : 'Stripe'}
             </p>
 
@@ -282,7 +282,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
             ].map((b, i) => (
               <div key={i} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
                 {b.icon}
-                <span style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{b.text}</span>
+                <span style={{ fontSize: 11, color: '#8a96aa', lineHeight: 1.4 }}>{b.text}</span>
               </div>
             ))}
           </div>
@@ -290,7 +290,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
           {/* Fatura info */}
           <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <span style={{ fontSize: 16 }}>🧾</span>
-            <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#8a96aa', lineHeight: 1.5 }}>
               A fatura será enviada para o teu email em <strong style={{ color: '#94a3b8' }}>até 24 horas</strong>.
             </p>
           </div>

@@ -10,7 +10,7 @@ export default function CarrinhoPage() {
   const { items, ready, isLogged, count, totalFixoCents, temOrcamento, entrega, setEntrega, setQty, removeItem } = useCart();
 
   if (!ready) {
-    return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
+    return <main style={wrap}><p style={{ color: '#8a96aa' }}>A carregar…</p></main>;
   }
 
   if (!isLogged) {
@@ -32,7 +32,7 @@ export default function CarrinhoPage() {
     return (
       <main style={wrap}>
         <h1 style={h1}>O teu carrinho</h1>
-        <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>
+        <div style={{ ...card, textAlign: 'center', color: '#8a96aa' }}>
           O carrinho está vazio. <Link href="/loja" style={{ color: '#60a5fa' }}>Ver a loja →</Link>
         </div>
       </main>
@@ -41,7 +41,7 @@ export default function CarrinhoPage() {
 
   return (
     <main style={wrap}>
-      <h1 style={h1}>O teu carrinho <span style={{ color: '#64748b', fontWeight: 600, fontSize: 18 }}>({count})</span></h1>
+      <h1 style={h1}>O teu carrinho <span style={{ color: '#8a96aa', fontWeight: 600, fontSize: 18 }}>({count})</span></h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 24, alignItems: 'start' }}>
         {/* Linhas */}
@@ -53,7 +53,7 @@ export default function CarrinhoPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <Link href={`/produto/${it.slug}`} style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', textDecoration: 'none' }}>{it.nome}</Link>
-                {it.variante_label && <div style={{ fontSize: 12, color: '#64748b' }}>{it.variante_label}</div>}
+                {it.variante_label && <div style={{ fontSize: 12, color: '#8a96aa' }}>{it.variante_label}</div>}
                 {it.personalizacao_label && <div style={{ fontSize: 12, color: '#a78bfa' }}>✨ {it.personalizacao_label}</div>}
                 <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, color: it.preco_cents == null ? '#fbbf24' : '#cbd5e1' }}>
                   {it.preco_cents == null ? 'A orçamentar' : eur(it.preco_cents)}
@@ -76,13 +76,13 @@ export default function CarrinhoPage() {
             <span>Subtotal (itens com preço)</span>
             <strong>{eur(totalFixoCents)}</strong>
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: '#8a96aa', marginBottom: 16 }}>
             {entrega === 'maos' ? 'Entrega em mãos — sem portes.' : 'Portes calculados no checkout.'}
           </div>
 
           {/* Método de entrega */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>Entrega</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a96aa', marginBottom: 8 }}>Entrega</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <OpcaoEntrega ativo={entrega === 'envio'} onClick={() => setEntrega('envio')} titulo="Envio para casa" sub="Portes calculados no checkout" />
               <OpcaoEntrega ativo={entrega === 'maos'} onClick={() => setEntrega('maos')} titulo="Entrega em mãos" sub="Só Oeiras, Carnaxide e Linda-a-Velha · paga depois" />
@@ -106,11 +106,11 @@ export default function CarrinhoPage() {
             {(temOrcamento || entrega === 'maos') ? 'Pedir orçamento' : 'Finalizar compra'}
           </button>
 
-          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, fontSize: 12, color: '#64748b' }}>
+          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, fontSize: 12, color: '#8a96aa' }}>
             🔒 Pagamento seguro via Stripe
           </p>
 
-          <Link href="/loja" style={{ display: 'block', textAlign: 'center', marginTop: 10, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Continuar a comprar</Link>
+          <Link href="/loja" style={{ display: 'block', textAlign: 'center', marginTop: 10, fontSize: 13, color: '#8a96aa', textDecoration: 'none' }}>← Continuar a comprar</Link>
         </div>
       </div>
     </main>
@@ -128,7 +128,7 @@ function OpcaoEntrega({ ativo, onClick, titulo, sub }: { ativo: boolean; onClick
       <span style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, border: `2px solid ${ativo ? '#2563eb' : '#334155'}`, background: ativo ? '#2563eb' : 'transparent' }} />
       <span>
         <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>{titulo}</span>
-        <span style={{ display: 'block', fontSize: 11, color: '#64748b' }}>{sub}</span>
+        <span style={{ display: 'block', fontSize: 11, color: '#8a96aa' }}>{sub}</span>
       </span>
     </button>
   );

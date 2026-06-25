@@ -123,7 +123,7 @@ export default function Dashboard() {
 
       {/* SIDEBAR */}
       <aside style={{ width: '280px', borderRight: '1px solid #1e293b', padding: '30px', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '11px', color: '#64748b', marginBottom: '25px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+        <h2 style={{ fontSize: '11px', color: '#8a96aa', marginBottom: '25px', textTransform: 'uppercase', letterSpacing: '1px' }}>
           Painel
         </h2>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
@@ -188,14 +188,14 @@ export default function Dashboard() {
         {activeTab === 'plano' && (
           <div style={{ maxWidth: '900px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Plano & Downloads</h1>
-            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '30px' }}>
+            <p style={{ color: '#8a96aa', fontSize: '14px', marginBottom: '30px' }}>
               O teu plano determina quantos downloads podes fazer por mês.
             </p>
             <div style={{ padding: '30px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                   <h3 style={{ margin: 0, color: '#f1f5f9', textTransform: 'capitalize' }}>{perfil?.prod_planos?.nome ?? perfil?.plano ?? 'Gratuito'}</h3>
-                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>Plano atual</p>
+                  <p style={{ margin: '4px 0 0', color: '#8a96aa', fontSize: '13px' }}>Plano atual</p>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   {perfil?.plano && perfil.plano !== 'gratuito' && (
@@ -240,12 +240,12 @@ export default function Dashboard() {
         {activeTab === 'projetos' && (
           <div style={{ maxWidth: '900px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>📂 Meus Ficheiros STL</h1>
-            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '30px' }}>Cada download fica guardado aqui durante 30 dias.</p>
+            <p style={{ color: '#8a96aa', fontSize: '14px', marginBottom: '30px' }}>Cada download fica guardado aqui durante 30 dias.</p>
             {assets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '80px 0' }}>
                 <div style={{ fontSize: '50px', marginBottom: '20px' }}>📁</div>
                 <h3 style={{ color: '#94a3b8', marginBottom: '10px' }}>Ainda não tens ficheiros guardados.</h3>
-                <p style={{ color: '#64748b', fontSize: '14px' }}>Os teus downloads STL aparecerão aqui automaticamente.</p>
+                <p style={{ color: '#8a96aa', fontSize: '14px' }}>Os teus downloads STL aparecerão aqui automaticamente.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -257,7 +257,7 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p style={{ margin: 0, fontWeight: 700, color: '#f1f5f9', fontSize: '15px' }}>{asset.nome_personalizado || asset.design_id}</p>
-                        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
+                        <p style={{ margin: '4px 0 0', color: '#8a96aa', fontSize: '12px' }}>
                           {asset.stl_url?.endsWith('.zip') ? 'ZIP' : 'STL'} · {new Date(asset.last_rendered_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
@@ -282,7 +282,7 @@ export default function Dashboard() {
             </p>
 
             {tickets.length === 0 ? (
-              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#475569' }}>
+              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#828fa3' }}>
                 Ainda não tens pedidos de suporte.
               </div>
             ) : tickets.map(t => (
@@ -290,7 +290,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
                   <div>
                     <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#828fa3' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</p>
                   </div>
                   <span style={{
                     padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
@@ -301,7 +301,7 @@ export default function Dashboard() {
 
                 {t.mensagem && (
                   <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
-                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#475569', textTransform: 'uppercase' }}>A tua mensagem</p>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#828fa3', textTransform: 'uppercase' }}>A tua mensagem</p>
                     <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{t.mensagem}</p>
                   </div>
                 )}
@@ -315,7 +315,7 @@ export default function Dashboard() {
                       <p style={{ margin: 0, fontSize: 14, color: '#d1fae5', whiteSpace: 'pre-wrap' }}>{t.resposta}</p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 12, color: '#64748b' }}>A resposta foi útil?</span>
+                      <span style={{ fontSize: 12, color: '#8a96aa' }}>A resposta foi útil?</span>
                       <StarRating
                         value={t.avaliacao ?? 0}
                         onChange={v => avaliarTicket(t.id, v)}
@@ -326,7 +326,7 @@ export default function Dashboard() {
                     </div>
                   </>
                 ) : (
-                  <p style={{ margin: 0, fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
+                  <p style={{ margin: 0, fontSize: 13, color: '#828fa3', fontStyle: 'italic' }}>
                     A aguardar resposta…
                   </p>
                 )}

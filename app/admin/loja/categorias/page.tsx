@@ -85,9 +85,9 @@ export default function CategoriasPage() {
         {erro && <p style={{ color: '#f87171', marginBottom: 16 }}>Erro: {erro}</p>}
 
         {loading ? (
-          <p style={{ color: '#64748b' }}>A carregar…</p>
+          <p style={{ color: '#8a96aa' }}>A carregar…</p>
         ) : cats.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Sem categorias.</p>
+          <p style={{ color: '#8a96aa' }}>Sem categorias.</p>
         ) : (
           <div style={s.tableWrap}>
             <table style={s.table}>
@@ -103,7 +103,7 @@ export default function CategoriasPage() {
                 {cats.map(c => (
                   <tr key={c.id}>
                     <td style={{ ...s.td, fontWeight: 600, color: '#f1f5f9' }}>{c.nome}</td>
-                    <td style={{ ...s.td, color: '#475569' }}>/{c.slug}</td>
+                    <td style={{ ...s.td, color: '#828fa3' }}>/{c.slug}</td>
                     <td style={s.td}>
                       <button
                         onClick={() => toggleAtivo(c)}

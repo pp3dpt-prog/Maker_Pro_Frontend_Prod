@@ -24,7 +24,7 @@ const LEGAL_LINKS = [
   { name: 'Livro de Reclamações', href: 'https://www.livroreclamacoes.pt/inicio', external: true },
 ];
 
-const linkStyle: React.CSSProperties = { color: '#64748b', textDecoration: 'none', fontSize: 13, fontWeight: 500 };
+const linkStyle: React.CSSProperties = { color: '#8a96aa', textDecoration: 'none', fontSize: 13, fontWeight: 500 };
 
 export default function Footer() {
   const pathname = usePathname();
@@ -39,7 +39,7 @@ export default function Footer() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'space-between', marginBottom: 28 }}>
           <div>
             <span style={{ fontSize: 18, fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.5px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
-            <p style={{ color: '#475569', fontSize: 13, margin: '8px 0 0', maxWidth: 280, lineHeight: 1.6 }}>
+            <p style={{ color: '#828fa3', fontSize: 13, margin: '8px 0 0', maxWidth: 280, lineHeight: 1.6 }}>
               Personalizado por ti, impresso para ti. Impressão 3D portuguesa.
             </p>
           </div>
@@ -63,7 +63,7 @@ export default function Footer() {
 
         {/* Rodapé inferior */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
-          <span style={{ fontSize: 12, color: '#334155' }}>© {new Date().getFullYear()} PP3D.pt — Todos os direitos reservados. Feito com ❤️ em Portugal.</span>
+          <span style={{ fontSize: 12, color: '#7f8da2' }}>© {new Date().getFullYear()} PP3D.pt — Todos os direitos reservados. Feito com ❤️ em Portugal.</span>
           <a href="https://ko-fi.com/pp3dpt" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ff7875', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>
             ☕ Apoiar no Ko-fi
           </a>

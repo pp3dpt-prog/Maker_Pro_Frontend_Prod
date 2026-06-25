@@ -38,7 +38,7 @@ export default function CheckoutLojaPage() {
   }, [router]);
 
   if (!ready || !authChecked) {
-    return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
+    return <main style={wrap}><p style={{ color: '#8a96aa' }}>A carregar…</p></main>;
   }
   if (!logado) return null;
 
@@ -46,7 +46,7 @@ export default function CheckoutLojaPage() {
     return (
       <main style={wrap}>
         <h1 style={h1}>Finalizar</h1>
-        <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>
+        <div style={{ ...card, textAlign: 'center', color: '#8a96aa' }}>
           Carrinho vazio. <Link href="/loja" style={{ color: '#60a5fa' }}>Ver a loja →</Link>
         </div>
       </main>
@@ -143,7 +143,7 @@ export default function CheckoutLojaPage() {
                 : 'Tens peças a orçamentar — não há pagamento agora. Confirmamos o valor final e depois pagas.'}
             </p>
           )}
-          {!viaOrcamento && <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
+          {!viaOrcamento && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
 
           {erro && <p style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>{erro}</p>}
 
@@ -157,17 +157,17 @@ export default function CheckoutLojaPage() {
               <ShieldCheck size={16} />
               <span style={{ fontSize: 13, fontWeight: 700 }}>Pagamento seguro</span>
             </div>
-            <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 12, color: '#8a96aa', margin: 0, lineHeight: 1.6 }}>
               {viaOrcamento
                 ? 'O pagamento, quando aplicável, é processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'
                 : 'Processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'}
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#475569', fontSize: 11, fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#828fa3', fontSize: 11, fontWeight: 600 }}>
               <Lock size={12} /> Visa · Mastercard · via Stripe
             </div>
           </div>
 
-          <Link href="/carrinho" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Voltar ao carrinho</Link>
+          <Link href="/carrinho" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#8a96aa', textDecoration: 'none' }}>← Voltar ao carrinho</Link>
         </div>
       </div>
     </main>
@@ -177,7 +177,7 @@ export default function CheckoutLojaPage() {
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a96aa', marginBottom: 6 }}>{label}</label>
       <input value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', background: '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
     </div>
   );
