@@ -19,12 +19,12 @@ const jsonLd = {
 };
 
 const CATEGORIAS = [
-  { icon: '🐾', name: 'Pet Tags' },
-  { icon: '🔦', name: 'Litofânias' },
-  { icon: '🎨', name: 'HueForge' },
-  { icon: '🔑', name: 'Porta-chaves' },
-  { icon: '📚', name: 'Marcadores' },
-  { icon: '📦', name: 'Caixas' },
+  { icon: '🐾', name: 'Pet Tags',      slug: 'pet-tags' },
+  { icon: '🔦', name: 'Litofânias',    slug: 'litofanias' },
+  { icon: '🎨', name: 'HueForge',      slug: 'hueforge' },
+  { icon: '🔑', name: 'Porta-chaves',  slug: 'porta-chaves' },
+  { icon: '📚', name: 'Marcadores',    slug: 'marcadores' },
+  { icon: '📦', name: 'Caixas',        slug: 'caixas' },
 ];
 
 export default function HomePage() {
@@ -165,7 +165,7 @@ export default function HomePage() {
           <p className="ll-lead">De pet tags a litofânias — tudo personalizado ao detalhe.</p>
           <div className="ll-cats">
             {CATEGORIAS.map(c => (
-              <Link key={c.name} href="/loja" aria-label={`Ver ${c.name} na loja`} className="ll-cat">
+              <Link key={c.name} href={`/loja/${c.slug}`} aria-label={`Ver ${c.name} na loja`} className="ll-cat">
                 <span aria-hidden="true" style={{ fontSize: 32 }}>{c.icon}</span>
                 <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{c.name}</span>
               </Link>
