@@ -1,4 +1,5 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
+import Image from 'next/image';
 import { eur, prazoEntrega, type PrazoConfig } from '@/lib/loja';
 import type { CatalogoProduto, CatalogoCategoria } from '@/lib/loja-server';
 
@@ -56,9 +57,9 @@ export default function StoreCatalog({
           const temPromo = p.preco_promo_cents != null;
           return (
             <Link key={p.id} href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
-              <div style={{ aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'relative', aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {foto
-                  ? <img src={foto} alt={p.nome} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <Image src={foto} alt={p.nome} fill sizes="(max-width: 640px) 50vw, 300px" style={{ objectFit: 'cover' }} />
                   : <span style={{ fontSize: 40, opacity: 0.3 }}>📦</span>}
               </div>
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -71,7 +72,7 @@ export default function StoreCatalog({
                   ) : (
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                       <span style={{ fontSize: 18, fontWeight: 800, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(temPromo ? p.preco_promo_cents : p.preco_cents)}</span>
-                      {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#828fa3' }}>{eur(p.preco_cents)}</span>}
+                      {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#8a96aa' }}>{eur(p.preco_cents)}</span>}
                     </span>
                   )}
                   <span style={{ fontSize: 10, fontWeight: 700, color: prazo.tipo === 'stock' ? '#34d399' : '#fbbf24' }}>{prazo.label}</span>

@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { eur, prazoEntrega, DISCORD_URL, type PrazoConfig } from '@/lib/loja';
 import type { ProdutoDetalhe as Produto, ProdutoVariante } from '@/lib/loja-server';
@@ -85,16 +86,16 @@ export default function ProdutoDetalhe({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 40, marginTop: 24 }}>
           {/* Galeria */}
           <div>
-            <div style={{ aspectRatio: '1', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 18, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', aspectRatio: '1', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 18, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {fotos[fotoSel]
-                ? <img src={fotos[fotoSel].url} alt={fotos[fotoSel].alt ?? produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <Image src={fotos[fotoSel].url} alt={fotos[fotoSel].alt ?? produto.nome} fill priority sizes="(max-width: 720px) 100vw, 480px" style={{ objectFit: 'cover' }} />
                 : <span style={{ fontSize: 64, opacity: 0.3 }}>📦</span>}
             </div>
             {fotos.length > 1 && (
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 {fotos.map((f, i) => (
                   <button key={f.id} onClick={() => setFotoSel(i)} style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', border: i === fotoSel ? '2px solid #3b82f6' : '1px solid #1e293b', padding: 0, cursor: 'pointer', background: '#0a1120' }}>
-                    <img src={f.url} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <Image src={f.url} alt="" width={64} height={64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </button>
                 ))}
               </div>
@@ -162,7 +163,7 @@ export default function ProdutoDetalhe({
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 18 }}>
                   <span style={{ fontSize: 30, fontWeight: 900, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(precoEfetivo)}</span>
-                  {temPromo && <span style={{ fontSize: 16, textDecoration: 'line-through', color: '#828fa3' }}>{eur(produto.preco_cents)}</span>}
+                  {temPromo && <span style={{ fontSize: 16, textDecoration: 'line-through', color: '#8a96aa' }}>{eur(produto.preco_cents)}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
                   <button

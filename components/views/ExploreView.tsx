@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -90,7 +90,7 @@ export default function ExploreView() {
                         }}
                       />
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#828fa3', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8a96aa', fontSize: '12px' }}>
                         SEM PRÉ-VISUALIZAÇÃO
                       </div>
                     )}

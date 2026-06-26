@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import FamilyCard from '@/components/cards/FamilyCard';
@@ -53,7 +53,7 @@ export default async function MakersPage() {
             <Link href="/login?redirect=/makers" style={{ padding: '14px 28px', background: '#2563eb', color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>Entrar</Link>
             <Link href="/register" style={{ padding: '14px 28px', background: 'transparent', color: '#93c5fd', border: '1px solid #1e40af', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>Criar conta grátis</Link>
           </div>
-          <p style={{ fontSize: 13, color: '#828fa3', marginTop: 24 }}>
+          <p style={{ fontSize: 13, color: '#8a96aa', marginTop: 24 }}>
             Vê os <Link href="/pricing" style={{ color: '#60a5fa' }}>planos</Link> ou volta à <Link href="/loja" style={{ color: '#60a5fa' }}>loja</Link>.
           </p>
         </div>

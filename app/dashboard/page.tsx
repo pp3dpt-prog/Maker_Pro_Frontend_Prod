@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -282,7 +282,7 @@ export default function Dashboard() {
             </p>
 
             {tickets.length === 0 ? (
-              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#828fa3' }}>
+              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#8a96aa' }}>
                 Ainda não tens pedidos de suporte.
               </div>
             ) : tickets.map(t => (
@@ -290,7 +290,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
                   <div>
                     <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: '#828fa3' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#8a96aa' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</p>
                   </div>
                   <span style={{
                     padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
@@ -301,7 +301,7 @@ export default function Dashboard() {
 
                 {t.mensagem && (
                   <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
-                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#828fa3', textTransform: 'uppercase' }}>A tua mensagem</p>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, color: '#8a96aa', textTransform: 'uppercase' }}>A tua mensagem</p>
                     <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{t.mensagem}</p>
                   </div>
                 )}
@@ -326,7 +326,7 @@ export default function Dashboard() {
                     </div>
                   </>
                 ) : (
-                  <p style={{ margin: 0, fontSize: 13, color: '#828fa3', fontStyle: 'italic' }}>
+                  <p style={{ margin: 0, fontSize: 13, color: '#8a96aa', fontStyle: 'italic' }}>
                     A aguardar resposta…
                   </p>
                 )}

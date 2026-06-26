@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
@@ -143,7 +143,7 @@ export default function EncomendasAdminPage() {
                     <span style={{ fontWeight: 800, color: '#f1f5f9' }}>#{enc.numero}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emails[enc.user_id ?? ''] ?? enc.morada_envio?.nome ?? '—'}</div>
-                      <div style={{ fontSize: 11, color: '#828fa3' }}>{new Date(enc.created_at).toLocaleString('pt-PT')}</div>
+                      <div style={{ fontSize: 11, color: '#8a96aa' }}>{new Date(enc.created_at).toLocaleString('pt-PT')}</div>
                     </div>
                     <span style={badge(enc.estado)}>{enc.estado}</span>
                     <span style={{ fontWeight: 700, color: '#f1f5f9' }}>{eur(enc.total_cents)}</span>

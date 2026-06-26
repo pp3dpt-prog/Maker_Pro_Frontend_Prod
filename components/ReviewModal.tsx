@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import StarRating from './StarRating';
 
@@ -73,7 +73,7 @@ export default function ReviewModal({ onClose }: Props) {
               <textarea style={{ ...inp, height: 90, resize: 'vertical' }}
                 value={comentario} onChange={e => setComentario(e.target.value)}
                 placeholder="O que gostaste mais? O que podemos melhorar?" maxLength={300} />
-              <span style={{ fontSize: 11, color: '#828fa3' }}>{comentario.length}/300</span>
+              <span style={{ fontSize: 11, color: '#8a96aa' }}>{comentario.length}/300</span>
             </div>
 
             {erro && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{erro}</p>}

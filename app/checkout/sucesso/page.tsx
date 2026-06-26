@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -90,7 +90,7 @@ function SucessoInner() {
             <p style={{ color: '#8a96aa', fontSize: 15, marginBottom: 8, lineHeight: 1.6 }}>
               O pagamento foi processado, mas houve um problema a activar o plano automaticamente.
             </p>
-            <p style={{ color: '#828fa3', fontSize: 13, marginBottom: 24 }}>{detalhe}</p>
+            <p style={{ color: '#8a96aa', fontSize: 13, marginBottom: 24 }}>{detalhe}</p>
             <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
               Contacta-nos em <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#60a5fa' }}>pp3d.pt@gmail.com</a> e activamos manualmente.
             </p>

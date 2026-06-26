@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -164,9 +164,9 @@ export default function PricingPage() {
                     <>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>0€</span>
-                        <span style={{ fontSize: 14, color: '#828fa3' }}>/mês</span>
+                        <span style={{ fontSize: 14, color: '#8a96aa' }}>/mês</span>
                       </div>
-                      <p style={{ fontSize: 11, color: '#828fa3', marginTop: 6 }}>
+                      <p style={{ fontSize: 11, color: '#8a96aa', marginTop: 6 }}>
                         Sem cartão de crédito · Válido por {plano.validade_dias} dias
                         {plano.recarga_creditos_mensal > 0 && ', renova automaticamente'}
                       </p>
@@ -175,10 +175,10 @@ export default function PricingPage() {
                     <>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 48, fontWeight: 900, lineHeight: 1 }}>{precoMensal}€</span>
-                        <span style={{ fontSize: 14, color: '#828fa3' }}>/mês</span>
+                        <span style={{ fontSize: 14, color: '#8a96aa' }}>/mês</span>
                       </div>
                       {precoAnual && (
-                        <p style={{ fontSize: 12, color: '#828fa3', marginTop: 6 }}>
+                        <p style={{ fontSize: 12, color: '#8a96aa', marginTop: 6 }}>
                           ou{' '}
                           <span style={{ color: '#94a3b8', fontWeight: 600 }}>{precoAnual}€/ano</span>
                           {poupanca && poupanca > 0 && (
@@ -199,10 +199,10 @@ export default function PricingPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1 }}>{plano.limite_downloads}</span>
-                        <span style={{ fontSize: 12, color: '#828fa3', fontWeight: 600 }}>downloads / mês</span>
+                        <span style={{ fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>downloads / mês</span>
                       </div>
                       {!plano.gratuito && precoAnual && (
-                        <p style={{ fontSize: 11, color: '#7f8da2', marginTop: 3 }}>
+                        <p style={{ fontSize: 11, color: '#8a96aa', marginTop: 3 }}>
                           até {plano.limite_downloads * 12} downloads no plano anual
                         </p>
                       )}

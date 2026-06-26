@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -604,7 +604,7 @@ export default function PageInner() {
                       }}
                     />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: '#7f8da2' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: '#8a96aa' }}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="3" y="3" width="18" height="18" rx="2"/>
                         <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -646,11 +646,11 @@ export default function PageInner() {
                             boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
                           }} title={`R:${lvl.r} G:${lvl.g} B:${lvl.b}`} />
                           <span style={{ fontSize: 10, color: '#8a96aa' }}>{lvl.percentage}%</span>
-                          <span style={{ fontSize: 9, color: '#828fa3' }}>filamento {i + 1}</span>
+                          <span style={{ fontSize: 9, color: '#8a96aa' }}>filamento {i + 1}</span>
                         </div>
                       ))}
                     </div>
-                    <p style={{ margin: '10px 0 0', fontSize: 11, color: '#828fa3', lineHeight: 1.5 }}>
+                    <p style={{ margin: '10px 0 0', fontSize: 11, color: '#8a96aa', lineHeight: 1.5 }}>
                       Filamento 1 = tom mais escuro → filamento {imageAnalysis.suggestedColors} = tom mais claro
                     </p>
                   </div>

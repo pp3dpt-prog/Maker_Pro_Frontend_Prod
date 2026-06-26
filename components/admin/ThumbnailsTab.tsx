@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -76,7 +76,7 @@ export default function ThumbnailsTab() {
         {d.thumbnail_url ? (
           <img src={d.thumbnail_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={d.nome} />
         ) : (
-          <div style={{ textAlign: 'center', color: '#7f8da2' }}>
+          <div style={{ textAlign: 'center', color: '#8a96aa' }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
             <p style={{ margin: 0, fontSize: 12 }}>Clica para carregar</p>
           </div>
@@ -101,7 +101,7 @@ export default function ThumbnailsTab() {
       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14 }}>{d.nome}</p>
-          <p style={{ margin: 0, fontSize: 11, color: '#828fa3' }}>{d.familia}</p>
+          <p style={{ margin: 0, fontSize: 11, color: '#8a96aa' }}>{d.familia}</p>
         </div>
         <button
           onClick={() => fileRefs.current[d.id]?.click()}

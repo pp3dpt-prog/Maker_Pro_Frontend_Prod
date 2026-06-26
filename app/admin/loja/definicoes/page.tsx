@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -68,13 +68,13 @@ export default function DefinicoesLojaPage() {
             <div style={{ marginBottom: 20 }}>
               <label style={s.label}>Portes base (€)</label>
               <input style={s.input} value={portes} onChange={e => setPortes(e.target.value)} placeholder="Ex: 3.50" inputMode="decimal" />
-              <p style={{ fontSize: 12, color: '#828fa3', margin: '6px 0 0' }}>Valor aplicado a cada encomenda (pode ser substituído por produto).</p>
+              <p style={{ fontSize: 12, color: '#8a96aa', margin: '6px 0 0' }}>Valor aplicado a cada encomenda (pode ser substituído por produto).</p>
             </div>
 
             <div style={{ marginBottom: 24 }}>
               <label style={s.label}>Envio grátis acima de (€)</label>
               <input style={s.input} value={gratisAcima} onChange={e => setGratisAcima(e.target.value)} placeholder="Ex: 40 (vazio = nunca)" inputMode="decimal" />
-              <p style={{ fontSize: 12, color: '#828fa3', margin: '6px 0 0' }}>Se o total da encomenda ultrapassar este valor, os portes são gratuitos.</p>
+              <p style={{ fontSize: 12, color: '#8a96aa', margin: '6px 0 0' }}>Se o total da encomenda ultrapassar este valor, os portes são gratuitos.</p>
             </div>
 
             <div style={{ borderTop: '1px solid #1e293b', margin: '4px 0 22px', paddingTop: 22 }}>
@@ -95,7 +95,7 @@ export default function DefinicoesLojaPage() {
                   </div>
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: '#828fa3', margin: '8px 0 0' }}>Mostrados ao cliente conforme o produto tenha stock ou seja por produção.</p>
+              <p style={{ fontSize: 12, color: '#8a96aa', margin: '8px 0 0' }}>Mostrados ao cliente conforme o produto tenha stock ou seja por produção.</p>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

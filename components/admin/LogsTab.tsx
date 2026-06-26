@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 
@@ -87,7 +87,7 @@ export default function LogsTab() {
         <button onClick={carregar} style={{ ...selectStyle, alignSelf: 'flex-end', color: '#93c5fd', fontWeight: 600 }}>
           ↻ Actualizar
         </button>
-        <span style={{ alignSelf: 'flex-end', fontSize: 12, color: '#828fa3', paddingBottom: 8 }}>
+        <span style={{ alignSelf: 'flex-end', fontSize: 12, color: '#8a96aa', paddingBottom: 8 }}>
           {logs.length} registo{logs.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -96,7 +96,7 @@ export default function LogsTab() {
       {loading ? (
         <p style={{ color: '#8a96aa', fontSize: 14 }}>A carregar…</p>
       ) : logs.length === 0 ? (
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: '40px 24px', textAlign: 'center', color: '#828fa3', fontStyle: 'italic' }}>
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: '40px 24px', textAlign: 'center', color: '#8a96aa', fontStyle: 'italic' }}>
           Sem registos para este dia.
         </div>
       ) : (
@@ -110,7 +110,7 @@ export default function LogsTab() {
                   onClick={() => temContexto && setExpandido(expandido === log.id ? null : log.id)}
                   style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', cursor: temContexto ? 'pointer' : 'default' }}
                 >
-                  <span style={{ fontSize: 11, color: '#828fa3', fontFamily: 'monospace', whiteSpace: 'nowrap', paddingTop: 2 }}>
+                  <span style={{ fontSize: 11, color: '#8a96aa', fontFamily: 'monospace', whiteSpace: 'nowrap', paddingTop: 2 }}>
                     {new Date(log.created_at).toLocaleTimeString('pt-PT')}
                   </span>
                   <span style={{ flexShrink: 0, padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 800, background: st.bg, color: st.color }}>
@@ -121,9 +121,9 @@ export default function LogsTab() {
                   </span>
                   <span style={{ flex: 1, fontSize: 13, color: '#cbd5e1' }}>
                     {log.mensagem}
-                    {log.user_email && <span style={{ color: '#828fa3' }}> · {log.user_email}</span>}
+                    {log.user_email && <span style={{ color: '#8a96aa' }}> · {log.user_email}</span>}
                   </span>
-                  {temContexto && <span style={{ color: '#828fa3', fontSize: 12 }}>{expandido === log.id ? '▼' : '▶'}</span>}
+                  {temContexto && <span style={{ color: '#8a96aa', fontSize: 12 }}>{expandido === log.id ? '▼' : '▶'}</span>}
                 </div>
                 {expandido === log.id && temContexto && (
                   <pre style={{ margin: 0, padding: '12px 16px 16px 60px', fontSize: 11, color: '#94a3b8', background: '#080c10', overflow: 'auto', fontFamily: 'monospace' }}>

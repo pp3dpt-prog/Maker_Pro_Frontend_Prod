@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -162,7 +162,7 @@ export default function CheckoutLojaPage() {
                 ? 'O pagamento, quando aplicável, é processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'
                 : 'Processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'}
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#828fa3', fontSize: 11, fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#8a96aa', fontSize: 11, fontWeight: 600 }}>
               <Lock size={12} /> Visa · Mastercard · via Stripe
             </div>
           </div>

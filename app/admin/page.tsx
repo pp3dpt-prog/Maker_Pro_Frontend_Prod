@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -25,7 +25,7 @@ const SEGMENTO_LABEL: Record<string, string> = {
 const s = {
   page: { display: 'flex', minHeight: '100vh', background: '#080c10', color: '#f1f5f9', fontFamily: 'Inter, Arial, sans-serif' } as CSSProperties,
   sidebar: { width: 220, flexShrink: 0, borderRight: '1px solid #1e293b', padding: '28px 16px', display: 'flex', flexDirection: 'column', gap: 4 } as CSSProperties,
-  sidebarTitle: { fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: '#828fa3', textTransform: 'uppercase', padding: '0 12px', marginBottom: 12 } as CSSProperties,
+  sidebarTitle: { fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: '#8a96aa', textTransform: 'uppercase', padding: '0 12px', marginBottom: 12 } as CSSProperties,
   main: { flex: 1, padding: '40px 32px', overflowY: 'auto' } as CSSProperties,
   card: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: 24 } as CSSProperties,
   statGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 } as CSSProperties,
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             {faturas.length === 0 ? (
-              <div style={{ ...s.card, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '48px 24px' }}>
+              <div style={{ ...s.card, textAlign: 'center', color: '#8a96aa', fontStyle: 'italic', padding: '48px 24px' }}>
                 ✅ Sem faturas pendentes.
               </div>
             ) : (
@@ -333,11 +333,11 @@ export default function AdminDashboard() {
                         <td style={s.td}>
                           <p style={{ margin: '0 0 2px', fontWeight: 600, color: '#f1f5f9' }}>{f.user_name || '—'}</p>
                           <p style={{ margin: '0 0 2px', fontSize: 12, color: '#8a96aa' }}>{f.user_email}</p>
-                          <p style={{ margin: 0, fontSize: 11, color: '#828fa3' }}>NIF: {f.user_nif || 'não indicado'}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#8a96aa' }}>NIF: {f.user_nif || 'não indicado'}</p>
                         </td>
                         <td style={s.td}>
                           <p style={{ margin: 0, fontWeight: 600 }}>{f.plano_nome || f.descricao}</p>
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#828fa3' }}>{f.tipo}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#8a96aa' }}>{f.tipo}</p>
                         </td>
                         <td style={{ ...s.td, fontWeight: 700, color: '#86efac' }}>{Number(f.valor).toFixed(2)}€</td>
                         <td style={{ ...s.td, display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -388,7 +388,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {cupons.length === 0 ? (
-                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '40px 20px' }}>Sem cupões criados.</td></tr>
+                    <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#8a96aa', fontStyle: 'italic', padding: '40px 20px' }}>Sem cupões criados.</td></tr>
                   ) : cupons.map(c => (
                     <tr key={c.id}>
                       <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd', fontWeight: 700 }}>{c.codigo}</td>
@@ -416,7 +416,7 @@ export default function AdminDashboard() {
             <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 800 }}>Tickets de Suporte</h1>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {tickets.length === 0 ? (
-                <div style={{ ...s.card, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '48px 24px' }}>Sem tickets pendentes.</div>
+                <div style={{ ...s.card, textAlign: 'center', color: '#8a96aa', fontStyle: 'italic', padding: '48px 24px' }}>Sem tickets pendentes.</div>
               ) : tickets.map(t => (
                 <div key={t.id} style={{ ...s.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {/* Cabeçalho */}
@@ -429,7 +429,7 @@ export default function AdminDashboard() {
                         <span style={s.badge(t.status === 'aberto' ? '#14532d' : '#1e293b', t.status === 'aberto' ? '#86efac' : '#64748b')}>
                           {t.status}
                         </span>
-                        <span style={{ fontSize: 12, color: '#828fa3' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
+                        <span style={{ fontSize: 12, color: '#8a96aa' }}>{new Date(t.created_at).toLocaleString('pt-PT')}</span>
                       </div>
                       <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{t.assunto}</p>
                       <p style={{ margin: 0, fontSize: 13, color: '#8a96aa' }}>{t.user_email}</p>
@@ -443,7 +443,7 @@ export default function AdminDashboard() {
                   {/* Mensagem do utilizador */}
                   {t.mensagem && (
                     <div style={{ background: '#080c10', borderRadius: 8, padding: '12px 14px' }}>
-                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#828fa3', textTransform: 'uppercase' }}>Mensagem</p>
+                      <p style={{ margin: '0 0 4px', fontSize: 11, color: '#8a96aa', textTransform: 'uppercase' }}>Mensagem</p>
                       <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{t.mensagem}</p>
                     </div>
                   )}
@@ -545,7 +545,7 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: 13, fontWeight: 600, color: usarHtml ? '#a5b4fc' : '#94a3b8' }}>
                   Editor HTML personalizado
                 </span>
-                <span style={{ fontSize: 11, color: '#828fa3' }}>
+                <span style={{ fontSize: 11, color: '#8a96aa' }}>
                   {usarHtml ? '— controla todo o design do email' : '— usa o template automático (título + texto)'}
                 </span>
               </div>
@@ -603,7 +603,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {campanhas.length === 0 ? (
-                    <tr><td colSpan={7} style={{ ...s.td, textAlign: 'center', color: '#828fa3', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
+                    <tr><td colSpan={7} style={{ ...s.td, textAlign: 'center', color: '#8a96aa', fontStyle: 'italic', padding: '40px 20px' }}>Sem campanhas criadas.</td></tr>
                   ) : campanhas.map(camp => {
                     const expirada = !!camp.expira_em && new Date(camp.expira_em) < new Date();
                     return (
@@ -630,7 +630,7 @@ export default function AdminDashboard() {
                             {expirada ? '⏰ Expirou' : new Date(camp.expira_em).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         ) : (
-                          <span style={{ fontSize: 12, color: '#828fa3' }}>Sem prazo</span>
+                          <span style={{ fontSize: 12, color: '#8a96aa' }}>Sem prazo</span>
                         )}
                       </td>
                       <td style={s.td}>

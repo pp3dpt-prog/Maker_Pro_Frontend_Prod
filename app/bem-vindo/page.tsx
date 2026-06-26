@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -131,7 +131,7 @@ export default function BemVindo() {
           {loading ? 'A guardar…' : 'Continuar →'}
         </button>
 
-        <p style={{ textAlign: 'center', color: '#7f8da2', fontSize: '13px', marginTop: '20px' }}>
+        <p style={{ textAlign: 'center', color: '#8a96aa', fontSize: '13px', marginTop: '20px' }}>
           Podes mudar isto a qualquer momento no teu perfil.
         </p>
       </div>

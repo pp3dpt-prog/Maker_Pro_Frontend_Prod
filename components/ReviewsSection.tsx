@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 
 async function getReviews() {
   try {
@@ -91,7 +91,7 @@ export default async function ReviewsSection() {
                   "{r.comentario}"
                 </p>
               )}
-              <p style={{ margin: 0, fontSize: 12, color: '#828fa3', fontWeight: 600 }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>
                 — {r.user_name} · {new Date(r.created_at).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
               </p>
             </div>

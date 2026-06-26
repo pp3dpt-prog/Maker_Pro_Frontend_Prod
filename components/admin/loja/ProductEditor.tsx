@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -354,7 +354,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, fontSize: 10, fontWeight: 700, color: '#828fa3', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, fontSize: 10, fontWeight: 700, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
                 <span>{duasCores ? 'Cor base' : 'Cor'}</span>
                 {duasCores && <span>Cor secundária</span>}
                 <span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span><span></span>
@@ -370,7 +370,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
                   <button style={{ ...s.btnDanger, padding: '8px 0' }} onClick={() => rmVariante(i)} type="button" title="Remover">✕</button>
                 </div>
               ))}
-              <p style={{ fontSize: 12, color: '#828fa3', margin: '4px 0 0' }}>Com variantes, o stock é por variante. Preço vazio herda o preço base.</p>
+              <p style={{ fontSize: 12, color: '#8a96aa', margin: '4px 0 0' }}>Com variantes, o stock é por variante. Preço vazio herda o preço base.</p>
             </div>
           )}
         </div>
@@ -386,7 +386,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             <input type="checkbox" checked={requerOrcamento} onChange={e => setRequerOrcamento(e.target.checked)} style={{ marginTop: 3 }} />
             <span style={{ fontSize: 14, color: '#cbd5e1' }}>
               Requer orçamento (preço não fixo — ex.: peça que varia muito de tamanho)
-              <span style={{ display: 'block', fontSize: 12, color: '#828fa3', marginTop: 2 }}>
+              <span style={{ display: 'block', fontSize: 12, color: '#8a96aa', marginTop: 2 }}>
                 No carrinho fica "a orçamentar"; se a encomenda tiver alguma peça destas, o checkout vira pedido de orçamento. O preço acima passa a ser opcional (estimativa).
               </span>
             </span>
@@ -402,7 +402,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
             )}>{prazo.label}</span>
             <span style={{ fontSize: 14, color: '#e2e8f0' }}>Envio em <strong>{prazo.dias}</strong></span>
           </div>
-          <p style={{ fontSize: 12, color: '#828fa3', margin: '10px 0 0' }}>
+          <p style={{ fontSize: 12, color: '#8a96aa', margin: '10px 0 0' }}>
             Calculado: com stock e sem ser sob encomenda → prazo de stock; caso contrário → prazo de produção.
             Os prazos definem-se em <Link href="/admin/loja/definicoes" style={{ color: '#60a5fa' }}>Definições</Link>.
           </p>

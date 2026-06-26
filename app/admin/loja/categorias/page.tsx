@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
@@ -103,7 +103,7 @@ export default function CategoriasPage() {
                 {cats.map(c => (
                   <tr key={c.id}>
                     <td style={{ ...s.td, fontWeight: 600, color: '#f1f5f9' }}>{c.nome}</td>
-                    <td style={{ ...s.td, color: '#828fa3' }}>/{c.slug}</td>
+                    <td style={{ ...s.td, color: '#8a96aa' }}>/{c.slug}</td>
                     <td style={s.td}>
                       <button
                         onClick={() => toggleAtivo(c)}

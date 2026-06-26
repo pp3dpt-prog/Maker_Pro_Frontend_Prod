@@ -197,7 +197,7 @@ export default function OrcamentoPage() {
               {isAceite ? 'Aceite' : 'Recusado'}
             </strong>
           </p>
-          <p style={{ color: '#828fa3', fontSize: 13, margin: 0 }}>
+          <p style={{ color: '#8a96aa', fontSize: 13, margin: 0 }}>
             Se precisas de alterar a tua decisão, <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#93c5fd' }}>contacta-nos</a>.
           </p>
         </div>
@@ -346,7 +346,7 @@ export default function OrcamentoPage() {
             </div>
           </div>
 
-          <p style={{ textAlign: 'center', marginTop: 20, color: '#828fa3', fontSize: 12 }}>
+          <p style={{ textAlign: 'center', marginTop: 20, color: '#8a96aa', fontSize: 12 }}>
             Dúvidas?{' '}
             <a href="mailto:pp3d.pt@gmail.com" style={{ color: '#93c5fd' }}>pp3d.pt@gmail.com</a>
           </p>

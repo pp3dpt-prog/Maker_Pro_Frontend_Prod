@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -194,7 +194,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
 
             {/* Email (readonly) */}
             <div style={{ background: '#080c10', border: '1px solid #1e293b', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
-              <p style={{ margin: '0 0 2px', fontSize: 10, color: '#828fa3', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email</p>
+              <p style={{ margin: '0 0 2px', fontSize: 10, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email</p>
               <p style={{ margin: 0, color: '#f1f5f9', fontSize: 14, fontWeight: 600 }}>{userEmail}</p>
             </div>
 
@@ -254,7 +254,7 @@ export default function CheckoutClient({ plano, intervalo, userEmail, planoAtual
                   : `Pagar ${preco}€ com cartão`}
             </button>
 
-            <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: '#7f8da2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: '#8a96aa', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <Lock size={11} /> Pagamento seguro via {intervalo === 'anual' ? 'IfThenPay' : 'Stripe'}
             </p>
 
