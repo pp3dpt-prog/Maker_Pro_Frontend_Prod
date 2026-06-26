@@ -41,7 +41,7 @@ export default function HomePage() {
         }
         .ll-eyebrow {
           display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:30px;
-          background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3);
+          background:#0d1f3e; border:1px solid rgba(59,130,246,0.35);
           color:#93c5fd; font-size:12px; font-weight:700; letter-spacing:0.06em; margin-bottom:28px;
         }
         .ll-h1 { font-size:clamp(38px,6.5vw,68px); font-weight:900; letter-spacing:-0.03em; line-height:1.05; margin:0 0 22px; }
@@ -51,13 +51,13 @@ export default function HomePage() {
         .ll-btn { display:inline-flex; align-items:center; gap:8px; padding:16px 30px; border-radius:14px; font-weight:800; font-size:15px; text-decoration:none; transition:transform .15s, box-shadow .15s; }
         .ll-btn-primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; box-shadow:0 14px 40px rgba(37,99,235,0.4); }
         .ll-btn-primary:hover { transform:translateY(-2px); box-shadow:0 18px 50px rgba(37,99,235,0.5); }
-        .ll-btn-ghost { background:rgba(255,255,255,0.04); color:#e2e8f0; border:1px solid #1e293b; }
+        .ll-btn-ghost { background:#0d1626; color:#e2e8f0; border:1px solid #1e293b; }
         .ll-btn-ghost:hover { border-color:#334155; transform:translateY(-2px); }
         .ll-trust { display:flex; gap:28px; justify-content:center; flex-wrap:wrap; margin-top:44px; }
-        .ll-trust span { font-size:13px; color:#8a96aa; font-weight:600; }
+        .ll-trust span { font-size:13px; color:#94a3b8; font-weight:600; }
         .ll-section { padding:84px 0; }
         .ll-h2 { font-size:clamp(26px,3.5vw,40px); font-weight:900; letter-spacing:-0.02em; margin:0 0 12px; text-align:center; }
-        .ll-lead { font-size:16px; color:#8a96aa; text-align:center; max-width:560px; margin:0 auto 52px; line-height:1.7; }
+        .ll-lead { font-size:16px; color:#94a3b8; text-align:center; max-width:560px; margin:0 auto 52px; line-height:1.7; }
         .ll-duo { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:22px; }
         .ll-card { position:relative; border-radius:24px; padding:40px; border:1px solid #1e293b; background:linear-gradient(160deg,#0f1626,#0b0f18); transition:transform .18s, border-color .18s; display:flex; flex-direction:column; }
         .ll-card:hover { transform:translateY(-4px); border-color:#334155; }
@@ -148,7 +148,7 @@ export default function HomePage() {
               <div key={f.t} className="ll-feat-item">
                 <div style={{ fontSize: 28, marginBottom: 12 }}>{f.icon}</div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>{f.t}</h3>
-                <p style={{ color: '#8a96aa', fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
+                <p style={{ color: '#94a3b8', fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
               </div>
             ))}
           </div>

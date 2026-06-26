@@ -64,7 +64,7 @@ export default async function ReviewsSection() {
           <h2 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 12px', letterSpacing: '-0.5px' }}>
             Avaliado com {media.toFixed(1)} ⭐
           </h2>
-          <p style={{ color: '#8a96aa', fontSize: 15 }}>
+          <p style={{ color: '#94a3b8', fontSize: 15 }}>
             Com base em {total} avaliação{total !== 1 ? 'ões' : ''} de utilizadores reais
           </p>
         </div>
@@ -91,7 +91,7 @@ export default async function ReviewsSection() {
                   "{r.comentario}"
                 </p>
               )}
-              <p style={{ margin: 0, fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>
                 — {r.user_name} · {new Date(r.created_at).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
               </p>
             </div>
