@@ -70,8 +70,8 @@ body {
   background: linear-gradient(to right, #fff, #6366f1);
   -webkit-background-clip: text;
   background-clip: text;
+  color: #a5b4fc;
   -webkit-text-fill-color: transparent;
-  color: transparent;
 }
 
 /* Grid de Destaques */

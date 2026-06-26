@@ -45,7 +45,7 @@ export default function HomePage() {
           color:#93c5fd; font-size:12px; font-weight:700; letter-spacing:0.06em; margin-bottom:28px;
         }
         .ll-h1 { font-size:clamp(38px,6.5vw,68px); font-weight:900; letter-spacing:-0.03em; line-height:1.05; margin:0 0 22px; }
-        .ll-h1 span { background:linear-gradient(120deg,#3b82f6,#a78bfa); -webkit-background-clip:text; background-clip:text; color:transparent; }
+        .ll-h1 span { background:linear-gradient(120deg,#3b82f6,#a78bfa); -webkit-background-clip:text; background-clip:text; color:#a78bfa; -webkit-text-fill-color:transparent; }
         .ll-sub { font-size:clamp(16px,2vw,19px); color:#94a3b8; line-height:1.7; max-width:620px; margin:0 auto 40px; }
         .ll-cta-row { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
         .ll-btn { display:inline-flex; align-items:center; gap:8px; padding:16px 30px; border-radius:14px; font-weight:800; font-size:15px; text-decoration:none; transition:transform .15s, box-shadow .15s; }
@@ -165,8 +165,8 @@ export default function HomePage() {
           <p className="ll-lead">De pet tags a litofânias — tudo personalizado ao detalhe.</p>
           <div className="ll-cats">
             {CATEGORIAS.map(c => (
-              <Link key={c.name} href="/loja" className="ll-cat">
-                <span style={{ fontSize: 32 }}>{c.icon}</span>
+              <Link key={c.name} href="/loja" aria-label={`Ver ${c.name} na loja`} className="ll-cat">
+                <span aria-hidden="true" style={{ fontSize: 32 }}>{c.icon}</span>
                 <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{c.name}</span>
               </Link>
             ))}
