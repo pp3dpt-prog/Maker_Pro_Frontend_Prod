@@ -144,6 +144,7 @@ export default function UpdatePassword() {
 
           <input
             type="password"
+            autoComplete="new-password"
             placeholder="Nova password"
             required
             minLength={6}
