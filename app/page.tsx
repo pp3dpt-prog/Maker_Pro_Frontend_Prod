@@ -66,7 +66,7 @@ export default function HomePage() {
         .ll-feat { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:20px; }
         .ll-feat-item { padding:26px; border-radius:18px; background:#0c111b; border:1px solid #161e2e; }
         .ll-cats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
-        .ll-cat { display:flex; flex-direction:column; align-items:center; gap:8px; padding:26px 16px; border-radius:16px; background:#0c111b; border:1px solid #161e2e; text-decoration:none; transition:border-color .15s, transform .15s; }
+        .ll-cat { display:flex; flex-direction:column; align-items:center; gap:8px; padding:26px 16px; border-radius:16px; background:#0c111b; border:1px solid #161e2e; text-decoration:none; color:#e2e8f0; transition:border-color .15s, transform .15s; }
         .ll-cat:hover { border-color:#334155; transform:translateY(-3px); }
         .ll-partner { border-radius:28px; padding:56px 40px; text-align:center; background:linear-gradient(135deg,rgba(124,58,237,0.18),rgba(37,99,235,0.14)); border:1px solid rgba(124,58,237,0.3); }
       `}</style>
