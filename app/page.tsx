@@ -100,7 +100,7 @@ export default function HomePage() {
           <div className="ll-duo">
             {/* Loja — destaque */}
             <div className="ll-card ll-card-primary">
-              <span className="ll-badge" style={{ background: 'rgba(59,130,246,0.18)', color: '#93c5fd' }}>Loja · Mais popular</span>
+              <span className="ll-badge" style={{ background: '#0f2354', color: '#93c5fd' }}>Loja · Mais popular</span>
               <div style={{ fontSize: 44, marginBottom: 16 }}>🛍️</div>
               <h3 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 12px' }}>Compra já, recebe em casa</h3>
               <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, margin: '0 0 22px' }}>
@@ -116,7 +116,7 @@ export default function HomePage() {
 
             {/* Makers */}
             <div className="ll-card">
-              <span className="ll-badge" style={{ background: 'rgba(52,211,153,0.16)', color: '#34d399' }}>Makers</span>
+              <span className="ll-badge" style={{ background: '#0a2e22', color: '#34d399' }}>Makers</span>
               <div style={{ fontSize: 44, marginBottom: 16 }}>🖨️</div>
               <h3 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 12px' }}>Tens impressora? Imprime tu</h3>
               <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, margin: '0 0 22px' }}>
