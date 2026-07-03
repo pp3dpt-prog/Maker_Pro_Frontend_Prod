@@ -35,3 +35,5 @@ yarn-error.log*
 # --- Cache ---
 .eslintcache
 .tsbuildinfo".claude/" 
+.vercel
+.env*
