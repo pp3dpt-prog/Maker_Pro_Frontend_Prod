@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProdutoDetalhe from '@/components/loja/ProdutoDetalhe';
-import { fetchProduto, getViewer, getPrazoConfig } from '@/lib/loja-server';
+import { fetchProduto, getViewer, getPrazoConfig, fetchParceirosPorCategoria } from '@/lib/loja-server';
 import { eur } from '@/lib/loja';
 
 export const dynamic = 'force-dynamic';
@@ -43,13 +43,14 @@ function stockTotal(p: { stock: number; prod_loja_variantes: { stock: number }[]
 
 export default async function ProdutoPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [produto, viewer, prazoCfg] = await Promise.all([
-    fetchProduto(slug),
+  const produto = await fetchProduto(slug);
+  if (!produto) notFound();
+
+  const [viewer, prazoCfg, parceiros] = await Promise.all([
     getViewer(),
     getPrazoConfig(),
+    fetchParceirosPorCategoria(produto.categoria_id),
   ]);
-
-  if (!produto) notFound();
 
   const url = `https://pp3d.pt/produto/${slug}`;
   const fotos = [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem).map(i => i.url);
@@ -94,7 +95,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
-      <ProdutoDetalhe produto={produto} ocultarPrecos={viewer.ocultarPrecos} prazoCfg={prazoCfg} />
+      <ProdutoDetalhe produto={produto} ocultarPrecos={viewer.ocultarPrecos} prazoCfg={prazoCfg} parceiros={parceiros} />
     </>
   );
 }

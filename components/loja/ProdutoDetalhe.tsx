@@ -5,19 +5,21 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { eur, prazoEntrega, DISCORD_URL, type PrazoConfig } from '@/lib/loja';
-import type { ProdutoDetalhe as Produto, ProdutoVariante } from '@/lib/loja-server';
+import type { ProdutoDetalhe as Produto, ProdutoVariante, Parceiro } from '@/lib/loja-server';
 import { useCart } from '@/components/loja/CartContext';
+import ParceirosSecao from '@/components/loja/ParceirosSecao';
 
 function varianteLabel(v: ProdutoVariante): string {
   return [v.cor, v.cor_secundaria, v.tamanho].filter(Boolean).join(' / ') || 'Variante';
 }
 
 export default function ProdutoDetalhe({
-  produto, ocultarPrecos, prazoCfg,
+  produto, ocultarPrecos, prazoCfg, parceiros = [],
 }: {
   produto: Produto;
   ocultarPrecos: boolean;
   prazoCfg: PrazoConfig;
+  parceiros?: Parceiro[];
 }) {
   const fotos = useMemo(() => [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem), [produto]);
   const variantes = useMemo(() => [...produto.prod_loja_variantes].filter(v => v.ativo).sort((a, b) => a.ordem - b.ordem), [produto]);
@@ -193,6 +195,8 @@ export default function ProdutoDetalhe({
             </div>
           </div>
         </div>
+
+        <ParceirosSecao parceiros={parceiros} />
       </div>
     </main>
   );
