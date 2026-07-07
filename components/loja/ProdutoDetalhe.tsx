@@ -8,6 +8,7 @@ import { eur, prazoEntrega, DISCORD_URL, type PrazoConfig } from '@/lib/loja';
 import type { ProdutoDetalhe as Produto, ProdutoVariante, Parceiro } from '@/lib/loja-server';
 import { useCart } from '@/components/loja/CartContext';
 import ParceirosSecao from '@/components/loja/ParceirosSecao';
+import ParceriaCTA from '@/components/loja/ParceriaCTA';
 
 function varianteLabel(v: ProdutoVariante): string {
   return [v.cor, v.cor_secundaria, v.tamanho].filter(Boolean).join(' / ') || 'Variante';
@@ -197,6 +198,7 @@ export default function ProdutoDetalhe({
         </div>
 
         <ParceirosSecao parceiros={parceiros} />
+        <ParceriaCTA produtoSlug={produto.slug} produtoNome={produto.nome} />
       </div>
     </main>
   );

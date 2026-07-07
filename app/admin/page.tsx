@@ -70,7 +70,7 @@ export default function AdminDashboard() {
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [tickets, setTickets] = useState<TicketSuporte[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
-  const [stats, setStats] = useState({ users: 0, tickets: 0, pedidosPendentes: 0, faturasPendentes: 0 });
+  const [stats, setStats] = useState({ users: 0, tickets: 0, pedidosPendentes: 0, parceriasPendentes: 0, faturasPendentes: 0 });
   const [faturas, setFaturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -93,13 +93,14 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [{ data: cData }, { data: tData }, { data: cpData }, { count: uCount }, { count: tOpenCount }, { count: pedidosCount }, { data: faturasData, count: faturasCount }] = await Promise.all([
+      const [{ data: cData }, { data: tData }, { data: cpData }, { count: uCount }, { count: tOpenCount }, { count: pedidosCount }, { count: parceriasCount }, { data: faturasData, count: faturasCount }] = await Promise.all([
         supabase.from('cupons').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_tickets_suporte').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_campanhas').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_perfis').select('*', { count: 'exact', head: true }),
         supabase.from('prod_tickets_suporte').select('*', { count: 'exact', head: true }).eq('status', 'aberto'),
         supabase.from('prod_pedidos_orcamento').select('*', { count: 'exact', head: true }).eq('estado', 'pendente_orcamento'),
+        supabase.from('prod_parceiros_candidaturas').select('*', { count: 'exact', head: true }).eq('estado', 'novo'),
         // Só pagamentos CONFIRMADOS sem fatura: Stripe (sem ifthenpay_order_id) ou IfThenPay pago
         supabase.from('prod_pagamentos').select('*', { count: 'exact' })
           .eq('fatura_emitida', false)
@@ -110,7 +111,7 @@ export default function AdminDashboard() {
       setTickets(tData || []);
       setCampanhas(cpData || []);
       setFaturas(faturasData || []);
-      setStats({ users: uCount || 0, tickets: tOpenCount || 0, pedidosPendentes: pedidosCount || 0, faturasPendentes: faturasCount || 0 });
+      setStats({ users: uCount || 0, tickets: tOpenCount || 0, pedidosPendentes: pedidosCount || 0, parceriasPendentes: parceriasCount || 0, faturasPendentes: faturasCount || 0 });
     } catch (err) {
       console.error('Erro ao carregar dados admin:', err);
     } finally {
@@ -246,6 +247,24 @@ export default function AdminDashboard() {
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <span>🛒 Loja</span>
+        </Link>
+
+        <Link
+          href="/admin/loja/parceiros/candidaturas"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🤝 Parcerias</span>
+          {stats.parceriasPendentes > 0 && (
+            <span style={{ background: '#f59e0b', color: '#000', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20 }}>
+              {stats.parceriasPendentes}
+            </span>
+          )}
         </Link>
 
         {process.env.NEXT_PUBLIC_STUDIO_URL && (

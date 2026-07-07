@@ -144,7 +144,10 @@ export default function ParceirosPage() {
       <div style={{ ...s.wrap, maxWidth: 900 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
           <h1 style={s.h1}>Parceiros</h1>
-          <Link href="/admin/loja" style={s.btnGhost}>← Produtos</Link>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href="/admin/loja/parceiros/candidaturas" style={s.btnGhost}>Ver candidaturas</Link>
+            <Link href="/admin/loja" style={s.btnGhost}>← Produtos</Link>
+          </div>
         </div>
         <p style={{ ...s.sub, margin: '-20px 0 24px' }}>
           Locais físicos onde os clientes podem ver, personalizar e levantar produtos de certas categorias.
