@@ -13,6 +13,7 @@ interface Variante {
   id?: string;          // presente = já existe na DB
   cor: string;          // cor base
   cor_secundaria: string; // só se duasCores
+  cor_terciaria: string;  // só se tresCores
   tamanho: string;
   sku: string;
   stock: number;
@@ -54,6 +55,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   const [designId, setDesignId] = useState('');
   const [permitePersonalizar, setPermitePersonalizar] = useState(false);
   const [duasCores, setDuasCores] = useState(false);
+  const [tresCores, setTresCores] = useState(false);
   const [sobEncomenda, setSobEncomenda] = useState(false);
   const [requerOrcamento, setRequerOrcamento] = useState(false);
   const [prazoCfg, setPrazoCfg] = useState<PrazoConfig>(PRAZO_DEFAULT);
@@ -108,13 +110,14 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     setDesignId(p.design_id ?? '');
     setPermitePersonalizar(!!p.permite_personalizar);
     setDuasCores(!!p.duas_cores);
+    setTresCores(!!p.tres_cores);
     setSobEncomenda(!!p.sob_encomenda);
     setRequerOrcamento(!!p.requer_orcamento);
     setPortes(toEuros(p.portes_cents));
     setPesoGramas(p.peso_gramas != null ? String(p.peso_gramas) : '');
     setStockSimples(String(p.stock ?? 0));
     setVariantes(((p.prod_loja_variantes ?? []) as any[]).map(v => ({
-      id: v.id, cor: v.cor ?? '', cor_secundaria: v.cor_secundaria ?? '', tamanho: v.tamanho ?? '', sku: v.sku ?? '',
+      id: v.id, cor: v.cor ?? '', cor_secundaria: v.cor_secundaria ?? '', cor_terciaria: v.cor_terciaria ?? '', tamanho: v.tamanho ?? '', sku: v.sku ?? '',
       stock: v.stock ?? 0, preco_cents: v.preco_cents, ativo: v.ativo ?? true,
     })));
     setImagens(((p.prod_loja_imagens ?? []) as any[]).map(i => ({ id: i.id, url: i.url, ordem: i.ordem ?? 0 })).sort((a, b) => a.ordem - b.ordem));
@@ -125,7 +128,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
   // ── Variantes ──
   function addVariante() {
-    setVariantes(prev => [...prev, { cor: '', cor_secundaria: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true }]);
+    setVariantes(prev => [...prev, { cor: '', cor_secundaria: '', cor_terciaria: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true }]);
   }
   function updVariante(i: number, patch: Partial<Variante>) {
     setVariantes(prev => prev.map((v, idx) => idx === i ? { ...v, ...patch } : v));
@@ -197,6 +200,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       design_id: designId || null,
       permite_personalizar: permitePersonalizar,
       duas_cores: duasCores,
+      tres_cores: duasCores && tresCores,
       sob_encomenda: sobEncomenda,
       requer_orcamento: requerOrcamento,
       portes_cents: toCents(portes),
@@ -221,6 +225,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       const v = variantes[i];
       const row = {
         produto_id: id, cor: v.cor || null, cor_secundaria: duasCores ? (v.cor_secundaria || null) : null,
+        cor_terciaria: (duasCores && tresCores) ? (v.cor_terciaria || null) : null,
         tamanho: v.tamanho || null, sku: v.sku || null,
         stock: v.stock || 0, preco_cents: v.preco_cents, ordem: i, ativo: v.ativo,
       };
@@ -243,7 +248,9 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   if (loading) return <div style={s.page}><div style={s.wrap}><p style={{ color: '#8a96aa' }}>A carregar…</p></div></div>;
 
   const fieldRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 };
-  const gridCols = duasCores ? '1fr 1fr 1fr 1fr 70px 80px 36px' : '1fr 1fr 1fr 80px 90px 36px';
+  const gridCols = duasCores && tresCores ? '1fr 1fr 1fr 1fr 1fr 70px 80px 36px'
+    : duasCores ? '1fr 1fr 1fr 1fr 70px 80px 36px'
+    : '1fr 1fr 1fr 80px 90px 36px';
   const stockAtual = variantes.length > 0 ? variantes.reduce((a, v) => a + (v.stock || 0), 0) : (parseInt(stockSimples, 10) || 0);
   const prazo = prazoEntrega({ stockTotal: stockAtual, sobEncomenda }, prazoCfg);
 
@@ -335,14 +342,22 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
         {/* Variantes */}
         <div style={{ ...s.card, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <label style={{ ...s.label, margin: 0 }}>Variantes{duasCores ? ' (cor base / cor secundária / tamanho)' : ' (cor / tamanho)'}</label>
+            <label style={{ ...s.label, margin: 0 }}>
+              Variantes{tresCores && duasCores ? ' (cor base / cor secundária / cor terciária / tamanho)' : duasCores ? ' (cor base / cor secundária / tamanho)' : ' (cor / tamanho)'}
+            </label>
             <button style={s.btnGhost} onClick={addVariante} type="button">+ Adicionar variante</button>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
-            <input type="checkbox" checked={duasCores} onChange={e => setDuasCores(e.target.checked)} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={duasCores} onChange={e => { setDuasCores(e.target.checked); if (!e.target.checked) setTresCores(false); }} />
             <span style={{ fontSize: 14, color: '#cbd5e1' }}>A peça pode ter duas cores (cor base + cor secundária)</span>
           </label>
+          {duasCores && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, marginLeft: 26, cursor: 'pointer' }}>
+              <input type="checkbox" checked={tresCores} onChange={e => setTresCores(e.target.checked)} />
+              <span style={{ fontSize: 14, color: '#cbd5e1' }}>A peça pode ter uma terceira cor (ex.: patamares + letras)</span>
+            </label>
+          )}
 
           {variantes.length === 0 ? (
             <div>
@@ -357,12 +372,14 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
               <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, fontSize: 10, fontWeight: 700, color: '#8a96aa', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
                 <span>{duasCores ? 'Cor base' : 'Cor'}</span>
                 {duasCores && <span>Cor secundária</span>}
+                {duasCores && tresCores && <span>Cor terciária</span>}
                 <span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span><span></span>
               </div>
               {variantes.map((v, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, alignItems: 'center' }}>
                   <input style={s.input} value={v.cor} onChange={e => updVariante(i, { cor: e.target.value })} placeholder={duasCores ? 'Preto' : 'Preto'} />
                   {duasCores && <input style={s.input} value={v.cor_secundaria} onChange={e => updVariante(i, { cor_secundaria: e.target.value })} placeholder="Branco" />}
+                  {duasCores && tresCores && <input style={s.input} value={v.cor_terciaria} onChange={e => updVariante(i, { cor_terciaria: e.target.value })} placeholder="Dourado" />}
                   <input style={s.input} value={v.tamanho} onChange={e => updVariante(i, { tamanho: e.target.value })} placeholder="M" />
                   <input style={s.input} value={v.sku} onChange={e => updVariante(i, { sku: e.target.value })} placeholder="SKU" />
                   <input style={s.input} value={v.stock} onChange={e => updVariante(i, { stock: parseInt(e.target.value, 10) || 0 })} inputMode="numeric" />

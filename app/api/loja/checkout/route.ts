@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   const ids = [...new Set(itens.map(i => i.produto_id))];
   const [{ data: produtos }, { data: variantes }, { data: cfg }] = await Promise.all([
     admin.from('prod_loja_produtos').select('id, slug, nome, preco_cents, preco_promo_cents, requer_orcamento, portes_cents, estado').in('id', ids),
-    admin.from('prod_loja_variantes').select('id, produto_id, cor, cor_secundaria, tamanho, preco_cents').in('produto_id', ids),
+    admin.from('prod_loja_variantes').select('id, produto_id, cor, cor_secundaria, cor_terciaria, tamanho, preco_cents').in('produto_id', ids),
     admin.from('prod_loja_config').select('portes_cents, portes_gratis_acima_cents').eq('id', 1).maybeSingle(),
   ]);
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const v = it.variante_id ? (variantes ?? []).find(x => x.id === it.variante_id) : null;
     const unit = v?.preco_cents ?? p.preco_promo_cents ?? p.preco_cents;
     const qtd = Math.max(1, Math.floor(Number(it.quantidade) || 1));
-    const label = v ? [v.cor, v.cor_secundaria, v.tamanho].filter(Boolean).join(' / ') : null;
+    const label = v ? [v.cor, v.cor_secundaria, v.cor_terciaria, v.tamanho].filter(Boolean).join(' / ') : null;
     linhas.push({ p, v, unit, qtd, label, requer_orcamento: !!p.requer_orcamento, personalizacao: it.personalizacao ?? null });
   }
   if (linhas.length === 0) return NextResponse.json({ error: 'Sem itens válidos.' }, { status: 400 });
@@ -95,6 +95,8 @@ export async function POST(request: Request) {
     variante_id: l.v?.id ?? null,
     nome: l.p.nome,
     cor: l.v?.cor ?? null,
+    cor_secundaria: l.v?.cor_secundaria ?? null,
+    cor_terciaria: l.v?.cor_terciaria ?? null,
     tamanho: l.v?.tamanho ?? null,
     preco_cents: l.requer_orcamento ? null : l.unit,
     quantidade: l.qtd,

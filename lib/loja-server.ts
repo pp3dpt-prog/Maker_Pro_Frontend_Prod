@@ -78,13 +78,13 @@ export async function fetchCatalogo(categoriaSlug?: string, isAdmin = false): Pr
 
 export interface ProdutoImagem { id: string; url: string; alt: string | null; ordem: number; }
 export interface ProdutoVariante {
-  id: string; cor: string | null; cor_secundaria: string | null; tamanho: string | null;
+  id: string; cor: string | null; cor_secundaria: string | null; cor_terciaria: string | null; tamanho: string | null;
   sku: string | null; stock: number; preco_cents: number | null; ordem: number; ativo: boolean;
 }
 export interface ProdutoDetalhe {
   id: string; slug: string; nome: string; descricao: string | null; estado: string;
   preco_cents: number; preco_promo_cents: number | null; stock: number;
-  sob_encomenda: boolean; duas_cores: boolean; requer_orcamento: boolean;
+  sob_encomenda: boolean; duas_cores: boolean; tres_cores: boolean; requer_orcamento: boolean;
   permite_personalizar: boolean; design_id: string | null; categoria_id: string | null;
   prod_loja_categorias: { slug: string; nome: string } | null;
   prod_loja_imagens: ProdutoImagem[];
@@ -96,7 +96,7 @@ export async function fetchProduto(slug: string, isAdmin = false): Promise<Produ
   const supabase = await createClient();
   let q = supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, descricao, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
+    .select('id, slug, nome, descricao, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, tres_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, cor_terciaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
     .eq('slug', slug);
   if (!isAdmin) q = q.eq('estado', 'ativo');
   const { data } = await q.maybeSingle();

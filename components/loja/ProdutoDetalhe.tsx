@@ -11,7 +11,7 @@ import ParceirosSecao from '@/components/loja/ParceirosSecao';
 import ParceriaCTA from '@/components/loja/ParceriaCTA';
 
 function varianteLabel(v: ProdutoVariante): string {
-  return [v.cor, v.cor_secundaria, v.tamanho].filter(Boolean).join(' / ') || 'Variante';
+  return [v.cor, v.cor_secundaria, v.cor_terciaria, v.tamanho].filter(Boolean).join(' / ') || 'Variante';
 }
 
 export default function ProdutoDetalhe({
@@ -134,7 +134,7 @@ export default function ProdutoDetalhe({
             {temVariantes && (
               <div style={{ marginBottom: 22 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa', marginBottom: 8 }}>
-                  {produto.duas_cores ? 'Cor base / Cor secundária / Tamanho' : 'Opção'}
+                  {produto.tres_cores ? 'Cor base / Cor secundária / Cor terciária / Tamanho' : produto.duas_cores ? 'Cor base / Cor secundária / Tamanho' : 'Opção'}
                 </label>
                 <select value={varId} onChange={e => setVarId(e.target.value)} style={{ width: '100%', maxWidth: 360, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px', color: '#f1f5f9', fontSize: 15, outline: 'none' }}>
                   {variantes.map(v => (

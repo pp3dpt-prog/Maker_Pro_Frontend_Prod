@@ -292,3 +292,26 @@ drop policy if exists loja_produtos_storage_read on storage.objects;
 create policy loja_produtos_storage_read on storage.objects
   for select using (bucket_id = 'loja_produtos');
 -- (Escrita/upload faz-se via service_role na API, que ignora RLS.)
+
+-- ----------------------------------------------------------------------------
+-- 6. Terceira cor (ex.: patamares + letras) — idempotente
+--    tres_cores só faz sentido com duas_cores=true (cor + cor_secundaria + cor_terciaria).
+--    prod_loja_encomenda_itens ganha cor_secundaria/cor_terciaria: antes só guardava `cor`,
+--    perdendo a 2ª cor da encomenda para quem produz — corrige isso também.
+-- ----------------------------------------------------------------------------
+alter table public.prod_loja_produtos add column if not exists tres_cores boolean default false;
+alter table public.prod_loja_variantes add column if not exists cor_terciaria text;
+alter table public.prod_loja_encomenda_itens add column if not exists cor_secundaria text;
+alter table public.prod_loja_encomenda_itens add column if not exists cor_terciaria text;
+
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'prod_loja_variantes_produto_id_cor_cor_secundaria_tamanho_key') then
+    alter table public.prod_loja_variantes drop constraint prod_loja_variantes_produto_id_cor_cor_secundaria_tamanho_key;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'prod_loja_variantes_produto_id_cores_tamanho_key') then
+    alter table public.prod_loja_variantes
+      add constraint prod_loja_variantes_produto_id_cores_tamanho_key
+      unique (produto_id, cor, cor_secundaria, cor_terciaria, tamanho);
+  end if;
+end $$;

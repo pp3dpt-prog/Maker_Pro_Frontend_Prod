@@ -22,7 +22,7 @@ interface Encomenda {
   total_cents: number; portes_cents: number | null; metodo_pagamento: string | null;
   morada_envio: any; nif: string | null; user_id: string | null; payment_ref: string | null;
 }
-interface Item { id: string; nome: string; cor: string | null; tamanho: string | null; preco_cents: number | null; quantidade: number; personalizacao: any; }
+interface Item { id: string; nome: string; cor: string | null; cor_secundaria: string | null; cor_terciaria: string | null; tamanho: string | null; preco_cents: number | null; quantidade: number; personalizacao: any; }
 
 export default function EncomendasAdminPage() {
   const [encomendas, setEncomendas] = useState<Encomenda[]>([]);
@@ -158,7 +158,7 @@ export default function EncomendasAdminPage() {
                         {lista.map(it => (
                           <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: '#cbd5e1', padding: '4px 0' }}>
                             <span>
-                              {it.quantidade}× {it.nome}{it.cor || it.tamanho ? ` (${[it.cor, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}
+                              {it.quantidade}× {it.nome}{it.cor || it.cor_secundaria || it.cor_terciaria || it.tamanho ? ` (${[it.cor, it.cor_secundaria, it.cor_terciaria, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}
                               {(it.personalizacao?.stl_path || it.personalizacao?.stl_url) && (
                                 <button onClick={() => descarregarStl(it.personalizacao.stl_path || it.personalizacao.stl_url)} style={{ marginLeft: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                                   ⬇ STL
