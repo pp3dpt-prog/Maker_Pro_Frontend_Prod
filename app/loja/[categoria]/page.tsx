@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ categoria
   return {
     title: nome,
     description: descricao.slice(0, 160),
-    alternates: { canonical: `https://www.pp3d.pt/loja/${categoria}` },
+    alternates: { canonical: `https://pp3d.pt/loja/${categoria}` },
   };
 }
 
@@ -29,9 +29,9 @@ export default async function CategoriaPage({ params }: { params: Promise<{ cate
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Início', item: 'https://www.pp3d.pt' },
-      { '@type': 'ListItem', position: 2, name: 'Loja', item: 'https://www.pp3d.pt/loja' },
-      { '@type': 'ListItem', position: 3, name: categoriaAtual.nome, item: `https://www.pp3d.pt/loja/${categoriaAtual.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Início', item: 'https://pp3d.pt' },
+      { '@type': 'ListItem', position: 2, name: 'Loja', item: 'https://pp3d.pt/loja' },
+      { '@type': 'ListItem', position: 3, name: categoriaAtual.nome, item: `https://pp3d.pt/loja/${categoriaAtual.slug}` },
     ],
   } : null;
 

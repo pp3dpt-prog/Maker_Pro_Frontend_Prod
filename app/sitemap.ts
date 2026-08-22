@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = 'https://www.pp3d.pt';
+  const siteUrl = 'https://pp3d.pt';
 
   // Páginas estáticas
   const staticPages: MetadataRoute.Sitemap = [

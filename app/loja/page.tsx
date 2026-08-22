@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Loja — Brincos, Porta-chaves e Peças 3D',
   description: 'Compra online brincos, porta-chaves e figuras em impressão 3D feitos em Portugal. Personalizados à medida, entrega em todo o país.',
   keywords: ['loja brincos 3D', 'comprar peças impressão 3D Portugal', 'brincos artesanais Lisboa', 'porta-chaves personalizados comprar'],
-  alternates: { canonical: 'https://www.pp3d.pt/loja' },
+  alternates: { canonical: 'https://pp3d.pt/loja' },
 };
 
 export default async function LojaPage() {

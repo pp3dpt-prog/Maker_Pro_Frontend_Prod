@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const foto = [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem)[0]?.url;
   const preco = produto.preco_promo_cents ?? produto.preco_cents;
   const desc = produto.descricao?.slice(0, 160) ?? `${produto.nome} — ${eur(preco)} na loja PP3D.`;
-  const url = `https://www.pp3d.pt/produto/${slug}`;
+  const url = `https://pp3d.pt/produto/${slug}`;
 
   return {
     title: produto.nome,
@@ -52,7 +52,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
     fetchParceirosPorCategoria(produto.categoria_id),
   ]);
 
-  const url = `https://www.pp3d.pt/produto/${slug}`;
+  const url = `https://pp3d.pt/produto/${slug}`;
   const fotos = [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem).map(i => i.url);
   const st = stockTotal(produto);
   const disponibilidade = st > 0 ? 'InStock' : produto.sob_encomenda ? 'PreOrder' : 'OutOfStock';
@@ -82,10 +82,10 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Início', item: 'https://www.pp3d.pt' },
-      { '@type': 'ListItem', position: 2, name: 'Loja', item: 'https://www.pp3d.pt/loja' },
+      { '@type': 'ListItem', position: 1, name: 'Início', item: 'https://pp3d.pt' },
+      { '@type': 'ListItem', position: 2, name: 'Loja', item: 'https://pp3d.pt/loja' },
       ...(produto.prod_loja_categorias
-        ? [{ '@type': 'ListItem', position: 3, name: produto.prod_loja_categorias.nome, item: `https://www.pp3d.pt/loja/${produto.prod_loja_categorias.slug}` }]
+        ? [{ '@type': 'ListItem', position: 3, name: produto.prod_loja_categorias.nome, item: `https://pp3d.pt/loja/${produto.prod_loja_categorias.slug}` }]
         : []),
       { '@type': 'ListItem', position: produto.prod_loja_categorias ? 4 : 3, name: produto.nome, item: url },
     ],

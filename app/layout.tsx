@@ -11,7 +11,7 @@ const GA_ID = 'G-7KJCGXHW9Q';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
-const siteUrl = 'https://www.pp3d.pt';
+const siteUrl = 'https://pp3d.pt';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

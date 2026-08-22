@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   // ID numérico até 15 dígitos (timestamp ms = 13 dígitos)
   const orderId = Date.now().toString();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pp3d.pt';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
 
   // Registar pagamento pendente (guarda design_id + params para download após pagamento)
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);

@@ -35,7 +35,7 @@ export default async function ReviewsSection() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'PP3D.pt',
-    url: 'https://www.pp3d.pt',
+    url: 'https://pp3d.pt',
     aggregateRating: {
       '@type': 'AggregateRating',
       ratingValue: media.toFixed(1),

@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   }
 
   // ── Pagamento Stripe ──
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pp3d.pt';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = linhas.map(l => ({
     price_data: {
       currency: 'eur',

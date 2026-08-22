@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
           <p style="margin:0;color:#64748b">${payload.produto_nome ? escapeHtml(payload.produto_nome) : 'N/D'}</p>
 
           <hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0"/>
-          <a href="https://www.pp3d.pt/admin/loja/parceiros/candidaturas" style="display:inline-block;padding:10px 20px;background:#1d4ed8;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          <a href="https://pp3d.pt/admin/loja/parceiros/candidaturas" style="display:inline-block;padding:10px 20px;background:#1d4ed8;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
             Ver no admin →
           </a>
         </div>

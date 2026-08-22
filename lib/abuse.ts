@@ -84,7 +84,7 @@ export async function alertarSeguranca(identificador: string, tipo: string): Pro
     // Enviar email
     const resendKey = process.env.RESEND_API_KEY;
     const adminEmail = process.env.PEDIDOS_ADMIN_EMAIL || 'pp3d.pt@gmail.com';
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pp3d.pt';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
 
     if (resendKey) {
       const { Resend } = await import('resend');

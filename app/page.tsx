@@ -7,14 +7,14 @@ import ReviewsSection from '@/components/ReviewsSection';
 export const metadata: Metadata = {
   title: { absolute: 'PP3D.pt — Produtos únicos, impressos em 3D' },
   description: 'Compra peças prontas ou personaliza ao detalhe. Recebe em casa ou em mãos. És maker? Descarrega os ficheiros. Impressão 3D portuguesa.',
-  alternates: { canonical: 'https://www.pp3d.pt' },
+  alternates: { canonical: 'https://pp3d.pt' },
 };
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'PP3D.pt',
-  url: 'https://www.pp3d.pt',
+  url: 'https://pp3d.pt',
   description: 'Plataforma portuguesa de personalização e impressão 3D',
   sameAs: ['https://ko-fi.com/pp3dpt'],
 };

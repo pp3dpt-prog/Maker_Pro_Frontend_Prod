@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   // Email do cliente (para pré-preencher o checkout)
   const { data: perfil } = await admin.from('prod_perfis').select('email').eq('id', enc.user_id).maybeSingle();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pp3d.pt';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],

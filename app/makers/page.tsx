@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Makers',
   description: 'Área de makers PP3D — acede aos designs paramétricos, gera STL e descarrega os ficheiros.',
-  alternates: { canonical: 'https://www.pp3d.pt/makers' },
+  alternates: { canonical: 'https://pp3d.pt/makers' },
 };
 
 type Design = {
