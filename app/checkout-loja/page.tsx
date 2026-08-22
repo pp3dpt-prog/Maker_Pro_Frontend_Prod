@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -38,14 +38,14 @@ export default function CheckoutLojaPage() {
   }, []);
 
   if (!ready || !authChecked) {
-    return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
+    return <main style={wrap}><p style={{ color: '#8a96aa' }}>A carregar…</p></main>;
   }
 
   if (items.length === 0) {
     return (
       <main style={wrap}>
         <h1 style={h1}>Finalizar</h1>
-        <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>
+        <div style={{ ...card, textAlign: 'center', color: '#8a96aa' }}>
           Carrinho vazio. <Link href="/loja" style={{ color: '#60a5fa' }}>Ver a loja →</Link>
         </div>
       </main>
@@ -108,24 +108,24 @@ export default function CheckoutLojaPage() {
           )}
 
           {!logado && (
-            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px', lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: '#8a96aa', margin: '0 0 16px', lineHeight: 1.6 }}>
               A comprar como convidado. <Link href="/login?redirect=/checkout-loja" style={{ color: '#60a5fa' }}>Já tens conta? Inicia sessão</Link>
             </p>
           )}
 
-          <Field label="Nome completo *" value={nome} onChange={setNome} />
-          <Field label="Email *" value={email} onChange={setEmail} disabled={logado} />
+          <Field label="Nome completo *" value={nome} onChange={setNome} autoComplete="name" />
+          <Field label="Email *" value={email} onChange={setEmail} disabled={logado} autoComplete="email" />
           {!emMaos && (
             <>
-              <Field label="Morada *" value={morada} onChange={setMorada} />
+              <Field label="Morada *" value={morada} onChange={setMorada} autoComplete="address-line1" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Field label="Código postal *" value={codigoPostal} onChange={setCodigoPostal} />
-                <Field label="Cidade *" value={cidade} onChange={setCidade} />
+                <Field label="Código postal *" value={codigoPostal} onChange={setCodigoPostal} autoComplete="postal-code" />
+                <Field label="Cidade *" value={cidade} onChange={setCidade} autoComplete="address-level2" />
               </div>
             </>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label={emMaos ? 'Telefone *' : 'Telefone'} value={telefone} onChange={setTelefone} />
+            <Field label={emMaos ? 'Telefone *' : 'Telefone'} value={telefone} onChange={setTelefone} autoComplete="tel" />
             <Field label="NIF (fatura)" value={nif} onChange={setNif} />
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function CheckoutLojaPage() {
                 : 'Tens peças a orçamentar — não há pagamento agora. Confirmamos o valor final e depois pagas.'}
             </p>
           )}
-          {!viaOrcamento && <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
+          {!viaOrcamento && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
 
           {erro && <p style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>{erro}</p>}
 
@@ -165,28 +165,29 @@ export default function CheckoutLojaPage() {
               <ShieldCheck size={16} />
               <span style={{ fontSize: 13, fontWeight: 700 }}>Pagamento seguro</span>
             </div>
-            <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 12, color: '#8a96aa', margin: 0, lineHeight: 1.6 }}>
               {viaOrcamento
                 ? 'O pagamento, quando aplicável, é processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'
                 : 'Processado pela Stripe com encriptação SSL. Não guardamos os dados do teu cartão.'}
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#475569', fontSize: 11, fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, color: '#8a96aa', fontSize: 11, fontWeight: 600 }}>
               <Lock size={12} /> Visa · Mastercard · via Stripe
             </div>
           </div>
 
-          <Link href="/carrinho" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#64748b', textDecoration: 'none' }}>← Voltar ao carrinho</Link>
+          <Link href="/carrinho" style={{ display: 'block', textAlign: 'center', marginTop: 14, fontSize: 13, color: '#8a96aa', textDecoration: 'none' }}>← Voltar ao carrinho</Link>
         </div>
       </div>
     </main>
   );
 }
 
-function Field({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
+function Field({ label, value, onChange, disabled, autoComplete }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean; autoComplete?: string }) {
+  const id = 'f-' + label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} disabled={disabled} style={{ width: '100%', background: disabled ? '#0c111b' : '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: disabled ? '#64748b' : '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+      <label htmlFor={id} style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a96aa', marginBottom: 6 }}>{label}</label>
+      <input id={id} autoComplete={autoComplete} value={value} onChange={e => onChange(e.target.value)} disabled={disabled} style={{ width: '100%', background: disabled ? '#0c111b' : '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: disabled ? '#8a96aa' : '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
     </div>
   );
 }

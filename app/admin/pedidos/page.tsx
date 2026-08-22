@@ -45,9 +45,9 @@ export default async function AdminPedidosPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px' }}>Pedidos de Orçamento</h1>
-            <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Todos os pedidos submetidos pelos clientes</p>
+            <p style={{ margin: '4px 0 0', color: '#8a96aa', fontSize: 14 }}>Todos os pedidos submetidos pelos clientes</p>
           </div>
-          <Link href="/admin" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>← Painel admin</Link>
+          <Link href="/admin" style={{ color: '#8a96aa', fontSize: 13, textDecoration: 'none' }}>← Painel admin</Link>
         </div>
 
         {error && (
@@ -61,14 +61,14 @@ export default async function AdminPedidosPage() {
             <thead>
               <tr style={{ background: '#0a1120', borderBottom: '1px solid #1e293b' }}>
                 {['ID', 'Design', 'Cliente', 'Email', 'Data', 'Estado', ''].map((h) => (
-                  <th key={h} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>{h}</th>
+                  <th key={h} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {!pedidos || pedidos.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: '#64748b', fontStyle: 'italic' }}>
+                  <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: '#8a96aa', fontStyle: 'italic' }}>
                     Sem pedidos de orçamento ainda.
                   </td>
                 </tr>
@@ -83,7 +83,7 @@ export default async function AdminPedidosPage() {
                         borderBottom: isLast ? 'none' : '1px solid #1e293b',
                       }}
                     >
-                      <td style={{ padding: '14px 20px', fontFamily: 'monospace', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
+                      <td style={{ padding: '14px 20px', fontFamily: 'monospace', fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>
                         {shortId(p.id)}
                       </td>
                       <td style={{ padding: '14px 20px', fontWeight: 600, color: '#f1f5f9', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -92,10 +92,10 @@ export default async function AdminPedidosPage() {
                       <td style={{ padding: '14px 20px', color: '#cbd5e1', fontSize: 14 }}>
                         {p.contacto_nome}
                       </td>
-                      <td style={{ padding: '14px 20px', color: '#64748b', fontSize: 13 }}>
+                      <td style={{ padding: '14px 20px', color: '#8a96aa', fontSize: 13 }}>
                         {p.contacto_email}
                       </td>
-                      <td style={{ padding: '14px 20px', color: '#64748b', fontSize: 13, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '14px 20px', color: '#8a96aa', fontSize: 13, whiteSpace: 'nowrap' }}>
                         {new Date(p.created_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td style={{ padding: '14px 20px' }}>

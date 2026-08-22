@@ -12,7 +12,7 @@ export default function TermsPage() {
         <h1 style={{ fontSize: '40px', fontWeight: '900', marginTop: '40px', marginBottom: '16px', letterSpacing: '-1px' }}>
           Termos e Condições
         </h1>
-        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '60px' }}>Última atualização: junho de 2026</p>
+        <p style={{ color: '#8a96aa', fontSize: '14px', marginBottom: '60px' }}>Última atualização: junho de 2026</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '36px', color: '#94a3b8', lineHeight: '1.8' }}>
 

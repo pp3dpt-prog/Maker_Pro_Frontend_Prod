@@ -486,7 +486,7 @@ export default function PageInner() {
   if (designRascunho || designInativo) {
     return (
       <main className={styles.fallback}>
-        <div style={{ textAlign: 'center', color: '#64748b' }}>
+        <div style={{ textAlign: 'center', color: '#8a96aa' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
           <h2 style={{ color: '#f1f5f9', marginBottom: 8 }}>Design não disponível</h2>
           <p>Este design não está disponível de momento.</p>
@@ -595,7 +595,7 @@ export default function PageInner() {
 
             <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)' }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#8a96aa' }}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 11h8"
                   stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -623,7 +623,7 @@ export default function PageInner() {
                 backgroundColor: '#0f172a', border: '1px solid #1e293b',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               }}>
-                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Downloads este mês</span>
+                <span style={{ fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>Downloads este mês</span>
                 <span style={{ fontSize: 14, fontWeight: 800, color: semDownloads ? '#f87171' : '#34d399' }}>
                   {userProfile?.downloads_mes ?? 0} / {userProfile?.downloads_limite ?? 3}
                 </span>

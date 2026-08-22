@@ -83,7 +83,7 @@ export interface ProdutoDetalhe {
   id: string; slug: string; nome: string; descricao: string | null;
   preco_cents: number; preco_promo_cents: number | null; stock: number;
   sob_encomenda: boolean; duas_cores: boolean; requer_orcamento: boolean;
-  permite_personalizar: boolean; design_id: string | null;
+  permite_personalizar: boolean; design_id: string | null; categoria_id: string | null;
   prod_loja_categorias: { slug: string; nome: string } | null;
   prod_loja_imagens: ProdutoImagem[];
   prod_loja_variantes: ProdutoVariante[];
@@ -94,11 +94,46 @@ export async function fetchProduto(slug: string): Promise<ProdutoDetalhe | null>
   const supabase = await createClient();
   const { data } = await supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, descricao, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, requer_orcamento, permite_personalizar, design_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
+    .select('id, slug, nome, descricao, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
     .eq('slug', slug)
     .eq('estado', 'ativo')
     .maybeSingle();
   return (data as unknown as ProdutoDetalhe) ?? null;
+}
+
+// ── Parceiros (locais físicos associados a categorias da loja) ──────────────
+export interface Parceiro {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  morada: string | null;
+  codigo_postal: string | null;
+  cidade: string | null;
+  telefone: string | null;
+  email: string | null;
+  website_url: string | null;
+  facebook_url: string | null;
+  instagram_url: string | null;
+  horario_texto: string | null;
+  servicos: string[];
+}
+
+// Parceiros ativos associados a uma categoria (via prod_parceiros_categorias), ordenados.
+// Devolve [] se a categoria for null ou se as tabelas ainda não existirem (pré-migração).
+export async function fetchParceirosPorCategoria(categoriaId: string | null): Promise<Parceiro[]> {
+  if (!categoriaId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('prod_parceiros_categorias')
+    .select('prod_parceiros(id, nome, descricao, morada, codigo_postal, cidade, telefone, email, website_url, facebook_url, instagram_url, horario_texto, servicos, ordem, ativo)')
+    .eq('categoria_id', categoriaId);
+
+  const parceiros = ((data ?? []) as unknown as { prod_parceiros: (Parceiro & { ordem: number; ativo: boolean }) | null }[])
+    .map(row => row.prod_parceiros)
+    .filter((p): p is Parceiro & { ordem: number; ativo: boolean } => !!p && p.ativo)
+    .sort((a, b) => a.ordem - b.ordem);
+
+  return parceiros;
 }
 
 // Config de prazos (singleton). Devolve defaults se não existir.

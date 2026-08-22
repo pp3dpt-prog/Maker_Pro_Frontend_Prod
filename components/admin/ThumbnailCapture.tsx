@@ -126,7 +126,7 @@ export default function ThumbnailCapture({ stlUrl, designId, onCaptured, onError
         background: 'rgba(8,12,16,0.6)', pointerEvents: 'none',
         opacity: status === 'done' ? 0 : 1, transition: 'opacity 0.5s',
       }}>
-        <p style={{ color: '#64748b', fontSize: 13 }}>
+        <p style={{ color: '#8a96aa', fontSize: 13 }}>
           {status === 'loading'    ? '⏳ A carregar STL…'     :
            status === 'rendering'  ? '🎨 A renderizar…'       :
            status === 'capturing'  ? '📸 A capturar imagem…'  :

@@ -43,12 +43,12 @@ export default function ForgotPassword() {
             <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '44px', height: '44px', borderRadius: '50%' }} />
             <span style={{ fontSize: '24px', fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
           </Link>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '12px' }}>Recuperar password</p>
+          <p style={{ color: '#8a96aa', fontSize: '14px', marginTop: '12px' }}>Recuperar password</p>
         </div>
 
         <div style={{ background: '#0f172a', borderRadius: '24px', border: '1px solid #1e293b', padding: '40px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', textAlign: 'center' }}>Esqueceste a password?</h1>
-          <p style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', marginBottom: '28px' }}>
+          <p style={{ color: '#8a96aa', fontSize: '13px', textAlign: 'center', marginBottom: '28px' }}>
             Envia-nos o teu email e receberes um link para redefinir.
           </p>
 
@@ -56,7 +56,7 @@ export default function ForgotPassword() {
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <div style={{ fontSize: '40px', marginBottom: '16px' }}>📬</div>
               <p style={{ color: '#4ade80', fontWeight: 600, marginBottom: '8px' }}>{mensagem}</p>
-              <p style={{ color: '#64748b', fontSize: '13px' }}>Podes fechar esta página.</p>
+              <p style={{ color: '#8a96aa', fontSize: '13px' }}>Podes fechar esta página.</p>
             </div>
           ) : (
             <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -75,7 +75,7 @@ export default function ForgotPassword() {
             </form>
           )}
 
-          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginTop: '24px' }}>
+          <p style={{ textAlign: 'center', color: '#8a96aa', fontSize: '14px', marginTop: '24px' }}>
             <Link href="/login" style={{ color: '#3b82f6', fontWeight: 700, textDecoration: 'none' }}>← Voltar ao login</Link>
           </p>
         </div>

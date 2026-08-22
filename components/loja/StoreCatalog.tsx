@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { eur, prazoEntrega, categoriaDescricao, type PrazoConfig } from '@/lib/loja';
 import type { CatalogoProduto, CatalogoCategoria } from '@/lib/loja-server';
 
@@ -26,17 +27,17 @@ export default function StoreCatalog({
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '56px 32px 28px' }}>
-        <nav aria-label="breadcrumb" style={{ fontSize: 13, color: '#64748b', marginBottom: 18 }}>
-          <Link href="/" style={{ color: '#64748b', textDecoration: 'none' }}>Início</Link>
+        <nav aria-label="breadcrumb" style={{ fontSize: 13, color: '#8a96aa', marginBottom: 18 }}>
+          <Link href="/" style={{ color: '#8a96aa', textDecoration: 'none' }}>Início</Link>
           {' / '}
-          <Link href="/loja" style={{ color: categoriaAtual ? '#64748b' : '#e2e8f0', textDecoration: 'none' }}>Loja</Link>
+          <Link href="/loja" style={{ color: categoriaAtual ? '#8a96aa' : '#e2e8f0', textDecoration: 'none' }}>Loja</Link>
           {categoriaAtual && <>{' / '}<span style={{ color: '#e2e8f0' }}>{categoriaAtual.nome}</span></>}
         </nav>
         <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#3b82f6', marginBottom: 12 }}>Loja PP3D</p>
         <h1 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em', margin: '0 0 12px' }}>
           {categoriaAtual ? categoriaAtual.nome : <>Produtos <span style={{ color: '#3b82f6' }}>impressos em 3D</span></>}
         </h1>
-        <p style={{ fontSize: 16, color: '#64748b', maxWidth: 640, lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 16, color: '#8a96aa', maxWidth: 640, lineHeight: 1.6, margin: 0 }}>
           {categoriaAtual
             ? categoriaDescricao(categoriaAtual.nome, categoriaAtual.descricao)
             : 'Peças prontas e personalizáveis. Recebe em casa — ou personaliza ao teu gosto.'}
@@ -56,7 +57,7 @@ export default function StoreCatalog({
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 22,
       }}>
         {produtos.length === 0 ? (
-          <p style={{ color: '#64748b', gridColumn: '1/-1' }}>Sem produtos nesta categoria.</p>
+          <p style={{ color: '#8a96aa', gridColumn: '1/-1' }}>Sem produtos nesta categoria.</p>
         ) : produtos.map(p => {
           const foto = primeiraFoto(p);
           const st = stockTotal(p);
@@ -64,9 +65,9 @@ export default function StoreCatalog({
           const temPromo = p.preco_promo_cents != null;
           return (
             <Link key={p.id} href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
-              <div style={{ aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'relative', aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {foto
-                  ? <img src={foto} alt={p.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <Image src={foto} alt={p.nome} fill sizes="(max-width: 640px) 50vw, 300px" style={{ objectFit: 'cover' }} />
                   : <span style={{ fontSize: 40, opacity: 0.3 }}>📦</span>}
               </div>
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -79,7 +80,7 @@ export default function StoreCatalog({
                   ) : (
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                       <span style={{ fontSize: 18, fontWeight: 800, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(temPromo ? p.preco_promo_cents : p.preco_cents)}</span>
-                      {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#475569' }}>{eur(p.preco_cents)}</span>}
+                      {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#8a96aa' }}>{eur(p.preco_cents)}</span>}
                     </span>
                   )}
                   <span style={{ fontSize: 10, fontWeight: 700, color: prazo.tipo === 'stock' ? '#34d399' : '#fbbf24' }}>{prazo.label}</span>

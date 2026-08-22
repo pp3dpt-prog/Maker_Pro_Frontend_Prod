@@ -46,23 +46,23 @@ export default async function HomePage() {
         }
         .ll-eyebrow {
           display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:30px;
-          background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3);
+          background:#0d1f3e; border:1px solid rgba(59,130,246,0.35);
           color:#93c5fd; font-size:12px; font-weight:700; letter-spacing:0.06em; margin-bottom:28px;
         }
         .ll-h1 { font-size:clamp(38px,6.5vw,68px); font-weight:900; letter-spacing:-0.03em; line-height:1.05; margin:0 0 22px; }
-        .ll-h1 span { background:linear-gradient(120deg,#3b82f6,#a78bfa); -webkit-background-clip:text; background-clip:text; color:transparent; }
+        .ll-h1 span { background:linear-gradient(120deg,#3b82f6,#a78bfa); -webkit-background-clip:text; background-clip:text; color:#a78bfa; -webkit-text-fill-color:transparent; }
         .ll-sub { font-size:clamp(16px,2vw,19px); color:#94a3b8; line-height:1.7; max-width:620px; margin:0 auto 40px; }
         .ll-cta-row { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
         .ll-btn { display:inline-flex; align-items:center; gap:8px; padding:16px 30px; border-radius:14px; font-weight:800; font-size:15px; text-decoration:none; transition:transform .15s, box-shadow .15s; }
         .ll-btn-primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; box-shadow:0 14px 40px rgba(37,99,235,0.4); }
         .ll-btn-primary:hover { transform:translateY(-2px); box-shadow:0 18px 50px rgba(37,99,235,0.5); }
-        .ll-btn-ghost { background:rgba(255,255,255,0.04); color:#e2e8f0; border:1px solid #1e293b; }
+        .ll-btn-ghost { background:#0d1626; color:#e2e8f0; border:1px solid #1e293b; }
         .ll-btn-ghost:hover { border-color:#334155; transform:translateY(-2px); }
         .ll-trust { display:flex; gap:28px; justify-content:center; flex-wrap:wrap; margin-top:44px; }
-        .ll-trust span { font-size:13px; color:#64748b; font-weight:600; }
+        .ll-trust span { font-size:13px; color:#94a3b8; font-weight:600; }
         .ll-section { padding:84px 0; }
         .ll-h2 { font-size:clamp(26px,3.5vw,40px); font-weight:900; letter-spacing:-0.02em; margin:0 0 12px; text-align:center; }
-        .ll-lead { font-size:16px; color:#64748b; text-align:center; max-width:560px; margin:0 auto 52px; line-height:1.7; }
+        .ll-lead { font-size:16px; color:#94a3b8; text-align:center; max-width:560px; margin:0 auto 52px; line-height:1.7; }
         .ll-duo { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:22px; }
         .ll-card { position:relative; border-radius:24px; padding:40px; border:1px solid #1e293b; background:linear-gradient(160deg,#0f1626,#0b0f18); transition:transform .18s, border-color .18s; display:flex; flex-direction:column; }
         .ll-card:hover { transform:translateY(-4px); border-color:#334155; }
@@ -71,7 +71,7 @@ export default async function HomePage() {
         .ll-feat { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:20px; }
         .ll-feat-item { padding:26px; border-radius:18px; background:#0c111b; border:1px solid #161e2e; }
         .ll-cats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
-        .ll-cat { display:flex; flex-direction:column; align-items:center; gap:8px; padding:26px 16px; border-radius:16px; background:#0c111b; border:1px solid #161e2e; text-decoration:none; transition:border-color .15s, transform .15s; }
+        .ll-cat { display:flex; flex-direction:column; align-items:center; gap:8px; padding:26px 16px; border-radius:16px; background:#0c111b; border:1px solid #161e2e; text-decoration:none; color:#e2e8f0; transition:border-color .15s, transform .15s; }
         .ll-cat:hover { border-color:#334155; transform:translateY(-3px); }
         .ll-partner { border-radius:28px; padding:56px 40px; text-align:center; background:linear-gradient(135deg,rgba(124,58,237,0.18),rgba(37,99,235,0.14)); border:1px solid rgba(124,58,237,0.3); }
         .ll-prods { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; }
@@ -147,8 +147,8 @@ export default async function HomePage() {
             <p className="ll-lead">De pet tags a litofânias — tudo personalizado ao detalhe.</p>
             <div className="ll-cats">
               {categorias.map(c => (
-                <Link key={c.id} href={`/loja/${c.slug}`} className="ll-cat">
-                  <span style={{ fontSize: 32 }}>{CATEGORIA_ICONS[c.nome] ?? '✨'}</span>
+                <Link key={c.id} href={`/loja/${c.slug}`} aria-label={`Ver ${c.nome} na loja`} className="ll-cat">
+                  <span aria-hidden="true" style={{ fontSize: 32 }}>{CATEGORIA_ICONS[c.nome] ?? '✨'}</span>
                   <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{c.nome}</span>
                 </Link>
               ))}
@@ -165,7 +165,7 @@ export default async function HomePage() {
           <div className="ll-duo">
             {/* Loja — destaque */}
             <div className="ll-card ll-card-primary">
-              <span className="ll-badge" style={{ background: 'rgba(59,130,246,0.18)', color: '#93c5fd' }}>Loja · Mais popular</span>
+              <span className="ll-badge" style={{ background: '#0f2354', color: '#93c5fd' }}>Loja · Mais popular</span>
               <div style={{ fontSize: 44, marginBottom: 16 }}>🛍️</div>
               <h3 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 12px' }}>Compra já, recebe em casa</h3>
               <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, margin: '0 0 22px' }}>
@@ -181,7 +181,7 @@ export default async function HomePage() {
 
             {/* Makers */}
             <div className="ll-card">
-              <span className="ll-badge" style={{ background: 'rgba(52,211,153,0.16)', color: '#34d399' }}>Makers</span>
+              <span className="ll-badge" style={{ background: '#0a2e22', color: '#34d399' }}>Makers</span>
               <div style={{ fontSize: 44, marginBottom: 16 }}>🖨️</div>
               <h3 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 12px' }}>Tens impressora? Imprime tu</h3>
               <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, margin: '0 0 22px' }}>
@@ -216,7 +216,7 @@ export default async function HomePage() {
               <div key={f.t} className="ll-feat-item">
                 <div style={{ fontSize: 28, marginBottom: 12 }}>{f.icon}</div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>{f.t}</h3>
-                <p style={{ color: '#64748b', fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
+                <p style={{ color: '#94a3b8', fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
               </div>
             ))}
           </div>

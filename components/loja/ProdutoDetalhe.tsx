@@ -1,22 +1,26 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { eur, prazoEntrega, DISCORD_URL, type PrazoConfig } from '@/lib/loja';
-import type { ProdutoDetalhe as Produto, ProdutoVariante } from '@/lib/loja-server';
+import type { ProdutoDetalhe as Produto, ProdutoVariante, Parceiro } from '@/lib/loja-server';
 import { useCart } from '@/components/loja/CartContext';
+import ParceirosSecao from '@/components/loja/ParceirosSecao';
+import ParceriaCTA from '@/components/loja/ParceriaCTA';
 
 function varianteLabel(v: ProdutoVariante): string {
   return [v.cor, v.cor_secundaria, v.tamanho].filter(Boolean).join(' / ') || 'Variante';
 }
 
 export default function ProdutoDetalhe({
-  produto, ocultarPrecos, prazoCfg,
+  produto, ocultarPrecos, prazoCfg, parceiros = [],
 }: {
   produto: Produto;
   ocultarPrecos: boolean;
   prazoCfg: PrazoConfig;
+  parceiros?: Parceiro[];
 }) {
   const fotos = useMemo(() => [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem), [produto]);
   const variantes = useMemo(() => [...produto.prod_loja_variantes].filter(v => v.ativo).sort((a, b) => a.ordem - b.ordem), [produto]);
@@ -85,16 +89,16 @@ export default function ProdutoDetalhe({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 40, marginTop: 24 }}>
           {/* Galeria */}
           <div>
-            <div style={{ aspectRatio: '1', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 18, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', aspectRatio: '1', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 18, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {fotos[fotoSel]
-                ? <img src={fotos[fotoSel].url} alt={fotos[fotoSel].alt ?? produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <Image src={fotos[fotoSel].url} alt={fotos[fotoSel].alt ?? produto.nome} fill priority sizes="(max-width: 720px) 100vw, 480px" style={{ objectFit: 'cover' }} />
                 : <span style={{ fontSize: 64, opacity: 0.3 }}>📦</span>}
             </div>
             {fotos.length > 1 && (
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 {fotos.map((f, i) => (
                   <button key={f.id} onClick={() => setFotoSel(i)} style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', border: i === fotoSel ? '2px solid #3b82f6' : '1px solid #1e293b', padding: 0, cursor: 'pointer', background: '#0a1120' }}>
-                    <img src={f.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <Image src={f.url} alt="" width={64} height={64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </button>
                 ))}
               </div>
@@ -121,7 +125,7 @@ export default function ProdutoDetalhe({
             {/* Variantes */}
             {temVariantes && (
               <div style={{ marginBottom: 22 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa', marginBottom: 8 }}>
                   {produto.duas_cores ? 'Cor base / Cor secundária / Tamanho' : 'Opção'}
                 </label>
                 <select value={varId} onChange={e => setVarId(e.target.value)} style={{ width: '100%', maxWidth: 360, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px', color: '#f1f5f9', fontSize: 15, outline: 'none' }}>
@@ -162,7 +166,7 @@ export default function ProdutoDetalhe({
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 18 }}>
                   <span style={{ fontSize: 30, fontWeight: 900, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(precoEfetivo)}</span>
-                  {temPromo && <span style={{ fontSize: 16, textDecoration: 'line-through', color: '#475569' }}>{eur(produto.preco_cents)}</span>}
+                  {temPromo && <span style={{ fontSize: 16, textDecoration: 'line-through', color: '#8a96aa' }}>{eur(produto.preco_cents)}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
                   <button
@@ -185,13 +189,16 @@ export default function ProdutoDetalhe({
 
             {/* Partilha */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28, paddingTop: 20, borderTop: '1px solid #1e293b' }}>
-              <span style={{ fontSize: 13, color: '#64748b' }}>Partilhar:</span>
+              <span style={{ fontSize: 13, color: '#8a96aa' }}>Partilhar:</span>
               <button onClick={partilhar} style={shareBtn}>🔗 Partilhar</button>
               <a href={`https://wa.me/?text=${shareUrl}`} target="_blank" rel="noopener noreferrer" style={shareBtn}>WhatsApp</a>
               <a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener noreferrer" style={shareBtn}>Facebook</a>
             </div>
           </div>
         </div>
+
+        <ParceirosSecao parceiros={parceiros} />
+        <ParceriaCTA produtoSlug={produto.slug} produtoNome={produto.nome} />
       </div>
     </main>
   );
