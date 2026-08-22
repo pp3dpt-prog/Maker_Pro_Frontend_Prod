@@ -36,16 +36,10 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  async redirects() {
-    return [
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'pp3d.pt' }],
-        destination: 'https://www.pp3d.pt/:path*',
-        permanent: true,
-      },
-    ];
-  },
+  // NOTA: sem redirect non-www -> www aqui de propósito. O domínio primário
+  // no Vercel está configurado como pp3d.pt (sem www) e já redireciona
+  // www -> pp3d.pt a nível de edge; um redirect aqui na direção oposta
+  // criava um loop infinito entre os dois. Ver conversa de 2026-08-22.
 
   // Otimização de imagens (formatos modernos + domínios permitidos para next/image)
   images: {
