@@ -1,33 +1,38 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { DISCORD_URL } from '@/lib/loja';
+import { DISCORD_URL, eur } from '@/lib/loja';
+import { fetchCatalogo } from '@/lib/loja-server';
 import ReviewsSection from '@/components/ReviewsSection';
 
 export const metadata: Metadata = {
   title: { absolute: 'PP3D.pt — Produtos únicos, impressos em 3D' },
   description: 'Compra peças prontas ou personaliza ao detalhe. Recebe em casa ou em mãos. És maker? Descarrega os ficheiros. Impressão 3D portuguesa.',
-  alternates: { canonical: 'https://pp3d.pt' },
+  alternates: { canonical: 'https://www.pp3d.pt' },
 };
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'PP3D.pt',
-  url: 'https://pp3d.pt',
+  url: 'https://www.pp3d.pt',
   description: 'Plataforma portuguesa de personalização e impressão 3D',
   sameAs: ['https://ko-fi.com/pp3dpt'],
 };
 
-const CATEGORIAS = [
-  { icon: '🐾', name: 'Pet Tags' },
-  { icon: '🔦', name: 'Litofânias' },
-  { icon: '🎨', name: 'HueForge' },
-  { icon: '🔑', name: 'Porta-chaves' },
-  { icon: '📚', name: 'Marcadores' },
-  { icon: '📦', name: 'Caixas' },
-];
+const CATEGORIA_ICONS: Record<string, string> = {
+  'Pet Tags': '🐾', 'Litofânias': '🔦', 'HueForge': '🎨',
+  'Porta-chaves': '🔑', 'Marcadores': '📚', 'Caixas': '📦',
+};
 
-export default function HomePage() {
+function primeiraFoto(p: { prod_loja_imagens: { url: string; ordem: number }[] }): string | null {
+  if (!p.prod_loja_imagens || p.prod_loja_imagens.length === 0) return null;
+  return [...p.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem)[0].url;
+}
+
+export default async function HomePage() {
+  const { categorias, produtos } = await fetchCatalogo();
+  const destaques = produtos.slice(0, 4);
+
   return (
     <div style={{ background: '#07090d', color: '#f1f5f9', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -69,6 +74,11 @@ export default function HomePage() {
         .ll-cat { display:flex; flex-direction:column; align-items:center; gap:8px; padding:26px 16px; border-radius:16px; background:#0c111b; border:1px solid #161e2e; text-decoration:none; transition:border-color .15s, transform .15s; }
         .ll-cat:hover { border-color:#334155; transform:translateY(-3px); }
         .ll-partner { border-radius:28px; padding:56px 40px; text-align:center; background:linear-gradient(135deg,rgba(124,58,237,0.18),rgba(37,99,235,0.14)); border:1px solid rgba(124,58,237,0.3); }
+        .ll-prods { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; }
+        .ll-prod { display:flex; flex-direction:column; text-decoration:none; background:#0f172a; border:1px solid #1e293b; border-radius:16px; overflow:hidden; transition:border-color .15s, transform .15s; }
+        .ll-prod:hover { border-color:#334155; transform:translateY(-3px); }
+        .ll-prod-img { aspect-ratio:1; background:#0a1120; display:flex; align-items:center; justify-content:center; }
+        .ll-prod-img img { width:100%; height:100%; object-fit:cover; }
       `}</style>
 
       {/* HERO */}
@@ -91,6 +101,61 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* DESTAQUES */}
+      {destaques.length > 0 && (
+        <section className="ll-section" style={{ paddingBottom: 40 }}>
+          <div className="ll-wrap">
+            <h2 className="ll-h2">Destaques da loja</h2>
+            <p className="ll-lead">Peças reais, com preço à vista — escolhe e finaliza em minutos.</p>
+            <div className="ll-prods">
+              {destaques.map(p => {
+                const foto = primeiraFoto(p);
+                const temPromo = p.preco_promo_cents != null;
+                return (
+                  <Link key={p.id} href={`/produto/${p.slug}`} className="ll-prod">
+                    <div className="ll-prod-img">
+                      {foto ? <img src={foto} alt={p.nome} /> : <span style={{ fontSize: 36, opacity: 0.3 }}>📦</span>}
+                    </div>
+                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', margin: 0, lineHeight: 1.3 }}>{p.nome}</h3>
+                      {p.requer_orcamento ? (
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#fbbf24' }}>Sob orçamento</span>
+                      ) : (
+                        <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                          <span style={{ fontSize: 17, fontWeight: 800, color: temPromo ? '#34d399' : '#f1f5f9' }}>{eur(temPromo ? p.preco_promo_cents : p.preco_cents)}</span>
+                          {temPromo && <span style={{ fontSize: 12, textDecoration: 'line-through', color: '#475569' }}>{eur(p.preco_cents)}</span>}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 40 }}>
+              <Link href="/loja" className="ll-btn ll-btn-ghost">Ver todos os produtos →</Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CATEGORIAS */}
+      {categorias.length > 0 && (
+        <section className="ll-section" style={{ paddingTop: 0 }}>
+          <div className="ll-wrap">
+            <h2 className="ll-h2">O que vais encontrar</h2>
+            <p className="ll-lead">De pet tags a litofânias — tudo personalizado ao detalhe.</p>
+            <div className="ll-cats">
+              {categorias.map(c => (
+                <Link key={c.id} href={`/loja/${c.slug}`} className="ll-cat">
+                  <span style={{ fontSize: 32 }}>{CATEGORIA_ICONS[c.nome] ?? '✨'}</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{c.nome}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* DUAS FORMAS */}
       <section className="ll-section">
@@ -133,16 +198,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* PORQUÊ CRIAR CONTA */}
+      {/* REVIEWS (com AggregateRating schema) */}
+      <ReviewsSection />
+
+      {/* VANTAGENS DE CRIAR CONTA (opcional — compras não exigem conta) */}
       <section className="ll-section" style={{ background: '#0a0e16', borderTop: '1px solid #11192a', borderBottom: '1px solid #11192a' }}>
         <div className="ll-wrap">
-          <h2 className="ll-h2">Cria conta para comprares</h2>
-          <p className="ll-lead">Uma conta gratuita desbloqueia tudo — e mantém as tuas personalizações e encomendas num só lugar.</p>
+          <h2 className="ll-h2">Compra sem conta — ou cria uma e ganha mais</h2>
+          <p className="ll-lead">Podes comprar como convidado. Uma conta gratuita é opcional e guarda tudo num só lugar.</p>
           <div className="ll-feat">
             {[
-              { icon: '🛒', t: 'Carrinho e checkout', d: 'Guarda os produtos e finaliza quando quiseres, em segurança.' },
-              { icon: '🎨', t: 'Personalizações guardadas', d: 'As tuas medidas e ficheiros ficam associados à tua conta.' },
               { icon: '📦', t: 'Acompanha encomendas', d: 'Estado do pedido, orçamentos e histórico no teu dashboard.' },
+              { icon: '🎨', t: 'Personalizações guardadas', d: 'As tuas medidas e ficheiros ficam associados à tua conta.' },
+              { icon: '⚡', t: 'Checkout mais rápido', d: 'Da próxima vez não precisas de repetir os teus dados.' },
               { icon: '⬇️', t: 'Downloads de maker', d: 'Acede e descarrega os ficheiros STL quando és maker.' },
             ].map(f => (
               <div key={f.t} className="ll-feat-item">
@@ -157,25 +225,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* CATEGORIAS */}
-      <section className="ll-section">
-        <div className="ll-wrap">
-          <h2 className="ll-h2">O que vais encontrar</h2>
-          <p className="ll-lead">De pet tags a litofânias — tudo personalizado ao detalhe.</p>
-          <div className="ll-cats">
-            {CATEGORIAS.map(c => (
-              <Link key={c.name} href="/loja" className="ll-cat">
-                <span style={{ fontSize: 32 }}>{c.icon}</span>
-                <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{c.name}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* REVIEWS (com AggregateRating schema) */}
-      <ReviewsSection />
 
       {/* PARCERIAS / REVENDA */}
       <section className="ll-section" style={{ paddingTop: 20 }}>

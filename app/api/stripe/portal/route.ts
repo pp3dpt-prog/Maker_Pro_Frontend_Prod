@@ -19,7 +19,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Sem subscrição activa.' }, { status: 404 });
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pp3d.pt';
 
   const session = await stripe.billingPortal.sessions.create({
     customer: customer.id,

@@ -6,7 +6,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 export default async function OpengraphImage() {
-  const logoSrc = new URL('/Logo.png', 'https://pp3d.pt').toString();
+  const logoSrc = new URL('/Logo.png', 'https://www.pp3d.pt').toString();
   const logoData = await fetch(logoSrc).then((r) => r.arrayBuffer()).catch(() => null);
   const logoUrl = logoData
     ? `data:image/png;base64,${Buffer.from(logoData).toString('base64')}`

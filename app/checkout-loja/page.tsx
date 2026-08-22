@@ -17,6 +17,7 @@ export default function CheckoutLojaPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [logado, setLogado] = useState(false);
   const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
   const [morada, setMorada] = useState('');
   const [codigoPostal, setCodigoPostal] = useState('');
   const [cidade, setCidade] = useState('');
@@ -28,19 +29,17 @@ export default function CheckoutLojaPage() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/login?redirect=/checkout-loja');
-        return;
+      if (user) {
+        setLogado(true);
+        if (user.email) setEmail(user.email);
       }
-      setLogado(true);
       setAuthChecked(true);
     })();
-  }, [router]);
+  }, []);
 
   if (!ready || !authChecked) {
     return <main style={wrap}><p style={{ color: '#64748b' }}>A carregar…</p></main>;
   }
-  if (!logado) return null;
 
   if (items.length === 0) {
     return (
@@ -55,6 +54,7 @@ export default function CheckoutLojaPage() {
 
   async function finalizar() {
     if (!nome.trim()) { setErro('Indica o teu nome.'); return; }
+    if (!logado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setErro('Indica um email válido — é para onde enviamos a confirmação.'); return; }
     if (!emMaos && (!morada.trim() || !codigoPostal.trim() || !cidade.trim())) {
       setErro('Preenche a morada completa (ou escolhe entrega em mãos no carrinho).');
       return;
@@ -67,8 +67,9 @@ export default function CheckoutLojaPage() {
         body: JSON.stringify({
           itens: items.map(i => ({ produto_id: i.produto_id, variante_id: i.variante_id, quantidade: i.quantidade, personalizacao: i.personalizacao })),
           entrega,
-          morada: { nome, morada: emMaos ? '' : morada, codigo_postal: emMaos ? '' : codigoPostal, cidade: emMaos ? '' : cidade, telefone },
+          morada: { nome, morada: emMaos ? '' : morada, codigo_postal: emMaos ? '' : codigoPostal, cidade: emMaos ? '' : cidade, telefone, email },
           nome_completo: nome,
+          email,
           nif,
         }),
       });
@@ -106,7 +107,14 @@ export default function CheckoutLojaPage() {
             </p>
           )}
 
+          {!logado && (
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px', lineHeight: 1.6 }}>
+              A comprar como convidado. <Link href="/login?redirect=/checkout-loja" style={{ color: '#60a5fa' }}>Já tens conta? Inicia sessão</Link>
+            </p>
+          )}
+
           <Field label="Nome completo *" value={nome} onChange={setNome} />
+          <Field label="Email *" value={email} onChange={setEmail} disabled={logado} />
           {!emMaos && (
             <>
               <Field label="Morada *" value={morada} onChange={setMorada} />
@@ -174,11 +182,11 @@ export default function CheckoutLojaPage() {
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>{label}</label>
-      <input value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', background: '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+      <input value={value} onChange={e => onChange(e.target.value)} disabled={disabled} style={{ width: '100%', background: disabled ? '#0c111b' : '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: disabled ? '#64748b' : '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
     </div>
   );
 }

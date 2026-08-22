@@ -68,36 +68,14 @@ export async function POST(req: NextRequest) {
 
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId  = session.metadata?.user_id;
-        const tipo    = session.metadata?.tipo;
-
-        if (!userId) break;
-
+        const userIdRaw = session.metadata?.user_id;
+        const tipo      = session.metadata?.tipo;
         const valor     = (session.amount_total ?? 0) / 100;
         const email     = session.customer_email ?? '';
         const userName  = session.metadata?.nome_completo ?? '';
         const userNif   = session.metadata?.nif ?? '';
 
-        // ── Download avulso: créditar 1 download ──────────────────────
-        if (tipo === 'download_avulso') {
-          const { data: p } = await admin.from('prod_perfis').select('downloads_limite').eq('id', userId).single();
-          if (p) await admin.from('prod_perfis').update({ downloads_limite: (p.downloads_limite ?? 0) + 1 }).eq('id', userId);
-
-          await admin.from('prod_pagamentos').insert({
-            user_id:          userId,
-            user_email:       email,
-            user_name:        userName,
-            user_nif:         userNif,
-            descricao:        'Download avulso STL',
-            plano_nome:       'Download Avulso',
-            valor,
-            tipo:             'download_avulso',
-            stripe_session_id: session.id,
-          });
-          break;
-        }
-
-        // ── Loja: marcar encomenda paga + decrementar stock ───────────
+        // ── Loja: marcar encomenda paga + decrementar stock (aceita convidados, sem userId) ──
         if (tipo === 'loja') {
           const encomendaId = session.metadata?.encomenda_id;
           if (encomendaId) {
@@ -122,7 +100,7 @@ export async function POST(req: NextRequest) {
 
             try {
               await admin.from('prod_pagamentos').insert({
-                user_id: userId, user_email: email, user_name: userName, user_nif: userNif,
+                user_id: userIdRaw || null, user_email: email, user_name: userName, user_nif: userNif,
                 descricao: 'Compra na loja', plano_nome: 'Loja', valor, tipo: 'loja',
                 stripe_session_id: session.id,
               });
@@ -138,6 +116,29 @@ export async function POST(req: NextRequest) {
               itens: (itens ?? []).map((i: any) => ({ nome: i.nome, quantidade: i.quantidade, label: [i.cor, i.tamanho].filter(Boolean).join(' / ') || null, preco_cents: i.preco_cents })),
             });
           }
+          break;
+        }
+
+        // Os restantes tipos (download avulso, subscrição) exigem sempre um utilizador autenticado.
+        if (!userIdRaw) break;
+        const userId = userIdRaw;
+
+        // ── Download avulso: créditar 1 download ──────────────────────
+        if (tipo === 'download_avulso') {
+          const { data: p } = await admin.from('prod_perfis').select('downloads_limite').eq('id', userId).single();
+          if (p) await admin.from('prod_perfis').update({ downloads_limite: (p.downloads_limite ?? 0) + 1 }).eq('id', userId);
+
+          await admin.from('prod_pagamentos').insert({
+            user_id:          userId,
+            user_email:       email,
+            user_name:        userName,
+            user_nif:         userNif,
+            descricao:        'Download avulso STL',
+            plano_nome:       'Download Avulso',
+            valor,
+            tipo:             'download_avulso',
+            stripe_session_id: session.id,
+          });
           break;
         }
 

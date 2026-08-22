@@ -41,7 +41,7 @@ export interface CatalogoProduto {
   prod_loja_imagens: { url: string; ordem: number }[];
   prod_loja_variantes: { stock: number; ativo: boolean }[];
 }
-export interface CatalogoCategoria { id: string; slug: string; nome: string; }
+export interface CatalogoCategoria { id: string; slug: string; nome: string; descricao: string | null; }
 
 // Catálogo público: categorias ativas + produtos ativos (opcionalmente filtrados por categoria).
 export async function fetchCatalogo(categoriaSlug?: string): Promise<{
@@ -52,7 +52,7 @@ export async function fetchCatalogo(categoriaSlug?: string): Promise<{
   const supabase = await createClient();
   const { data: cats } = await supabase
     .from('prod_loja_categorias')
-    .select('id, slug, nome')
+    .select('id, slug, nome, descricao')
     .eq('ativo', true)
     .order('ordem', { ascending: true });
   const categorias = (cats ?? []) as CatalogoCategoria[];

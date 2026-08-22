@@ -71,7 +71,7 @@
   background: transparent;
   color: #cbd5e1;
   border-radius: 10px;
-  height: 40px;
+  height: 44px;
   width: 44px;
   cursor: pointer;
 }
@@ -88,6 +88,10 @@
 }
 
 .mobileMenu a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
   color: #cbd5e1;
   text-decoration: none;
   font-weight: 800;

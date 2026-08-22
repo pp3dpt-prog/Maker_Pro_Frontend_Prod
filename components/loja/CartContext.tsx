@@ -28,7 +28,7 @@ export type NovoItem = Omit<CartItem, 'key' | 'quantidade'> & { quantidade?: num
 interface CartCtx {
   items: CartItem[];
   ready: boolean;
-  isLogged: boolean;                 // carrinho só existe com sessão iniciada
+  isLogged: boolean;                 // usado para UI (ex.: sugerir criar conta), não bloqueia o carrinho
   count: number;
   totalFixoCents: number;            // soma só dos itens com preço fixo
   temOrcamento: boolean;             // algum item requer orçamento
@@ -52,36 +52,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [isLogged, setIsLogged] = useState(false);
 
-  // O carrinho só existe com sessão. Hidrata do localStorage se logado; limpa ao terminar sessão.
+  // Carrinho funciona sem sessão (checkout de convidado). isLogged só serve para UI.
   useEffect(() => {
     let mounted = true;
-    const hidratar = () => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) setItems(JSON.parse(raw));
-        const e = localStorage.getItem(ENTREGA_KEY);
-        if (e === 'envio' || e === 'maos') setEntregaState(e);
-      } catch { /* ignora */ }
-    };
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setItems(JSON.parse(raw));
+      const e = localStorage.getItem(ENTREGA_KEY);
+      if (e === 'envio' || e === 'maos') setEntregaState(e);
+    } catch { /* ignora */ }
+    setReady(true);
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!mounted) return;
-      if (user) { setIsLogged(true); hidratar(); }
-      else { setIsLogged(false); setItems([]); try { localStorage.removeItem(STORAGE_KEY); } catch {} }
-      setReady(true);
+      setIsLogged(!!user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session?.user) { setIsLogged(true); }
-      else { setIsLogged(false); setItems([]); try { localStorage.removeItem(STORAGE_KEY); } catch {} }
+      setIsLogged(!!session?.user);
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  // Persistir só com sessão
+  // Persistir sempre (convidado ou logado)
   useEffect(() => {
-    if (ready && isLogged) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, ready, isLogged]);
+    if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items, ready]);
   useEffect(() => {
     if (ready) localStorage.setItem(ENTREGA_KEY, entrega);
   }, [entrega, ready]);
@@ -89,7 +85,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setEntrega = useCallback((m: MetodoEntrega) => setEntregaState(m), []);
 
   const addItem = useCallback((novo: NovoItem) => {
-    if (!isLogged) return;            // sem sessão não há carrinho (UI deve redirecionar para login)
     const key = makeKey(novo);
     const qtd = novo.quantidade ?? 1;
     setItems(prev => {
@@ -97,7 +92,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existente) return prev.map(i => i.key === key ? { ...i, quantidade: i.quantidade + qtd } : i);
       return [...prev, { ...novo, key, quantidade: qtd }];
     });
-  }, [isLogged]);
+  }, []);
 
   const setQty = useCallback((key: string, q: number) => {
     setItems(prev => q <= 0 ? prev.filter(i => i.key !== key) : prev.map(i => i.key === key ? { ...i, quantidade: q } : i));

@@ -5,15 +5,17 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
-import { ShieldCheck, Menu, X } from 'lucide-react';
+import { ShieldCheck, Menu, X, ShoppingCart } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import NotificationBell from './NotificationBell';
+import { useCart } from '@/components/loja/CartContext';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
+  const { count } = useCart();
 
   async function checkAdminRole(userId: string): Promise<boolean> {
     const { data: perfil } = await supabase
@@ -70,12 +72,17 @@ export default function Navbar() {
     <header className={styles.header}>
       <nav className={styles.navbar}>
         <div className={styles.brand}>
-          <Link href="/">MakerPro</Link>
+          <Link href="/">PP3D.pt</Link>
         </div>
 
         {/* Links desktop */}
         <div className={styles.desktopLinks}>
+          <Link href="/loja">Loja</Link>
           <Link href="/precario">Preçário</Link>
+          <Link href="/carrinho" aria-label={`Carrinho${count > 0 ? ` (${count} itens)` : ''}`} className={styles.inline}>
+            <ShoppingCart size={16} />
+            {count > 0 && <span>{count}</span>}
+          </Link>
 
           {user ? (
             <>
@@ -99,7 +106,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login">Login</Link>
-              <Link href="/registo">Registo</Link>
+              <Link href="/register">Registo</Link>
             </>
           )}
         </div>
@@ -118,7 +125,11 @@ export default function Navbar() {
       {/* Menu mobile */}
       {mobileOpen && (
         <div className={styles.mobileMenu} role="menu">
+          <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
           <Link href="/precario" onClick={() => setMobileOpen(false)}>Preçário</Link>
+          <Link href="/carrinho" onClick={() => setMobileOpen(false)}>
+            <span className={styles.inline}><ShoppingCart size={16} /> Carrinho{count > 0 ? ` (${count})` : ''}</span>
+          </Link>
 
           {user ? (
             <>
@@ -145,7 +156,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" onClick={() => setMobileOpen(false)}>Login</Link>
-              <Link href="/registo" onClick={() => setMobileOpen(false)}>Registo</Link>
+              <Link href="/register" onClick={() => setMobileOpen(false)}>Registo</Link>
             </>
           )}
         </div>

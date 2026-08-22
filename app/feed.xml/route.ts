@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-const SITE = 'https://pp3d.pt';
+const SITE = 'https://www.pp3d.pt';
 
 function esc(s: string): string {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]!));

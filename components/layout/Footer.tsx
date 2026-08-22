@@ -40,7 +40,7 @@ export default function Footer() {
           <div>
             <span style={{ fontSize: 18, fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.5px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
             <p style={{ color: '#475569', fontSize: 13, margin: '8px 0 0', maxWidth: 280, lineHeight: 1.6 }}>
-              Personalizado por ti, impresso para ti. Impressão 3D portuguesa.
+              Personalizado por ti, impresso para ti. Impressão 3D portuguesa, sediada em Carnaxide, Lisboa.
             </p>
           </div>
           <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'flex-start' }}>

@@ -1,4 +1,5 @@
-// Checkout da loja. Exige login. Recalcula preços server-side (nunca confia no cliente).
+// Checkout da loja. Aceita convidados (sem login) ou utilizadores autenticados.
+// Recalcula preços server-side (nunca confia no cliente).
 // Ramifica: se algum item requer orçamento -> encomenda fica 'orcamento' (paga depois);
 // caso contrário -> cria sessão Stripe (mode 'payment').
 import Stripe from 'stripe';
@@ -19,7 +20,6 @@ interface ItemReq {
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Tens de iniciar sessão para finalizar.' }, { status: 401 });
 
   const body = await request.json();
   const itens: ItemReq[] = Array.isArray(body.itens) ? body.itens : [];
@@ -28,6 +28,12 @@ export async function POST(request: Request) {
   const nomeCompleto: string = body.nome_completo ?? '';
   const entrega: 'envio' | 'maos' = body.entrega === 'maos' ? 'maos' : 'envio';
   if (itens.length === 0) return NextResponse.json({ error: 'Carrinho vazio.' }, { status: 400 });
+
+  const emailConvidado: string = typeof body.email === 'string' ? body.email.trim() : '';
+  if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailConvidado)) {
+    return NextResponse.json({ error: 'Indica um email válido.' }, { status: 400 });
+  }
+  const clienteEmail = user?.email ?? emailConvidado;
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
   const totalCents = viaOrcamento ? subtotal : subtotal + portes;
 
   const { data: enc, error: encErr } = await admin.from('prod_loja_encomendas').insert({
-    user_id: user.id,
+    user_id: user?.id ?? null,
     estado,
     entrega,
     total_cents: totalCents,
@@ -99,7 +105,7 @@ export async function POST(request: Request) {
   if (viaOrcamento) {
     await notificarAdminEncomenda({
       numero: enc.numero, tipo: 'orcamento', entrega,
-      clienteEmail: user.email, clienteNome: morada?.nome ?? nomeCompleto,
+      clienteEmail, clienteNome: morada?.nome ?? nomeCompleto,
       totalCents: subtotal,
       itens: linhas.map(l => ({ nome: l.p.nome, quantidade: l.qtd, label: l.label, preco_cents: l.requer_orcamento ? null : l.unit })),
     });
@@ -107,7 +113,7 @@ export async function POST(request: Request) {
   }
 
   // ── Pagamento Stripe ──
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pp3d.pt';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pp3d.pt';
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = linhas.map(l => ({
     price_data: {
       currency: 'eur',
@@ -124,9 +130,9 @@ export async function POST(request: Request) {
     mode: 'payment',
     payment_method_types: ['card'],
     line_items,
-    customer_email: user.email,
-    client_reference_id: user.id,
-    metadata: { tipo: 'loja', encomenda_id: enc.id, user_id: user.id, nome_completo: nomeCompleto, nif: nif || '' },
+    customer_email: clienteEmail,
+    client_reference_id: user?.id ?? undefined,
+    metadata: { tipo: 'loja', encomenda_id: enc.id, user_id: user?.id ?? '', nome_completo: nomeCompleto, nif: nif || '' },
     success_url: `${siteUrl}/checkout-loja/sucesso?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}/carrinho`,
     locale: 'pt',

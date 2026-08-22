@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { eur, prazoEntrega, type PrazoConfig } from '@/lib/loja';
+import { eur, prazoEntrega, categoriaDescricao, type PrazoConfig } from '@/lib/loja';
 import type { CatalogoProduto, CatalogoCategoria } from '@/lib/loja-server';
 
 function stockTotal(p: CatalogoProduto): number {
@@ -26,12 +26,20 @@ export default function StoreCatalog({
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '56px 32px 28px' }}>
+        <nav aria-label="breadcrumb" style={{ fontSize: 13, color: '#64748b', marginBottom: 18 }}>
+          <Link href="/" style={{ color: '#64748b', textDecoration: 'none' }}>Início</Link>
+          {' / '}
+          <Link href="/loja" style={{ color: categoriaAtual ? '#64748b' : '#e2e8f0', textDecoration: 'none' }}>Loja</Link>
+          {categoriaAtual && <>{' / '}<span style={{ color: '#e2e8f0' }}>{categoriaAtual.nome}</span></>}
+        </nav>
         <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#3b82f6', marginBottom: 12 }}>Loja PP3D</p>
         <h1 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em', margin: '0 0 12px' }}>
           {categoriaAtual ? categoriaAtual.nome : <>Produtos <span style={{ color: '#3b82f6' }}>impressos em 3D</span></>}
         </h1>
-        <p style={{ fontSize: 16, color: '#64748b', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
-          Peças prontas e personalizáveis. Recebe em casa — ou personaliza ao teu gosto.
+        <p style={{ fontSize: 16, color: '#64748b', maxWidth: 640, lineHeight: 1.6, margin: 0 }}>
+          {categoriaAtual
+            ? categoriaDescricao(categoriaAtual.nome, categoriaAtual.descricao)
+            : 'Peças prontas e personalizáveis. Recebe em casa — ou personaliza ao teu gosto.'}
         </p>
 
         {/* Chips de categoria */}
