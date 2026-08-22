@@ -19,11 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ categoria
 
 export default async function CategoriaPage({ params }: { params: Promise<{ categoria: string }> }) {
   const { categoria } = await params;
-  const [{ categorias, produtos, categoriaAtual }, viewer, prazoCfg] = await Promise.all([
-    fetchCatalogo(categoria),
-    getViewer(),
-    getPrazoConfig(),
-  ]);
+  const [viewer, prazoCfg] = await Promise.all([getViewer(), getPrazoConfig()]);
+  const { categorias, produtos, categoriaAtual } = await fetchCatalogo(categoria, viewer.isAdmin);
 
   const breadcrumbJsonLd = categoriaAtual ? {
     '@context': 'https://schema.org',

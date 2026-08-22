@@ -64,11 +64,16 @@ export default function StoreCatalog({
           const prazo = prazoEntrega({ stockTotal: st, sobEncomenda: p.sob_encomenda }, prazoCfg);
           const temPromo = p.preco_promo_cents != null;
           return (
-            <Link key={p.id} href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
+            <Link key={p.id} href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: p.estado !== 'ativo' ? '1px solid rgba(251,191,36,0.4)' : '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ position: 'relative', aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {foto
                   ? <Image src={foto} alt={p.nome} fill sizes="(max-width: 640px) 50vw, 300px" style={{ objectFit: 'cover' }} />
                   : <span style={{ fontSize: 40, opacity: 0.3 }}>📦</span>}
+                {p.estado !== 'ativo' && (
+                  <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 6, background: '#fbbf24', color: '#1c1300' }}>
+                    {p.estado === 'rascunho' ? 'Rascunho' : 'Inativo'}
+                  </span>
+                )}
               </div>
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', margin: 0, lineHeight: 1.3 }}>{p.nome}</h3>

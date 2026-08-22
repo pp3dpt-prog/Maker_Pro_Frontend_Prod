@@ -86,6 +86,14 @@ export default function ProdutoDetalhe({
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 80px' }}>
         <Link href="/loja" style={{ color: '#3b82f6', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>← Voltar à loja</Link>
 
+        {produto.estado !== 'ativo' && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 16, padding: '8px 14px', borderRadius: 10, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.35)' }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#fbbf24' }}>
+              {produto.estado === 'rascunho' ? '✏️ Rascunho' : '🚫 Inativo'} — só visível para ti como admin
+            </span>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 40, marginTop: 24 }}>
           {/* Galeria */}
           <div>

@@ -12,11 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default async function LojaPage() {
-  const [{ categorias, produtos, categoriaAtual }, viewer, prazoCfg] = await Promise.all([
-    fetchCatalogo(),
-    getViewer(),
-    getPrazoConfig(),
-  ]);
+  const [viewer, prazoCfg] = await Promise.all([getViewer(), getPrazoConfig()]);
+  const { categorias, produtos, categoriaAtual } = await fetchCatalogo(undefined, viewer.isAdmin);
 
   return (
     <StoreCatalog

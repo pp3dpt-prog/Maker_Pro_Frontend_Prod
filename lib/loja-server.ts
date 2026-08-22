@@ -32,6 +32,7 @@ export interface CatalogoProduto {
   id: string;
   slug: string;
   nome: string;
+  estado: string;
   preco_cents: number;
   preco_promo_cents: number | null;
   stock: number;
@@ -44,7 +45,8 @@ export interface CatalogoProduto {
 export interface CatalogoCategoria { id: string; slug: string; nome: string; descricao: string | null; }
 
 // Catálogo público: categorias ativas + produtos ativos (opcionalmente filtrados por categoria).
-export async function fetchCatalogo(categoriaSlug?: string): Promise<{
+// isAdmin=true inclui produtos em rascunho/inativos, para pré-visualização no admin.
+export async function fetchCatalogo(categoriaSlug?: string, isAdmin = false): Promise<{
   categorias: CatalogoCategoria[];
   produtos: CatalogoProduto[];
   categoriaAtual: CatalogoCategoria | null;
@@ -59,9 +61,9 @@ export async function fetchCatalogo(categoriaSlug?: string): Promise<{
 
   let q = supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, preco_cents, preco_promo_cents, stock, sob_encomenda, requer_orcamento, categoria_id, prod_loja_imagens(url, ordem), prod_loja_variantes(stock, ativo)')
-    .eq('estado', 'ativo')
+    .select('id, slug, nome, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, requer_orcamento, categoria_id, prod_loja_imagens(url, ordem), prod_loja_variantes(stock, ativo)')
     .order('updated_at', { ascending: false });
+  if (!isAdmin) q = q.eq('estado', 'ativo');
 
   let categoriaAtual: CatalogoCategoria | null = null;
   if (categoriaSlug) {
@@ -80,7 +82,7 @@ export interface ProdutoVariante {
   sku: string | null; stock: number; preco_cents: number | null; ordem: number; ativo: boolean;
 }
 export interface ProdutoDetalhe {
-  id: string; slug: string; nome: string; descricao: string | null;
+  id: string; slug: string; nome: string; descricao: string | null; estado: string;
   preco_cents: number; preco_promo_cents: number | null; stock: number;
   sob_encomenda: boolean; duas_cores: boolean; requer_orcamento: boolean;
   permite_personalizar: boolean; design_id: string | null; categoria_id: string | null;
@@ -89,15 +91,15 @@ export interface ProdutoDetalhe {
   prod_loja_variantes: ProdutoVariante[];
 }
 
-// Produto público por slug (só ativo). Devolve null se não existir.
-export async function fetchProduto(slug: string): Promise<ProdutoDetalhe | null> {
+// Produto por slug. Por omissão só ativo; isAdmin=true permite pré-visualizar rascunhos/inativos.
+export async function fetchProduto(slug: string, isAdmin = false): Promise<ProdutoDetalhe | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, descricao, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
-    .eq('slug', slug)
-    .eq('estado', 'ativo')
-    .maybeSingle();
+    .select('id, slug, nome, descricao, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
+    .eq('slug', slug);
+  if (!isAdmin) q = q.eq('estado', 'ativo');
+  const { data } = await q.maybeSingle();
   return (data as unknown as ProdutoDetalhe) ?? null;
 }
 

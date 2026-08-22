@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const produto = await fetchProduto(slug);
+  const viewer = await getViewer();
+  const produto = await fetchProduto(slug, viewer.isAdmin);
   if (!produto) return { title: 'Produto não encontrado' };
 
   const foto = [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem)[0]?.url;
@@ -43,11 +44,11 @@ function stockTotal(p: { stock: number; prod_loja_variantes: { stock: number }[]
 
 export default async function ProdutoPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const produto = await fetchProduto(slug);
+  const viewer = await getViewer();
+  const produto = await fetchProduto(slug, viewer.isAdmin);
   if (!produto) notFound();
 
-  const [viewer, prazoCfg, parceiros] = await Promise.all([
-    getViewer(),
+  const [prazoCfg, parceiros] = await Promise.all([
     getPrazoConfig(),
     fetchParceirosPorCategoria(produto.categoria_id),
   ]);
