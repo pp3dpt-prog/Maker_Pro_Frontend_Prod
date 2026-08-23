@@ -69,7 +69,7 @@ export default function BemVindo() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '48px', height: '48px', borderRadius: '50%' }} />
+            <img src="/logo-header.png" alt="PP3D.pt" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
             <span style={{ fontSize: '26px', fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
           </Link>
           <h1 style={{ fontSize: '26px', fontWeight: 800, marginTop: '28px', marginBottom: '8px' }}>

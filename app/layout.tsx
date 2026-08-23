@@ -30,9 +30,9 @@ export const metadata: Metadata = {
   creator: 'PP3D.pt',
   robots: { index: true, follow: true },
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/apple-touch-icon.png',
   },
   openGraph: {
     title: 'PP3D.pt — Brincos, Figuras e Personalização 3D em Portugal',
@@ -58,7 +58,7 @@ const localBusinessJsonLd = {
   name: 'PP3D.pt',
   description: 'Brincos, porta-chaves, placas para animais e figuras feitos em impressão 3D e personalizados à medida.',
   url: siteUrl,
-  logo: `${siteUrl}/favicon.ico`,
+  logo: `${siteUrl}/Logo.png`,
   image: `${siteUrl}/og-image.png`,
   address: {
     '@type': 'PostalAddress',

@@ -40,7 +40,7 @@ export default function ForgotPassword() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/favicon.ico" alt="PP3D.pt" style={{ width: '44px', height: '44px', borderRadius: '50%' }} />
+            <img src="/logo-header.png" alt="PP3D.pt" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
             <span style={{ fontSize: '24px', fontWeight: 900, color: 'white', letterSpacing: '-1px' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
           </Link>
           <p style={{ color: '#8a96aa', fontSize: '14px', marginTop: '12px' }}>Recuperar password</p>

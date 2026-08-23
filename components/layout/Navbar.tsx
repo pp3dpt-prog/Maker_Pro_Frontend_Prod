@@ -72,7 +72,8 @@ export default function Navbar() {
     <header className={styles.header}>
       <nav className={styles.navbar}>
         <div className={styles.brand}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <img src="/logo-header.png" alt="" aria-hidden="true" style={{ width: '30px', height: '30px', objectFit: 'contain' }} />
             <span style={{ fontWeight: 900, letterSpacing: '-0.5px', color: 'white' }}>PP3D<span style={{ color: '#3b82f6' }}>.pt</span></span>
           </Link>
         </div>
