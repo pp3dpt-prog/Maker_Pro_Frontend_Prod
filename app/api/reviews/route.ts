@@ -7,7 +7,7 @@ export async function GET() {
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { data } = await admin
     .from('prod_reviews')
-    .select('id, user_name, avaliacao, comentario, created_at')
+    .select('id, user_name, avaliacao, comentario, foto_url, created_at')
     .eq('aprovado', true)
     .order('created_at', { ascending: false })
     .limit(12);

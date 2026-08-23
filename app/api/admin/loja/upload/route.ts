@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const guard = await assertAdmin();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-  const { image_base64 } = await request.json();
+  const { image_base64, pasta } = await request.json();
   if (!image_base64) return NextResponse.json({ error: 'Imagem em falta.' }, { status: 400 });
 
   const match = /^data:image\/(\w+);base64,/.exec(image_base64);
@@ -35,7 +35,8 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(base64Data, 'base64');
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const path = `produtos/${randomUUID()}.${ext}`;
+  const folder = pasta === 'reviews' ? 'reviews' : 'produtos';
+  const path = `${folder}/${randomUUID()}.${ext}`;
 
   const { error: uploadError } = await admin.storage
     .from(BUCKET)

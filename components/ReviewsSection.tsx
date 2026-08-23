@@ -7,7 +7,7 @@ async function getReviews() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     const [{ data: display }, { data: todas }] = await Promise.all([
-      admin.from('prod_reviews').select('id, user_name, avaliacao, comentario, created_at')
+      admin.from('prod_reviews').select('id, user_name, avaliacao, comentario, foto_url, created_at')
         .eq('aprovado', true).order('created_at', { ascending: false }).limit(6),
       admin.from('prod_reviews').select('avaliacao').eq('aprovado', true),
     ]);
@@ -48,6 +48,7 @@ export default async function ReviewsSection() {
       author: { '@type': 'Person', name: r.user_name },
       reviewRating: { '@type': 'Rating', ratingValue: r.avaliacao, bestRating: 5, worstRating: 1 },
       reviewBody: r.comentario ?? undefined,
+      image: r.foto_url ?? undefined,
       datePublished: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : undefined,
     })),
   };
@@ -85,6 +86,9 @@ export default async function ReviewsSection() {
               flexDirection: 'column',
               gap: 12,
             }}>
+              {r.foto_url && (
+                <img src={r.foto_url} alt={`Produto recebido — avaliação de ${r.user_name}`} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 10 }} />
+              )}
               <Stars n={r.avaliacao} />
               {r.comentario && (
                 <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6, fontStyle: 'italic' }}>
