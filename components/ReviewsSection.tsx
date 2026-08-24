@@ -66,7 +66,7 @@ export default async function ReviewsSection() {
             Avaliado com {media.toFixed(1)} ⭐
           </h2>
           <p style={{ color: '#94a3b8', fontSize: 15 }}>
-            Com base em {total} avaliação{total !== 1 ? 'ões' : ''} de utilizadores reais
+            Com base em {total} {total !== 1 ? 'avaliações' : 'avaliação'} de utilizadores reais
           </p>
         </div>
 
