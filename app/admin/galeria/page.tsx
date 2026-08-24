@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { s } from '@/app/admin/loja/_ui';
+import { resizeImageToBase64 } from '@/lib/imageResize';
 
 interface Foto {
   id?: string;
@@ -21,18 +22,14 @@ interface Item {
 }
 
 async function uploadFoto(file: File): Promise<string> {
-  const base64 = await new Promise<string>((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result as string);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
+  const base64 = await resizeImageToBase64(file);
   const resp = await fetch('/api/admin/loja/upload', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image_base64: base64, pasta: 'galeria' }),
   });
-  const json = await resp.json();
-  if (!resp.ok) throw new Error(json.error ?? 'Erro no upload');
+  let json: any = null;
+  try { json = await resp.json(); } catch { /* resposta não-JSON (ex: erro de servidor) */ }
+  if (!resp.ok || !json) throw new Error(json?.error ?? `Erro no upload (${resp.status}). Tenta uma foto mais pequena.`);
   return json.url as string;
 }
 
