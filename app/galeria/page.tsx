@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
+import GaleriaCard from '@/components/galeria/GaleriaCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,15 +15,17 @@ interface ItemGaleria {
   titulo: string;
   descricao: string | null;
   foto_url: string;
+  prod_galeria_fotos: { url: string; ordem: number }[];
 }
 
 async function fetchGaleria(): Promise<ItemGaleria[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from('prod_galeria')
-    .select('id, titulo, descricao, foto_url')
+    .select('id, titulo, descricao, foto_url, prod_galeria_fotos(url, ordem)')
     .eq('ativo', true)
-    .order('ordem', { ascending: true });
+    .order('ordem', { ascending: true })
+    .order('ordem', { ascending: true, referencedTable: 'prod_galeria_fotos' });
   return (data ?? []) as ItemGaleria[];
 }
 
@@ -49,15 +51,12 @@ export default async function GaleriaPage() {
         {itens.length === 0 ? (
           <p style={{ color: '#8a96aa', gridColumn: '1/-1' }}>Ainda não há peças na galeria.</p>
         ) : itens.map(it => (
-          <div key={it.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
-            <div style={{ position: 'relative', aspectRatio: '1', background: '#0a1120' }}>
-              <Image src={it.foto_url} alt={it.titulo} fill sizes="(max-width: 640px) 100vw, 380px" style={{ objectFit: 'cover' }} />
-            </div>
-            <div style={{ padding: 18 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', margin: '0 0 6px' }}>{it.titulo}</h2>
-              {it.descricao && <p style={{ fontSize: 13, color: '#8a96aa', lineHeight: 1.6, margin: 0 }}>{it.descricao}</p>}
-            </div>
-          </div>
+          <GaleriaCard
+            key={it.id}
+            titulo={it.titulo}
+            descricao={it.descricao}
+            fotos={it.prod_galeria_fotos?.length ? it.prod_galeria_fotos : [{ url: it.foto_url, ordem: 0 }]}
+          />
         ))}
       </div>
     </main>
