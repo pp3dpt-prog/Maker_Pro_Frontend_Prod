@@ -81,6 +81,7 @@ export default function Navbar() {
         {/* Links desktop */}
         <div className={styles.desktopLinks}>
           <Link href="/loja">Loja</Link>
+          <Link href="/galeria">Galeria</Link>
           <Link href="/makers">Makers</Link>
           <Link href="/pricing">Preçário</Link>
 
@@ -133,6 +134,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className={styles.mobileMenu} role="menu">
           <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
+          <Link href="/galeria" onClick={() => setMobileOpen(false)}>Galeria</Link>
           <Link href="/makers" onClick={() => setMobileOpen(false)}>Makers</Link>
           <Link href="/carrinho" onClick={() => setMobileOpen(false)}>Carrinho{count > 0 ? ` (${count})` : ''}</Link>
           <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>

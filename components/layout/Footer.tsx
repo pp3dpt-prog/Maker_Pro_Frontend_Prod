@@ -8,6 +8,7 @@ const FULLSCREEN_PATHS = ['/customizador', '/personalizar-imagem', '/admin'];
 
 const NAV_LINKS = [
   { name: 'Loja', href: '/loja' },
+  { name: 'Galeria', href: '/galeria' },
   { name: 'Makers', href: '/makers' },
   { name: 'Para Criadores', href: '/creators' },
   { name: 'Preçário', href: '/pricing' },

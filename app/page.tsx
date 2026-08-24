@@ -154,6 +154,11 @@ export default async function HomePage() {
                 </Link>
               ))}
             </div>
+            <div style={{ textAlign: 'center', marginTop: 32 }}>
+              <Link href="/galeria" style={{ fontSize: 14, color: '#93c5fd', textDecoration: 'none', fontWeight: 600 }}>
+                ✨ Vê a galeria de trabalhos e personalizações que já fizemos →
+              </Link>
+            </div>
           </div>
         </section>
       )}

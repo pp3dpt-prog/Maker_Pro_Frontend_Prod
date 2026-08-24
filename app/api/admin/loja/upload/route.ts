@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(base64Data, 'base64');
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const folder = pasta === 'reviews' ? 'reviews' : 'produtos';
+  const folder = pasta === 'reviews' ? 'reviews' : pasta === 'galeria' ? 'galeria' : 'produtos';
   const path = `${folder}/${randomUUID()}.${ext}`;
 
   const { error: uploadError } = await admin.storage
