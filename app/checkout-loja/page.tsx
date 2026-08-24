@@ -60,6 +60,9 @@ export default function CheckoutLojaPage() {
       return;
     }
     setSubmitting(true); setErro('');
+    if (!logado) {
+      try { localStorage.setItem('pp3d_guest_info_v1', JSON.stringify({ nome, email, nif })); } catch {}
+    }
     try {
       const res = await fetch('/api/loja/checkout', {
         method: 'POST',

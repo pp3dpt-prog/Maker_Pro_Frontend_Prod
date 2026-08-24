@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { DISCORD_URL, eur } from '@/lib/loja';
 import { fetchCatalogo } from '@/lib/loja-server';
 import ReviewsSection from '@/components/ReviewsSection';
+import FeedbackCta from '@/components/FeedbackCta';
 
 export const metadata: Metadata = {
   title: { absolute: 'PP3D.pt — Produtos únicos, impressos em 3D' },
@@ -200,6 +201,16 @@ export default async function HomePage() {
 
       {/* REVIEWS (com AggregateRating schema) */}
       <ReviewsSection />
+
+      {/* FEEDBACK PÚBLICO */}
+      <section className="ll-section" style={{ textAlign: 'center', paddingTop: 0, paddingBottom: 40 }}>
+        <div className="ll-wrap">
+          <p style={{ color: '#8a96aa', fontSize: 14, margin: '0 0 16px' }}>
+            Já compraste ou falaste connosco? A tua opinião ajuda-nos a melhorar.
+          </p>
+          <FeedbackCta />
+        </div>
+      </section>
 
       {/* VANTAGENS DE CRIAR CONTA (opcional — compras não exigem conta) */}
       <section className="ll-section" style={{ background: '#0a0e16', borderTop: '1px solid #11192a', borderBottom: '1px solid #11192a' }}>

@@ -68,8 +68,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setIsLogged(!!user);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsLogged(!!session?.user);
+      // Liga encomendas de convidado feitas com o mesmo email (idempotente — seguro repetir).
+      if (event === 'SIGNED_IN' && session?.user) {
+        fetch('/api/loja/vincular-encomendas', { method: 'POST' }).catch(() => {});
+      }
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
