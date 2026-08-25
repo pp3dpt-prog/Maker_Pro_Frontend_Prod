@@ -15,7 +15,7 @@ export default function CampanhasPage() {
   const [produtoBaseId, setProdutoBaseId] = useState('');
 
   const [titulo, setTitulo] = useState('');
-  const [canal, setCanal] = useState('Feed da App');
+  const [canal, setCanal] = useState('novidade');
   const [conteudo, setConteudo] = useState('');
   const [fotosProduto, setFotosProduto] = useState<string[]>([]);
   const [precoProduto, setPrecoProduto] = useState<number | null>(null);
@@ -144,8 +144,10 @@ export default function CampanhasPage() {
                 onChange={(e) => setCanal(e.target.value)}
                 className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white outline-none focus:border-indigo-500 h-[58px]"
               >
-                <option>Feed da App</option>
-                <option>Banner Principal</option>
+                <option value="novidade">Feed da App (Novidade)</option>
+                <option value="banner">Banner Principal</option>
+                <option value="email">Email</option>
+                <option value="promo">Promoção</option>
               </select>
             </div>
           </div>

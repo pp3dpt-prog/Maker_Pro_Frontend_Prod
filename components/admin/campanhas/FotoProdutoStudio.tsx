@@ -27,11 +27,16 @@ const toCents = (v: string): number | null => {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => res(img);
     img.onerror = rej;
     img.src = src;
   });
 }
+
+const PEXELS_KEY_STORAGE = 'pp3d_pexels_key';
+
+interface PexelsResult { id: number; thumb: string; full: string; }
 
 async function compositeOntoBackground(cutout: Blob, bgUrl: string): Promise<Blob> {
   const SIZE = 1600;
@@ -78,9 +83,16 @@ export default function FotoProdutoStudio() {
   const [progresso, setProgresso] = useState<string>('');
   const [cutoutBlob, setCutoutBlob] = useState<Blob | null>(null);
   const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
-  const [fundoAtivo, setFundoAtivo] = useState<typeof FUNDOS[number]['key'] | null>(null);
+  const [fundoUrl, setFundoUrl] = useState<string | null>(null);
   const [resultadoBlob, setResultadoBlob] = useState<Blob | null>(null);
   const [resultadoUrl, setResultadoUrl] = useState<string | null>(null);
+
+  const [pexelsKey, setPexelsKey] = useState('');
+  const [pexelsKeyInput, setPexelsKeyInput] = useState('');
+  const [pexelsQuery, setPexelsQuery] = useState('');
+  const [pexelsResults, setPexelsResults] = useState<PexelsResult[]>([]);
+  const [pexelsLoading, setPexelsLoading] = useState(false);
+  const [pexelsErro, setPexelsErro] = useState('');
   const [compondo, setCompondo] = useState(false);
 
   const [fotosProntas, setFotosProntas] = useState<FotoPronta[]>([]);
@@ -106,7 +118,32 @@ export default function FotoProdutoStudio() {
         .order('nome');
       setProdutos((data ?? []) as ProdutoOpt[]);
     })();
+    const savedKey = localStorage.getItem(PEXELS_KEY_STORAGE) ?? '';
+    setPexelsKey(savedKey);
+    setPexelsKeyInput(savedKey);
   }, []);
+
+  function guardarPexelsKey() {
+    localStorage.setItem(PEXELS_KEY_STORAGE, pexelsKeyInput.trim());
+    setPexelsKey(pexelsKeyInput.trim());
+  }
+
+  async function pesquisarPexels() {
+    if (!pexelsKey || !pexelsQuery.trim()) return;
+    setPexelsLoading(true); setPexelsErro(''); setPexelsResults([]);
+    try {
+      const resp = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(pexelsQuery.trim())}&per_page=12`, {
+        headers: { Authorization: pexelsKey },
+      });
+      if (!resp.ok) throw new Error(resp.status === 401 ? 'Chave da API inválida.' : `Erro ${resp.status} ao pesquisar.`);
+      const json = await resp.json();
+      setPexelsResults((json.photos ?? []).map((p: any) => ({ id: p.id, thumb: p.src.medium, full: p.src.large2x ?? p.src.large })));
+    } catch (e: any) {
+      setPexelsErro(e?.message ?? 'Erro ao pesquisar no Pexels.');
+    } finally {
+      setPexelsLoading(false);
+    }
+  }
 
   function onFile(file: File | null) {
     if (!file) return;
@@ -114,7 +151,7 @@ export default function FotoProdutoStudio() {
     setRawUrl(URL.createObjectURL(file));
     setCutoutBlob(null); setCutoutUrl(null);
     setResultadoBlob(null); setResultadoUrl(null);
-    setFundoAtivo(null);
+    setFundoUrl(null);
     setErro('');
   }
 
@@ -159,17 +196,16 @@ export default function FotoProdutoStudio() {
     }
   }
 
-  async function escolherFundo(key: typeof FUNDOS[number]['key']) {
+  async function escolherFundo(url: string) {
     if (!cutoutBlob) return;
-    setFundoAtivo(key);
+    setFundoUrl(url);
     setCompondo(true); setErro('');
     try {
-      const fundo = FUNDOS.find(f => f.key === key)!;
-      const blob = await compositeOntoBackground(cutoutBlob, fundo.url);
+      const blob = await compositeOntoBackground(cutoutBlob, url);
       setResultadoBlob(blob);
       setResultadoUrl(URL.createObjectURL(blob));
     } catch {
-      setErro('Erro ao aplicar o fundo.');
+      setErro('Erro ao aplicar o fundo. Se for uma foto do Pexels, tenta outra — algumas não permitem ser usadas desta forma.');
     } finally {
       setCompondo(false);
     }
@@ -181,7 +217,7 @@ export default function FotoProdutoStudio() {
     setRawFile(null); setRawUrl(null);
     setCutoutBlob(null); setCutoutUrl(null);
     setResultadoBlob(null); setResultadoUrl(null);
-    setFundoAtivo(null);
+    setFundoUrl(null);
   }
 
   function removerFotoPronta(id: string) {
@@ -337,28 +373,65 @@ export default function FotoProdutoStudio() {
       {cutoutUrl && (
         <div className="mb-2">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
-            <div className="relative w-56 h-56 rounded-2xl overflow-hidden border border-white/10" style={{
-              backgroundImage: `url(${FUNDOS.find(f => f.key === fundoAtivo)?.url ?? ''})`,
+            <div className="relative w-56 h-56 rounded-2xl overflow-hidden border border-white/10 shrink-0" style={{
+              backgroundImage: `url(${fundoUrl ?? ''})`,
               backgroundSize: 'cover', backgroundColor: '#0a0a16',
             }}>
               <img src={resultadoUrl ?? cutoutUrl} alt="" className="absolute inset-0 w-full h-full object-contain p-3" />
               {compondo && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Loader2 className="animate-spin text-white" /></div>}
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 flex-1 min-w-0">
               <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Fundo</label>
               <div className="flex gap-2 flex-wrap max-w-xs">
                 {FUNDOS.map(f => (
-                  <button key={f.key} type="button" onClick={() => escolherFundo(f.key)} title={f.nome}
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${fundoAtivo === f.key ? 'border-indigo-400 scale-110' : 'border-white/20'}`}
+                  <button key={f.key} type="button" onClick={() => escolherFundo(f.url)} title={f.nome}
+                    className={`w-10 h-10 rounded-full border-2 transition-all ${fundoUrl === f.url ? 'border-indigo-400 scale-110' : 'border-white/20'}`}
                     style={{ background: f.swatch }} />
                 ))}
               </div>
+
+              <div className="border-t border-white/5 pt-3 mt-1">
+                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Ou pesquisa uma foto grátis (Pexels)</label>
+                {!pexelsKey ? (
+                  <div className="flex gap-2 mt-2 max-w-sm">
+                    <input value={pexelsKeyInput} onChange={e => setPexelsKeyInput(e.target.value)} placeholder="Chave da API do Pexels"
+                      className="bg-[#0a0a16] border border-white/10 px-3 py-2 rounded-lg text-white text-sm outline-none focus:border-indigo-500 flex-1 min-w-0" />
+                    <button type="button" onClick={guardarPexelsKey} disabled={!pexelsKeyInput.trim()}
+                      className="px-3 py-2 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 shrink-0">Guardar</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2 mt-2 max-w-sm">
+                      <input value={pexelsQuery} onChange={e => setPexelsQuery(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && pesquisarPexels()}
+                        placeholder="Ex: mesa de madeira, estúdio…"
+                        className="bg-[#0a0a16] border border-white/10 px-3 py-2 rounded-lg text-white text-sm outline-none focus:border-indigo-500 flex-1 min-w-0" />
+                      <button type="button" onClick={pesquisarPexels} disabled={pexelsLoading || !pexelsQuery.trim()}
+                        className="px-3 py-2 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 shrink-0">
+                        {pexelsLoading ? <Loader2 size={16} className="animate-spin" /> : 'Pesquisar'}
+                      </button>
+                    </div>
+                    {pexelsResults.length > 0 && (
+                      <div className="flex gap-2 flex-wrap mt-3 max-w-md">
+                        {pexelsResults.map(p => (
+                          <button key={p.id} type="button" onClick={() => escolherFundo(p.full)} title="Usar como fundo"
+                            className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${fundoUrl === p.full ? 'border-indigo-400 scale-105' : 'border-white/10'}`}>
+                            <img src={p.thumb} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                {pexelsErro && <p className="text-red-400 text-xs mt-2">{pexelsErro}</p>}
+              </div>
+
               <div className="flex gap-3 mt-1">
                 <button type="button" onClick={adicionarAosProntos} disabled={!resultadoBlob}
                   className={`${btnBase} bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40`}>
                   <Check size={18} /> Usar esta foto
                 </button>
-                <button type="button" onClick={() => { setRawFile(null); setRawUrl(null); setCutoutBlob(null); setCutoutUrl(null); setResultadoBlob(null); setResultadoUrl(null); setFundoAtivo(null); }}
+                <button type="button" onClick={() => { setRawFile(null); setRawUrl(null); setCutoutBlob(null); setCutoutUrl(null); setResultadoBlob(null); setResultadoUrl(null); setFundoUrl(null); }}
                   className={`${btnBase} bg-white/5 hover:bg-white/10 text-white/70 border border-white/10`}>
                   <X size={18} /> Descartar
                 </button>
