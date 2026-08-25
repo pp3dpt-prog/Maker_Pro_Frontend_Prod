@@ -74,9 +74,9 @@ export default function CampanhasPage() {
       setTitulo('');
       setConteudo('');
       setTimeout(() => setStatus('idle'), 3000);
-    } catch {
+    } catch (e: any) {
       setStatus('error');
-      setErro('Erro ao guardar a campanha. Tenta novamente.');
+      setErro('Erro ao guardar a campanha: ' + (e?.message ?? e?.error_description ?? JSON.stringify(e)));
     } finally {
       setCarregando(false);
     }

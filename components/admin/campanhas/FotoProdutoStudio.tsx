@@ -121,12 +121,29 @@ export default function FotoProdutoStudio() {
   async function processarFundo() {
     if (!rawFile) return;
     setProcessando(true); setProgresso('A preparar…'); setErro('');
+
+    // Diagnóstico temporário: regista todos os fetch() feitos durante o processo,
+    // para identificar exatamente qual pedido falha (o erro da lib não diz o URL).
+    const originalFetch = window.fetch;
+    window.fetch = async (...args: Parameters<typeof fetch>) => {
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request)?.url ?? String(args[0]);
+      try {
+        const res = await originalFetch(...args);
+        console.log('[bg-removal fetch]', res.status, url);
+        return res;
+      } catch (fetchErr) {
+        console.error('[bg-removal fetch FAILED]', url, fetchErr);
+        throw fetchErr;
+      }
+    };
+
     try {
       const { removeBackground } = await import('@imgly/background-removal');
       const blob = await removeBackground(rawFile, {
         model: 'isnet_quint8',
         publicPath: `${window.location.origin}/models/bg-removal/`,
         output: { format: 'image/png' },
+        debug: true,
         progress: (key: string, current: number, total: number) => {
           setProgresso(`A processar (${key})… ${Math.round((current / Math.max(total, 1)) * 100)}%`);
         },
@@ -134,8 +151,10 @@ export default function FotoProdutoStudio() {
       setCutoutBlob(blob);
       setCutoutUrl(URL.createObjectURL(blob));
     } catch (e: any) {
+      console.error('[bg-removal ERROR]', e);
       setErro('Erro ao remover o fundo: ' + (e?.message ?? 'tenta novamente.'));
     } finally {
+      window.fetch = originalFetch;
       setProcessando(false); setProgresso('');
     }
   }
