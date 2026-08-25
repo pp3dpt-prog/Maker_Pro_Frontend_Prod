@@ -125,6 +125,7 @@ export default function FotoProdutoStudio() {
       const { removeBackground } = await import('@imgly/background-removal');
       const blob = await removeBackground(rawFile, {
         model: 'isnet_quint8',
+        publicPath: '/models/bg-removal/',
         output: { format: 'image/png' },
         progress: (key: string, current: number, total: number) => {
           setProgresso(`A processar (${key})… ${Math.round((current / Math.max(total, 1)) * 100)}%`);

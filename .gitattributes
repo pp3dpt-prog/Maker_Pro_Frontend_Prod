@@ -1,0 +1,4 @@
+# Content-addressed model/wasm assets for @imgly/background-removal.
+# Git must never touch these bytes (no line-ending conversion) — the
+# library validates exact byte sizes against public/models/bg-removal/resources.json.
+public/models/bg-removal/* -text binary
