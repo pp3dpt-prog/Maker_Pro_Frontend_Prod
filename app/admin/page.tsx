@@ -312,22 +312,18 @@ export default function AdminDashboard() {
           )}
         </Link>
 
-        {process.env.NEXT_PUBLIC_STUDIO_URL && (
-          <a
-            href={process.env.NEXT_PUBLIC_STUDIO_URL}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              display: 'flex', alignItems: 'center',
-              padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <span>🎨 Studio de Campanhas</span>
-          </a>
-        )}
+        <Link
+          href="/admin/campanhas"
+          style={{
+            display: 'flex', alignItems: 'center',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🎨 Studio de Campanhas</span>
+        </Link>
       </aside>
 
       {/* MAIN */}
