@@ -228,12 +228,34 @@ export default function FotoProdutoStudio() {
 
   const btnBase = 'inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all';
 
+  const passoAtual = fotosProntas.length > 0 && !rawUrl ? 4 : cutoutUrl ? 3 : rawUrl ? 2 : 1;
+  const PASSOS = [
+    { n: 1, label: 'Foto' },
+    { n: 2, label: 'Remover fundo' },
+    { n: 3, label: 'Escolher fundo' },
+    { n: 4, label: 'Guardar no produto' },
+  ];
+
   return (
     <div className="bg-[#16162d] p-8 rounded-3xl border border-white/5 shadow-2xl mb-8">
       <h2 className="text-xl font-bold mb-1 flex items-center gap-3">
         <Wand2 className="text-indigo-400" /> Fotos para produto
       </h2>
-      <p className="text-sm text-white/50 mb-6">Tira ou carrega uma foto do produto, remove o fundo automaticamente e aplica um dos fundos predefinidos. Depois anexa as fotos a um produto novo ou já existente.</p>
+      <p className="text-sm text-white/50 mb-5">Tira ou carrega uma foto do produto, remove o fundo automaticamente e aplica um dos fundos predefinidos. Depois anexa as fotos a um produto novo ou já existente.</p>
+
+      <div className="flex items-center gap-1 mb-6 flex-wrap">
+        {PASSOS.map((p, i) => (
+          <div key={p.n} className="flex items-center gap-1">
+            <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              p.n === passoAtual ? 'bg-indigo-600 text-white' : p.n < passoAtual ? 'bg-indigo-600/20 text-indigo-300' : 'bg-white/5 text-white/35'
+            }`}>
+              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[10px] ${p.n <= passoAtual ? 'bg-white/20' : 'bg-white/10'}`}>{p.n < passoAtual ? '✓' : p.n}</span>
+              {p.label}
+            </div>
+            {i < PASSOS.length - 1 && <div className="w-4 h-px bg-white/10" />}
+          </div>
+        ))}
+      </div>
 
       {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
       {sucessoId && (
@@ -245,19 +267,23 @@ export default function FotoProdutoStudio() {
 
       {/* Passo 1: escolher/tirar foto */}
       {!rawUrl && (
-        <div className="flex flex-wrap gap-3 mb-2">
+        <div className="flex flex-col items-center justify-center gap-4 border-2 border-dashed border-white/10 rounded-2xl py-12 px-6 mb-2 bg-black/10">
+          <span className="text-4xl">📸</span>
+          <p className="text-sm text-white/50 text-center max-w-xs">Começa por tirar uma foto ao produto, ou escolhe uma já existente da galeria.</p>
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden"
             onChange={e => onFile(e.target.files?.[0] ?? null)} />
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
             onChange={e => onFile(e.target.files?.[0] ?? null)} />
-          <button type="button" onClick={() => cameraInputRef.current?.click()}
-            className={`${btnBase} bg-indigo-600 hover:bg-indigo-500`}>
-            <Camera size={18} /> Tirar foto
-          </button>
-          <button type="button" onClick={() => fileInputRef.current?.click()}
-            className={`${btnBase} bg-white/5 hover:bg-white/10 text-white/80 border border-white/10`}>
-            <ImagePlus size={18} /> Escolher da galeria
-          </button>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button type="button" onClick={() => cameraInputRef.current?.click()}
+              className={`${btnBase} bg-indigo-600 hover:bg-indigo-500`}>
+              <Camera size={18} /> Tirar foto
+            </button>
+            <button type="button" onClick={() => fileInputRef.current?.click()}
+              className={`${btnBase} bg-white/5 hover:bg-white/10 text-white/80 border border-white/10`}>
+              <ImagePlus size={18} /> Escolher da galeria
+            </button>
+          </div>
         </div>
       )}
 

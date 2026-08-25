@@ -86,6 +86,11 @@ export default function CampanhasPage() {
     <div className="min-h-screen bg-[#0a0a16] p-8 text-white">
       <div className="max-w-4xl mx-auto">
 
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold flex items-center gap-3">🖼️ Fotos de Produto</h1>
+          <p className="text-sm text-white/50 mt-1">Prepara fotos de produto prontas a publicar e cria campanhas para as redes sociais.</p>
+        </div>
+
         <FotoProdutoStudio />
 
         <div className="bg-[#16162d] p-8 rounded-3xl border border-white/5 shadow-2xl">
