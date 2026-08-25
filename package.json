@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ifthenpay/js-sdk": "^1.0.0",
+    "@imgly/background-removal": "^1.7.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@stripe/stripe-js": "^9.7.0",

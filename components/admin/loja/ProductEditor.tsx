@@ -48,6 +48,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
   const [descricao, setDescricao] = useState('');
+  const [tags, setTags] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [preco, setPreco] = useState('');
   const [precoPromo, setPrecoPromo] = useState('');
@@ -103,6 +104,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
     setNome(p.nome ?? ''); setSlug(p.slug ?? ''); setSlugTouched(true);
     setDescricao(p.descricao ?? '');
+    setTags(((p.tags ?? []) as string[]).join(', '));
     setCategoriaId(p.categoria_id ?? '');
     setPreco(toEuros(p.preco_cents));
     setPrecoPromo(toEuros(p.preco_promo_cents));
@@ -193,6 +195,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       nome: nome.trim(),
       slug: slug.trim() || slugify(nome),
       descricao: descricao.trim() || null,
+      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       categoria_id: categoriaId || null,
       preco_cents: toCents(preco) ?? 0,
       preco_promo_cents: toCents(precoPromo),
@@ -280,6 +283,11 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
           <div style={{ marginBottom: 16 }}>
             <label style={s.label}>Descrição</label>
             <textarea style={{ ...s.input, minHeight: 90, resize: 'vertical' }} value={descricao} onChange={e => setDescricao(e.target.value)} />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={s.label}>Tags</label>
+            <input style={s.input} value={tags} onChange={e => setTags(e.target.value)} placeholder="pet-tags, natal, promo-agosto (separadas por vírgula)" />
           </div>
 
           <div style={fieldRow}>

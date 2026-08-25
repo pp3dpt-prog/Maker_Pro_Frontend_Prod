@@ -315,3 +315,10 @@ begin
       unique (produto_id, cor, cor_secundaria, cor_terciaria, tamanho);
   end if;
 end $$;
+
+-- ----------------------------------------------------------------------------
+-- 7. Tags — permite associar fotos/produtos criados no Studio de Campanhas
+--    a etiquetas livres (ex.: "pet-tags", "natal", "promo-agosto").
+-- ----------------------------------------------------------------------------
+alter table public.prod_loja_produtos add column if not exists tags text[] not null default '{}';
+create index if not exists idx_loja_produtos_tags on public.prod_loja_produtos using gin (tags);
