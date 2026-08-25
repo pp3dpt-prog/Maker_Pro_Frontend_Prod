@@ -31,7 +31,7 @@ export default function NotificationBell({ userId }: { userId: string | null }) 
         supabase
           .from('prod_campanhas')
           .select('id, titulo, conteudo, created_at')
-          .eq('tipo', 'novidade')
+          .in('tipo', ['novidade', 'promo'])
           .eq('ativa', true)
           .or(`expira_em.is.null,expira_em.gt.${agora}`)
           .order('created_at', { ascending: false })

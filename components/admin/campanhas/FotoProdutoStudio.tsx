@@ -35,33 +35,40 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 const PEXELS_KEY_STORAGE = 'pp3d_pexels_key';
+const ULTIMO_FUNDO_STORAGE = 'pp3d_ultimo_fundo';
+const CANVAS_SIZE = 1600;
 
 interface PexelsResult { id: number; thumb: string; full: string; }
 
-async function compositeOntoBackground(cutout: Blob, bgUrl: string): Promise<Blob> {
-  const SIZE = 1600;
-  const [cutoutImg, bgImg] = await Promise.all([
-    loadImage(URL.createObjectURL(cutout)),
-    loadImage(bgUrl),
-  ]);
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE; canvas.height = SIZE;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bgImg, 0, 0, SIZE, SIZE);
+// Desenha bgImg a cobrir size×size (crop centrado), tal como object-fit: cover.
+function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, size: number) {
+  const scale = Math.max(size / img.width, size / img.height);
+  const w = img.width * scale, h = img.height * scale;
+  ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+}
 
-  const maxDim = SIZE * 0.76;
-  const scale = Math.min(maxDim / cutoutImg.width, maxDim / cutoutImg.height);
-  const w = cutoutImg.width * scale, h = cutoutImg.height * scale;
-  const x = (SIZE - w) / 2, y = (SIZE - h) / 2 + SIZE * 0.015;
+// Desenho síncrono (sem rede) — usado tanto na pré-visualização ao vivo como na exportação final.
+function renderComposite(
+  canvas: HTMLCanvasElement, bgImg: HTMLImageElement, cutoutImg: HTMLImageElement,
+  scale: number, offX: number, offY: number,
+) {
+  const size = CANVAS_SIZE;
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, size, size);
+  drawCover(ctx, bgImg, size);
+
+  const maxDim = size * 0.76 * scale;
+  const s = Math.min(maxDim / cutoutImg.width, maxDim / cutoutImg.height);
+  const w = cutoutImg.width * s, h = cutoutImg.height * s;
+  const x = (size - w) / 2 + offX, y = (size - h) / 2 + offY;
 
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.35)';
-  ctx.shadowBlur = SIZE * 0.025;
-  ctx.shadowOffsetY = SIZE * 0.012;
+  ctx.shadowBlur = size * 0.025;
+  ctx.shadowOffsetY = size * 0.012;
   ctx.drawImage(cutoutImg, x, y, w, h);
   ctx.restore();
-
-  return new Promise(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92));
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -76,6 +83,8 @@ async function blobToBase64(blob: Blob): Promise<string> {
 export default function FotoProdutoStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dragRef = useRef<{ x: number; y: number; offX: number; offY: number } | null>(null);
 
   const [rawUrl, setRawUrl] = useState<string | null>(null);
   const [rawFile, setRawFile] = useState<File | null>(null);
@@ -83,9 +92,14 @@ export default function FotoProdutoStudio() {
   const [progresso, setProgresso] = useState<string>('');
   const [cutoutBlob, setCutoutBlob] = useState<Blob | null>(null);
   const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
+  const [cutoutImgEl, setCutoutImgEl] = useState<HTMLImageElement | null>(null);
   const [fundoUrl, setFundoUrl] = useState<string | null>(null);
-  const [resultadoBlob, setResultadoBlob] = useState<Blob | null>(null);
-  const [resultadoUrl, setResultadoUrl] = useState<string | null>(null);
+  const [fundoImgEl, setFundoImgEl] = useState<HTMLImageElement | null>(null);
+  const [fundoCarregando, setFundoCarregando] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offX, setOffX] = useState(0);
+  const [offY, setOffY] = useState(0);
+  const [arrastando, setArrastando] = useState(false);
 
   const [pexelsKey, setPexelsKey] = useState('');
   const [pexelsKeyInput, setPexelsKeyInput] = useState('');
@@ -93,7 +107,6 @@ export default function FotoProdutoStudio() {
   const [pexelsResults, setPexelsResults] = useState<PexelsResult[]>([]);
   const [pexelsLoading, setPexelsLoading] = useState(false);
   const [pexelsErro, setPexelsErro] = useState('');
-  const [compondo, setCompondo] = useState(false);
 
   const [fotosProntas, setFotosProntas] = useState<FotoPronta[]>([]);
 
@@ -149,9 +162,9 @@ export default function FotoProdutoStudio() {
     if (!file) return;
     setRawFile(file);
     setRawUrl(URL.createObjectURL(file));
-    setCutoutBlob(null); setCutoutUrl(null);
-    setResultadoBlob(null); setResultadoUrl(null);
-    setFundoUrl(null);
+    setCutoutBlob(null); setCutoutUrl(null); setCutoutImgEl(null);
+    setFundoUrl(null); setFundoImgEl(null);
+    setScale(1); setOffX(0); setOffY(0);
     setErro('');
   }
 
@@ -186,7 +199,13 @@ export default function FotoProdutoStudio() {
         },
       });
       setCutoutBlob(blob);
-      setCutoutUrl(URL.createObjectURL(blob));
+      const url = URL.createObjectURL(blob);
+      setCutoutUrl(url);
+      const img = await loadImage(url);
+      setCutoutImgEl(img);
+
+      const ultimoFundo = localStorage.getItem(ULTIMO_FUNDO_STORAGE);
+      if (ultimoFundo) escolherFundo(ultimoFundo);
     } catch (e: any) {
       console.error('[bg-removal ERROR]', e);
       setErro('Erro ao remover o fundo: ' + (e?.message ?? 'tenta novamente.'));
@@ -197,27 +216,56 @@ export default function FotoProdutoStudio() {
   }
 
   async function escolherFundo(url: string) {
-    if (!cutoutBlob) return;
     setFundoUrl(url);
-    setCompondo(true); setErro('');
+    setFundoCarregando(true); setErro('');
+    setScale(1); setOffX(0); setOffY(0);
     try {
-      const blob = await compositeOntoBackground(cutoutBlob, url);
-      setResultadoBlob(blob);
-      setResultadoUrl(URL.createObjectURL(blob));
+      const img = await loadImage(url);
+      setFundoImgEl(img);
+      localStorage.setItem(ULTIMO_FUNDO_STORAGE, url);
     } catch {
-      setErro('Erro ao aplicar o fundo. Se for uma foto do Pexels, tenta outra — algumas não permitem ser usadas desta forma.');
+      setFundoImgEl(null);
+      setErro('Erro ao carregar este fundo. Se for uma foto do Pexels, tenta outra.');
     } finally {
-      setCompondo(false);
+      setFundoCarregando(false);
     }
   }
 
+  // Redesenha o canvas (sem rede) sempre que a foto, o fundo, o zoom ou a posição mudam.
+  useEffect(() => {
+    if (!cutoutImgEl || !fundoImgEl || !canvasRef.current) return;
+    renderComposite(canvasRef.current, fundoImgEl, cutoutImgEl, scale, offX, offY);
+  }, [cutoutImgEl, fundoImgEl, scale, offX, offY]);
+
+  function onDragStart(clientX: number, clientY: number) {
+    if (!fundoImgEl) return;
+    setArrastando(true);
+    dragRef.current = { x: clientX, y: clientY, offX, offY };
+  }
+  function onDragMove(clientX: number, clientY: number) {
+    if (!dragRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = CANVAS_SIZE / canvas.getBoundingClientRect().width;
+    setOffX(dragRef.current.offX + (clientX - dragRef.current.x) * ratio);
+    setOffY(dragRef.current.offY + (clientY - dragRef.current.y) * ratio);
+  }
+  function onDragEnd() {
+    dragRef.current = null;
+    setArrastando(false);
+  }
+
   function adicionarAosProntos() {
-    if (!resultadoBlob || !resultadoUrl) return;
-    setFotosProntas(prev => [...prev, { id: crypto.randomUUID(), blob: resultadoBlob, url: resultadoUrl }]);
+    const canvas = canvasRef.current;
+    if (!canvas || !fundoImgEl) return;
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      setFotosProntas(prev => [...prev, { id: crypto.randomUUID(), blob, url: URL.createObjectURL(blob) }]);
+    }, 'image/jpeg', 0.92);
     setRawFile(null); setRawUrl(null);
-    setCutoutBlob(null); setCutoutUrl(null);
-    setResultadoBlob(null); setResultadoUrl(null);
-    setFundoUrl(null);
+    setCutoutBlob(null); setCutoutUrl(null); setCutoutImgEl(null);
+    setFundoUrl(null); setFundoImgEl(null);
+    setScale(1); setOffX(0); setOffY(0);
   }
 
   function removerFotoPronta(id: string) {
@@ -228,7 +276,7 @@ export default function FotoProdutoStudio() {
     setErro('');
     if (fotosProntas.length === 0) { setErro('Adiciona pelo menos uma foto pronta.'); return; }
     if (modo === 'existente' && !produtoId) { setErro('Escolhe um produto.'); return; }
-    if (modo === 'novo' && (!novoNome.trim() || toCents(novoPreco) == null)) { setErro('Preenche o nome e o preço do novo produto.'); return; }
+    if (modo === 'novo' && !novoNome.trim()) { setErro('Preenche o nome do novo produto.'); return; }
 
     setGuardando(true);
     try {
@@ -373,12 +421,30 @@ export default function FotoProdutoStudio() {
       {cutoutUrl && (
         <div className="mb-2">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
-            <div className="relative w-56 h-56 rounded-2xl overflow-hidden border border-white/10 shrink-0" style={{
-              backgroundImage: `url(${fundoUrl ?? ''})`,
-              backgroundSize: 'cover', backgroundColor: '#0a0a16',
-            }}>
-              <img src={resultadoUrl ?? cutoutUrl} alt="" className="absolute inset-0 w-full h-full object-contain p-3" />
-              {compondo && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Loader2 className="animate-spin text-white" /></div>}
+            <div className="shrink-0">
+              <div
+                className="relative w-56 h-56 rounded-2xl overflow-hidden border border-white/10 bg-[#0a0a16] select-none"
+                style={{ cursor: fundoImgEl ? (arrastando ? 'grabbing' : 'grab') : 'default', touchAction: 'none' }}
+                onPointerDown={e => { (e.target as HTMLElement).setPointerCapture(e.pointerId); onDragStart(e.clientX, e.clientY); }}
+                onPointerMove={e => arrastando && onDragMove(e.clientX, e.clientY)}
+                onPointerUp={onDragEnd}
+                onPointerCancel={onDragEnd}
+              >
+                {cutoutUrl && !fundoImgEl && (
+                  <img src={cutoutUrl} alt="" className="absolute inset-0 w-full h-full object-contain p-6 pointer-events-none" />
+                )}
+                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ display: fundoImgEl ? 'block' : 'none' }} />
+                {fundoCarregando && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Loader2 className="animate-spin text-white" /></div>}
+              </div>
+              {fundoImgEl && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-xs text-white/40 shrink-0">Zoom</span>
+                  <input type="range" min={0.5} max={2.5} step={0.05} value={scale}
+                    onChange={e => setScale(parseFloat(e.target.value))}
+                    className="w-full accent-indigo-500" />
+                </div>
+              )}
+              {fundoImgEl && <p className="text-[11px] text-white/30 mt-1">Arrasta a foto para ajustar a posição.</p>}
             </div>
             <div className="flex flex-col gap-3 flex-1 min-w-0">
               <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Fundo</label>
@@ -427,11 +493,11 @@ export default function FotoProdutoStudio() {
               </div>
 
               <div className="flex gap-3 mt-1">
-                <button type="button" onClick={adicionarAosProntos} disabled={!resultadoBlob}
+                <button type="button" onClick={adicionarAosProntos} disabled={!fundoImgEl}
                   className={`${btnBase} bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40`}>
                   <Check size={18} /> Usar esta foto
                 </button>
-                <button type="button" onClick={() => { setRawFile(null); setRawUrl(null); setCutoutBlob(null); setCutoutUrl(null); setResultadoBlob(null); setResultadoUrl(null); setFundoUrl(null); }}
+                <button type="button" onClick={() => { setRawFile(null); setRawUrl(null); setCutoutBlob(null); setCutoutUrl(null); setCutoutImgEl(null); setFundoUrl(null); setFundoImgEl(null); setScale(1); setOffX(0); setOffY(0); }}
                   className={`${btnBase} bg-white/5 hover:bg-white/10 text-white/70 border border-white/10`}>
                   <X size={18} /> Descartar
                 </button>
@@ -492,7 +558,7 @@ export default function FotoProdutoStudio() {
                   className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white outline-none focus:border-indigo-500 w-full mt-2" />
               </div>
               <div>
-                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Preço (€)</label>
+                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Preço (€) <span className="normal-case font-normal text-white/30">(opcional, dá para definir depois)</span></label>
                 <input value={novoPreco} onChange={e => setNovoPreco(e.target.value)} placeholder="6.90" inputMode="decimal"
                   className="bg-[#0a0a16] border border-white/10 p-4 rounded-xl text-white outline-none focus:border-indigo-500 w-full mt-2" />
               </div>

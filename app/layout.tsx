@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import BannerCampanha from '@/components/layout/BannerCampanha';
 import { CartProvider } from '@/components/loja/CartContext';
 import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.className} bg-[#0a0a0a] text-white`}>
         <a href="#conteudo" className="skip-link">Saltar para o conteúdo</a>
         <CartProvider>
+          <BannerCampanha />
           <Navbar />
           <div id="conteudo" tabIndex={-1}>
             {children}
