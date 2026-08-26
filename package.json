@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^2.19.0",
     "@ifthenpay/js-sdk": "^1.0.0",
     "@imgly/background-removal": "^1.7.0",
     "@react-three/drei": "^10.7.7",

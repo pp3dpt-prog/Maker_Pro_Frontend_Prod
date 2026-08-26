@@ -341,6 +341,19 @@ export default function AdminDashboard() {
         >
           <span>🖼️ Fotos de Produto</span>
         </Link>
+
+        <Link
+          href="/admin/marketing"
+          style={{
+            display: 'flex', alignItems: 'center',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🚀 Marketing</span>
+        </Link>
       </aside>
 
       {/* MAIN */}

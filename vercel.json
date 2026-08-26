@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/limpar-logs",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/publicar-agendados",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-insights",
+      "schedule": "0 6 * * *"
     }
   ]
 }
