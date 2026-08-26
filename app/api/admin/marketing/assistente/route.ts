@@ -115,11 +115,12 @@ export async function POST(request: Request) {
   let geminiStream;
   try {
     geminiStream = await ai.models.generateContentStream({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents,
       config: { systemInstruction: `${SYSTEM_BASE}\n\n${contexto}` },
     });
-  } catch {
+  } catch (e) {
+    console.error('[marketing/assistente] erro ao iniciar stream Gemini:', e);
     return NextResponse.json({ error: 'Erro ao contactar o assistente.' }, { status: 502 });
   }
 
@@ -130,7 +131,8 @@ export async function POST(request: Request) {
         for await (const chunk of geminiStream) {
           if (chunk.text) controller.enqueue(encoder.encode(chunk.text));
         }
-      } catch {
+      } catch (e) {
+        console.error('[marketing/assistente] erro a meio do stream:', e);
         controller.enqueue(encoder.encode('\n\n[Erro a meio da resposta — tenta novamente.]'));
       } finally {
         controller.close();

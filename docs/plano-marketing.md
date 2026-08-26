@@ -21,8 +21,12 @@ Três peças, todas sob `/admin/marketing` (link "🚀 Marketing" na sidebar do 
 Extra: **assistente de IA** (botão flutuante 🤖, sempre visível em qualquer página `/admin/**`,
 montado em `app/admin/layout.tsx`) que responde a perguntas em linguagem natural com base nos dados
 reais da loja (vendas dos últimos 30 dias, campanhas, publicações). Usa o **Google Gemini**
-(`gemini-2.5-flash`, tier gratuito, sem cartão de crédito) — sem custo de assinatura nem por
-pergunta dentro dos limites gratuitos.
+(`gemini-3.6-flash`, tier gratuito, sem cartão de crédito) — sem custo de assinatura nem por
+pergunta dentro dos limites gratuitos. **Nota:** os nomes dos modelos Gemini mudam com alguma
+frequência (`gemini-2.5-flash` deixou de estar disponível para chaves novas passados poucos meses) —
+se o assistente voltar a dar "Erro ao contactar o assistente", testa primeiro
+`curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/<modelo>:generateContent?key=<chave>" -d '{"contents":[{"parts":[{"text":"oi"}]}]}'`
+para confirmar qual o nome de modelo atual antes de mexer no resto do código.
 
 ---
 
