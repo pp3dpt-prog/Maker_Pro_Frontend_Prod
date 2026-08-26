@@ -69,8 +69,11 @@ silenciosamente.
 - `app/api/admin/marketing/*` — rotas admin: `criar-post`, `publicar-agora`, `estimar-alcance`,
   `criar-campanha-paga`, `ativar-campanha` (exige `confirmar:true`), `pausar-campanha`, `assistente`
   (chat streaming com o Gemini).
-- `app/api/cron/publicar-agendados` (horário) e `app/api/cron/sync-insights` (diário) — registados em
-  `vercel.json`, mesmo padrão de auth (`CRON_SECRET`) dos crons existentes.
+- `app/api/cron/publicar-agendados` e `app/api/cron/sync-insights` (ambos diários — **o plano Vercel
+  Hobby só permite crons uma vez por dia**; uma tentativa de correr `publicar-agendados` de hora a
+  hora chegou a invalidar o deploy inteiro sem erro visível na lista de Deployments, só um check
+  "0/1" a falhar no commit do GitHub — se um dia passar a Pro, pode voltar a ser horário), registados
+  em `vercel.json`, mesmo padrão de auth (`CRON_SECRET`) dos crons existentes.
 - `app/admin/marketing/page.tsx` — UI com 3 separadores (Criar publicação / Fila / Analytics).
 - `app/admin/layout.tsx` + `components/admin/AdminAssistant.tsx` — widget de chat flutuante,
   disponível em qualquer página `/admin/**`.
