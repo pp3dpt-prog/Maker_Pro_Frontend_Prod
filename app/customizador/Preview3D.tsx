@@ -28,14 +28,18 @@ const FONT_MAP: Record<string, string> = {
   'Sigmar One':          '/fonts/Sigmar_One.json',
 };
 
-// Letras Decorativas — fontes do backend (Liberation/Ubuntu/DejaVu/URW Chancery)
-// aproximadas com as mais próximas do Google Fonts (preview, não afeta o STL final).
+// Letras Decorativas — fontes "de sistema" do backend (Liberation/Ubuntu/DejaVu/URW
+// Chancery) aproximadas com as mais próximas do Google Fonts (preview, não afeta o
+// STL final) + as fontes decorativas do FONT_MAP (as mesmas do porta-chaves — essas
+// já estão instaladas no backend Docker e usadas tal e qual, sem aproximação).
 const LETRA_FONT_MAP: Record<string, string> = {
+  ...FONT_MAP,
   'Moderno':      '/fonts/Letra_Moderno.json',
   'Clássico':     '/fonts/Letra_Classico.json',
   'Arredondado':  '/fonts/Letra_Arredondado.json',
 };
 const NOME_FONT_MAP: Record<string, string> = {
+  ...FONT_MAP,
   'Cursiva Elegante':  '/fonts/Nome_CursivaElegante.json',
   'Itálico Clássico':  '/fonts/Nome_ItalicoClassico.json',
   'Itálico Moderno':   '/fonts/Nome_ItalicoModerno.json',
@@ -344,6 +348,9 @@ function LetraNomePreview({ params }: { params: Record<string, any> }) {
   const fonteInicialName  = String(params.fonte_inicial || 'Moderno');
   const fonteNomeName     = String(params.fonte_nome || 'Cursiva Elegante');
   const altura            = Number(params.altura ?? 150);
+  // tamanho_nome é um parâmetro independente (antes vinha fixo em altura*0.38) —
+  // o fallback preserva o preview enquanto a migração da BD não corre.
+  const tamanhoNome       = Number(params.tamanho_nome ?? altura * 0.38);
   const espessuraInicial  = Number(params.espessura_inicial ?? 15);
   const espessuraNome     = Number(params.espessura_nome ?? 8);
   const sobreposicao      = Number(params.sobreposicao ?? 3);
@@ -357,7 +364,7 @@ function LetraNomePreview({ params }: { params: Record<string, any> }) {
   // Chave de dependências geométricas — NÃO inclui cor (a cor é aplicada à parte, sem recarregar fontes)
   const geometryKey = JSON.stringify({
     letra, nome, fonteInicialName, fonteNomeName,
-    altura, espessuraInicial, espessuraNome, sobreposicao, posicaoNome,
+    altura, tamanhoNome, espessuraInicial, espessuraNome, sobreposicao, posicaoNome,
   });
 
   useEffect(() => {
@@ -385,7 +392,6 @@ function LetraNomePreview({ params }: { params: Record<string, any> }) {
 
         // Nome decorativo (tampa_caixa) — encaixado perto da face frontal da letra
         if (nome) {
-          const tamanhoNome = altura * 0.38;
           const geomNome = new TextGeometry(nome, {
             font: fontNome, size: tamanhoNome, height: espessuraNome, curveSegments: 12,
           });

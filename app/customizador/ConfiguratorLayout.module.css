@@ -3,6 +3,7 @@
   grid-template-columns: 360px 1fr;
   height: calc(100vh - 64px);
   background: #000;
+  overflow: hidden; /* impede que o painel de comandos empurre a página toda ao crescer */
 }
 
 .panel {
@@ -12,11 +13,14 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto; /* painel rola sozinho, sem arrastar o visualizador */
+  min-height: 0; /* necessário para overflow-y funcionar dentro de grid */
 }
 
 .viewer {
   position: relative;
   background: radial-gradient(circle at 50% 25%, #111 0%, #000 70%);
+  min-height: 0;
 }
 
 /* Config panel */
