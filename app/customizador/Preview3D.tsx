@@ -2,7 +2,7 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment } from '@react-three/drei';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-stdlib';
 
@@ -26,6 +26,19 @@ const FONT_MAP: Record<string, string> = {
   'Press Start 2P':      '/fonts/Press_Start_2P.json',
   'Racing Sans One':     '/fonts/Racing_Sans_One.json',
   'Sigmar One':          '/fonts/Sigmar_One.json',
+};
+
+// Letras Decorativas — fontes do backend (Liberation/Ubuntu/DejaVu/URW Chancery)
+// aproximadas com as mais próximas do Google Fonts (preview, não afeta o STL final).
+const LETRA_FONT_MAP: Record<string, string> = {
+  'Moderno':      '/fonts/Letra_Moderno.json',
+  'Clássico':     '/fonts/Letra_Classico.json',
+  'Arredondado':  '/fonts/Letra_Arredondado.json',
+};
+const NOME_FONT_MAP: Record<string, string> = {
+  'Cursiva Elegante':  '/fonts/Nome_CursivaElegante.json',
+  'Itálico Clássico':  '/fonts/Nome_ItalicoClassico.json',
+  'Itálico Moderno':   '/fonts/Nome_ItalicoModerno.json',
 };
 
 // ── Pet Tag: carrega STL em branco e sobrepõe texto em tempo real ──
@@ -321,6 +334,95 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
   return <primitive object={group} />;
 }
 
+// ── Letras Decorativas: letra inicial + nome encaixado, cores ao vivo ──
+function LetraNomePreview({ params }: { params: Record<string, any> }) {
+  const [group, setGroup] = useState<THREE.Group | null>(null);
+  const meshRefs = useRef<{ letra?: THREE.Mesh; nome?: THREE.Mesh }>({});
+
+  const letra            = String(params.letra || 'H').slice(0, 1) || ' ';
+  const nome              = String(params.nome || '');
+  const fonteInicialName  = String(params.fonte_inicial || 'Moderno');
+  const fonteNomeName     = String(params.fonte_nome || 'Cursiva Elegante');
+  const altura            = Number(params.altura ?? 150);
+  const espessuraInicial  = Number(params.espessura_inicial ?? 15);
+  const espessuraNome     = Number(params.espessura_nome ?? 8);
+  const sobreposicao      = Number(params.sobreposicao ?? 3);
+  const posicaoNome       = Number(params.posicao_nome ?? 0);
+  const corLetra          = String(params.cor_letra || '#16d8aa');
+  const corNome           = String(params.cor_nome || '#f3f3f0');
+
+  const fontInicialPath = LETRA_FONT_MAP[fonteInicialName] ?? LETRA_FONT_MAP['Moderno'];
+  const fontNomePath    = NOME_FONT_MAP[fonteNomeName] ?? NOME_FONT_MAP['Cursiva Elegante'];
+
+  // Chave de dependências geométricas — NÃO inclui cor (a cor é aplicada à parte, sem recarregar fontes)
+  const geometryKey = JSON.stringify({
+    letra, nome, fonteInicialName, fonteNomeName,
+    altura, espessuraInicial, espessuraNome, sobreposicao, posicaoNome,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      new Promise<any>((resolve, reject) => new FontLoader().load(fontInicialPath, resolve, undefined, reject)),
+      new Promise<any>((resolve, reject) => new FontLoader().load(fontNomePath, resolve, undefined, reject)),
+    ])
+      .then(([fontInicial, fontNome]) => {
+        if (cancelled) return;
+        const grp = new THREE.Group();
+
+        // Letra inicial (corpo_caixa)
+        const geomLetra = new TextGeometry(letra, {
+          font: fontInicial, size: altura, height: espessuraInicial, curveSegments: 16,
+        });
+        geomLetra.computeBoundingBox();
+        const bb = geomLetra.boundingBox!;
+        geomLetra.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0);
+        const matLetra = new THREE.MeshStandardMaterial({ color: corLetra, metalness: 0.15, roughness: 0.4 });
+        const meshLetra = new THREE.Mesh(withCreasedNormals(geomLetra, 30), matLetra);
+        meshRefs.current.letra = meshLetra;
+        grp.add(meshLetra);
+
+        // Nome decorativo (tampa_caixa) — encaixado perto da face frontal da letra
+        if (nome) {
+          const tamanhoNome = altura * 0.38;
+          const geomNome = new TextGeometry(nome, {
+            font: fontNome, size: tamanhoNome, height: espessuraNome, curveSegments: 12,
+          });
+          geomNome.computeBoundingBox();
+          const nb = geomNome.boundingBox!;
+          geomNome.translate(-(nb.max.x + nb.min.x) / 2, -(nb.max.y + nb.min.y) / 2 + posicaoNome, 0);
+          const matNome = new THREE.MeshStandardMaterial({ color: corNome, metalness: 0.1, roughness: 0.35 });
+          const meshNome = new THREE.Mesh(withCreasedNormals(geomNome, 30), matNome);
+          meshNome.position.z = espessuraInicial - sobreposicao;
+          meshRefs.current.nome = meshNome;
+          grp.add(meshNome);
+        } else {
+          meshRefs.current.nome = undefined;
+        }
+
+        setGroup(grp);
+      })
+      .catch((err) => console.error('Erro ao carregar fontes (Letra com Nome):', err));
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geometryKey, fontInicialPath, fontNomePath]);
+
+  // Cor ao vivo: só actualiza o material, sem recarregar fontes/geometria
+  useEffect(() => {
+    if (meshRefs.current.letra) {
+      (meshRefs.current.letra.material as THREE.MeshStandardMaterial).color.set(corLetra);
+    }
+    if (meshRefs.current.nome) {
+      (meshRefs.current.nome.material as THREE.MeshStandardMaterial).color.set(corNome);
+    }
+  }, [corLetra, corNome, group]);
+
+  if (!group) return null;
+  return <primitive object={group} />;
+}
+
 // ── Caixa paramétrica simples ──
 function CaixaPreview({ params }: { params: Record<string, any> }) {
   const largura     = typeof params.largura     === 'number' ? params.largura     : 100;
@@ -337,15 +439,18 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 
 // ── Componente principal ──
 export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
-  const isPetTag  = !!stlFilePath;
-  const isNameKey = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
+  const isPetTag    = !!stlFilePath;
+  const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
+  const isLetraNome = !isPetTag && !isNameKey
+    && typeof params.letra === 'string' && typeof params.nome === 'string'
+    && typeof params.fonte_inicial === 'string';
   const showText  = params.mostrar_texto !== false;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : isNameKey ? [0, -60, 120] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : isNameKey ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 1000,
@@ -382,6 +487,8 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
             />
           ) : isNameKey ? (
             <NameKeyPreview params={params} />
+          ) : isLetraNome ? (
+            <LetraNomePreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -389,8 +496,8 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
           <OrbitControls
             makeDefault
             enablePan={false}
-            minDistance={isPetTag ? 20 : 80}
-            maxDistance={isPetTag ? 200 : 400}
+            minDistance={isPetTag ? 20 : isLetraNome ? 100 : 80}
+            maxDistance={isPetTag ? 200 : isLetraNome ? 500 : 400}
             maxPolarAngle={Math.PI / 2.1}
           />
         </Suspense>

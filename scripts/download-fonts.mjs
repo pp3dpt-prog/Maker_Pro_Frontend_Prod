@@ -23,6 +23,14 @@ const FONTS = {
   'Press_Start_2P':    'Press+Start+2P',
   'Racing_Sans_One':   'Racing+Sans+One',
   'Sigmar_One':        'Sigmar+One',
+  // Letras Decorativas (letras-decorativas) — aproximações às fontes do backend OpenSCAD
+  // (Liberation/DejaVu/URW Chancery não estão no Google Fonts; usamos as mais próximas)
+  'Letra_Moderno':           'Roboto:wght@700',                    // ~ Liberation Sans Bold
+  'Letra_Classico':          'PT+Serif:wght@700',                  // ~ Liberation Serif Bold
+  'Letra_Arredondado':       'Ubuntu:wght@700',                    // = Ubuntu Bold (match exato)
+  'Nome_CursivaElegante':    'Playfair+Display:ital,wght@1,700',   // ~ URW Chancery L Italic
+  'Nome_ItalicoClassico':    'PT+Serif:ital,wght@1,700',           // ~ Liberation Serif Bold Italic
+  'Nome_ItalicoModerno':     'Noto+Serif:ital,wght@1,700',         // ~ DejaVu Serif Bold Italic
 };
 
 function fetchUrl(url) {

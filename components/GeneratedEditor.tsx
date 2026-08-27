@@ -49,8 +49,23 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
     return m[2] === 'height' ? `Altura da letra ${n}` : `Espaço da letra ${n + 1}`;
   };
 
+  // Oculta parâmetros condicionais (visible_when no schema)
+  // Ex: { "visible_when": { "num_cores": { "min": 2 } } }
+  const paramVisivel = ([, def]: [string, any]): boolean => {
+    const cond = def.ui?.visible_when;
+    if (!cond) return true;
+    return Object.entries(cond).every(([param, constraint]: [string, any]) => {
+      const val = Number(values[param] ?? 0);
+      if (constraint.min !== undefined && val < constraint.min) return false;
+      if (constraint.max !== undefined && val > constraint.max) return false;
+      if (constraint.eq  !== undefined && val !== constraint.eq) return false;
+      return true;
+    });
+  };
+
   const parameters = Object.entries(schema.parameters)
     .filter(paramRelevante)
+    .filter(paramVisivel)
     .sort(([, a]: any, [, b]: any) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
@@ -150,6 +165,36 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
                 }
                 className="w-full accent-blue-500 cursor-pointer"
               />
+            </div>
+          );
+        }
+
+        // ── COLOR ─────────────────────────────────────────────────────────
+        if (type === 'color') {
+          return (
+            <div key={name} className="space-y-1">
+              <label className="block text-xs text-slate-300 font-medium">
+                {label}
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="color"
+                  value={value ?? def.default ?? '#ffffff'}
+                  onChange={(e) => onChange({ ...values, [name]: e.target.value })}
+                  style={{
+                    width: 40,
+                    height: 32,
+                    padding: 0,
+                    border: '1px solid #1f2937',
+                    borderRadius: '6px',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                />
+                <span style={{ fontSize: 12, color: '#8a96aa', fontFamily: 'monospace' }}>
+                  {(value ?? def.default ?? '').toString().toUpperCase()}
+                </span>
+              </div>
             </div>
           );
         }

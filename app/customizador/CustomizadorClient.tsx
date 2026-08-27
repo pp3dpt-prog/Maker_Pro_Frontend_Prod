@@ -24,9 +24,12 @@ export default function CustomizadorClient({
   // Preview ao vivo (3D em tempo real):
   //  - pet-tags: têm stlFilePath (modelo em branco + texto sobreposto)
   //  - porta-chaves nome: params Text + Font_name (letras 3D geradas no browser)
+  //  - letras decorativas: params letra + nome + fonte_inicial (letra + nome geradas no browser)
   const hasPetTagPreview = !!stlFilePath;
   const isNameKey = typeof params?.Text === 'string' && typeof params?.Font_name === 'string';
-  const temPreviewVivo = hasPetTagPreview || isNameKey;
+  const isLetraNome = typeof params?.letra === 'string' && typeof params?.nome === 'string'
+    && typeof params?.fonte_inicial === 'string';
+  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

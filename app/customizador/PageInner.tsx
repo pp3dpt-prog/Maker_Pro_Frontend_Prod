@@ -46,7 +46,7 @@ type UserProfile = {
   downloads_comprados: number;
 };
 
-const VISUAL_PARAMS = ['mostrar_texto'];
+const VISUAL_PARAMS = ['mostrar_texto', 'cor_letra', 'cor_nome'];
 
 const PLANO_ORDEM = ['gratuito', 'pessoal', 'pessoal_plus', 'comercial'];
 
