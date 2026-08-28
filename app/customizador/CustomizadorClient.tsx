@@ -72,7 +72,7 @@ export default function CustomizadorClient({
             }}
           >
             {temPreviewVivo
-              ? <><strong style={{ color: '#60a5fa' }}>Pré-visualização em tempo real.</strong>{' '}Pode mostrar pequenas irregularidades que <strong>não aparecem no STL final</strong>.</>
+              ? <><strong style={{ color: '#60a5fa' }}>Pré-visualização em tempo real.</strong>{' '}Pode mostrar pequenas irregularidades que <strong>não aparecem no STL final</strong>.{' '}Gera o STL para ver o resultado final.</>
               : thumbnailUrl
                 ? <><strong style={{ color: '#60a5fa' }}>Exemplo do produto.</strong>{' '}Gera o STL para ver o resultado exacto com os teus parâmetros.</>
                 : <><strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}Gera o STL para ver o modelo com os teus parâmetros.</>
@@ -91,6 +91,25 @@ export default function CustomizadorClient({
           state="ready"
           schema={{ grid: true }}
         />
+      )}
+
+      {(mode === 'preview' || mode === 'stl') && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            left: 12,
+            right: 12,
+            textAlign: 'center',
+            color: '#8a96aa',
+            fontSize: 11,
+            letterSpacing: '0.02em',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        >
+          Arrasta para rotacionar · scroll para zoom
+        </div>
       )}
     </div>
   );
