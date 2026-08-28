@@ -13,9 +13,9 @@ type Preview3DProps = {
 
 const FONT_MAP: Record<string, string> = {
   'Aladin':              '/fonts/Aladin.json',
-  'Amarante':            '/fonts/amarante.json',
-  'Benne':               '/fonts/benne.json',
-  'Baloo 2':             '/fonts/baloo2.json',
+  'Amarante':            '/fonts/Amarante.json',
+  'Benne':               '/fonts/Benne.json',
+  'Baloo 2':             '/fonts/Baloo2.json',
   'Anton':               '/fonts/Anton.json',
   'Chewy':               '/fonts/Chewy.json',
   'Gloria Hallelujah':   '/fonts/Gloria_Hallelujah.json',

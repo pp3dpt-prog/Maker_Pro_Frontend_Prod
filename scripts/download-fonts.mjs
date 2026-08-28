@@ -12,8 +12,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'fonts');
 
 // Google Fonts to download (name → Google Fonts family name)
+// Nota: os pesos (Regular/Bold/SemiBold) foram escolhidos para corresponder
+// exactamente aos .ttf instalados no backend Docker (Maker_Pro_Docker_Prod/fonts).
 const FONTS = {
+  'Aladin':            'Aladin',
+  'Amarante':          'Amarante',
   'Anton':             'Anton',
+  'Baloo2':            'Baloo+2:wght@600',
+  'Benne':             'Benne',
   'Chewy':             'Chewy',
   'Gloria_Hallelujah': 'Gloria+Hallelujah',
   'Lobster':           'Lobster',
@@ -23,14 +29,12 @@ const FONTS = {
   'Press_Start_2P':    'Press+Start+2P',
   'Racing_Sans_One':   'Racing+Sans+One',
   'Sigmar_One':        'Sigmar+One',
-  // Letras Decorativas (letras-decorativas) — aproximações às fontes do backend OpenSCAD
-  // (Liberation/DejaVu/URW Chancery não estão no Google Fonts; usamos as mais próximas)
-  'Letra_Moderno':           'Roboto:wght@700',                    // ~ Liberation Sans Bold
-  'Letra_Classico':          'PT+Serif:wght@700',                  // ~ Liberation Serif Bold
-  'Letra_Arredondado':       'Ubuntu:wght@700',                    // = Ubuntu Bold (match exato)
-  'Nome_CursivaElegante':    'Playfair+Display:ital,wght@1,700',   // ~ URW Chancery L Italic
-  'Nome_ItalicoClassico':    'PT+Serif:ital,wght@1,700',           // ~ Liberation Serif Bold Italic
-  'Nome_ItalicoModerno':     'Noto+Serif:ital,wght@1,700',         // ~ DejaVu Serif Bold Italic
+  'Letra_Arredondado': 'Ubuntu:wght@700', // Ubuntu Bold — match exacto com o backend
+  // Letra_Moderno, Letra_Classico, Nome_CursivaElegante, Nome_ItalicoClassico,
+  // Nome_ItalicoModerno: as fontes reais do backend (Liberation/DejaVu/URW
+  // Chancery) não estão no Google Fonts — convertidas à parte a partir dos
+  // ficheiros originais open-source (ver scripts/sql/... e o histórico do
+  // commit); NÃO regenerar estas por este script.
 };
 
 function fetchUrl(url) {
@@ -62,13 +66,19 @@ async function getFontUrl(family) {
 
 function fontToTypefaceJson(font, name) {
   const glyphs = {};
-  const scale = 1000 / font.unitsPerEm;
+  // O formato typeface.json (three.js Font/TextGeometry) assume sempre um
+  // em-square de 1000 unidades (ver "resolution" abaixo) — independentemente
+  // do unitsPerEm nativo da fonte de origem (2048 é comum em TrueType, 1000
+  // em muitas fontes de origem Type1). Sem normalizar aqui, uma fonte com
+  // unitsPerEm=2048 sai ~2x maior do que devia para o mesmo parâmetro "size".
+  const UPM = 1000;
+  const scale = UPM / font.unitsPerEm;
 
   for (let i = 0; i < font.glyphs.length; i++) {
     const glyph = font.glyphs.get(i);
     if (!glyph.unicode) continue; {
     const char = String.fromCharCode(glyph.unicode);
-    const path = glyph.getPath(0, 0, font.unitsPerEm);
+    const path = glyph.getPath(0, 0, UPM);
     const cmds = path.commands.map(c => {
       switch (c.type) {
         case 'M': return { type: 'M', x: c.x, y: -c.y };
@@ -81,9 +91,9 @@ function fontToTypefaceJson(font, name) {
     }).filter(Boolean);
 
     glyphs[char] = {
-      x_min: glyph.xMin || 0,
-      x_max: glyph.xMax || 0,
-      ha: Math.round((glyph.advanceWidth || 0)),
+      x_min: (glyph.xMin || 0) * scale,
+      x_max: (glyph.xMax || 0) * scale,
+      ha: Math.round((glyph.advanceWidth || 0) * scale),
       o: cmds.map(c => {
         if (c.type === 'M') return `m ${Math.round(c.x)} ${Math.round(c.y)} `;
         if (c.type === 'L') return `l ${Math.round(c.x)} ${Math.round(c.y)} `;
@@ -98,8 +108,8 @@ function fontToTypefaceJson(font, name) {
   return JSON.stringify({
     glyphs,
     familyName: name,
-    ascender: font.ascender,
-    descender: font.descender,
+    ascender: Math.round(font.ascender * scale),
+    descender: Math.round(font.descender * scale),
     underlinePosition: font.tables.post?.underlinePosition || -100,
     underlineThickness: font.tables.post?.underlineThickness || 50,
     boundingBox: { yMin: font.tables.head.yMin, xMin: font.tables.head.xMin, yMax: font.tables.head.yMax, xMax: font.tables.head.xMax },
