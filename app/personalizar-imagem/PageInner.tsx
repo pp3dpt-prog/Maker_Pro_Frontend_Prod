@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
+import PortachavesPreview3D from './PortachavesPreview3D';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
@@ -543,9 +544,15 @@ export default function PageInner() {
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : (() => {
-            // Dimensões reais do marcador em mm
-            const larg = Number(params?.largura_mm ?? 20);
-            const alt  = Number(params?.altura_mm  ?? 150);
+            // Dimensões reais da peça em mm (porta-chaves usa largura/altura,
+            // os restantes produtos de imagem usam largura_mm/altura_mm)
+            const isPortachaves = design.familia === 'portachaves';
+            const larg = isPortachaves
+              ? Number(params?.largura ?? params?.largura_mm ?? 55)
+              : Number(params?.largura_mm ?? 20);
+            const alt = isPortachaves
+              ? Number(params?.altura ?? params?.altura_mm ?? 35)
+              : Number(params?.altura_mm ?? 150);
             const ratio = larg / alt;
 
             // Calcular tamanho do preview para caber no viewer (max 480px altura)
@@ -588,7 +595,9 @@ export default function PageInner() {
                   background: '#0f172a',
                   boxShadow: '0 0 0 1px #1e293b, 0 8px 32px rgba(0,0,0,0.5)',
                 }}>
-                  {previewImageUrl ? (
+                  {isPortachaves && previewImageUrl ? (
+                    <PortachavesPreview3D params={params} previewImageUrl={previewImageUrl} />
+                  ) : previewImageUrl ? (
                     <img
                       src={previewImageUrl}
                       alt="Preview"
@@ -614,6 +623,13 @@ export default function PageInner() {
                     </div>
                   )}
                 </div>
+
+                {isPortachaves && previewImageUrl && (
+                  <p style={{ color: '#8a96aa', fontSize: 11, textAlign: 'center', lineHeight: 1.5, maxWidth: pW }}>
+                    <strong style={{ color: '#60a5fa' }}>Pré-visualização em tempo real.</strong>{' '}
+                    Pode mostrar pequenas irregularidades que não aparecem no STL final.
+                  </p>
+                )}
 
                 {mode === 'done' && (
                   <p style={{ color: '#34d399', fontSize: 13, fontWeight: 600 }}>✅ STL gerado com sucesso</p>
