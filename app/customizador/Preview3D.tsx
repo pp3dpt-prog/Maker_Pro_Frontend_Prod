@@ -27,7 +27,6 @@ const FONT_MAP: Record<string, string> = {
   'Press Start 2P':      '/fonts/Press_Start_2P.json',
   'Racing Sans One':     '/fonts/Racing_Sans_One.json',
   'Sigmar One':          '/fonts/Sigmar_One.json',
-  'Sacramento':          '/fonts/Sacramento.json',
 };
 
 // Letras Decorativas — fontes "de sistema" do backend (Liberation/Ubuntu/DejaVu/URW
@@ -449,6 +448,26 @@ function buildBridgeShape(radius: number, holeR: number, textoX: number, furoY: 
   return shape;
 }
 
+// Aproxima o "contorno" (minkowski com um círculo) do OpenSCAD escalando o
+// texto a partir do seu próprio centro — um offset geométrico verdadeiro via
+// bevel do ExtrudeGeometry produz picos em cantos côncavos/traços finos de
+// fontes cursivas (sem limite de mitre), por isso preferimos esta aproximação
+// robusta (sem auto-interseções) a um resultado tecnicamente mais fiel mas
+// visualmente quebrado.
+function offsetTextGeometry(geom: THREE.BufferGeometry, offsetMm: number): THREE.BufferGeometry {
+  if (offsetMm <= 0.05) return geom;
+  geom.computeBoundingBox();
+  const bb = geom.boundingBox!;
+  const cx = (bb.min.x + bb.max.x) / 2;
+  const cy = (bb.min.y + bb.max.y) / 2;
+  const halfH = (bb.max.y - bb.min.y) / 2;
+  const scale = halfH > 0.05 ? 1 + offsetMm / halfH : 1;
+  geom.translate(-cx, -cy, 0);
+  geom.scale(scale, scale, 1);
+  geom.translate(cx, cy, 0);
+  return geom;
+}
+
 // ── Porta-chaves de texto com patamares: nome empilhado em até 3 níveis,
 // cada nível um pouco mais "gordo" que o de cima (para trocar de filamento
 // por camada) — replica templates/portachaves_nome_multicor.scad ──
@@ -488,12 +507,8 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada base (cor 1): texto com offset (só se houver mais níveis) + ponte/argola
       const rBase = numCores >= 2 ? offset1 : 0;
-      const baseGeom = new TextGeometry(nome, {
-        font, size: tamanho, height: altura, curveSegments: 8,
-        bevelEnabled: rBase > 0.05,
-        bevelThickness: 0.01,
-        bevelSize: rBase,
-      });
+      let baseGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
+      baseGeom = offsetTextGeometry(baseGeom, rBase);
       baseGeom.translate(textoX, 0, 0);
       baseGeom.computeBoundingBox();
       const bb = baseGeom.boundingBox!;
@@ -513,12 +528,8 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada intermédia (cor 2) — só com 3 níveis
       if (numCores === 3) {
-        const midGeom = new TextGeometry(nome, {
-          font, size: tamanho, height: altura, curveSegments: 8,
-          bevelEnabled: offset2 > 0.05,
-          bevelThickness: 0.01,
-          bevelSize: offset2,
-        });
+        let midGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
+        midGeom = offsetTextGeometry(midGeom, offset2);
         midGeom.translate(textoX, 0, altura);
         const midMat = new THREE.MeshStandardMaterial({ color: initialColors[1] ?? PATAMARES_DEFAULT_COLORS[1], metalness: 0.1, roughness: 0.4 });
         newMats.push(midMat);
