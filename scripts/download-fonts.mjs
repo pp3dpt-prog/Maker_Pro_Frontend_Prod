@@ -29,6 +29,7 @@ const FONTS = {
   'Press_Start_2P':    'Press+Start+2P',
   'Racing_Sans_One':   'Racing+Sans+One',
   'Sigmar_One':        'Sigmar+One',
+  'Sacramento':        'Sacramento',
   'Letra_Arredondado': 'Ubuntu:wght@700', // Ubuntu Bold — match exacto com o backend
   // Letra_Moderno, Letra_Classico, Nome_CursivaElegante, Nome_ItalicoClassico,
   // Nome_ItalicoModerno: as fontes reais do backend (Liberation/DejaVu/URW

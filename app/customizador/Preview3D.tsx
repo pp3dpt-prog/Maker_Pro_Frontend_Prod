@@ -26,6 +26,7 @@ const FONT_MAP: Record<string, string> = {
   'Press Start 2P':      '/fonts/Press_Start_2P.json',
   'Racing Sans One':     '/fonts/Racing_Sans_One.json',
   'Sigmar One':          '/fonts/Sigmar_One.json',
+  'Sacramento':          '/fonts/Sacramento.json',
 };
 
 // Letras Decorativas — fontes "de sistema" do backend (Liberation/Ubuntu/DejaVu/URW
@@ -429,6 +430,117 @@ function LetraNomePreview({ params }: { params: Record<string, any> }) {
   return <primitive object={group} />;
 }
 
+// Constrói a "ponte" (hull de dois círculos iguais = cápsula) entre a argola
+// e o início do texto, com um furo circular no centro da argola — replica
+// ponte_base_2d()/o furo do template OpenSCAD (Docker:
+// templates/portachaves_nome_multicor.scad).
+function buildBridgeShape(radius: number, holeR: number, textoX: number, furoY: number): THREE.Shape {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, furoY + radius);
+  shape.lineTo(textoX, furoY + radius);
+  shape.absarc(textoX, furoY, radius, Math.PI / 2, -Math.PI / 2, true);
+  shape.lineTo(0, furoY - radius);
+  shape.absarc(0, furoY, radius, -Math.PI / 2, Math.PI / 2, true);
+
+  const hole = new THREE.Path();
+  hole.absarc(0, furoY, holeR, 0, Math.PI * 2, false);
+  shape.holes.push(hole);
+  return shape;
+}
+
+// ── Porta-chaves de texto com patamares: nome empilhado em até 3 níveis,
+// cada nível um pouco mais "gordo" que o de cima (para trocar de filamento
+// por camada) — replica templates/portachaves_nome_multicor.scad ──
+function PatamaresKeyPreview({ params }: { params: Record<string, any> }) {
+  const [group, setGroup] = useState<THREE.Group | null>(null);
+
+  const fontPath = FONT_MAP[String(params.fonte || '')] ?? FONT_MAP['Aladin'];
+
+  const depsKey = JSON.stringify({
+    nome: params.nome, fonte: params.fonte, tamanho: params.tamanho,
+    numCores: params.num_cores, altura: params.altura,
+    offset1: params.offset_cor1, offset2: params.offset_cor2,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const nome     = String(params.nome ?? 'Nome');
+    const tamanho  = Number(params.tamanho ?? 20);
+    const numCores = Math.max(1, Math.min(3, Number(params.num_cores ?? 3)));
+    const altura   = Number(params.altura ?? 2);
+    const offset1  = Number(params.offset_cor1 ?? 4);
+    const offset2  = Number(params.offset_cor2 ?? 2);
+
+    // Argola: furo de 5mm de diâmetro, parede de 2mm à volta
+    const furoR  = 2.5;
+    const parede = 2.0;
+    const lobeR  = furoR + parede;
+    const textoX = lobeR + 1.0;
+
+    new FontLoader().load(fontPath, (font) => {
+      if (cancelled) return;
+      const grp = new THREE.Group();
+
+      // Camada base (cor 1): texto com offset (só se houver mais níveis) + ponte/argola
+      const rBase = numCores >= 2 ? offset1 : 0;
+      const baseGeom = new TextGeometry(nome, {
+        font, size: tamanho, height: altura, curveSegments: 8,
+        bevelEnabled: rBase > 0.05,
+        bevelThickness: 0.01,
+        bevelSize: rBase,
+      });
+      baseGeom.translate(textoX, 0, 0);
+      baseGeom.computeBoundingBox();
+      const bb = baseGeom.boundingBox!;
+      // Centro vertical do texto — aproxima o valign="center" do OpenSCAD
+      const furoY = (bb.min.y + bb.max.y) / 2;
+
+      const baseMat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
+      grp.add(new THREE.Mesh(withCreasedNormals(baseGeom, 30), baseMat));
+
+      const bridgeShape = buildBridgeShape(lobeR + rBase, furoR, textoX, furoY);
+      const bridgeGeom  = new THREE.ExtrudeGeometry(bridgeShape, { depth: altura, bevelEnabled: false, curveSegments: 24 });
+      grp.add(new THREE.Mesh(bridgeGeom, baseMat));
+
+      // Camada intermédia (cor 2) — só com 3 níveis
+      if (numCores === 3) {
+        const midGeom = new TextGeometry(nome, {
+          font, size: tamanho, height: altura, curveSegments: 8,
+          bevelEnabled: offset2 > 0.05,
+          bevelThickness: 0.01,
+          bevelSize: offset2,
+        });
+        midGeom.translate(textoX, 0, altura);
+        const midMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.1, roughness: 0.4 });
+        grp.add(new THREE.Mesh(withCreasedNormals(midGeom, 30), midMat));
+      }
+
+      // Camada de topo (letras puras, sem offset) — a partir de 2 níveis
+      if (numCores >= 2) {
+        const topGeom = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
+        topGeom.translate(textoX, 0, altura * (numCores === 3 ? 2 : 1));
+        const topMat = new THREE.MeshStandardMaterial({ color: '#1e3a5f', metalness: 0.2, roughness: 0.3 });
+        grp.add(new THREE.Mesh(withCreasedNormals(topGeom, 30), topMat));
+      }
+
+      // Centrar o conjunto em X/Y
+      const box = new THREE.Box3().setFromObject(grp);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      grp.position.set(-center.x, -center.y, 0);
+
+      setGroup(grp);
+    });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depsKey, fontPath]);
+
+  if (!group) return null;
+  return <primitive object={group} />;
+}
+
 // ── Caixa paramétrica simples ──
 function CaixaPreview({ params }: { params: Record<string, any> }) {
   const largura     = typeof params.largura     === 'number' ? params.largura     : 100;
@@ -450,13 +562,16 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
   const isLetraNome = !isPetTag && !isNameKey
     && typeof params.letra === 'string' && typeof params.nome === 'string'
     && typeof params.fonte_inicial === 'string';
+  const isPatamares = !isPetTag && !isNameKey && !isLetraNome
+    && typeof params.nome === 'string' && typeof params.fonte === 'string'
+    && params.offset_cor1 !== undefined;
   const showText  = params.mostrar_texto !== false;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : isNameKey ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 1000,
@@ -495,6 +610,8 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
             <NameKeyPreview params={params} />
           ) : isLetraNome ? (
             <LetraNomePreview params={params} />
+          ) : isPatamares ? (
+            <PatamaresKeyPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
