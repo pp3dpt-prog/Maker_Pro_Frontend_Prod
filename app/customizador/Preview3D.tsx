@@ -448,24 +448,65 @@ function buildBridgeShape(radius: number, holeR: number, textoX: number, furoY: 
   return shape;
 }
 
-// Aproxima o "contorno" (minkowski com um círculo) do OpenSCAD escalando o
-// texto a partir do seu próprio centro — um offset geométrico verdadeiro via
-// bevel do ExtrudeGeometry produz picos em cantos côncavos/traços finos de
-// fontes cursivas (sem limite de mitre), por isso preferimos esta aproximação
-// robusta (sem auto-interseções) a um resultado tecnicamente mais fiel mas
-// visualmente quebrado.
-function offsetTextGeometry(geom: THREE.BufferGeometry, offsetMm: number): THREE.BufferGeometry {
-  if (offsetMm <= 0.05) return geom;
-  geom.computeBoundingBox();
-  const bb = geom.boundingBox!;
-  const cx = (bb.min.x + bb.max.x) / 2;
-  const cy = (bb.min.y + bb.max.y) / 2;
-  const halfH = (bb.max.y - bb.min.y) / 2;
-  const scale = halfH > 0.05 ? 1 + offsetMm / halfH : 1;
-  geom.translate(-cx, -cy, 0);
-  geom.scale(scale, scale, 1);
-  geom.translate(cx, cy, 0);
-  return geom;
+// Escala uma curva (Shape ou Path) em volta de (cx,cy), mexendo directamente
+// nos pontos de controlo de cada segmento — preserva o tipo de curva exacto
+// (reta/quadrática/cúbica), ao contrário de reamostrar e reconstruir a forma.
+function scaleCurvePath(path: THREE.Path, cx: number, cy: number, scale: number) {
+  for (const curve of path.curves as any[]) {
+    for (const key of ['v0', 'v1', 'v2', 'v3']) {
+      const v = curve[key];
+      if (v && typeof v.x === 'number' && typeof v.y === 'number') {
+        v.x = (v.x - cx) * scale + cx;
+        v.y = (v.y - cy) * scale + cy;
+      }
+    }
+  }
+}
+
+// Aproxima o "contorno" (minkowski com um círculo) do OpenSCAD escalando
+// CADA LETRA em volta do seu próprio centro (antes da extrusão) — um offset
+// geométrico verdadeiro via bevel do ExtrudeGeometry produz picos em cantos
+// côncavos/traços finos de fontes cursivas (sem limite de mitre), e escalar
+// a palavra toda a partir de um único centro afasta as letras extremas de
+// forma desigual (halo em "nuvem"). Escalar letra a letra, à volta do seu
+// próprio centro, mantém cada letra proporcional e sem auto-interseções.
+function buildOffsetTextGeometry(font: any, text: string, size: number, depth: number, offsetMm: number): THREE.BufferGeometry {
+  const shapes: THREE.Shape[] = font.generateShapes(text, size);
+  if (offsetMm > 0.05) {
+    // Referência de escala: altura do bloco de texto completo (todas as
+    // letras), para o "contorno" ter a mesma espessura em mm em toda a palavra.
+    let minY = Infinity, maxY = -Infinity;
+    for (const shape of shapes) {
+      for (const curve of shape.curves as any[]) {
+        for (const key of ['v0', 'v1', 'v2', 'v3']) {
+          const v = (curve as any)[key];
+          if (v && typeof v.y === 'number') { if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y; }
+        }
+      }
+    }
+    const halfH = (maxY - minY) / 2;
+    const scale = halfH > 0.05 ? 1 + offsetMm / halfH : 1;
+
+    for (const shape of shapes) {
+      let minX = Infinity, maxX = -Infinity, sMinY = Infinity, sMaxY = -Infinity;
+      const allPaths = [shape, ...shape.holes];
+      for (const p of allPaths) {
+        for (const curve of p.curves as any[]) {
+          for (const key of ['v0', 'v1', 'v2', 'v3']) {
+            const v = curve[key];
+            if (v && typeof v.x === 'number') {
+              if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+              if (v.y < sMinY) sMinY = v.y; if (v.y > sMaxY) sMaxY = v.y;
+            }
+          }
+        }
+      }
+      if (minX === Infinity) continue; // letra sem segmentos (ex: espaço)
+      const cx = (minX + maxX) / 2, cy = (sMinY + sMaxY) / 2;
+      for (const p of allPaths) scaleCurvePath(p, cx, cy, scale);
+    }
+  }
+  return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
 }
 
 // ── Porta-chaves de texto com patamares: nome empilhado em até 3 níveis,
@@ -507,8 +548,7 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada base (cor 1): texto com offset (só se houver mais níveis) + ponte/argola
       const rBase = numCores >= 2 ? offset1 : 0;
-      let baseGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 24 });
-      baseGeom = offsetTextGeometry(baseGeom, rBase);
+      const baseGeom = buildOffsetTextGeometry(font, nome, tamanho, altura, rBase);
       baseGeom.translate(textoX, 0, 0);
       baseGeom.computeBoundingBox();
       const bb = baseGeom.boundingBox!;
@@ -528,8 +568,7 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada intermédia (cor 2) — só com 3 níveis
       if (numCores === 3) {
-        let midGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 24 });
-        midGeom = offsetTextGeometry(midGeom, offset2);
+        const midGeom = buildOffsetTextGeometry(font, nome, tamanho, altura, offset2);
         midGeom.translate(textoX, 0, altura);
         const midMat = new THREE.MeshStandardMaterial({ color: initialColors[1] ?? PATAMARES_DEFAULT_COLORS[1], metalness: 0.1, roughness: 0.4 });
         newMats.push(midMat);
