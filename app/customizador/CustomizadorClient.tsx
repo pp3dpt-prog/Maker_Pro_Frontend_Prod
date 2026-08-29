@@ -11,6 +11,7 @@ type Props = {
   stlUrl?: string | null;
   stlFilePath?: string | null; // caminho do modelo em branco (pet-tags)
   thumbnailUrl?: string | null; // imagem de preview para produtos sem preview nativo
+  coresPatamares?: string[]; // cores do preview do porta-chaves com patamares (só visual)
 };
 
 export default function CustomizadorClient({
@@ -20,6 +21,7 @@ export default function CustomizadorClient({
   stlUrl,
   stlFilePath,
   thumbnailUrl,
+  coresPatamares,
 }: Props) {
   // Preview ao vivo (3D em tempo real):
   //  - pet-tags: têm stlFilePath (modelo em branco + texto sobreposto)
@@ -41,7 +43,7 @@ export default function CustomizadorClient({
         <>
           {temPreviewVivo ? (
             /* Preview 3D ao vivo — actualiza com os parâmetros em tempo real */
-            <Preview3D params={params} stlFilePath={stlFilePath} />
+            <Preview3D params={params} stlFilePath={stlFilePath} coresPatamares={coresPatamares} />
           ) : thumbnailUrl ? (
             /* Produtos sem preview ao vivo: mostrar thumbnail como exemplo */
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>

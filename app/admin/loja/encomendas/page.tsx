@@ -156,16 +156,28 @@ export default function EncomendasAdminPage() {
                       {/* Itens */}
                       <div style={{ marginBottom: 16 }}>
                         {lista.map(it => (
-                          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: '#cbd5e1', padding: '4px 0' }}>
-                            <span>
-                              {it.quantidade}× {it.nome}{it.cor || it.cor_secundaria || it.cor_terciaria || it.tamanho ? ` (${[it.cor, it.cor_secundaria, it.cor_terciaria, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}
-                              {(it.personalizacao?.stl_path || it.personalizacao?.stl_url) && (
-                                <button onClick={() => descarregarStl(it.personalizacao.stl_path || it.personalizacao.stl_url)} style={{ marginLeft: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                                  ⬇ STL
-                                </button>
-                              )}
-                            </span>
-                            <span>{it.preco_cents == null ? 'a orçamentar' : eur(it.preco_cents * it.quantidade)}</span>
+                          <div key={it.id} style={{ padding: '4px 0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: '#cbd5e1' }}>
+                              <span>
+                                {it.quantidade}× {it.nome}{it.cor || it.cor_secundaria || it.cor_terciaria || it.tamanho ? ` (${[it.cor, it.cor_secundaria, it.cor_terciaria, it.tamanho].filter(Boolean).join(' / ')})` : ''}{it.personalizacao ? ' ✨ personalizado' : ''}
+                                {(it.personalizacao?.stl_path || it.personalizacao?.stl_url) && (
+                                  <button onClick={() => descarregarStl(it.personalizacao.stl_path || it.personalizacao.stl_url)} style={{ marginLeft: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                    ⬇ STL
+                                  </button>
+                                )}
+                              </span>
+                              <span>{it.preco_cents == null ? 'a orçamentar' : eur(it.preco_cents * it.quantidade)}</span>
+                            </div>
+                            {it.personalizacao?.guia_cores && (
+                              <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                {(it.personalizacao.cores_patamares ?? []).map((c: string, i: number) => (
+                                  <span key={i} style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 4, background: c, border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0, marginTop: 1 }} title={c} />
+                                ))}
+                                <pre style={{ margin: 0, fontSize: 11, lineHeight: 1.6, color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                                  {it.personalizacao.guia_cores}
+                                </pre>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

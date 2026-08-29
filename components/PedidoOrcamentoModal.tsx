@@ -29,6 +29,7 @@ type Props = {
   defaultEmail?: string;
   userId?: string | null;
   stlUrl?: string | null;
+  guiaCores?: string | null;
 };
 
 const HIDDEN_PARAMS = new Set(['mostrar_texto']);
@@ -48,6 +49,7 @@ export default function PedidoOrcamentoModal({
   defaultEmail,
   userId,
   stlUrl,
+  guiaCores,
 }: Props) {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState(defaultEmail ?? '');
@@ -64,6 +66,12 @@ export default function PedidoOrcamentoModal({
   useEffect(() => {
     if (defaultEmail && !email) setEmail(defaultEmail);
   }, [defaultEmail]);
+
+  // Pré-preenche as notas com o guia de cores (patamares) — o cliente vê e
+  // pode editar/completar antes de enviar; não sobrescreve texto já escrito.
+  useEffect(() => {
+    if (guiaCores && !notas) setNotas(guiaCores);
+  }, [guiaCores]);
 
   const paramsRows = useMemo(() => {
     const schemaParams = design.generation_schema?.parameters ?? {};

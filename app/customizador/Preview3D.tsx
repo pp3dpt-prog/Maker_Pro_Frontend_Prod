@@ -9,6 +9,7 @@ import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-std
 type Preview3DProps = {
   params: Record<string, any>;
   stlFilePath?: string | null;
+  coresPatamares?: string[];
 };
 
 const FONT_MAP: Record<string, string> = {
@@ -451,8 +452,11 @@ function buildBridgeShape(radius: number, holeR: number, textoX: number, furoY: 
 // ── Porta-chaves de texto com patamares: nome empilhado em até 3 níveis,
 // cada nível um pouco mais "gordo" que o de cima (para trocar de filamento
 // por camada) — replica templates/portachaves_nome_multicor.scad ──
-function PatamaresKeyPreview({ params }: { params: Record<string, any> }) {
+const PATAMARES_DEFAULT_COLORS = ['#93c5fd', '#60a5fa', '#1e3a5f'];
+
+function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; colors?: string[] }) {
   const [group, setGroup] = useState<THREE.Group | null>(null);
+  const matRefs = useRef<THREE.MeshStandardMaterial[]>([]);
 
   const fontPath = FONT_MAP[String(params.fonte || '')] ?? FONT_MAP['Aladin'];
 
@@ -496,7 +500,11 @@ function PatamaresKeyPreview({ params }: { params: Record<string, any> }) {
       // Centro vertical do texto — aproxima o valign="center" do OpenSCAD
       const furoY = (bb.min.y + bb.max.y) / 2;
 
-      const baseMat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
+      const initialColors = colors ?? PATAMARES_DEFAULT_COLORS;
+      const newMats: THREE.MeshStandardMaterial[] = [];
+
+      const baseMat = new THREE.MeshStandardMaterial({ color: initialColors[0] ?? PATAMARES_DEFAULT_COLORS[0], metalness: 0.1, roughness: 0.4 });
+      newMats.push(baseMat);
       grp.add(new THREE.Mesh(withCreasedNormals(baseGeom, 30), baseMat));
 
       const bridgeShape = buildBridgeShape(lobeR + rBase, furoR, textoX, furoY);
@@ -512,7 +520,8 @@ function PatamaresKeyPreview({ params }: { params: Record<string, any> }) {
           bevelSize: offset2,
         });
         midGeom.translate(textoX, 0, altura);
-        const midMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.1, roughness: 0.4 });
+        const midMat = new THREE.MeshStandardMaterial({ color: initialColors[1] ?? PATAMARES_DEFAULT_COLORS[1], metalness: 0.1, roughness: 0.4 });
+        newMats.push(midMat);
         grp.add(new THREE.Mesh(withCreasedNormals(midGeom, 30), midMat));
       }
 
@@ -520,7 +529,8 @@ function PatamaresKeyPreview({ params }: { params: Record<string, any> }) {
       if (numCores >= 2) {
         const topGeom = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
         topGeom.translate(textoX, 0, altura * (numCores === 3 ? 2 : 1));
-        const topMat = new THREE.MeshStandardMaterial({ color: '#1e3a5f', metalness: 0.2, roughness: 0.3 });
+        const topMat = new THREE.MeshStandardMaterial({ color: initialColors[numCores === 3 ? 2 : 1] ?? PATAMARES_DEFAULT_COLORS[2], metalness: 0.2, roughness: 0.3 });
+        newMats.push(topMat);
         grp.add(new THREE.Mesh(withCreasedNormals(topGeom, 30), topMat));
       }
 
@@ -530,12 +540,23 @@ function PatamaresKeyPreview({ params }: { params: Record<string, any> }) {
       box.getCenter(center);
       grp.position.set(-center.x, -center.y, 0);
 
+      matRefs.current = newMats;
       setGroup(grp);
     });
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depsKey, fontPath]);
+
+  // Cor ao vivo: só actualiza os materiais, sem recarregar fontes/geometria.
+  // matRefs[i] corresponde sempre à cor do Nível i+1 (base=0, intermédio=1,
+  // topo=2 ou 1 se só houver 2 níveis) — a ordem de criação acima já garante isto.
+  useEffect(() => {
+    const c = colors ?? PATAMARES_DEFAULT_COLORS;
+    matRefs.current.forEach((mat, i) => {
+      mat.color.set(c[i] ?? PATAMARES_DEFAULT_COLORS[i] ?? '#ffffff');
+    });
+  }, [colors, group]);
 
   if (!group) return null;
   return <primitive object={group} />;
@@ -556,7 +577,7 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 }
 
 // ── Componente principal ──
-export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
+export default function Preview3D({ params, stlFilePath, coresPatamares }: Preview3DProps) {
   const isPetTag    = !!stlFilePath;
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   const isLetraNome = !isPetTag && !isNameKey
@@ -611,7 +632,7 @@ export default function Preview3D({ params, stlFilePath }: Preview3DProps) {
           ) : isLetraNome ? (
             <LetraNomePreview params={params} />
           ) : isPatamares ? (
-            <PatamaresKeyPreview params={params} />
+            <PatamaresKeyPreview params={params} colors={coresPatamares} />
           ) : (
             <CaixaPreview params={params} />
           )}

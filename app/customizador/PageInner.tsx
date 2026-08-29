@@ -10,6 +10,7 @@ import DownloadStlButton from '@/components/DownloadStlButton';
 import IfThenPayDownloadButton from '@/components/IfThenPayDownloadButton';
 import PedidoOrcamentoModal from '@/components/PedidoOrcamentoModal';
 import { useCart } from '@/components/loja/CartContext';
+import { buildGuiaCoresPatamares } from '@/lib/patamares-guia';
 import styles from './ConfiguratorLayout.module.css';
 
 type LojaProduto = {
@@ -83,6 +84,10 @@ export default function PageInner() {
   const [design, setDesign] = useState<Design | null>(null);
   const [familyDesigns, setFamilyDesigns] = useState<Design[]>([]);
   const [params, setParams] = useState<Record<string, any> | null>(null);
+  // Cores dos patamares só para o preview 3D — não faz parte do design, não é
+  // enviado ao backend nem afeta o STL (a cor real é a do filamento trocado
+  // durante a impressão).
+  const [coresPatamares, setCoresPatamares] = useState<string[]>(['#93c5fd', '#60a5fa', '#1e3a5f']);
   const [mode, setMode] = useState<'preview' | 'stl' | 'generating'>('preview');
   const [stlUrl, setStlUrl] = useState<string | null>(null);
   const [paramsChanged, setParamsChanged] = useState(false);
@@ -320,7 +325,12 @@ export default function PageInner() {
       variante_label: null,
       preco_cents: preco,
       requer_orcamento: lojaProduto.requer_orcamento,
-      personalizacao: { params: params ? filtrarParamsBackend(params) : null, stl_url: stlUrl, stl_path: stlPath },
+      personalizacao: {
+        params: params ? filtrarParamsBackend(params) : null,
+        stl_url: stlUrl,
+        stl_path: stlPath,
+        ...(isPatamares && { cores_patamares: coresPatamares, guia_cores: guiaCores }),
+      },
       personalizacao_label: 'Peça personalizada',
     });
     setAddedMsg('Adicionado ao carrinho ✓');
@@ -463,6 +473,20 @@ export default function PageInner() {
   const userPlano = userProfile?.plano || 'gratuito'; // || em vez de ?? para tratar string vazia
   const tipo = userProfile?.tipo_utilizador ?? null;
   const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
+
+  // Porta-chaves texto com patamares: guia de troca de filamento a partir das
+  // cores escolhidas no preview (só existem no browser — não fazem parte do
+  // design nem do STL, ver coresPatamares acima).
+  const isPatamares = typeof params?.nome === 'string' && typeof params?.fonte === 'string'
+    && params?.offset_cor1 !== undefined;
+  const guiaCores = isPatamares
+    ? buildGuiaCoresPatamares({
+        nome: String(params?.nome ?? 'Nome'),
+        numCores: Number(params?.num_cores ?? 3),
+        altura: Number(params?.altura ?? 2),
+        cores: coresPatamares,
+      })
+    : null;
 
   // Qualquer utilizador com login pode gerar/pré-visualizar o STL.
   // O download é que fica restrito por plano (acesso_maker).
@@ -612,6 +636,64 @@ export default function PageInner() {
           onChange={handleParamsChange}
           onFileUpload={handleFileUpload}
         />
+
+        {/* Cores dos patamares — só no preview, a cor real é do filamento trocado na impressão */}
+        {isPatamares && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
+              Cores no preview <span style={{ fontWeight: 400, color: '#64748b' }}>(não afeta o STL — a cor real é a do filamento)</span>
+            </label>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {['Nível 1', 'Nível 2', 'Nível 3']
+                .slice(0, Math.max(1, Math.min(3, Number(params?.num_cores ?? 3))))
+                .map((label, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="color"
+                    value={coresPatamares[i]}
+                    onChange={(e) => setCoresPatamares(prev => {
+                      const next = [...prev]; next[i] = e.target.value; return next;
+                    })}
+                    style={{ width: 32, height: 28, padding: 0, border: '1px solid #1f2937', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 11, color: '#8a96aa' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {guiaCores && (
+              <>
+                <pre style={{
+                  margin: 0, padding: '10px 12px', borderRadius: 8,
+                  background: '#0f172a', border: '1px solid #1e293b',
+                  color: '#cbd5e1', fontSize: 11, lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap', fontFamily: 'monospace',
+                }}>
+                  {guiaCores}
+                </pre>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const blob = new Blob([guiaCores], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'guia_cores.txt';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  style={{
+                    alignSelf: 'flex-start', padding: '6px 12px', borderRadius: 8,
+                    background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
+                    color: '#34d399', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                  }}
+                >
+                  ⬇ Guia de Cores (TXT)
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Área de ação */}
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -859,6 +941,7 @@ export default function PageInner() {
           stlUrl={stlUrl}
           stlFilePath={design.stl_file_path}
           thumbnailUrl={design.thumbnail_url}
+          coresPatamares={coresPatamares}
         />
       </section>
     </main>
@@ -877,6 +960,7 @@ export default function PageInner() {
         stlUrl={stlUrl && stlUrl.startsWith('https://') ? stlUrl : null}
         defaultEmail={userEmail ?? undefined}
         userId={userId}
+        guiaCores={guiaCores}
       />
     )}
     </>
