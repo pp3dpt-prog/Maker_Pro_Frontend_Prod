@@ -448,65 +448,94 @@ function buildBridgeShape(radius: number, holeR: number, textoX: number, furoY: 
   return shape;
 }
 
-// Escala uma curva (Shape ou Path) em volta de (cx,cy), mexendo directamente
-// nos pontos de controlo de cada segmento — preserva o tipo de curva exacto
-// (reta/quadrática/cúbica), ao contrário de reamostrar e reconstruir a forma.
-function scaleCurvePath(path: THREE.Path, cx: number, cy: number, scale: number) {
-  for (const curve of path.curves as any[]) {
-    for (const key of ['v0', 'v1', 'v2', 'v3']) {
-      const v = curve[key];
-      if (v && typeof v.x === 'number' && typeof v.y === 'number') {
-        v.x = (v.x - cx) * scale + cx;
-        v.y = (v.y - cy) * scale + cy;
+// Offset (buffer) de um polígono fechado por uma distância `d`, com junções
+// arredondadas — cada ponto do resultado fica, por construção, a exactamente
+// `|d|` do vértice original mais próximo, o que LIMITA sempre o desvio
+// máximo. É essa garantia que falta a um "miter join" (bevel do
+// ExtrudeGeometry) ou a uma escala global: ambos podem projectar pontos
+// arbitrariamente longe em cantos côncavos/traços finos de fontes cursivas,
+// o que dava origem aos "picos". `d` positivo cresce para fora (contorno da
+// letra), negativo encolhe para dentro (usado nos buracos das letras).
+function offsetPolygonRound(pts: THREE.Vector2[], d: number, segments = 8): THREE.Vector2[] {
+  const n = pts.length;
+  if (n < 3 || Math.abs(d) < 1e-6) return pts;
+
+  let area2 = 0;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    area2 += a.x * b.y - b.x * a.y;
+  }
+  const outward = area2 >= 0 ? 1 : -1;
+  const radius = Math.abs(d);
+
+  const out: THREE.Vector2[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = pts[(i - 1 + n) % n];
+    const cur = pts[i];
+    const next = pts[(i + 1) % n];
+    if (cur.distanceToSquared(prev) < 1e-8 || cur.distanceToSquared(next) < 1e-8) continue;
+
+    const e1 = new THREE.Vector2().subVectors(cur, prev).normalize();
+    const e2 = new THREE.Vector2().subVectors(next, cur).normalize();
+    const nrm1 = new THREE.Vector2(-e1.y, e1.x).multiplyScalar(outward * d);
+    const nrm2 = new THREE.Vector2(-e2.y, e2.x).multiplyScalar(outward * d);
+
+    out.push(cur.clone().add(nrm1));
+
+    const a1 = Math.atan2(nrm1.y, nrm1.x);
+    let a2 = Math.atan2(nrm2.y, nrm2.x);
+    let diff = a2 - a1;
+    while (diff <= -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    if (Math.abs(diff) > 0.02) {
+      const steps = Math.max(1, Math.round((Math.abs(diff) / Math.PI) * segments));
+      for (let s = 1; s < steps; s++) {
+        const a = a1 + diff * (s / steps);
+        out.push(new THREE.Vector2(cur.x + radius * Math.cos(a), cur.y + radius * Math.sin(a)));
       }
     }
+    out.push(cur.clone().add(nrm2));
   }
+  return out;
 }
 
-// Aproxima o "contorno" (minkowski com um círculo) do OpenSCAD escalando
-// CADA LETRA em volta do seu próprio centro (antes da extrusão) — um offset
-// geométrico verdadeiro via bevel do ExtrudeGeometry produz picos em cantos
-// côncavos/traços finos de fontes cursivas (sem limite de mitre), e escalar
-// a palavra toda a partir de um único centro afasta as letras extremas de
-// forma desigual (halo em "nuvem"). Escalar letra a letra, à volta do seu
-// próprio centro, mantém cada letra proporcional e sem auto-interseções.
+function signedArea2(pts: THREE.Vector2[]): number {
+  let a2 = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    a2 += a.x * b.y - b.x * a.y;
+  }
+  return a2;
+}
+
+// Aplica o offset a uma letra (Shape com os seus buracos). Os buracos
+// encolhem (offset negativo) — tal como no minkowski real, um contorno
+// grosso o suficiente engole os "olhos" das letras (a, e, o, ...); se o
+// buraco encolher para lá do seu próprio raio aproximado, é descartado em
+// vez de deixar a geometria inverter/auto-intersectar-se.
+function offsetLetterShape(shape: THREE.Shape, offsetMm: number): THREE.Shape {
+  if (offsetMm <= 0.05) return shape;
+  const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
+  const newShape = new THREE.Shape(offsetPolygonRound(outerPts, offsetMm));
+
+  for (const holePts of holePtsArr) {
+    const holeArea2 = signedArea2(holePts);
+    const approxRadius = Math.sqrt(Math.abs(holeArea2) / 2 / Math.PI);
+    if (approxRadius <= offsetMm) continue; // buraco demasiado pequeno para o contorno — desaparece
+    const shrunk = offsetPolygonRound(holePts, -offsetMm);
+    const shrunkArea2 = signedArea2(shrunk);
+    if (Math.sign(shrunkArea2) !== Math.sign(holeArea2) || Math.abs(shrunkArea2) < 0.01) continue;
+    newShape.holes.push(new THREE.Path(shrunk));
+  }
+  return newShape;
+}
+
+// ── Reconstrói o "contorno" (minkowski com um círculo) do OpenSCAD via
+// offset geométrico real de cada letra — ver offsetPolygonRound acima.
 function buildOffsetTextGeometry(font: any, text: string, size: number, depth: number, offsetMm: number): THREE.BufferGeometry {
   const shapes: THREE.Shape[] = font.generateShapes(text, size);
-  if (offsetMm > 0.05) {
-    // Referência de escala: altura do bloco de texto completo (todas as
-    // letras), para o "contorno" ter a mesma espessura em mm em toda a palavra.
-    let minY = Infinity, maxY = -Infinity;
-    for (const shape of shapes) {
-      for (const curve of shape.curves as any[]) {
-        for (const key of ['v0', 'v1', 'v2', 'v3']) {
-          const v = (curve as any)[key];
-          if (v && typeof v.y === 'number') { if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y; }
-        }
-      }
-    }
-    const halfH = (maxY - minY) / 2;
-    const scale = halfH > 0.05 ? 1 + offsetMm / halfH : 1;
-
-    for (const shape of shapes) {
-      let minX = Infinity, maxX = -Infinity, sMinY = Infinity, sMaxY = -Infinity;
-      const allPaths = [shape, ...shape.holes];
-      for (const p of allPaths) {
-        for (const curve of p.curves as any[]) {
-          for (const key of ['v0', 'v1', 'v2', 'v3']) {
-            const v = curve[key];
-            if (v && typeof v.x === 'number') {
-              if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
-              if (v.y < sMinY) sMinY = v.y; if (v.y > sMaxY) sMaxY = v.y;
-            }
-          }
-        }
-      }
-      if (minX === Infinity) continue; // letra sem segmentos (ex: espaço)
-      const cx = (minX + maxX) / 2, cy = (sMinY + sMaxY) / 2;
-      for (const p of allPaths) scaleCurvePath(p, cx, cy, scale);
-    }
-  }
-  return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
+  const finalShapes = offsetMm > 0.05 ? shapes.map(s => offsetLetterShape(s, offsetMm)) : shapes;
+  return new THREE.ExtrudeGeometry(finalShapes, { depth, bevelEnabled: false, curveSegments: 24 });
 }
 
 // ── Porta-chaves de texto com patamares: nome empilhado em até 3 níveis,
