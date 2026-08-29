@@ -507,7 +507,7 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada base (cor 1): texto com offset (só se houver mais níveis) + ponte/argola
       const rBase = numCores >= 2 ? offset1 : 0;
-      let baseGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
+      let baseGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 24 });
       baseGeom = offsetTextGeometry(baseGeom, rBase);
       baseGeom.translate(textoX, 0, 0);
       baseGeom.computeBoundingBox();
@@ -528,7 +528,7 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada intermédia (cor 2) — só com 3 níveis
       if (numCores === 3) {
-        let midGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
+        let midGeom: THREE.BufferGeometry = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 24 });
         midGeom = offsetTextGeometry(midGeom, offset2);
         midGeom.translate(textoX, 0, altura);
         const midMat = new THREE.MeshStandardMaterial({ color: initialColors[1] ?? PATAMARES_DEFAULT_COLORS[1], metalness: 0.1, roughness: 0.4 });
@@ -538,7 +538,7 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
 
       // Camada de topo (letras puras, sem offset) — a partir de 2 níveis
       if (numCores >= 2) {
-        const topGeom = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 8 });
+        const topGeom = new TextGeometry(nome, { font, size: tamanho, height: altura, curveSegments: 24 });
         topGeom.translate(textoX, 0, altura * (numCores === 3 ? 2 : 1));
         const topMat = new THREE.MeshStandardMaterial({ color: initialColors[numCores === 3 ? 2 : 1] ?? PATAMARES_DEFAULT_COLORS[2], metalness: 0.2, roughness: 0.3 });
         newMats.push(topMat);
