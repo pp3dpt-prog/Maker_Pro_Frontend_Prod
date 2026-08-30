@@ -84,6 +84,10 @@
     display: none;
   }
 
+  .panel.mobileDrawer {
+    display: flex;
+  }
+
   .mobileBtn {
     display: block;
   }

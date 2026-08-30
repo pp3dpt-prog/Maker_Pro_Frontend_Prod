@@ -88,6 +88,7 @@ export default function PageInner() {
   // enviado ao backend nem afeta o STL (a cor real é a do filamento trocado
   // durante a impressão).
   const [coresPatamares, setCoresPatamares] = useState<string[]>(['#93c5fd', '#60a5fa', '#1e3a5f']);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mode, setMode] = useState<'preview' | 'stl' | 'generating'>('preview');
   const [stlUrl, setStlUrl] = useState<string | null>(null);
   const [paramsChanged, setParamsChanged] = useState(false);
@@ -550,7 +551,17 @@ export default function PageInner() {
       </div>
 
       <main className={styles.root}>
-      <aside className={styles.panel}>
+      <aside className={mobileDrawerOpen ? `${styles.panel} ${styles.mobileDrawer}` : styles.panel}>
+        {mobileDrawerOpen && (
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={() => setMobileDrawerOpen(false)}
+            style={{ background: 'transparent', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 8, padding: '8px 14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }}
+          >
+            ✕ Fechar
+          </button>
+        )}
 
         {/* Badge admin */}
         {isAdmin && design.estado !== 'ativo' && (
@@ -943,6 +954,9 @@ export default function PageInner() {
           thumbnailUrl={design.thumbnail_url}
           coresPatamares={coresPatamares}
         />
+        <button type="button" className={styles.mobileBtn} onClick={() => setMobileDrawerOpen(true)}>
+          ⚙️ Personalizar
+        </button>
       </section>
     </main>
 

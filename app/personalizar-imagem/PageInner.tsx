@@ -149,6 +149,7 @@ export default function PageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showRetry, setShowRetry] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -427,7 +428,17 @@ export default function PageInner() {
 
       <main className={styles.root}>
         {/* ── Painel esquerdo ─────────────────────────────────────────────── */}
-        <aside className={styles.panel}>
+        <aside className={mobileDrawerOpen ? `${styles.panel} ${styles.mobileDrawer}` : styles.panel}>
+          {mobileDrawerOpen && (
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={() => setMobileDrawerOpen(false)}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 8, padding: '8px 14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }}
+            >
+              ✕ Fechar
+            </button>
+          )}
           {/* Selector de família */}
           {familyDesigns.length > 1 && (
             <div style={{ padding: 12, backgroundColor: '#1e293b', borderRadius: 8, border: '1px solid #334155', marginBottom: 4 }}>
@@ -537,6 +548,9 @@ export default function PageInner() {
 
         {/* ── Área direita: preview proporcional ao marcador ─────────────── */}
         <div className={styles.viewer} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 40 }}>
+          <button type="button" className={styles.mobileBtn} onClick={() => setMobileDrawerOpen(true)}>
+            ⚙️ Personalizar
+          </button>
           {mode === 'generating' ? (
             <div style={{ textAlign: 'center', color: '#94a3b8' }}>
               <div style={{ fontSize: 48, marginBottom: 16, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⚙️</div>
