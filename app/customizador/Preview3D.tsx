@@ -5,6 +5,7 @@ import { OrbitControls, Grid, Environment } from '@react-three/drei';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-stdlib';
+import ClipperLib from 'clipper-lib';
 
 type Preview3DProps = {
   params: Record<string, any>;
@@ -448,93 +449,56 @@ function buildBridgeShape(radius: number, holeR: number, textoX: number, furoY: 
   return shape;
 }
 
-// Offset (buffer) de um polígono fechado por uma distância `d`, com junções
-// arredondadas — cada ponto do resultado fica, por construção, a exactamente
-// `|d|` do vértice original mais próximo, o que LIMITA sempre o desvio
-// máximo. É essa garantia que falta a um "miter join" (bevel do
-// ExtrudeGeometry) ou a uma escala global: ambos podem projectar pontos
-// arbitrariamente longe em cantos côncavos/traços finos de fontes cursivas,
-// o que dava origem aos "picos". `d` positivo cresce para fora (contorno da
-// letra), negativo encolhe para dentro (usado nos buracos das letras).
-function offsetPolygonRound(pts: THREE.Vector2[], d: number, segments = 8): THREE.Vector2[] {
-  const n = pts.length;
-  if (n < 3 || Math.abs(d) < 1e-6) return pts;
+// Offset (buffer) real via Clipper — a mesma classe de algoritmo (Vatti
+// clipping) usada por ferramentas de CNC/corte a laser para "engordar" um
+// contorno com segurança. As três tentativas anteriores (bevel do
+// ExtrudeGeometry, escala a partir de um centro, offset por vértice caseiro)
+// falhavam de formas diferentes em cantos/traços que se aproximam demasiado
+// uns dos outros — um offset "ingénuo" (vértice a vértice) pode ficar
+// auto-intersectado quando `offsetMm` é maior do que a folga local (ex:
+// traços finos ou cantos apertados de uma fonte bold/geométrica como a
+// Anton), o que dava origem aos "picos" mesmo depois de limitar o desvio por
+// vértice. O Clipper resolve esses auto-cruzamentos correctamente (é
+// literalmente para isso que existe), incluindo o encolhimento/desaparecimento
+// dos "olhos" das letras (a, e, o, ...) à medida que o contorno engrossa —
+// tal como o minkowski real do OpenSCAD.
+const CLIPPER_SCALE = 1000; // ~3 casas decimais de precisão em mm
 
-  let area2 = 0;
-  for (let i = 0; i < n; i++) {
-    const a = pts[i], b = pts[(i + 1) % n];
-    area2 += a.x * b.y - b.x * a.y;
-  }
-  const outward = area2 >= 0 ? 1 : -1;
-  const radius = Math.abs(d);
-
-  const out: THREE.Vector2[] = [];
-  for (let i = 0; i < n; i++) {
-    const prev = pts[(i - 1 + n) % n];
-    const cur = pts[i];
-    const next = pts[(i + 1) % n];
-    if (cur.distanceToSquared(prev) < 1e-8 || cur.distanceToSquared(next) < 1e-8) continue;
-
-    const e1 = new THREE.Vector2().subVectors(cur, prev).normalize();
-    const e2 = new THREE.Vector2().subVectors(next, cur).normalize();
-    const nrm1 = new THREE.Vector2(-e1.y, e1.x).multiplyScalar(outward * d);
-    const nrm2 = new THREE.Vector2(-e2.y, e2.x).multiplyScalar(outward * d);
-
-    out.push(cur.clone().add(nrm1));
-
-    const a1 = Math.atan2(nrm1.y, nrm1.x);
-    let a2 = Math.atan2(nrm2.y, nrm2.x);
-    let diff = a2 - a1;
-    while (diff <= -Math.PI) diff += Math.PI * 2;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    if (Math.abs(diff) > 0.02) {
-      const steps = Math.max(1, Math.round((Math.abs(diff) / Math.PI) * segments));
-      for (let s = 1; s < steps; s++) {
-        const a = a1 + diff * (s / steps);
-        out.push(new THREE.Vector2(cur.x + radius * Math.cos(a), cur.y + radius * Math.sin(a)));
-      }
-    }
-    out.push(cur.clone().add(nrm2));
-  }
-  return out;
+function toClipperPath(pts: THREE.Vector2[]): ClipperLib.IntPoint[] {
+  return pts.map(p => ({ X: Math.round(p.x * CLIPPER_SCALE), Y: Math.round(p.y * CLIPPER_SCALE) }));
 }
-
-function signedArea2(pts: THREE.Vector2[]): number {
-  let a2 = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const a = pts[i], b = pts[(i + 1) % pts.length];
-    a2 += a.x * b.y - b.x * a.y;
-  }
-  return a2;
-}
-
-// Aplica o offset a uma letra (Shape com os seus buracos). Os buracos
-// encolhem (offset negativo) — tal como no minkowski real, um contorno
-// grosso o suficiente engole os "olhos" das letras (a, e, o, ...); se o
-// buraco encolher para lá do seu próprio raio aproximado, é descartado em
-// vez de deixar a geometria inverter/auto-intersectar-se.
-function offsetLetterShape(shape: THREE.Shape, offsetMm: number): THREE.Shape {
-  if (offsetMm <= 0.05) return shape;
-  const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
-  const newShape = new THREE.Shape(offsetPolygonRound(outerPts, offsetMm));
-
-  for (const holePts of holePtsArr) {
-    const holeArea2 = signedArea2(holePts);
-    const approxRadius = Math.sqrt(Math.abs(holeArea2) / 2 / Math.PI);
-    if (approxRadius <= offsetMm) continue; // buraco demasiado pequeno para o contorno — desaparece
-    const shrunk = offsetPolygonRound(holePts, -offsetMm);
-    const shrunkArea2 = signedArea2(shrunk);
-    if (Math.sign(shrunkArea2) !== Math.sign(holeArea2) || Math.abs(shrunkArea2) < 0.01) continue;
-    newShape.holes.push(new THREE.Path(shrunk));
-  }
-  return newShape;
+function fromClipperPath(path: ClipperLib.IntPoint[]): THREE.Vector2[] {
+  return path.map(p => new THREE.Vector2(p.X / CLIPPER_SCALE, p.Y / CLIPPER_SCALE));
 }
 
 // ── Reconstrói o "contorno" (minkowski com um círculo) do OpenSCAD via
-// offset geométrico real de cada letra — ver offsetPolygonRound acima.
+// offset geométrico real (Clipper) de todas as letras em conjunto — feito
+// de uma vez só para a palavra toda, para o Clipper também soldar
+// naturalmente letras adjacentes que se toquem/sobreponham, tal como o
+// minkowski real (que opera sobre a região 2D da palavra inteira).
 function buildOffsetTextGeometry(font: any, text: string, size: number, depth: number, offsetMm: number): THREE.BufferGeometry {
   const shapes: THREE.Shape[] = font.generateShapes(text, size);
-  const finalShapes = offsetMm > 0.05 ? shapes.map(s => offsetLetterShape(s, offsetMm)) : shapes;
+  if (offsetMm <= 0.05) {
+    return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
+  }
+
+  const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
+  for (const shape of shapes) {
+    const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
+    co.AddPath(toClipperPath(outerPts), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    for (const holePts of holePtsArr) {
+      co.AddPath(toClipperPath(holePts), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    }
+  }
+  const tree = new ClipperLib.PolyTree();
+  co.Execute(tree, offsetMm * CLIPPER_SCALE);
+  const exPolys = ClipperLib.JS.PolyTreeToExPolygons(tree);
+
+  const finalShapes = exPolys.map(ep => {
+    const s = new THREE.Shape(fromClipperPath(ep.outer));
+    for (const h of ep.holes) s.holes.push(new THREE.Path(fromClipperPath(h)));
+    return s;
+  });
   return new THREE.ExtrudeGeometry(finalShapes, { depth, bevelEnabled: false, curveSegments: 24 });
 }
 
