@@ -476,13 +476,12 @@ function fromClipperPath(path: ClipperLib.IntPoint[]): THREE.Vector2[] {
 // de uma vez só para a palavra toda, para o Clipper também soldar
 // naturalmente letras adjacentes que se toquem/sobreponham, tal como o
 // minkowski real (que opera sobre a região 2D da palavra inteira).
-function buildOffsetTextGeometry(font: any, text: string, size: number, depth: number, offsetMm: number): THREE.BufferGeometry {
+// Contornos (limpos + com offset) do texto, em Paths do Clipper — usado
+// sozinho (mid/topo) ou combinado com outra forma antes de extrudir (base,
+// que precisa de se soldar com a ponte/argola — ver buildBaseLayerGeometry).
+function getOffsetTextClipperPaths(font: any, text: string, size: number, offsetMm: number): ClipperLib.Paths {
   const shapes: THREE.Shape[] = font.generateShapes(text, size);
-  if (offsetMm <= 0.05) {
-    return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
-  }
-
-  const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
+  const cleanAll: ClipperLib.Paths = [];
   for (const shape of shapes) {
     const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
     const rawPaths = [toClipperPath(outerPts), ...holePtsArr.map(toClipperPath)];
@@ -491,19 +490,80 @@ function buildOffsetTextGeometry(font: any, text: string, size: number, depth: n
     // polígono simples à entrada, por isso limpamos primeiro com
     // SimplifyPolygons (regra non-zero), que resolve esses cruzamentos e as
     // relações buraco/sólido correctamente antes do offset em si.
+    cleanAll.push(...ClipperLib.Clipper.SimplifyPolygons(rawPaths, ClipperLib.PolyFillType.pftNonZero));
+  }
+  if (offsetMm <= 0.05) return cleanAll;
+  const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
+  co.AddPaths(cleanAll, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const tree = new ClipperLib.PolyTree();
+  co.Execute(tree, offsetMm * CLIPPER_SCALE);
+  return ClipperLib.Clipper.PolyTreeToPaths(tree);
+}
+
+function translateClipperPaths(paths: ClipperLib.Paths, dxMm: number): ClipperLib.Paths {
+  const dx = Math.round(dxMm * CLIPPER_SCALE);
+  return paths.map(path => path.map(p => ({ X: p.X + dx, Y: p.Y })));
+}
+
+function boundsYOfClipperPaths(paths: ClipperLib.Paths): { minY: number; maxY: number } {
+  let minY = Infinity, maxY = -Infinity;
+  for (const path of paths) for (const p of path) { if (p.Y < minY) minY = p.Y; if (p.Y > maxY) maxY = p.Y; }
+  return { minY: minY / CLIPPER_SCALE, maxY: maxY / CLIPPER_SCALE };
+}
+
+function extrudeFromExPolyTree(tree: ClipperLib.PolyTree, depth: number): THREE.BufferGeometry {
+  const exPolys = ClipperLib.JS.PolyTreeToExPolygons(tree);
+  const shapes = exPolys.map(ep => {
+    const s = new THREE.Shape(fromClipperPath(ep.outer));
+    for (const h of ep.holes) s.holes.push(new THREE.Path(fromClipperPath(h)));
+    return s;
+  });
+  return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
+}
+
+function buildOffsetTextGeometry(font: any, text: string, size: number, depth: number, offsetMm: number): THREE.BufferGeometry {
+  const shapes: THREE.Shape[] = font.generateShapes(text, size);
+  if (offsetMm <= 0.05) {
+    return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
+  }
+  const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
+  for (const shape of shapes) {
+    const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
+    const rawPaths = [toClipperPath(outerPts), ...holePtsArr.map(toClipperPath)];
     const cleanPaths = ClipperLib.Clipper.SimplifyPolygons(rawPaths, ClipperLib.PolyFillType.pftNonZero);
     co.AddPaths(cleanPaths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   }
   const tree = new ClipperLib.PolyTree();
   co.Execute(tree, offsetMm * CLIPPER_SCALE);
-  const exPolys = ClipperLib.JS.PolyTreeToExPolygons(tree);
+  return extrudeFromExPolyTree(tree, depth);
+}
 
-  const finalShapes = exPolys.map(ep => {
-    const s = new THREE.Shape(fromClipperPath(ep.outer));
-    for (const h of ep.holes) s.holes.push(new THREE.Path(fromClipperPath(h)));
-    return s;
-  });
-  return new THREE.ExtrudeGeometry(finalShapes, { depth, bevelEnabled: false, curveSegments: 24 });
+// Camada base: solda o texto (já com offset) com a ponte/argola numa ÚNICA
+// geometria via união booleana do Clipper, em vez de duas malhas
+// independentes sobrepostas — duas malhas distintas com faces coincidentes
+// na fronteira entre letras e ponte dão z-fighting visto quase a direito
+// por cima (confirmado ao vivo: o ruído desaparecia em ângulos oblíquos —
+// assinatura de faces quase coplanares de malhas diferentes, não um
+// defeito na silhueta em si).
+function buildBaseLayerGeometry(
+  font: any, text: string, size: number, altura: number, offsetMm: number,
+  bridgeRadius: number, furoR: number, textoX: number
+): THREE.BufferGeometry {
+  const textPaths = translateClipperPaths(getOffsetTextClipperPaths(font, text, size, offsetMm), textoX);
+  const { minY, maxY } = boundsYOfClipperPaths(textPaths);
+  const furoY = (minY + maxY) / 2;
+
+  const bridgeShape = buildBridgeShape(bridgeRadius, furoR, textoX, furoY);
+  const { shape: bridgeOuterPts, holes: bridgeHolePtsArr } = bridgeShape.extractPoints(24);
+  const bridgePaths = [toClipperPath(bridgeOuterPts), ...bridgeHolePtsArr.map(toClipperPath)];
+
+  const c = new ClipperLib.Clipper();
+  c.AddPaths(textPaths, ClipperLib.PolyType.ptSubject, true);
+  c.AddPaths(bridgePaths, ClipperLib.PolyType.ptSubject, true);
+  const tree = new ClipperLib.PolyTree();
+  c.Execute(ClipperLib.ClipType.ctUnion, tree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+
+  return extrudeFromExPolyTree(tree, altura);
 }
 
 // ── Porta-chaves de texto com patamares: nome empilhado em até 3 níveis,
@@ -543,14 +603,10 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
       if (cancelled) return;
       const grp = new THREE.Group();
 
-      // Camada base (cor 1): texto com offset (só se houver mais níveis) + ponte/argola
+      // Camada base (cor 1): texto com offset (só se houver mais níveis), já
+      // soldado com a ponte/argola numa única geometria (ver buildBaseLayerGeometry)
       const rBase = numCores >= 2 ? offset1 : 0;
-      const baseGeom = buildOffsetTextGeometry(font, nome, tamanho, altura, rBase);
-      baseGeom.translate(textoX, 0, 0);
-      baseGeom.computeBoundingBox();
-      const bb = baseGeom.boundingBox!;
-      // Centro vertical do texto — aproxima o valign="center" do OpenSCAD
-      const furoY = (bb.min.y + bb.max.y) / 2;
+      const baseGeom = buildBaseLayerGeometry(font, nome, tamanho, altura, rBase, lobeR + rBase, furoR, textoX);
 
       const initialColors = colors ?? PATAMARES_DEFAULT_COLORS;
       const newMats: THREE.MeshStandardMaterial[] = [];
@@ -558,10 +614,6 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
       const baseMat = new THREE.MeshStandardMaterial({ color: initialColors[0] ?? PATAMARES_DEFAULT_COLORS[0], metalness: 0.1, roughness: 0.4 });
       newMats.push(baseMat);
       grp.add(new THREE.Mesh(withCreasedNormals(baseGeom, 30), baseMat));
-
-      const bridgeShape = buildBridgeShape(lobeR + rBase, furoR, textoX, furoY);
-      const bridgeGeom  = new THREE.ExtrudeGeometry(bridgeShape, { depth: altura, bevelEnabled: false, curveSegments: 24 });
-      grp.add(new THREE.Mesh(bridgeGeom, baseMat));
 
       // Camada intermédia (cor 2) — só com 3 níveis
       if (numCores === 3) {
