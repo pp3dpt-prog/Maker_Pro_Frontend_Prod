@@ -485,10 +485,14 @@ function buildOffsetTextGeometry(font: any, text: string, size: number, depth: n
   const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
   for (const shape of shapes) {
     const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
-    co.AddPath(toClipperPath(outerPts), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
-    for (const holePts of holePtsArr) {
-      co.AddPath(toClipperPath(holePts), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
-    }
+    const rawPaths = [toClipperPath(outerPts), ...holePtsArr.map(toClipperPath)];
+    // Alguns floreados de fontes cursivas (ex: maiúsculas da Pacifico) têm o
+    // próprio contorno auto-intersectado — o ClipperOffset espera um
+    // polígono simples à entrada, por isso limpamos primeiro com
+    // SimplifyPolygons (regra non-zero), que resolve esses cruzamentos e as
+    // relações buraco/sólido correctamente antes do offset em si.
+    const cleanPaths = ClipperLib.Clipper.SimplifyPolygons(rawPaths, ClipperLib.PolyFillType.pftNonZero);
+    co.AddPaths(cleanPaths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   }
   const tree = new ClipperLib.PolyTree();
   co.Execute(tree, offsetMm * CLIPPER_SCALE);
