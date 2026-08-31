@@ -61,11 +61,16 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    setMobileOpen(false);
-    window.location.href = '/';
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Erro ao terminar sessão:', err);
+    } finally {
+      setUser(null);
+      setIsAdmin(false);
+      setMobileOpen(false);
+      window.location.href = '/';
+    }
   };
 
   return (
