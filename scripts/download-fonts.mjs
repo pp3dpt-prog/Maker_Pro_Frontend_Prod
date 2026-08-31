@@ -30,11 +30,6 @@ const FONTS = {
   'Racing_Sans_One':   'Racing+Sans+One',
   'Sigmar_One':        'Sigmar+One',
   'Letra_Arredondado': 'Ubuntu:wght@700', // Ubuntu Bold — match exacto com o backend
-  'Sacramento':        'Sacramento',
-  // Arimo é o clone métrico do Google Fonts para a Arial (mesmo princípio da
-  // Liberation Sans, que também é métrico-compatível com a Arial) — usada como
-  // aproximação de preview para "Liberation Sans" e "Arial" (letras-caixa-luz).
-  'Arimo':             'Arimo:wght@700',
   // Letra_Moderno, Letra_Classico, Nome_CursivaElegante, Nome_ItalicoClassico,
   // Nome_ItalicoModerno: as fontes reais do backend (Liberation/DejaVu/URW
   // Chancery) não estão no Google Fonts — convertidas à parte a partir dos

@@ -29,17 +29,21 @@ export default function CustomizadorClient({
   //  - porta-chaves nome: params Text + Font_name (letras 3D geradas no browser)
   //  - letras decorativas: params letra + nome + fonte_inicial (letra + nome geradas no browser)
   //  - porta-chaves texto com patamares: params nome + fonte + offset_cor1 (níveis empilhados gerados no browser)
-  //  - letra caixa de luz: params letra + alt_canal + esp_parede (casca oca/tampa/nome, geradas no browser)
+  //  - letra caixa de luz: params letra + borda_moldura + espessura_inicial (casca/tampa traseira/nome, geradas no browser)
   const hasPetTagPreview = !!stlFilePath;
   const isNameKey = typeof params?.Text === 'string' && typeof params?.Font_name === 'string';
-  const isLetraNome = typeof params?.letra === 'string' && typeof params?.nome === 'string'
+  // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
+  // todos os nomes de parâmetros com "Letras Decorativas" — só
+  // borda_moldura/espessura_inicial são exclusivos da caixa de luz.
+  const isCaixaLuz = !isNameKey
+    && typeof params?.letra === 'string'
+    && params?.borda_moldura !== undefined && params?.espessura_inicial !== undefined;
+  const isLetraNome = !isNameKey && !isCaixaLuz
+    && typeof params?.letra === 'string' && typeof params?.nome === 'string'
     && typeof params?.fonte_inicial === 'string';
-  const isPatamares = !isNameKey && !isLetraNome
+  const isPatamares = !isNameKey && !isLetraNome && !isCaixaLuz
     && typeof params?.nome === 'string' && typeof params?.fonte === 'string'
     && params?.offset_cor1 !== undefined;
-  const isCaixaLuz = !isNameKey && !isLetraNome && !isPatamares
-    && typeof params?.letra === 'string'
-    && params?.alt_canal !== undefined && params?.esp_parede !== undefined;
   const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
@@ -107,8 +111,8 @@ export default function CustomizadorClient({
                 <span style={{ color: '#94a3b8' }}>Ver em conjunto:</span>
                 {[
                   { key: 'corpo', label: 'Corpo' },
-                  { key: 'tampa', label: 'Tampa' },
-                  { key: 'nome', label: 'Nome' },
+                  { key: 'tampa', label: 'Nome' },            // 'tampa' no schema = a peça do nome
+                  { key: 'traseira', label: 'Tampa traseira' },
                 ].map(({ key, label }) => (
                   <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                     <input

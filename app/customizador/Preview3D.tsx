@@ -662,23 +662,10 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
   return <primitive object={group} />;
 }
 
-// Fontes específicas da "Letra Inicial Caixa de Luz" — "Liberation Sans" e
-// "Arial" não existem no Google Fonts; aproximadas pela Arimo (o clone
-// métrico oficial do Google Fonts para a Arial, mesmo princípio da
-// Liberation Sans — não afeta o STL final, só o preview).
-const CAIXA_LUZ_LETRA_FONT_MAP: Record<string, string> = {
-  'Liberation Sans': '/fonts/Arimo.json',
-  'Arial':           '/fonts/Arimo.json',
-  'Baloo 2':         FONT_MAP['Baloo 2'],
-};
-const CAIXA_LUZ_NOME_FONT_MAP: Record<string, string> = {
-  'Sacramento': '/fonts/Sacramento.json',
-  'Pacifico':   FONT_MAP['Pacifico'],
-  'Lobster':    FONT_MAP['Lobster'],
-};
-
-// Aplica um offset Clipper a um conjunto de paths já limpos — negativo encolhe
-// o contorno (usado para abrir a cavidade da parede da caixa de luz).
+// Aplica um offset Clipper a um conjunto de paths já limpos — qualquer sinal
+// (positivo alarga, negativo encolhe) — ao contrário de getOffsetTextClipperPaths,
+// que só trata offsets positivos correctamente (usada para a moldura da caixa
+// de luz, que precisa de encolher para abrir a cavidade da parede).
 function offsetClipperPaths(paths: ClipperLib.Paths, offsetMm: number): ClipperLib.Paths {
   if (offsetMm === 0) return paths;
   const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
@@ -688,13 +675,49 @@ function offsetClipperPaths(paths: ClipperLib.Paths, offsetMm: number): ClipperL
   return ClipperLib.Clipper.PolyTreeToPaths(tree);
 }
 
-// Anel da parede da caixa de luz: contorno exterior da letra MENOS o mesmo
-// contorno encolhido pela espessura da parede (diferença booleana via
-// Clipper) — dá a "casca" oca, incluindo os buracos próprios da letra
-// (ex.: os olhos do "B"/"O"), que o Clipper resolve correctamente.
-function buildShellWallGeometry(font: any, char: string, size: number, espessura: number, depth: number): THREE.BufferGeometry {
-  const outerPaths = getOffsetTextClipperPaths(font, char, size, 0);
-  const innerPaths = offsetClipperPaths(outerPaths, -espessura);
+function centerGroupXY(grp: THREE.Group) {
+  const box = new THREE.Box3().setFromObject(grp);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  grp.position.set(-center.x, -center.y, 0);
+}
+
+// ── Letra Inicial Caixa de Luz (estilo "moldura") — replica o scad_template
+// do backend (Maker_Pro_docker_Prod/scripts/update_letras_caixa_luz_template_v2.sql):
+// moldura = letra alargada por borda_moldura; casca oca (paredes + frente
+// difusora); nome encaixado (sobreposicao mm para dentro) na frente; tampa
+// traseira com lábio de encaixe. Cada peça é um STL separado (ver descrição
+// do produto). `pecas` controla quais são mostradas em conjunto no preview —
+// por omissão só a peça do "modo" selecionado (peça única).
+//
+// Nomenclatura do "modo" (vem do backend, não mudei): "corpo" = casca,
+// "tampa" = a peça do NOME (não a tampa traseira!), "traseira" = tampa
+// traseira. Mantive os nomes internos wantNome/wantTraseira só no preview
+// para não confundir, mas os valores brutos em `pecas`/`modo` são sempre
+// 'corpo'/'tampa'/'traseira'.
+
+// Moldura da letra: PolyTree Clipper num offset arbitrário (qualquer sinal).
+function molduraPolyTree(font: any, char: string, size: number, offsetMm: number): ClipperLib.PolyTree {
+  const rawPaths = getOffsetTextClipperPaths(font, char, size, 0); // contorno limpo, sem offset
+  const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
+  co.AddPaths(rawPaths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const tree = new ClipperLib.PolyTree();
+  co.Execute(tree, offsetMm * CLIPPER_SCALE);
+  return tree;
+}
+
+// Moldura sólida extrudida a um offset e profundidade dados (frente difusora,
+// placa da tampa traseira, etc.).
+function buildMolduraGeometry(font: any, char: string, size: number, offsetMm: number, depth: number): THREE.BufferGeometry {
+  return extrudeFromExPolyTree(molduraPolyTree(font, char, size, offsetMm), depth);
+}
+
+// Anel entre dois offsets da moldura (diferença booleana Clipper) — dá a
+// "casca" oca das paredes, incluindo os buracos próprios da letra (ex.: os
+// olhos do "B"/"O"), que o Clipper resolve correctamente.
+function buildMolduraRingGeometry(font: any, char: string, size: number, outerOffsetMm: number, innerOffsetMm: number, depth: number): THREE.BufferGeometry {
+  const outerPaths = ClipperLib.Clipper.PolyTreeToPaths(molduraPolyTree(font, char, size, outerOffsetMm));
+  const innerPaths = ClipperLib.Clipper.PolyTreeToPaths(molduraPolyTree(font, char, size, innerOffsetMm));
   const c = new ClipperLib.Clipper();
   c.AddPaths(outerPaths, ClipperLib.PolyType.ptSubject, true);
   c.AddPaths(innerPaths, ClipperLib.PolyType.ptClip, true);
@@ -703,99 +726,102 @@ function buildShellWallGeometry(font: any, char: string, size: number, espessura
   return extrudeFromExPolyTree(tree, depth);
 }
 
-function centerGroupXY(grp: THREE.Group) {
-  const box = new THREE.Box3().setFromObject(grp);
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  grp.position.set(-center.x, -center.y, 0);
-}
-
-// ── Letra Inicial Caixa de Luz: casca oca com frente difusora (corpo), tampa
-// traseira e nome decorativo — cada uma é uma peça/STL separada para
-// imprimir em cores diferentes (ver descrição do produto). `pecas` controla
-// quais são mostradas em conjunto no preview (montagem) — por omissão só a
-// peça do "modo" selecionado (comportamento de peça única), tal como antes.
 function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas?: string[] }) {
   const [group, setGroup] = useState<THREE.Group | null>(null);
 
-  const modo           = String(params.modo || 'corpo');
-  const letra           = String(params.letra || 'S').slice(0, 1) || ' ';
-  const fonteLetraName  = String(params.fonte_letra || 'Liberation Sans');
-  const lTam            = Number(params.l_tam ?? 80);
-  const nome            = String(params.nome || 'Sahil');
-  const fonteNomeName   = String(params.fonte_nome || 'Sacramento');
-  const nTam            = Number(params.n_tam ?? 18);
-  const saliencia       = Number(params.saliencia_nome ?? 10);
-  const altCanal        = Number(params.alt_canal ?? 16);
-  const espParede       = Number(params.esp_parede ?? 4);
+  const modo             = String(params.modo || 'corpo');
+  const letra             = String(params.letra || 'A').slice(0, 1) || ' ';
+  const fonteInicialName  = String(params.fonte_inicial || 'Moderno');
+  const altura            = Number(params.altura ?? 150);
+  const nome              = String(params.nome || 'Athreya');
+  const fonteNomeName     = String(params.fonte_nome || 'Lobster');
+  const tamanhoNome       = Number(params.tamanho_nome ?? 60);
+  const bordaMoldura      = Number(params.borda_moldura ?? 8);
+  const espessuraInicial  = Number(params.espessura_inicial ?? 14);
+  const espessuraFrenteIn = Number(params.espessura_frente ?? 2);
+  const paredeLuz         = Number(params.parede_luz ?? 2.4);
+  const espessuraTraseira = Number(params.espessura_traseira ?? 2);
+  const encaixeTraseira   = Number(params.encaixe_traseira ?? 4);
+  const sobreposicao      = Number(params.sobreposicao ?? 2.5);
+  const espessuraNome     = Number(params.espessura_nome ?? 10);
+  const posicaoNome       = Number(params.posicao_nome ?? 0);
+  const posicaoNomeX      = Number(params.posicao_nome_x ?? 0);
 
-  const pecasAtivas = pecas && pecas.length > 0 ? pecas : [modo];
-  const wantCorpo = pecasAtivas.includes('corpo');
-  const wantTampa = pecasAtivas.includes('tampa');
-  const wantNome  = pecasAtivas.includes('nome');
-  const montagem  = wantCorpo && (wantTampa || wantNome); // corpo é a peça-âncora
+  // Derivados — mesmas fórmulas do scad_template.
+  const frente = Math.min(espessuraFrenteIn, espessuraInicial - 0.6);
+  const folga  = 0.35;
 
-  const fontLetraPath = CAIXA_LUZ_LETRA_FONT_MAP[fonteLetraName] ?? CAIXA_LUZ_LETRA_FONT_MAP['Liberation Sans'];
-  const fontNomePath  = CAIXA_LUZ_NOME_FONT_MAP[fonteNomeName] ?? CAIXA_LUZ_NOME_FONT_MAP['Sacramento'];
+  const pecasAtivas  = pecas && pecas.length > 0 ? pecas : [modo];
+  const wantCorpo    = pecasAtivas.includes('corpo');
+  const wantNome     = pecasAtivas.includes('tampa');    // 'tampa' no schema = nome
+  const wantTraseira = pecasAtivas.includes('traseira');
+  const montagem     = wantCorpo && (wantNome || wantTraseira); // corpo é a peça-âncora
 
-  const depsKey = JSON.stringify({ wantCorpo, wantTampa, wantNome, letra, fonteLetraName, lTam, nome, fonteNomeName, nTam, saliencia, altCanal, espParede });
+  const fontInicialPath = LETRA_FONT_MAP[fonteInicialName] ?? LETRA_FONT_MAP['Moderno'];
+  const fontNomePath    = FONT_MAP[fonteNomeName] ?? FONT_MAP['Lobster'];
+
+  const depsKey = JSON.stringify({
+    wantCorpo, wantNome, wantTraseira, letra, fonteInicialName, altura, nome, fonteNomeName,
+    tamanhoNome, bordaMoldura, espessuraInicial, espessuraFrenteIn, paredeLuz,
+    espessuraTraseira, encaixeTraseira, sobreposicao, espessuraNome, posicaoNome, posicaoNomeX,
+  });
 
   useEffect(() => {
     let cancelled = false;
-    const needFontLetra = wantCorpo || wantTampa;
+    const needFontLetra = wantCorpo || wantTraseira;
     const needFontNome  = wantNome;
 
     Promise.all([
-      needFontLetra ? new Promise<any>((resolve, reject) => new FontLoader().load(fontLetraPath, resolve, undefined, reject)) : Promise.resolve(null),
-      needFontNome  ? new Promise<any>((resolve, reject) => new FontLoader().load(fontNomePath, resolve, undefined, reject))  : Promise.resolve(null),
+      needFontLetra ? new Promise<any>((resolve, reject) => new FontLoader().load(fontInicialPath, resolve, undefined, reject)) : Promise.resolve(null),
+      needFontNome  ? new Promise<any>((resolve, reject) => new FontLoader().load(fontNomePath, resolve, undefined, reject))    : Promise.resolve(null),
     ]).then(([fontLetra, fontNome]) => {
       if (cancelled) return;
       const grp = new THREE.Group();
 
-      // Centro X/Y da letra — referência para alinhar o nome sobre ela quando
-      // ambos aparecem juntos (o schema não tem parâmetro de posição do nome).
-      let letraCenter: { x: number; y: number } | null = null;
-      if (fontLetra) {
-        const probe = buildOffsetTextGeometry(fontLetra, letra, lTam, 1, 0);
-        probe.computeBoundingBox();
-        const bb = probe.boundingBox!;
-        letraCenter = { x: (bb.max.x + bb.min.x) / 2, y: (bb.max.y + bb.min.y) / 2 };
-      }
-
       if (wantCorpo) {
-        // paredes ocas (0 → alt_canal, abertas atrás para a fita LED)
-        const wallGeom = buildShellWallGeometry(fontLetra, letra, lTam, espParede, altCanal);
+        // Paredes ocas: moldura(borda_moldura) menos moldura(borda_moldura-parede_luz),
+        // altura espessura_inicial-frente, abertas atrás (z=0) para a fita LED.
+        const wallGeom = buildMolduraRingGeometry(
+          fontLetra, letra, altura,
+          bordaMoldura, bordaMoldura - paredeLuz,
+          espessuraInicial - frente
+        );
         const wallMat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
         grp.add(new THREE.Mesh(withCreasedNormals(wallGeom, 30), wallMat));
 
-        // frente difusora sólida (alt_canal → alt_canal + esp_parede)
-        const frontGeom = buildOffsetTextGeometry(fontLetra, letra, lTam, espParede, 0);
-        frontGeom.translate(0, 0, altCanal);
+        // Frente difusora sólida, no topo da parede.
+        const frontGeom = buildMolduraGeometry(fontLetra, letra, altura, bordaMoldura, frente);
+        frontGeom.translate(0, 0, espessuraInicial - frente);
         const frontMat = new THREE.MeshStandardMaterial({
           color: '#e0f2fe', metalness: 0.05, roughness: 0.2, transparent: true, opacity: 0.85,
         });
         grp.add(new THREE.Mesh(withCreasedNormals(frontGeom, 30), frontMat));
       }
 
-      if (wantTampa) {
-        const tampaGeom = buildOffsetTextGeometry(fontLetra, letra, lTam, espParede, 0);
-        // Em montagem, fecha a traseira aberta do corpo; isolada, fica só
-        // centrada como peça solta (comportamento anterior, sem o corpo).
-        if (montagem) tampaGeom.translate(0, 0, -espParede);
-        const tampaMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.1, roughness: 0.4 });
-        grp.add(new THREE.Mesh(withCreasedNormals(tampaGeom, 30), tampaMat));
+      if (wantTraseira) {
+        // Placa (offset borda_moldura) + lábio de encaixe (offset encolhido
+        // parede_luz+folga) empilhado por cima — o lábio entra na cavidade do
+        // corpo. Em montagem, fica atrás do corpo (z<=0, lábio encostado a z=0).
+        const baseGeom = buildMolduraGeometry(fontLetra, letra, altura, bordaMoldura, espessuraTraseira);
+        const lipGeom  = buildMolduraGeometry(fontLetra, letra, altura, bordaMoldura - (paredeLuz + folga), encaixeTraseira);
+        lipGeom.translate(0, 0, espessuraTraseira);
+        const trasGrp = new THREE.Group();
+        const trasMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.1, roughness: 0.4 });
+        trasGrp.add(new THREE.Mesh(withCreasedNormals(baseGeom, 30), trasMat));
+        trasGrp.add(new THREE.Mesh(withCreasedNormals(lipGeom, 30), trasMat));
+        if (montagem) trasGrp.position.z = -(espessuraTraseira + encaixeTraseira);
+        grp.add(trasGrp);
       }
 
       if (wantNome) {
-        const nomeGeom = buildOffsetTextGeometry(fontNome, nome || 'Nome', nTam, saliencia, 0);
-        if (letraCenter) {
-          nomeGeom.computeBoundingBox();
-          const nb = nomeGeom.boundingBox!;
-          const ncx = (nb.max.x + nb.min.x) / 2;
-          const ncy = (nb.max.y + nb.min.y) / 2;
-          nomeGeom.translate(letraCenter.x - ncx, letraCenter.y - ncy, 0);
+        const nomeGeom = buildOffsetTextGeometry(fontNome, nome || 'Nome', tamanhoNome, espessuraNome, 0);
+        // Fora de montagem (peça isolada, para o próprio STL) o nome fica na
+        // posição natural da fonte — só em montagem é que se aplica a
+        // posição/encaixe (tal como o scad_template só faz translate() no
+        // ramo combinado, não dentro de tampa_caixa()).
+        if (montagem) {
+          nomeGeom.translate(posicaoNomeX, posicaoNome, espessuraInicial - sobreposicao);
         }
-        if (montagem) nomeGeom.translate(0, 0, altCanal + espParede);
         const nomeMat = new THREE.MeshStandardMaterial({ color: '#f3f3f0', metalness: 0.1, roughness: 0.35 });
         grp.add(new THREE.Mesh(withCreasedNormals(nomeGeom, 30), nomeMat));
       }
@@ -806,7 +832,7 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depsKey, fontLetraPath, fontNomePath]);
+  }, [depsKey, fontInicialPath, fontNomePath]);
 
   if (!group) return null;
   return <primitive object={group} />;
@@ -830,27 +856,33 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCaixaLuz }: Preview3DProps) {
   const isPetTag    = !!stlFilePath;
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
-  const isLetraNome = !isPetTag && !isNameKey
+  // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
+  // todos os nomes de parâmetros com "Letras Decorativas" (letra, nome,
+  // fonte_inicial, fonte_nome, altura, tamanho_nome, espessura_inicial,
+  // espessura_nome, sobreposicao, posicao_nome) — só borda_moldura/parede_luz
+  // são exclusivos da caixa de luz, por isso são o critério de deteção.
+  const isCaixaLuz = !isPetTag && !isNameKey
+    && typeof params.letra === 'string'
+    && params.borda_moldura !== undefined && params.espessura_inicial !== undefined;
+  const isLetraNome = !isPetTag && !isNameKey && !isCaixaLuz
     && typeof params.letra === 'string' && typeof params.nome === 'string'
     && typeof params.fonte_inicial === 'string';
-  const isPatamares = !isPetTag && !isNameKey && !isLetraNome
+  const isPatamares = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz
     && typeof params.nome === 'string' && typeof params.fonte === 'string'
     && params.offset_cor1 !== undefined;
-  const isCaixaLuz = !isPetTag && !isNameKey && !isLetraNome && !isPatamares
-    && typeof params.letra === 'string'
-    && params.alt_canal !== undefined && params.esp_parede !== undefined;
-  // A peça "nome" sozinha é bem mais pequena (~n_tam) do que o corpo/tampa da
-  // letra (até 240mm) — precisa de câmara/zoom próprios. Só se aplica quando
-  // "nome" é a ÚNICA peça mostrada (numa montagem, o corpo domina a escala).
+  // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
+  // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
+  // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
+  // montagem, o corpo domina a escala).
   const caixaLuzPecas = pecasCaixaLuz && pecasCaixaLuz.length > 0 ? pecasCaixaLuz : [String(params.modo || 'corpo')];
-  const isCaixaLuzNome = isCaixaLuz && caixaLuzPecas.length === 1 && caixaLuzPecas[0] === 'nome';
+  const isCaixaLuzNome = isCaixaLuz && caixaLuzPecas.length === 1 && caixaLuzPecas[0] === 'tampa';
   const showText  = params.mostrar_texto !== false;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -260, 220] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 1000,
@@ -900,8 +932,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
-            minDistance={isPetTag ? 20 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 150 : 80}
-            maxDistance={isPetTag ? 200 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 800 : 400}
+            minDistance={isPetTag ? 20 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : 80}
+            maxDistance={isPetTag ? 200 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : 400}
             maxPolarAngle={Math.PI / 2.1}
           />
         </Suspense>
