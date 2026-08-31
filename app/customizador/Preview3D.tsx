@@ -484,7 +484,7 @@ function getOffsetTextClipperPaths(font: any, text: string, size: number, offset
   const shapes: THREE.Shape[] = font.generateShapes(text, size);
   const cleanAll: ClipperLib.Paths = [];
   for (const shape of shapes) {
-    const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
+    const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(24);
     const rawPaths = [toClipperPath(outerPts), ...holePtsArr.map(toClipperPath)];
     // Alguns floreados de fontes cursivas (ex: maiúsculas da Pacifico) têm o
     // próprio contorno auto-intersectado — o ClipperOffset espera um
@@ -524,18 +524,23 @@ function extrudeFromExPolyTree(tree: ClipperLib.PolyTree, depth: number): THREE.
 
 function buildOffsetTextGeometry(font: any, text: string, size: number, depth: number, offsetMm: number): THREE.BufferGeometry {
   const shapes: THREE.Shape[] = font.generateShapes(text, size);
-  if (offsetMm <= 0.05) {
-    return new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 24 });
-  }
+  // Mesmo sem offset, passa sempre pelo Clipper (SimplifyPolygons) — algumas
+  // fontes cursivas/decorativas (ex.: Lobster) têm o próprio contorno do
+  // glifo auto-intersectado; extrudir isso directamente (THREE.ExtrudeGeometry
+  // sem limpeza) rasga a malha em ExPolygons mal formados. offsetMm=0 no
+  // ClipperOffset.Execute funciona como "limpeza pura", sem alargar/encolher.
   const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
   for (const shape of shapes) {
-    const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(12);
+    const { shape: outerPts, holes: holePtsArr } = shape.extractPoints(24);
     const rawPaths = [toClipperPath(outerPts), ...holePtsArr.map(toClipperPath)];
     const cleanPaths = ClipperLib.Clipper.SimplifyPolygons(rawPaths, ClipperLib.PolyFillType.pftNonZero);
     co.AddPaths(cleanPaths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   }
   const tree = new ClipperLib.PolyTree();
-  co.Execute(tree, offsetMm * CLIPPER_SCALE);
+  // Delta mínimo de 0.01mm em vez de 0 exacto — um offset genuíno (ainda que
+  // imperceptível) resolve auto-interseções em glifos complexos (maiúsculas
+  // decorativas tipo Lobster) de forma mais robusta do que um delta zero.
+  co.Execute(tree, Math.max(offsetMm, 0.01) * CLIPPER_SCALE);
   return extrudeFromExPolyTree(tree, depth);
 }
 
@@ -696,9 +701,25 @@ function centerGroupXY(grp: THREE.Group) {
 // para não confundir, mas os valores brutos em `pecas`/`modo` são sempre
 // 'corpo'/'tampa'/'traseira'.
 
+// Centra um conjunto de paths Clipper no seu próprio bounding box — replica
+// halign="center", valign="center" do text() no OpenSCAD (letra_2d()/
+// silhueta_nome()), que o font.generateShapes() do three.js não faz sozinho
+// (ancora no ponto de origem/baseline natural do glifo, não no centro).
+function centerClipperPaths(paths: ClipperLib.Paths): ClipperLib.Paths {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const path of paths) for (const p of path) {
+    if (p.X < minX) minX = p.X; if (p.X > maxX) maxX = p.X;
+    if (p.Y < minY) minY = p.Y; if (p.Y > maxY) maxY = p.Y;
+  }
+  const cx = Math.round((minX + maxX) / 2), cy = Math.round((minY + maxY) / 2);
+  return paths.map(path => path.map(p => ({ X: p.X - cx, Y: p.Y - cy })));
+}
+
 // Moldura da letra: PolyTree Clipper num offset arbitrário (qualquer sinal).
+// Centrada (ver centerClipperPaths) para que todas as peças derivadas
+// (paredes, frente, tampa traseira) fiquem alinhadas com o centro da letra.
 function molduraPolyTree(font: any, char: string, size: number, offsetMm: number): ClipperLib.PolyTree {
-  const rawPaths = getOffsetTextClipperPaths(font, char, size, 0); // contorno limpo, sem offset
+  const rawPaths = centerClipperPaths(getOffsetTextClipperPaths(font, char, size, 0));
   const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
   co.AddPaths(rawPaths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   const tree = new ClipperLib.PolyTree();
@@ -815,8 +836,14 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
 
       if (wantNome) {
         const nomeGeom = buildOffsetTextGeometry(fontNome, nome || 'Nome', tamanhoNome, espessuraNome, 0);
-        // Fora de montagem (peça isolada, para o próprio STL) o nome fica na
-        // posição natural da fonte — só em montagem é que se aplica a
+        // Centra o nome no seu próprio bounding box — replica halign="center",
+        // valign="center" do silhueta_nome() no OpenSCAD (font.generateShapes()
+        // não centra sozinho, ancora no ponto de origem/baseline do glifo).
+        nomeGeom.computeBoundingBox();
+        const nb = nomeGeom.boundingBox!;
+        nomeGeom.translate(-(nb.max.x + nb.min.x) / 2, -(nb.max.y + nb.min.y) / 2, 0);
+        // Fora de montagem (peça isolada, para o próprio STL) o nome fica
+        // centrado na posição natural — só em montagem é que se aplica a
         // posição/encaixe (tal como o scad_template só faz translate() no
         // ramo combinado, não dentro de tampa_caixa()).
         if (montagem) {
