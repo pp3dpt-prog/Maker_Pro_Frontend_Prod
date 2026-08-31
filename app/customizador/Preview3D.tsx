@@ -661,6 +661,127 @@ function PatamaresKeyPreview({ params, colors }: { params: Record<string, any>; 
   return <primitive object={group} />;
 }
 
+// Fontes específicas da "Letra Inicial Caixa de Luz" — "Liberation Sans" e
+// "Arial" não existem no Google Fonts; aproximadas pela Arimo (o clone
+// métrico oficial do Google Fonts para a Arial, mesmo princípio da
+// Liberation Sans — não afeta o STL final, só o preview).
+const CAIXA_LUZ_LETRA_FONT_MAP: Record<string, string> = {
+  'Liberation Sans': '/fonts/Arimo.json',
+  'Arial':           '/fonts/Arimo.json',
+  'Baloo 2':         FONT_MAP['Baloo 2'],
+};
+const CAIXA_LUZ_NOME_FONT_MAP: Record<string, string> = {
+  'Sacramento': '/fonts/Sacramento.json',
+  'Pacifico':   FONT_MAP['Pacifico'],
+  'Lobster':    FONT_MAP['Lobster'],
+};
+
+// Aplica um offset Clipper a um conjunto de paths já limpos — negativo encolhe
+// o contorno (usado para abrir a cavidade da parede da caixa de luz).
+function offsetClipperPaths(paths: ClipperLib.Paths, offsetMm: number): ClipperLib.Paths {
+  if (offsetMm === 0) return paths;
+  const co = new ClipperLib.ClipperOffset(2, 0.1 * CLIPPER_SCALE);
+  co.AddPaths(paths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const tree = new ClipperLib.PolyTree();
+  co.Execute(tree, offsetMm * CLIPPER_SCALE);
+  return ClipperLib.Clipper.PolyTreeToPaths(tree);
+}
+
+// Anel da parede da caixa de luz: contorno exterior da letra MENOS o mesmo
+// contorno encolhido pela espessura da parede (diferença booleana via
+// Clipper) — dá a "casca" oca, incluindo os buracos próprios da letra
+// (ex.: os olhos do "B"/"O"), que o Clipper resolve correctamente.
+function buildShellWallGeometry(font: any, char: string, size: number, espessura: number, depth: number): THREE.BufferGeometry {
+  const outerPaths = getOffsetTextClipperPaths(font, char, size, 0);
+  const innerPaths = offsetClipperPaths(outerPaths, -espessura);
+  const c = new ClipperLib.Clipper();
+  c.AddPaths(outerPaths, ClipperLib.PolyType.ptSubject, true);
+  c.AddPaths(innerPaths, ClipperLib.PolyType.ptClip, true);
+  const tree = new ClipperLib.PolyTree();
+  c.Execute(ClipperLib.ClipType.ctDifference, tree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  return extrudeFromExPolyTree(tree, depth);
+}
+
+function centerGroupXY(grp: THREE.Group) {
+  const box = new THREE.Box3().setFromObject(grp);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  grp.position.set(-center.x, -center.y, 0);
+}
+
+// ── Letra Inicial Caixa de Luz: casca oca com frente difusora (corpo), tampa
+// traseira ou nome decorativo — cada "modo" é uma peça/STL separada para
+// imprimir em cores diferentes (ver descrição do produto) ──
+function CaixaLuzPreview({ params }: { params: Record<string, any> }) {
+  const [group, setGroup] = useState<THREE.Group | null>(null);
+
+  const modo           = String(params.modo || 'corpo');
+  const letra           = String(params.letra || 'S').slice(0, 1) || ' ';
+  const fonteLetraName  = String(params.fonte_letra || 'Liberation Sans');
+  const lTam            = Number(params.l_tam ?? 80);
+  const nome            = String(params.nome || 'Sahil');
+  const fonteNomeName   = String(params.fonte_nome || 'Sacramento');
+  const nTam            = Number(params.n_tam ?? 18);
+  const saliencia       = Number(params.saliencia_nome ?? 10);
+  const altCanal        = Number(params.alt_canal ?? 16);
+  const espParede       = Number(params.esp_parede ?? 4);
+
+  const fontLetraPath = CAIXA_LUZ_LETRA_FONT_MAP[fonteLetraName] ?? CAIXA_LUZ_LETRA_FONT_MAP['Liberation Sans'];
+  const fontNomePath  = CAIXA_LUZ_NOME_FONT_MAP[fonteNomeName] ?? CAIXA_LUZ_NOME_FONT_MAP['Sacramento'];
+
+  const depsKey = JSON.stringify({ modo, letra, fonteLetraName, lTam, nome, fonteNomeName, nTam, saliencia, altCanal, espParede });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (modo === 'nome') {
+      new FontLoader().load(fontNomePath, (font) => {
+        if (cancelled) return;
+        const grp = new THREE.Group();
+        const geom = buildOffsetTextGeometry(font, nome || 'Nome', nTam, saliencia, 0);
+        const mat = new THREE.MeshStandardMaterial({ color: '#f3f3f0', metalness: 0.1, roughness: 0.35 });
+        grp.add(new THREE.Mesh(withCreasedNormals(geom, 30), mat));
+        centerGroupXY(grp);
+        setGroup(grp);
+      });
+      return () => { cancelled = true; };
+    }
+
+    new FontLoader().load(fontLetraPath, (font) => {
+      if (cancelled) return;
+      const grp = new THREE.Group();
+
+      if (modo === 'tampa') {
+        const geom = buildOffsetTextGeometry(font, letra, lTam, espParede, 0);
+        const mat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
+        grp.add(new THREE.Mesh(withCreasedNormals(geom, 30), mat));
+      } else {
+        // corpo: paredes ocas (0 → alt_canal, abertas atrás para a fita LED)
+        // + frente difusora sólida (alt_canal → alt_canal + esp_parede)
+        const wallGeom = buildShellWallGeometry(font, letra, lTam, espParede, altCanal);
+        const wallMat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
+        grp.add(new THREE.Mesh(withCreasedNormals(wallGeom, 30), wallMat));
+
+        const frontGeom = buildOffsetTextGeometry(font, letra, lTam, espParede, 0);
+        frontGeom.translate(0, 0, altCanal);
+        const frontMat = new THREE.MeshStandardMaterial({
+          color: '#e0f2fe', metalness: 0.05, roughness: 0.2, transparent: true, opacity: 0.85,
+        });
+        grp.add(new THREE.Mesh(withCreasedNormals(frontGeom, 30), frontMat));
+      }
+
+      centerGroupXY(grp);
+      setGroup(grp);
+    });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depsKey, fontLetraPath, fontNomePath]);
+
+  if (!group) return null;
+  return <primitive object={group} />;
+}
+
 // ── Caixa paramétrica simples ──
 function CaixaPreview({ params }: { params: Record<string, any> }) {
   const largura     = typeof params.largura     === 'number' ? params.largura     : 100;
@@ -685,13 +806,19 @@ export default function Preview3D({ params, stlFilePath, coresPatamares }: Previ
   const isPatamares = !isPetTag && !isNameKey && !isLetraNome
     && typeof params.nome === 'string' && typeof params.fonte === 'string'
     && params.offset_cor1 !== undefined;
+  const isCaixaLuz = !isPetTag && !isNameKey && !isLetraNome && !isPatamares
+    && typeof params.letra === 'string'
+    && params.alt_canal !== undefined && params.esp_parede !== undefined;
+  // A peça "nome" da caixa de luz é bem mais pequena (~n_tam) do que o corpo/
+  // tampa da letra (até 240mm) — precisa de câmara/zoom próprios.
+  const isCaixaLuzNome = isCaixaLuz && String(params.modo || 'corpo') === 'nome';
   const showText  = params.mostrar_texto !== false;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -260, 220] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 1000,
@@ -732,6 +859,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares }: Previ
             <LetraNomePreview params={params} />
           ) : isPatamares ? (
             <PatamaresKeyPreview params={params} colors={coresPatamares} />
+          ) : isCaixaLuz ? (
+            <CaixaLuzPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -739,8 +868,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares }: Previ
           <OrbitControls
             makeDefault
             enablePan={false}
-            minDistance={isPetTag ? 20 : isLetraNome ? 100 : 80}
-            maxDistance={isPetTag ? 200 : isLetraNome ? 500 : 400}
+            minDistance={isPetTag ? 20 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 150 : 80}
+            maxDistance={isPetTag ? 200 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 800 : 400}
             maxPolarAngle={Math.PI / 2.1}
           />
         </Suspense>
