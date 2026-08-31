@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Preview3D from './Preview3D';
 import STLViewer from '@/components/STLViewer';
 import LoadingViewer from './LoadingViewer';
@@ -41,13 +42,26 @@ export default function CustomizadorClient({
     && params?.alt_canal !== undefined && params?.esp_parede !== undefined;
   const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz;
 
+  // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
+  // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,
+  // ou tudo junto) — isto é só visual, não altera o que é gerado como STL.
+  const [pecasVisiveis, setPecasVisiveis] = useState<string[]>(['corpo']);
+  function togglePeca(peca: string) {
+    setPecasVisiveis(prev => {
+      if (prev.includes(peca)) {
+        return prev.length > 1 ? prev.filter(p => p !== peca) : prev; // não deixar ficar vazio
+      }
+      return [...prev, peca];
+    });
+  }
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {mode === 'preview' && (
         <>
           {temPreviewVivo ? (
             /* Preview 3D ao vivo — actualiza com os parâmetros em tempo real */
-            <Preview3D params={params} stlFilePath={stlFilePath} coresPatamares={coresPatamares} />
+            <Preview3D params={params} stlFilePath={stlFilePath} coresPatamares={coresPatamares} pecasCaixaLuz={isCaixaLuz ? pecasVisiveis : undefined} />
           ) : thumbnailUrl ? (
             /* Produtos sem preview ao vivo: mostrar thumbnail como exemplo */
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
@@ -87,6 +101,27 @@ export default function CustomizadorClient({
                 ? <><strong style={{ color: '#60a5fa' }}>Exemplo do produto.</strong>{' '}Gera o STL para ver o resultado exacto com os teus parâmetros.</>
                 : <><strong style={{ color: '#60a5fa' }}>Pré-visualização aproximada.</strong>{' '}Gera o STL para ver o modelo com os teus parâmetros.</>
             }
+
+            {isCaixaLuz && (
+              <div style={{ pointerEvents: 'auto', display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                <span style={{ color: '#94a3b8' }}>Ver em conjunto:</span>
+                {[
+                  { key: 'corpo', label: 'Corpo' },
+                  { key: 'tampa', label: 'Tampa' },
+                  { key: 'nome', label: 'Nome' },
+                ].map(({ key, label }) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={pecasVisiveis.includes(key)}
+                      onChange={() => togglePeca(key)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

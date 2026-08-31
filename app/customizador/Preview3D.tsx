@@ -11,6 +11,7 @@ type Preview3DProps = {
   params: Record<string, any>;
   stlFilePath?: string | null;
   coresPatamares?: string[];
+  pecasCaixaLuz?: string[]; // que peças mostrar em conjunto (corpo/tampa/nome) — só letra-caixa-luz
 };
 
 const FONT_MAP: Record<string, string> = {
@@ -710,9 +711,11 @@ function centerGroupXY(grp: THREE.Group) {
 }
 
 // ── Letra Inicial Caixa de Luz: casca oca com frente difusora (corpo), tampa
-// traseira ou nome decorativo — cada "modo" é uma peça/STL separada para
-// imprimir em cores diferentes (ver descrição do produto) ──
-function CaixaLuzPreview({ params }: { params: Record<string, any> }) {
+// traseira e nome decorativo — cada uma é uma peça/STL separada para
+// imprimir em cores diferentes (ver descrição do produto). `pecas` controla
+// quais são mostradas em conjunto no preview (montagem) — por omissão só a
+// peça do "modo" selecionado (comportamento de peça única), tal como antes.
+function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas?: string[] }) {
   const [group, setGroup] = useState<THREE.Group | null>(null);
 
   const modo           = String(params.modo || 'corpo');
@@ -726,43 +729,47 @@ function CaixaLuzPreview({ params }: { params: Record<string, any> }) {
   const altCanal        = Number(params.alt_canal ?? 16);
   const espParede       = Number(params.esp_parede ?? 4);
 
+  const pecasAtivas = pecas && pecas.length > 0 ? pecas : [modo];
+  const wantCorpo = pecasAtivas.includes('corpo');
+  const wantTampa = pecasAtivas.includes('tampa');
+  const wantNome  = pecasAtivas.includes('nome');
+  const montagem  = wantCorpo && (wantTampa || wantNome); // corpo é a peça-âncora
+
   const fontLetraPath = CAIXA_LUZ_LETRA_FONT_MAP[fonteLetraName] ?? CAIXA_LUZ_LETRA_FONT_MAP['Liberation Sans'];
   const fontNomePath  = CAIXA_LUZ_NOME_FONT_MAP[fonteNomeName] ?? CAIXA_LUZ_NOME_FONT_MAP['Sacramento'];
 
-  const depsKey = JSON.stringify({ modo, letra, fonteLetraName, lTam, nome, fonteNomeName, nTam, saliencia, altCanal, espParede });
+  const depsKey = JSON.stringify({ wantCorpo, wantTampa, wantNome, letra, fonteLetraName, lTam, nome, fonteNomeName, nTam, saliencia, altCanal, espParede });
 
   useEffect(() => {
     let cancelled = false;
+    const needFontLetra = wantCorpo || wantTampa;
+    const needFontNome  = wantNome;
 
-    if (modo === 'nome') {
-      new FontLoader().load(fontNomePath, (font) => {
-        if (cancelled) return;
-        const grp = new THREE.Group();
-        const geom = buildOffsetTextGeometry(font, nome || 'Nome', nTam, saliencia, 0);
-        const mat = new THREE.MeshStandardMaterial({ color: '#f3f3f0', metalness: 0.1, roughness: 0.35 });
-        grp.add(new THREE.Mesh(withCreasedNormals(geom, 30), mat));
-        centerGroupXY(grp);
-        setGroup(grp);
-      });
-      return () => { cancelled = true; };
-    }
-
-    new FontLoader().load(fontLetraPath, (font) => {
+    Promise.all([
+      needFontLetra ? new Promise<any>((resolve, reject) => new FontLoader().load(fontLetraPath, resolve, undefined, reject)) : Promise.resolve(null),
+      needFontNome  ? new Promise<any>((resolve, reject) => new FontLoader().load(fontNomePath, resolve, undefined, reject))  : Promise.resolve(null),
+    ]).then(([fontLetra, fontNome]) => {
       if (cancelled) return;
       const grp = new THREE.Group();
 
-      if (modo === 'tampa') {
-        const geom = buildOffsetTextGeometry(font, letra, lTam, espParede, 0);
-        const mat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
-        grp.add(new THREE.Mesh(withCreasedNormals(geom, 30), mat));
-      } else {
-        // corpo: paredes ocas (0 → alt_canal, abertas atrás para a fita LED)
-        // + frente difusora sólida (alt_canal → alt_canal + esp_parede)
-        const wallGeom = buildShellWallGeometry(font, letra, lTam, espParede, altCanal);
+      // Centro X/Y da letra — referência para alinhar o nome sobre ela quando
+      // ambos aparecem juntos (o schema não tem parâmetro de posição do nome).
+      let letraCenter: { x: number; y: number } | null = null;
+      if (fontLetra) {
+        const probe = buildOffsetTextGeometry(fontLetra, letra, lTam, 1, 0);
+        probe.computeBoundingBox();
+        const bb = probe.boundingBox!;
+        letraCenter = { x: (bb.max.x + bb.min.x) / 2, y: (bb.max.y + bb.min.y) / 2 };
+      }
+
+      if (wantCorpo) {
+        // paredes ocas (0 → alt_canal, abertas atrás para a fita LED)
+        const wallGeom = buildShellWallGeometry(fontLetra, letra, lTam, espParede, altCanal);
         const wallMat = new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 });
         grp.add(new THREE.Mesh(withCreasedNormals(wallGeom, 30), wallMat));
 
-        const frontGeom = buildOffsetTextGeometry(font, letra, lTam, espParede, 0);
+        // frente difusora sólida (alt_canal → alt_canal + esp_parede)
+        const frontGeom = buildOffsetTextGeometry(fontLetra, letra, lTam, espParede, 0);
         frontGeom.translate(0, 0, altCanal);
         const frontMat = new THREE.MeshStandardMaterial({
           color: '#e0f2fe', metalness: 0.05, roughness: 0.2, transparent: true, opacity: 0.85,
@@ -770,9 +777,32 @@ function CaixaLuzPreview({ params }: { params: Record<string, any> }) {
         grp.add(new THREE.Mesh(withCreasedNormals(frontGeom, 30), frontMat));
       }
 
+      if (wantTampa) {
+        const tampaGeom = buildOffsetTextGeometry(fontLetra, letra, lTam, espParede, 0);
+        // Em montagem, fecha a traseira aberta do corpo; isolada, fica só
+        // centrada como peça solta (comportamento anterior, sem o corpo).
+        if (montagem) tampaGeom.translate(0, 0, -espParede);
+        const tampaMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.1, roughness: 0.4 });
+        grp.add(new THREE.Mesh(withCreasedNormals(tampaGeom, 30), tampaMat));
+      }
+
+      if (wantNome) {
+        const nomeGeom = buildOffsetTextGeometry(fontNome, nome || 'Nome', nTam, saliencia, 0);
+        if (letraCenter) {
+          nomeGeom.computeBoundingBox();
+          const nb = nomeGeom.boundingBox!;
+          const ncx = (nb.max.x + nb.min.x) / 2;
+          const ncy = (nb.max.y + nb.min.y) / 2;
+          nomeGeom.translate(letraCenter.x - ncx, letraCenter.y - ncy, 0);
+        }
+        if (montagem) nomeGeom.translate(0, 0, altCanal + espParede);
+        const nomeMat = new THREE.MeshStandardMaterial({ color: '#f3f3f0', metalness: 0.1, roughness: 0.35 });
+        grp.add(new THREE.Mesh(withCreasedNormals(nomeGeom, 30), nomeMat));
+      }
+
       centerGroupXY(grp);
       setGroup(grp);
-    });
+    }).catch((err) => console.error('Erro ao carregar fontes (Caixa de Luz):', err));
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -797,7 +827,7 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 }
 
 // ── Componente principal ──
-export default function Preview3D({ params, stlFilePath, coresPatamares }: Preview3DProps) {
+export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCaixaLuz }: Preview3DProps) {
   const isPetTag    = !!stlFilePath;
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   const isLetraNome = !isPetTag && !isNameKey
@@ -809,9 +839,11 @@ export default function Preview3D({ params, stlFilePath, coresPatamares }: Previ
   const isCaixaLuz = !isPetTag && !isNameKey && !isLetraNome && !isPatamares
     && typeof params.letra === 'string'
     && params.alt_canal !== undefined && params.esp_parede !== undefined;
-  // A peça "nome" da caixa de luz é bem mais pequena (~n_tam) do que o corpo/
-  // tampa da letra (até 240mm) — precisa de câmara/zoom próprios.
-  const isCaixaLuzNome = isCaixaLuz && String(params.modo || 'corpo') === 'nome';
+  // A peça "nome" sozinha é bem mais pequena (~n_tam) do que o corpo/tampa da
+  // letra (até 240mm) — precisa de câmara/zoom próprios. Só se aplica quando
+  // "nome" é a ÚNICA peça mostrada (numa montagem, o corpo domina a escala).
+  const caixaLuzPecas = pecasCaixaLuz && pecasCaixaLuz.length > 0 ? pecasCaixaLuz : [String(params.modo || 'corpo')];
+  const isCaixaLuzNome = isCaixaLuz && caixaLuzPecas.length === 1 && caixaLuzPecas[0] === 'nome';
   const showText  = params.mostrar_texto !== false;
 
   return (
@@ -860,7 +892,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares }: Previ
           ) : isPatamares ? (
             <PatamaresKeyPreview params={params} colors={coresPatamares} />
           ) : isCaixaLuz ? (
-            <CaixaLuzPreview params={params} />
+            <CaixaLuzPreview params={params} pecas={pecasCaixaLuz} />
           ) : (
             <CaixaPreview params={params} />
           )}
