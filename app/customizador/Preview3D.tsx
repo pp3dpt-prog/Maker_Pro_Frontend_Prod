@@ -767,6 +767,10 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
   const espessuraNome     = Number(params.espessura_nome ?? 10);
   const posicaoNome       = Number(params.posicao_nome ?? 0);
   const posicaoNomeX      = Number(params.posicao_nome_x ?? 0);
+  const rotacaoNome       = Number(params.rotacao_nome ?? 0);
+  const furoPos           = String(params.furo_pos || 'Nenhum');
+  const furoCabo          = Number(params.furo_cabo ?? 6);
+  const furoAltura        = Number(params.furo_altura ?? -50);
 
   // Derivados — mesmas fórmulas do scad_template.
   const frente = Math.min(espessuraFrenteIn, espessuraInicial - 0.6);
@@ -785,6 +789,7 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
     wantCorpo, wantNome, wantTraseira, letra, fonteInicialName, altura, nome, fonteNomeName,
     tamanhoNome, bordaMoldura, espessuraInicial, espessuraFrenteIn, paredeLuz,
     espessuraTraseira, encaixeTraseira, sobreposicao, espessuraNome, posicaoNome, posicaoNomeX,
+    rotacaoNome, furoPos, furoCabo, furoAltura,
   });
 
   useEffect(() => {
@@ -830,8 +835,35 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
         const trasMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', metalness: 0.1, roughness: 0.4 });
         trasGrp.add(new THREE.Mesh(withCreasedNormals(baseGeom, 30), trasMat));
         trasGrp.add(new THREE.Mesh(withCreasedNormals(lipGeom, 30), trasMat));
+
+        // Furo do cabo (traseira) — só um marcador visual (não corta a peça
+        // de facto no preview), para ajudar a avaliar a posição. Replica
+        // translate([0,furo_altura,-0.5]) cylinder(...) do scad_template.
+        if (furoPos === 'Traseira' && furoCabo > 0) {
+          const furoH = espessuraTraseira + encaixeTraseira + 1;
+          const furoGeom = new THREE.CylinderGeometry(furoCabo / 2, furoCabo / 2, furoH, 24);
+          furoGeom.rotateX(Math.PI / 2); // eixo do cilindro do THREE é Y por omissão; scad usa Z
+          const furoMesh = new THREE.Mesh(furoGeom, new THREE.MeshStandardMaterial({
+            color: '#f97316', emissive: '#f97316', emissiveIntensity: 0.4, transparent: true, opacity: 0.6,
+          }));
+          furoMesh.position.set(0, furoAltura, -0.5 + furoH / 2);
+          trasGrp.add(furoMesh);
+        }
+
         if (montagem) trasGrp.position.z = -(espessuraTraseira + encaixeTraseira);
         grp.add(trasGrp);
+      }
+
+      // Furo do cabo (lateral, através da parede do corpo) — mesmo critério
+      // de marcador visual; replica translate(...) rotate([-90,0,0]) cylinder(...).
+      if (wantCorpo && furoPos === 'Lateral' && furoCabo > 0) {
+        const furoH = altura * 0.65;
+        const furoGeom = new THREE.CylinderGeometry(furoCabo / 2, furoCabo / 2, furoH, 24); // já no eixo Y
+        const furoMesh = new THREE.Mesh(furoGeom, new THREE.MeshStandardMaterial({
+          color: '#f97316', emissive: '#f97316', emissiveIntensity: 0.4, transparent: true, opacity: 0.6,
+        }));
+        furoMesh.position.set(0, -altura * 0.55 + furoH / 2, (espessuraInicial - frente) / 2);
+        grp.add(furoMesh);
       }
 
       if (wantNome) {
@@ -843,10 +875,13 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
         const nb = nomeGeom.boundingBox!;
         nomeGeom.translate(-(nb.max.x + nb.min.x) / 2, -(nb.max.y + nb.min.y) / 2, 0);
         // Fora de montagem (peça isolada, para o próprio STL) o nome fica
-        // centrado na posição natural — só em montagem é que se aplica a
-        // posição/encaixe (tal como o scad_template só faz translate() no
-        // ramo combinado, não dentro de tampa_caixa()).
+        // centrado na posição natural, sem rotação nem encaixe — só em
+        // montagem é que se aplica rotação/posição (tal como o scad_template
+        // só faz rotate()/translate() no ramo combinado, não dentro de
+        // tampa_caixa()). Roda primeiro (à volta do próprio centro), só
+        // depois posiciona — mesma ordem do nome_2d() no scad_template.
         if (montagem) {
+          if (rotacaoNome) nomeGeom.rotateZ(THREE.MathUtils.degToRad(rotacaoNome));
           nomeGeom.translate(posicaoNomeX, posicaoNome, espessuraInicial - sobreposicao);
         }
         const nomeMat = new THREE.MeshStandardMaterial({ color: '#f3f3f0', metalness: 0.1, roughness: 0.35 });
