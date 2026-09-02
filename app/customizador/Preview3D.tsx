@@ -771,6 +771,7 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
   const furoPos           = String(params.furo_pos || 'Nenhum');
   const furoCabo          = Number(params.furo_cabo ?? 6);
   const furoAltura        = Number(params.furo_altura ?? -50);
+  const furoPosX          = Number(params.furo_pos_x ?? 0);
 
   // Derivados — mesmas fórmulas do scad_template.
   const frente = Math.min(espessuraFrenteIn, espessuraInicial - 0.6);
@@ -789,7 +790,7 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
     wantCorpo, wantNome, wantTraseira, letra, fonteInicialName, altura, nome, fonteNomeName,
     tamanhoNome, bordaMoldura, espessuraInicial, espessuraFrenteIn, paredeLuz,
     espessuraTraseira, encaixeTraseira, sobreposicao, espessuraNome, posicaoNome, posicaoNomeX,
-    rotacaoNome, furoPos, furoCabo, furoAltura,
+    rotacaoNome, furoPos, furoCabo, furoAltura, furoPosX,
   });
 
   useEffect(() => {
@@ -846,7 +847,7 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
           const furoMesh = new THREE.Mesh(furoGeom, new THREE.MeshStandardMaterial({
             color: '#f97316', emissive: '#f97316', emissiveIntensity: 0.4, transparent: true, opacity: 0.6,
           }));
-          furoMesh.position.set(0, furoAltura, -0.5 + furoH / 2);
+          furoMesh.position.set(furoPosX, furoAltura, -0.5 + furoH / 2);
           trasGrp.add(furoMesh);
         }
 
@@ -862,7 +863,7 @@ function CaixaLuzPreview({ params, pecas }: { params: Record<string, any>; pecas
         const furoMesh = new THREE.Mesh(furoGeom, new THREE.MeshStandardMaterial({
           color: '#f97316', emissive: '#f97316', emissiveIntensity: 0.4, transparent: true, opacity: 0.6,
         }));
-        furoMesh.position.set(0, -altura * 0.55 + furoH / 2, (espessuraInicial - frente) / 2);
+        furoMesh.position.set(furoPosX, furoAltura + furoH / 2, (espessuraInicial - frente) / 2);
         grp.add(furoMesh);
       }
 
