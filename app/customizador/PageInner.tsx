@@ -31,6 +31,7 @@ type Design = {
   generation_schema: GenerationSchema;
   stl_file_path?: string | null;
   thumbnail_url?: string | null;
+  imagem_montagem_url?: string | null;
   total_likes: number;
   total_downloads: number;
   estado: string;
@@ -639,6 +640,20 @@ export default function PageInner() {
             </div>
           </div>
         </div>
+
+        {/* Imagem de montagem (opcional) — explica como as peças encaixam */}
+        {design.imagem_montagem_url && (
+          <div style={{ marginBottom: 16 }}>
+            <img
+              src={design.imagem_montagem_url}
+              alt={`Montagem — ${design.nome}`}
+              style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'block' }}
+            />
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: '#64748b', textAlign: 'center' }}>
+              Como as peças encaixam
+            </p>
+          </div>
+        )}
 
         {/* Editor de parâmetros — sempre visível para designs ativos */}
         <GeneratedEditor
