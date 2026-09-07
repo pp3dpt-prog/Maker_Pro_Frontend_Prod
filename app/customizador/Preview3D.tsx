@@ -940,7 +940,6 @@ function EsquadroPreview({ params }: { params: Record<string, any> }) {
   useEffect(() => {
     const gap = espessuraChapa + folga;
     const largBraco = parede * 2 + gap;
-    const margem = largBraco / 2;
 
     const armPaths: THREE.Vector2[][] = [];
     const slotPaths: THREE.Vector2[][] = [];
@@ -953,13 +952,17 @@ function EsquadroPreview({ params }: { params: Record<string, any> }) {
     } else if (tipoJuncao === 'T') {
       armPaths.push(rectCCW(-apoioChapa, -largBraco / 2, apoioChapa, largBraco / 2));
       armPaths.push(rectCCW(-largBraco / 2, 0, largBraco / 2, apoioChapa));
+      // Ranhuras dos braços em coto abertas ATÉ ao centro (desde -gap/2, não
+      // desde uma margem) — para a chapa do ramo poder tocar/encaixar na
+      // chapa do través mesmo junto ao cruzamento, em vez de ficarem
+      // separadas por um "web" sólido. O chão continua sólido por baixo.
       slotPaths.push(rectCCW(-apoioChapa - 1, -gap / 2, apoioChapa + 1, gap / 2));
-      slotPaths.push(rectCCW(-gap / 2, margem, gap / 2, apoioChapa + 1));
+      slotPaths.push(rectCCW(-gap / 2, -gap / 2, gap / 2, apoioChapa + 1));
     } else { // Canto
       armPaths.push(rectCCW(0, -largBraco / 2, apoioChapa, largBraco / 2));
       armPaths.push(rectCCW(-largBraco / 2, 0, largBraco / 2, apoioChapa));
-      slotPaths.push(rectCCW(margem, -gap / 2, apoioChapa + 1, gap / 2));
-      slotPaths.push(rectCCW(-gap / 2, margem, gap / 2, apoioChapa + 1));
+      slotPaths.push(rectCCW(-gap / 2, -gap / 2, apoioChapa + 1, gap / 2));
+      slotPaths.push(rectCCW(-gap / 2, -gap / 2, gap / 2, apoioChapa + 1));
     }
 
     // Pegada (footprint) sólida = união dos braços/feixes.
