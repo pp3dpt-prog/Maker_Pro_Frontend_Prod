@@ -916,99 +916,78 @@ function CaixaPreview({ params }: { params: Record<string, any> }) {
 }
 
 // ── Esquadro de Montagem — replica scripts/insert_esquadro_montagem.sql:
-// dois braços (rectângulos) partilhando o vértice na origem, o segundo
-// rodado `angulo` graus — a mesma técnica do template (union de dois
-// rectângulos), aqui via Clipper em vez do offset() do OpenSCAD. Cantos
-// exteriores arredondados com o mesmo truque (offset +r depois -r só afecta
-// convexos, o canto interior de registo fica sempre afiado); reforço
-// diagonal como "stadium" (rectângulo + 2 círculos, união) entre os braços;
-// furos de fixação subtraídos por último — mesma ordem do template.
-function rotPoint2D(x: number, y: number, angDeg: number): THREE.Vector2 {
-  const a = THREE.MathUtils.degToRad(angDeg);
-  return new THREE.Vector2(x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a));
-}
-
-function circlePoints2D(cx: number, cy: number, r: number, segments = 32): THREE.Vector2[] {
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i < segments; i++) {
-    const a = (i / segments) * Math.PI * 2;
-    pts.push(new THREE.Vector2(cx + Math.cos(a) * r, cy + Math.sin(a) * r));
-  }
-  return pts;
+// gabarito que veste a borda de chapas num canto (L), T ou cruz. Cada braço
+// é um canal em U (chão sólido + paredes) — nos tipos T/Cruz o(s) par(es) de
+// braços opostos são um FEIXE CONTÍNUO a atravessar o centro (é a mesma
+// chapa a passar a direito), não dois braços separados. Retângulos sempre em
+// sentido CCW (ver nota no fix do reforço diagonal — pftNonZero cancela
+// sobreposições de sentido oposto em vez de somar).
+function rectCCW(x0: number, y0: number, x1: number, y1: number): THREE.Vector2[] {
+  return [new THREE.Vector2(x0, y0), new THREE.Vector2(x1, y0), new THREE.Vector2(x1, y1), new THREE.Vector2(x0, y1)];
 }
 
 function EsquadroPreview({ params }: { params: Record<string, any> }) {
-  const comprimento     = typeof params.comprimento === 'number' ? params.comprimento : 120;
-  const largura         = typeof params.largura     === 'number' ? params.largura     : 30;
-  const espessura       = typeof params.espessura   === 'number' ? params.espessura   : 8;
-  const angulo          = typeof params.angulo      === 'number' ? params.angulo      : 90;
-  const diametroFuro    = typeof params.diametro_furo === 'number' ? params.diametro_furo : 5;
-  const reforcoDiagonal = params.reforco_diagonal !== false;
-  const raioCanto       = typeof params.raio_canto  === 'number' ? params.raio_canto  : 3;
+  const tipoJuncao     = typeof params.tipo_juncao === 'string' ? params.tipo_juncao : 'Canto';
+  const espessuraChapa = typeof params.espessura_chapa === 'number' ? params.espessura_chapa : 15;
+  const apoioChapa     = typeof params.apoio_chapa === 'number' ? params.apoio_chapa : 60;
+  const profundidade   = typeof params.profundidade === 'number' ? params.profundidade : 20;
+  const espessura      = typeof params.espessura === 'number' ? params.espessura : 5;
+  const parede         = typeof params.parede === 'number' ? params.parede : 4;
+  const folga          = typeof params.folga === 'number' ? params.folga : 0.3;
 
   const [group, setGroup] = useState<THREE.Group | null>(null);
 
   useEffect(() => {
-    const braco = (): THREE.Vector2[] => [
-      new THREE.Vector2(0, 0),
-      new THREE.Vector2(comprimento, 0),
-      new THREE.Vector2(comprimento, largura),
-      new THREE.Vector2(0, largura),
-    ];
-    const arm1 = braco();
-    const arm2 = arm1.map(p => rotPoint2D(p.x, p.y, angulo));
+    const gap = espessuraChapa + folga;
+    const largBraco = parede * 2 + gap;
+    const margem = largBraco / 2;
 
-    const unionPathsIn: ClipperLib.Paths = [toClipperPath(arm1), toClipperPath(arm2)];
+    const armPaths: THREE.Vector2[][] = [];
+    const slotPaths: THREE.Vector2[][] = [];
 
-    if (reforcoDiagonal) {
-      const r = (largura * 0.55) / 2;
-      const p1 = new THREE.Vector2(comprimento * 0.42, largura / 2);
-      const p2 = rotPoint2D(p1.x, p1.y, angulo);
-      const dir = p2.clone().sub(p1).normalize();
-      const perp = new THREE.Vector2(-dir.y, dir.x).multiplyScalar(r || 1);
-      // Mesmo sentido (CCW) dos braços/círculos — com pftNonZero, um caminho
-      // com sentido oposto sobreposto a outro CANCELA a área em vez de somar
-      // (aparece como um "buraco" em vez da ponte sólida).
-      const rectPts = [p1.clone().sub(perp), p2.clone().sub(perp), p2.clone().add(perp), p1.clone().add(perp)];
-      unionPathsIn.push(toClipperPath(rectPts));
-      unionPathsIn.push(toClipperPath(circlePoints2D(p1.x, p1.y, r)));
-      unionPathsIn.push(toClipperPath(circlePoints2D(p2.x, p2.y, r)));
+    if (tipoJuncao === 'Cruz') {
+      armPaths.push(rectCCW(-apoioChapa, -largBraco / 2, apoioChapa, largBraco / 2));
+      armPaths.push(rectCCW(-largBraco / 2, -apoioChapa, largBraco / 2, apoioChapa));
+      slotPaths.push(rectCCW(-apoioChapa - 1, -gap / 2, apoioChapa + 1, gap / 2));
+      slotPaths.push(rectCCW(-gap / 2, -apoioChapa - 1, gap / 2, apoioChapa + 1));
+    } else if (tipoJuncao === 'T') {
+      armPaths.push(rectCCW(-apoioChapa, -largBraco / 2, apoioChapa, largBraco / 2));
+      armPaths.push(rectCCW(-largBraco / 2, 0, largBraco / 2, apoioChapa));
+      slotPaths.push(rectCCW(-apoioChapa - 1, -gap / 2, apoioChapa + 1, gap / 2));
+      slotPaths.push(rectCCW(-gap / 2, margem, gap / 2, apoioChapa + 1));
+    } else { // Canto
+      armPaths.push(rectCCW(0, -largBraco / 2, apoioChapa, largBraco / 2));
+      armPaths.push(rectCCW(-largBraco / 2, 0, largBraco / 2, apoioChapa));
+      slotPaths.push(rectCCW(margem, -gap / 2, apoioChapa + 1, gap / 2));
+      slotPaths.push(rectCCW(-gap / 2, margem, gap / 2, apoioChapa + 1));
     }
 
+    // Pegada (footprint) sólida = união dos braços/feixes.
     const u = new ClipperLib.Clipper();
-    u.AddPaths(unionPathsIn, ClipperLib.PolyType.ptSubject, true);
-    const unionTree = new ClipperLib.PolyTree();
-    u.Execute(ClipperLib.ClipType.ctUnion, unionTree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
-    let solidPaths = ClipperLib.Clipper.PolyTreeToPaths(unionTree);
+    u.AddPaths(armPaths.map(toClipperPath), ClipperLib.PolyType.ptSubject, true);
+    const footTree = new ClipperLib.PolyTree();
+    u.Execute(ClipperLib.ClipType.ctUnion, footTree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
 
-    // Arredonda só os cantos exteriores (convexos) — offset(+r) depois
-    // offset(-r) não consegue arredondar o canto interior côncavo.
-    if (raioCanto > 0.01) {
-      solidPaths = offsetClipperPaths(offsetClipperPaths(solidPaths, raioCanto), -raioCanto);
-    }
+    // Chão sólido (fecha o canal por baixo, pára a chapa em Z).
+    const floorGeom = extrudeFromExPolyTree(footTree, espessura);
 
+    // Paredes do canal: pegada menos a ranhura, por cima do chão.
     const d = new ClipperLib.Clipper();
-    d.AddPaths(solidPaths, ClipperLib.PolyType.ptSubject, true);
-    if (diametroFuro > 0) {
-      const r = diametroFuro / 2;
-      const holePaths: ClipperLib.Paths = [];
-      for (const t of [0.55, 0.85]) {
-        holePaths.push(toClipperPath(circlePoints2D(comprimento * t, largura / 2, r)));
-        const hp = rotPoint2D(comprimento * t, largura / 2, angulo);
-        holePaths.push(toClipperPath(circlePoints2D(hp.x, hp.y, r)));
-      }
-      d.AddPaths(holePaths, ClipperLib.PolyType.ptClip, true);
-    }
-    const finalTree = new ClipperLib.PolyTree();
-    d.Execute(ClipperLib.ClipType.ctDifference, finalTree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    d.AddPaths(ClipperLib.Clipper.PolyTreeToPaths(footTree), ClipperLib.PolyType.ptSubject, true);
+    d.AddPaths(slotPaths.map(toClipperPath), ClipperLib.PolyType.ptClip, true);
+    const wallTree = new ClipperLib.PolyTree();
+    d.Execute(ClipperLib.ClipType.ctDifference, wallTree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    const wallHeight = Math.max(profundidade - espessura, 0.4);
+    const wallGeom = extrudeFromExPolyTree(wallTree, wallHeight);
+    wallGeom.translate(0, 0, espessura);
 
-    const geom = extrudeFromExPolyTree(finalTree, espessura);
     const grp = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: '#e2a33d', metalness: 0.15, roughness: 0.5 });
-    grp.add(new THREE.Mesh(withCreasedNormals(geom, 30), mat));
+    const mat = new THREE.MeshStandardMaterial({ color: '#c9915a', metalness: 0.1, roughness: 0.55 });
+    grp.add(new THREE.Mesh(withCreasedNormals(floorGeom, 30), mat));
+    grp.add(new THREE.Mesh(withCreasedNormals(wallGeom, 30), mat));
     centerGroupXY(grp);
     setGroup(grp);
-  }, [comprimento, largura, espessura, angulo, diametroFuro, reforcoDiagonal, raioCanto]);
+  }, [tipoJuncao, espessuraChapa, apoioChapa, profundidade, espessura, parede, folga]);
 
   if (!group) return null;
   return <primitive object={group} />;
@@ -1032,11 +1011,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isPatamares = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz
     && typeof params.nome === 'string' && typeof params.fonte === 'string'
     && params.offset_cor1 !== undefined;
-  // "angulo" + "reforco_diagonal" são exclusivos do Esquadro de Montagem — a
-  // Caixa paramétrica simples (fallback) também usa largura/comprimento,
-  // por isso não chegam sozinhos como critério.
+  // "tipo_juncao" + "espessura_chapa" são exclusivos do Esquadro de Montagem.
   const isEsquadro = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares
-    && typeof params.angulo === 'number' && params.reforco_diagonal !== undefined;
+    && typeof params.tipo_juncao === 'string' && typeof params.espessura_chapa === 'number';
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
