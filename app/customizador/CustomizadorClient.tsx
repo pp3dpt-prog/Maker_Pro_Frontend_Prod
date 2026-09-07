@@ -44,7 +44,10 @@ export default function CustomizadorClient({
   const isPatamares = !isNameKey && !isLetraNome && !isCaixaLuz
     && typeof params?.nome === 'string' && typeof params?.fonte === 'string'
     && params?.offset_cor1 !== undefined;
-  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz;
+  // Esquadro de Montagem: "angulo" + "reforco_diagonal" são exclusivos deste schema.
+  const isEsquadro = !isNameKey && !isCaixaLuz && !isLetraNome && !isPatamares
+    && typeof params?.angulo === 'number' && params?.reforco_diagonal !== undefined;
+  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,
