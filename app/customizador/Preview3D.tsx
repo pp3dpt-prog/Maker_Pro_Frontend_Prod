@@ -1083,7 +1083,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             enablePan={false}
             minDistance={isPetTag ? 20 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
             maxDistance={isPetTag ? 200 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
-            maxPolarAngle={Math.PI / 2.1}
+            maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
       </Canvas>
