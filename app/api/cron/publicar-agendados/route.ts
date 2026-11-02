@@ -1,5 +1,8 @@
-// Cron horário — publica posts de marketing agendados cuja hora já passou.
-// Configurado em vercel.json.
+// Publica posts de marketing agendados cuja hora já passou.
+// No plano Hobby da Vercel o cron do vercel.json só corre 1x/dia; para publicar à hora
+// marcada, um serviço externo gratuito (ex.: cron-job.org) chama este endereço de hora a hora
+// com o cabeçalho 'Authorization: Bearer <CRON_SECRET>'. Não correr com intervalo inferior a
+// ~30 min, para dois ciclos não apanharem o mesmo post.
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { publicarPostMarketing } from '@/lib/marketing-publish';
