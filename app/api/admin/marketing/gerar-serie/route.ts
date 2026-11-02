@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { assertAdmin } from '@/lib/assertAdmin';
+import { CONTEXTO_PUBLICO, type Publico } from '@/lib/marketingPublico';
 
 export const runtime = 'nodejs';
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
   const guard = await assertAdmin();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-  const { nome, descricao, angulo, n } = await request.json() as { nome?: string; descricao?: string; angulo?: string; n?: number };
+  const { nome, descricao, angulo, n, publico } = await request.json() as { nome?: string; descricao?: string; angulo?: string; publico?: Publico; n?: number };
   if (!nome?.trim()) return NextResponse.json({ error: 'nome do produto em falta.' }, { status: 400 });
   if (!process.env.GEMINI_API_KEY) return NextResponse.json({ error: 'GEMINI_API_KEY não configurada.' }, { status: 500 });
   const total = Math.min(6, Math.max(2, Math.round(n ?? 4)));
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     const r = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: `Produto: ${nome}\nDescrição: ${descricao || '(sem descrição)'}\nTema geral: ${angulo || 'sem tema'}\nNúmero de publicações: ${total}` }] }],
-      config: { systemInstruction: SISTEMA, responseMimeType: 'application/json' },
+      config: { systemInstruction: `${SISTEMA}\n\n${CONTEXTO_PUBLICO[publico === 'makers' ? 'makers' : 'clientes']}`, responseMimeType: 'application/json' },
     });
     const bruto = (r.text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
     const lista = JSON.parse(bruto);

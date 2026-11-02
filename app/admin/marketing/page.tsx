@@ -105,6 +105,7 @@ function CriarPublicacao() {
   const [msg, setMsg] = useState('');
   const [angulo, setAngulo] = useState('');
   const [nomeLivre, setNomeLivre] = useState('');
+  const [publico, setPublico] = useState<'clientes' | 'makers'>('clientes');
   const [aCarregar, setACarregar] = useState(false);
   const [ia, setIa] = useState<null | { instagram: string; facebook: string; tiktok_guiao: string; hashtags: string[]; prompt_imagem: string }>(null);
   const [promptImg, setPromptImg] = useState('');
@@ -137,7 +138,7 @@ function CriarPublicacao() {
     if (!nome) { setIaMsg('Escolhe um produto ou escreve o nome do produto.'); return; }
     setIaEstado('texto'); setIaMsg('');
     try {
-      const { conteudo } = await chamar('/api/admin/marketing/gerar-conteudo', { nome, descricao: p?.descricao ?? '', angulo });
+      const { conteudo } = await chamar('/api/admin/marketing/gerar-conteudo', { nome, descricao: p?.descricao ?? '', angulo, publico });
       setIa(conteudo); setPromptImg(conteudo.prompt_imagem ?? '');
       setLegenda(`${conteudo.instagram}\n\n${(conteudo.hashtags ?? []).join(' ')}`);
     } catch (e: any) { setIaMsg(e.message); }
@@ -201,6 +202,10 @@ function CriarPublicacao() {
       {(
         <div style={{ marginBottom: 18, padding: 14, border: '1px dashed #334155', borderRadius: 10 }}>
           <label style={s.label}><Sparkles size={12} style={{ display: 'inline', marginRight: 4 }} /> Gerar com IA</label>
+          <select value={publico} onChange={e => setPublico(e.target.value as 'clientes' | 'makers')} style={{ ...s.input, marginBottom: 10 }}>
+            <option value="clientes">Para clientes (produto impresso)</option>
+            <option value="makers">Para makers (gerador de STL, imprimem em casa)</option>
+          </select>
           {!produtoId && <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} style={{ ...s.input, marginBottom: 10 }} placeholder="Nome do produto (ex.: Etiqueta de mochila personalizada)" />}
           <input value={angulo} onChange={e => setAngulo(e.target.value)} style={{ ...s.input, marginBottom: 10 }} placeholder="Ângulo (opcional): ex. regresso às aulas, presente de Natal…" />
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -298,6 +303,7 @@ function SerieIA() {
   const [produtoId, setProdutoId] = useState('');
   const [nomeLivre, setNomeLivre] = useState('');
   const [tema, setTema] = useState('');
+  const [publicoS, setPublicoS] = useState<'clientes' | 'makers'>('clientes');
   const [n, setN] = useState(4);
   const [canal, setCanal] = useState<'instagram' | 'facebook' | 'ambos'>('ambos');
   const [itens, setItens] = useState<ItemSerie[]>([]);
@@ -331,7 +337,7 @@ function SerieIA() {
     if (!nome) { setMsg('Escolhe um produto ou escreve o nome.'); setOk(false); return; }
     setFase('textos'); setMsg(''); setItens([]);
     try {
-      const { posts } = await chamar('/api/admin/marketing/gerar-serie', { nome, descricao: prod?.descricao ?? '', angulo: tema, n });
+      const { posts } = await chamar('/api/admin/marketing/gerar-serie', { nome, descricao: prod?.descricao ?? '', angulo: tema, n, publico: publicoS });
       const base: ItemSerie[] = (posts as { angulo?: string; legenda: string; prompt_imagem: string }[]).map((p, i) => ({
         angulo: p.angulo ?? `Publicação ${i + 1}`, legenda: p.legenda, prompt: p.prompt_imagem,
         imagem: '', quando: dataSugerida(i), incluir: true, estado: 'a-gerar',
@@ -400,6 +406,10 @@ function SerieIA() {
           </select>
         </div>
       </div>
+      <select value={publicoS} onChange={e => setPublicoS(e.target.value as 'clientes' | 'makers')} style={{ ...s.input, marginBottom: 12 }}>
+        <option value="clientes">Para clientes (produto impresso)</option>
+        <option value="makers">Para makers (gerador de STL, imprimem em casa)</option>
+      </select>
       {!produtoId && <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} style={{ ...s.input, marginBottom: 12 }} placeholder="Nome do produto" />}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12, marginBottom: 14 }}>
         <input value={tema} onChange={e => setTema(e.target.value)} style={s.input} placeholder="Tema (opcional): ex. regresso às aulas, Natal…" />
