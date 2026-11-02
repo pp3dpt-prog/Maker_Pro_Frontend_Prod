@@ -33,7 +33,8 @@ export async function POST(request: Request) {
   const b64: string | undefined = json?.result?.image;
   if (!cf.ok || !b64) {
     console.error('[marketing/gerar-imagem] Cloudflare:', cf.status, JSON.stringify(json?.errors ?? json)?.slice(0, 300));
-    return NextResponse.json({ error: 'A Cloudflare não devolveu imagem (limite diário ou token inválido).' }, { status: 502 });
+    const motivo = (json?.errors ?? []).map((x: { code?: number; message?: string }) => `${x.code ?? ''} ${x.message ?? ''}`.trim()).join('; ');
+    return NextResponse.json({ error: `Cloudflare (HTTP ${cf.status}): ${motivo || 'sem imagem na resposta'}` }, { status: 502 });
   }
 
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
