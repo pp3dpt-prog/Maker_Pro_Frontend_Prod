@@ -2,10 +2,12 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment } from '@react-three/drei';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-stdlib';
+import type { Font } from 'three-stdlib';
 import ClipperLib from 'clipper-lib';
+import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila } from '@/lib/etiquetaMochila';
 
 type Preview3DProps = {
   params: Record<string, any>;
@@ -47,6 +49,25 @@ const NOME_FONT_MAP: Record<string, string> = {
   'Itálico Clássico':  '/fonts/Nome_ItalicoClassico.json',
   'Itálico Moderno':   '/fonts/Nome_ItalicoModerno.json',
 };
+
+// Etiqueta de mochila: as fontes do porta-chaves + Open Sans (a fonte por defeito,
+// instalada no backend como OpenSans-Regular.ttf).
+const ETIQUETA_FONT_MAP: Record<string, string> = {
+  ...FONT_MAP,
+  'Open Sans': '/fonts/Open_Sans.json',
+};
+
+// Cache das fontes já carregadas: trocar de fonte volta a ser instantâneo.
+const fontCache = new Map<string, Promise<Font>>();
+function carregarFont(path: string): Promise<Font> {
+  let p = fontCache.get(path);
+  if (!p) {
+    p = new Promise<Font>((resolve, reject) => new FontLoader().load(path, resolve, undefined, reject));
+    p.catch(() => fontCache.delete(path)); // falhou: permite tentar de novo
+    fontCache.set(path, p);
+  }
+  return p;
+}
 
 // ── Pet Tag: carrega STL em branco e sobrepõe texto em tempo real ──
 function PetTagModel({
@@ -339,6 +360,39 @@ function NameKeyPreview({ params }: { params: Record<string, any> }) {
 
   if (!group) return null;
   return <primitive object={group} />;
+}
+
+// ── Etiqueta para mochila: placa + aba + nome em relevo + verso escavado ──
+// Geometria e ajuste do texto em lib/etiquetaMochila.ts (espelha o scad_template do
+// backend). Reage à fonte e ao tamanho da letra em tempo real, sem ir ao servidor.
+function EtiquetaMochilaPreview({ params }: { params: Record<string, any> }) {
+  const fonteNome = String(params.fonte || 'Open Sans');
+  const fontPath  = ETIQUETA_FONT_MAP[fonteNome] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    carregarFont(fontPath).then((f) => { if (!cancelled) setFont(f); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [fontPath]);
+
+  const nome = String(params.nome ?? '');
+  const linha2 = String(params.linha2 ?? '');
+  const verso = String(params.verso ?? '');
+  const fontSize = Number(params.fontSize) > 0 ? Number(params.fontSize) : 9;
+
+  const grupo = useMemo(() => {
+    if (!font) return null;
+    const g = construirEtiqueta({ nome, linha2, verso, fontSize }, font);
+    centerGroupXY(g);
+    return g;
+  }, [font, nome, linha2, verso, fontSize]);
+
+  // liberta a geometria anterior quando a etiqueta é reconstruída
+  useEffect(() => () => { if (grupo) libertarEtiqueta(grupo); }, [grupo]);
+
+  if (!grupo) return null;
+  return <primitive object={grupo} />;
 }
 
 // ── Letras Decorativas: letra inicial + nome encaixado, cores ao vivo ──
@@ -1017,6 +1071,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // "tipo_juncao" + "espessura_chapa" são exclusivos do Esquadro de Montagem.
   const isEsquadro = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares
     && typeof params.tipo_juncao === 'string' && typeof params.espessura_chapa === 'number';
+  // Etiqueta de mochila (nome + linha2 + verso + fonte + fontSize) — ver lib/etiquetaMochila.ts.
+  const isEtiqueta = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro
+    && isEtiquetaMochila(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1029,7 +1086,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 1000,
@@ -1074,6 +1131,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <CaixaLuzPreview params={params} pecas={pecasCaixaLuz} />
           ) : isEsquadro ? (
             <EsquadroPreview params={params} />
+          ) : isEtiqueta ? (
+            <EtiquetaMochilaPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1081,8 +1140,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
-            minDistance={isPetTag ? 20 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={isPetTag ? 200 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={isPetTag ? 20 : isEtiqueta ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={isPetTag ? 200 : isEtiqueta ? 300 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>

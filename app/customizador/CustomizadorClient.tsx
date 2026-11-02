@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Preview3D from './Preview3D';
 import STLViewer from '@/components/STLViewer';
 import LoadingViewer from './LoadingViewer';
+import { isEtiquetaMochila } from '@/lib/etiquetaMochila';
 
 type Props = {
   designId: string;
@@ -30,6 +31,7 @@ export default function CustomizadorClient({
   //  - letras decorativas: params letra + nome + fonte_inicial (letra + nome geradas no browser)
   //  - porta-chaves texto com patamares: params nome + fonte + offset_cor1 (níveis empilhados gerados no browser)
   //  - letra caixa de luz: params letra + borda_moldura + espessura_inicial (casca/tampa traseira/nome, geradas no browser)
+  //  - etiqueta de mochila: params nome + linha2 + verso + fonte + fontSize (placa, aba, nome e verso gerados no browser)
   const hasPetTagPreview = !!stlFilePath;
   const isNameKey = typeof params?.Text === 'string' && typeof params?.Font_name === 'string';
   // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
@@ -47,7 +49,10 @@ export default function CustomizadorClient({
   // Esquadro de Montagem: "tipo_juncao" + "espessura_chapa" são exclusivos deste schema.
   const isEsquadro = !isNameKey && !isCaixaLuz && !isLetraNome && !isPatamares
     && typeof params?.tipo_juncao === 'string' && typeof params?.espessura_chapa === 'number';
-  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro;
+  // Etiqueta para mochila: nome + linha2 + verso + fonte + fontSize (muda fonte/tamanho em tempo real).
+  const isEtiqueta = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro
+    && isEtiquetaMochila(params);
+  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,

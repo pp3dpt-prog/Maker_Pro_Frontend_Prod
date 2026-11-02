@@ -1,0 +1,177 @@
+// Pré-visualização em tempo real da "Etiqueta para mochila".
+//
+// Replica a geometria de Maker_Pro_Docker_Prod/templates/etiqueta_mochila.scad
+// (placa 85 x 50 mm, aba com furo, borda, nome em relevo, verso escavado) a partir
+// das fontes typeface.js em /public/fonts, sem ir ao servidor — por isso responde
+// ao mudar a fonte ou o tamanho da letra. O STL final continua a ser gerado pelo
+// OpenSCAD no backend.
+//
+// Mantém duas coisas alinhadas com o backend (lib/textFit.js):
+//  - o tamanho: OpenSCAD text(size = s) tem um em-square de s * 100/72 mm;
+//  - o ajuste à largura útil: factor = min(1, largura_util / soma dos avanços dos
+//    glifos), arredondado a 4 casas, sem kerning.
+
+import * as THREE from 'three';
+import type { Font } from 'three-stdlib';
+
+export const EM_POR_SIZE = 100 / 72;
+
+// Têm de coincidir com as constantes do .scad.
+export const GEO = {
+  larg: 85, alt: 50, esp: 3.5, r_canto: 8,
+  tab_w: 18, tab_sai: 12, tab_sob: 2, tab_r: 4, r_furo: 3.8,
+  borda_larg: 2.5, borda_esp: 0.8, alt_texto: 1.2, prof_verso: 1.3,
+} as const;
+
+// larg - 2*borda_larg - 2*4 (margem do texto); = generation_schema.ajuste_texto.largura_util
+export const LARGURA_UTIL = GEO.larg - 2 * GEO.borda_larg - 2 * 4;
+
+type FontComDados = Font & {
+  data: { resolution: number; glyphs: Record<string, { ha: number }> };
+};
+
+export type ParamsEtiqueta = {
+  nome?: string;
+  linha2?: string;
+  verso?: string;
+  fontSize?: number;
+};
+
+/**
+ * Deteção pelo schema (como os restantes previews ao vivo): só a etiqueta de mochila
+ * tem nome + linha2 + verso + fonte + fontSize (número). Os pet-tags também têm
+ * "verso", mas são tratados antes (têm stlFilePath) e não têm linha2/fontSize.
+ */
+export function isEtiquetaMochila(params: Record<string, any> | null | undefined): boolean {
+  return !!params
+    && typeof params.nome === 'string'
+    && typeof params.linha2 === 'string'
+    && typeof params.verso === 'string'
+    && typeof params.fonte === 'string'
+    && typeof params.fontSize === 'number';
+}
+
+/** Largura (mm) do texto: soma dos avanços dos glifos, sem kerning. */
+export function larguraTexto(font: Font, texto: string, sizeMm: number): number {
+  const { resolution, glyphs } = (font as FontComDados).data;
+  const k = (sizeMm * EM_POR_SIZE) / resolution;
+  let w = 0;
+  for (const c of texto) w += (glyphs[c] ?? glyphs['?'])?.ha ?? 0;
+  return w * k;
+}
+
+/** Factor 0–1 que o texto leva para caber na largura útil. */
+export function fatorEscala(font: Font, texto: string, sizeMm: number, util = LARGURA_UTIL): number {
+  if (!texto) return 1;
+  const w = larguraTexto(font, texto, sizeMm);
+  if (!(w > 0)) return 1;
+  return Math.round(Math.min(1, util / w) * 10000) / 10000;
+}
+
+// Texto centrado em (cx, cy): horizontal pela largura de avanço, vertical pelo centro
+// da tinta — como halign/valign = "center" do OpenSCAD.
+function textoShapes(
+  font: Font, txt: string, sizeMm: number, esc: number, cx: number, cy: number, espelhar = false,
+): THREE.Shape[] {
+  if (!txt) return [];
+  const raw = font.generateShapes(txt, sizeMm * EM_POR_SIZE);
+  if (!raw.length) return [];
+
+  const ext = raw.map((s) => s.extractPoints(12));
+  let y1 = Infinity, y2 = -Infinity;
+  for (const e of ext) for (const p of e.shape) { y1 = Math.min(y1, p.y); y2 = Math.max(y2, p.y); }
+  if (!Number.isFinite(y1)) return [];
+
+  const adv = larguraTexto(font, txt, sizeMm);
+  const yc = (y1 + y2) / 2;
+  const sx = espelhar ? -1 : 1;
+  const T = (p: THREE.Vector2) => new THREE.Vector2(sx * (p.x - adv / 2) * esc + cx, (p.y - yc) * esc + cy);
+
+  return ext.map((e) => {
+    const s = new THREE.Shape(e.shape.map(T));
+    s.holes = e.holes.map((h) => new THREE.Path(h.map(T)));
+    return s;
+  });
+}
+
+function rrect(x: number, y: number, w: number, h: number, r: number, s: THREE.Shape | THREE.Path = new THREE.Shape()) {
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y);     s.absarc(x + w - r, y + r,     r, -Math.PI / 2, 0, false);
+  s.lineTo(x + w, y + h - r); s.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
+  s.lineTo(x + r, y + h);     s.absarc(x + r, y + h - r,     r, Math.PI / 2, Math.PI, false);
+  s.lineTo(x, y + r);         s.absarc(x + r, y + r,         r, Math.PI, 1.5 * Math.PI, false);
+  return s;
+}
+
+function extrudir(shapes: THREE.Shape[], depth: number, z: number): THREE.BufferGeometry {
+  const g = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments: 16 });
+  g.translate(0, 0, z);
+  return g;
+}
+
+/** Constrói a etiqueta (origem no canto inferior esquerdo da placa, como no SCAD). */
+export function construirEtiqueta(
+  p: ParamsEtiqueta, font: Font, cores = { placa: '#93c5fd', texto: '#1d4ed8' },
+): THREE.Group {
+  const G = GEO;
+  const nome = p.nome ?? '', linha2 = p.linha2 ?? '', verso = p.verso ?? '';
+  const fs = Number(p.fontSize) > 0 ? Number(p.fontSize) : 9;
+
+  const matPlaca = new THREE.MeshStandardMaterial({ color: cores.placa, metalness: 0.1, roughness: 0.5 });
+  const matTexto = new THREE.MeshStandardMaterial({ color: cores.texto, metalness: 0.1, roughness: 0.5 });
+  const grupo = new THREE.Group();
+  const add = (g: THREE.BufferGeometry, m: THREE.Material) => grupo.add(new THREE.Mesh(g, m));
+
+  // Placa — com o verso escavado a partir da face de baixo (z = 0).
+  const buracos: THREE.Path[] = [];
+  const ilhas: THREE.Shape[] = [];
+  if (verso) {
+    const esc = fatorEscala(font, verso, fs);
+    for (const s of textoShapes(font, verso, fs, esc, G.larg / 2, G.alt / 2, true)) {
+      buracos.push(new THREE.Path(s.getPoints(12)));
+      for (const h of s.holes) ilhas.push(new THREE.Shape(h.getPoints(12))); // miolos de o, a, e...
+    }
+  }
+  if (buracos.length) {
+    const baixo = rrect(0, 0, G.larg, G.alt, G.r_canto) as THREE.Shape;
+    baixo.holes.push(...buracos);
+    add(extrudir([rrect(0, 0, G.larg, G.alt, G.r_canto) as THREE.Shape], G.esp - G.prof_verso, G.prof_verso), matPlaca);
+    add(extrudir([baixo], G.prof_verso, 0), matPlaca);
+    if (ilhas.length) add(extrudir(ilhas, G.prof_verso, 0), matPlaca);
+  } else {
+    add(extrudir([rrect(0, 0, G.larg, G.alt, G.r_canto) as THREE.Shape], G.esp, 0), matPlaca);
+  }
+
+  // Aba de fixação com furo para o cordão.
+  const aba = rrect(G.larg / 2 - G.tab_w / 2, G.alt - G.tab_sob, G.tab_w, G.tab_sai + G.tab_sob, G.tab_r) as THREE.Shape;
+  const furo = new THREE.Path();
+  furo.absarc(G.larg / 2, G.alt + G.tab_sai / 2, G.r_furo, 0, Math.PI * 2, true);
+  aba.holes.push(furo);
+  add(extrudir([aba], G.esp, 0), matPlaca);
+
+  // Borda em relevo.
+  const borda = rrect(0, 0, G.larg, G.alt, G.r_canto) as THREE.Shape;
+  const bi = G.borda_larg;
+  borda.holes.push(rrect(bi, bi, G.larg - 2 * bi, G.alt - 2 * bi, Math.max(G.r_canto - bi, 0.1), new THREE.Path()) as THREE.Path);
+  add(extrudir([borda], G.borda_esp, G.esp), matPlaca);
+
+  // Texto da frente em relevo (1 ou 2 linhas).
+  const frente: THREE.Shape[] = [];
+  const linha = (t: string, dy: number) => {
+    if (t) frente.push(...textoShapes(font, t, fs, fatorEscala(font, t, fs), G.larg / 2, G.alt / 2 + dy));
+  };
+  if (linha2) { linha(nome, fs * 0.55); linha(linha2, -fs * 0.55); } else { linha(nome, 0); }
+  if (frente.length) add(extrudir(frente, G.alt_texto, G.esp), matTexto);
+
+  return grupo;
+}
+
+export function libertarEtiqueta(grupo: THREE.Group) {
+  const mats = new Set<THREE.Material>();
+  grupo.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) mats.add(m.material as THREE.Material);
+  });
+  mats.forEach((m) => m.dispose());
+}

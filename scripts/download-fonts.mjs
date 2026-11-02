@@ -19,6 +19,7 @@ const FONTS = {
   'Amarante':          'Amarante',
   'Anton':             'Anton',
   'Baloo2':            'Baloo+2:wght@600',
+  'Open_Sans':         'Open+Sans:wght@400',   // Regular: igual ao OpenSans-Regular.ttf do backend
   'Benne':             'Benne',
   'Chewy':             'Chewy',
   'Gloria_Hallelujah': 'Gloria+Hallelujah',
