@@ -1,8 +1,8 @@
 // Publica posts de marketing agendados cuja hora já passou.
-// No plano Hobby da Vercel o cron do vercel.json só corre 1x/dia; para publicar à hora
-// marcada, um serviço externo gratuito (ex.: cron-job.org) chama este endereço de hora a hora
-// com o cabeçalho 'Authorization: Bearer <CRON_SECRET>'. Não correr com intervalo inferior a
-// ~30 min, para dois ciclos não apanharem o mesmo post.
+// Chamado SÓ pelo cron-job.org de 30 em 30 min, com o cabeçalho 'x-cron-secret: <CRON_SECRET>'
+// (também aceita 'Authorization: Bearer <CRON_SECRET>'). Não está no vercel.json de propósito:
+// no plano Hobby esse cron dispara a qualquer minuto da hora e podia coincidir com o externo
+// e publicar o mesmo post duas vezes. Não correr com intervalo inferior a ~30 min.
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { publicarPostMarketing } from '@/lib/marketing-publish';
