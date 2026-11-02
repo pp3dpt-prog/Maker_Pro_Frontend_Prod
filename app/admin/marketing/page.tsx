@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { resizeImageToBase64 } from '@/lib/imageResize';
 import {
   Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
 } from 'lucide-react';
@@ -104,6 +105,7 @@ function CriarPublicacao() {
   const [msg, setMsg] = useState('');
   const [angulo, setAngulo] = useState('');
   const [nomeLivre, setNomeLivre] = useState('');
+  const [aCarregar, setACarregar] = useState(false);
   const [ia, setIa] = useState<null | { instagram: string; facebook: string; tiktok_guiao: string; hashtags: string[]; prompt_imagem: string }>(null);
   const [promptImg, setPromptImg] = useState('');
   const [iaEstado, setIaEstado] = useState<'idle' | 'texto' | 'imagem'>('idle');
@@ -140,6 +142,17 @@ function CriarPublicacao() {
       setLegenda(`${conteudo.instagram}\n\n${(conteudo.hashtags ?? []).join(' ')}`);
     } catch (e: any) { setIaMsg(e.message); }
     setIaEstado('idle');
+  }
+
+  async function carregarFoto(file: File | undefined) {
+    if (!file) return;
+    setACarregar(true); setIaMsg('');
+    try {
+      const image_base64 = await resizeImageToBase64(file);
+      const { url } = await chamar('/api/admin/loja/upload', { image_base64, pasta: 'marketing' });
+      setImagemUrl(url);
+    } catch (e: any) { setIaMsg(e.message); }
+    setACarregar(false);
   }
 
   async function gerarImagem() {
@@ -216,8 +229,10 @@ function CriarPublicacao() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
         <div>
-          <label style={s.label}><ImagePlus size={12} style={{ display: 'inline', marginRight: 4 }} /> URL da imagem</label>
-          <input value={imagemUrl} onChange={e => setImagemUrl(e.target.value)} style={s.input} placeholder="https://..." />
+          <label style={s.label}><ImagePlus size={12} style={{ display: 'inline', marginRight: 4 }} /> Imagem</label>
+          <input type="file" accept="image/*" disabled={aCarregar} onChange={e => { carregarFoto(e.target.files?.[0]); e.target.value = ''; }} style={{ ...s.input, marginBottom: 8 }} />
+          {aCarregar && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 6 }}>A carregar…</p>}
+          <input value={imagemUrl} onChange={e => setImagemUrl(e.target.value)} style={s.input} placeholder="ou cola um URL https://..." />
         </div>
         <div>
           <label style={s.label}>Canal</label>
@@ -229,7 +244,15 @@ function CriarPublicacao() {
         </div>
       </div>
 
-      {imagemUrl && <img src={imagemUrl} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 10, marginBottom: 18, border: '1px solid #1e293b' }} />}
+      {(imagemUrl || legenda) && (
+        <div style={{ marginBottom: 18 }}>
+          <label style={s.label}>Pré-visualização {canal === 'ambos' ? '(Instagram e Facebook)' : `(${canal === 'instagram' ? 'Instagram' : 'Facebook'})`}</label>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {(canal === 'ambos' || canal === 'instagram') && <PreviewPost rede="Instagram" imagem={imagemUrl} legenda={legenda} />}
+            {(canal === 'ambos' || canal === 'facebook') && <PreviewPost rede="Facebook" imagem={imagemUrl} legenda={legenda} />}
+          </div>
+        </div>
+      )}
 
       <div style={{ marginBottom: 18 }}>
         <label style={s.label}><Clock size={12} style={{ display: 'inline', marginRight: 4 }} /> Agendar para (opcional — deixa vazio para publicar agora ou guardar rascunho)</label>
@@ -243,9 +266,24 @@ function CriarPublicacao() {
           {agendarPara ? <Clock size={14} /> : null} {agendarPara ? 'Agendar' : 'Guardar rascunho'}
         </button>
         <button style={s.btn} disabled={status === 'loading'} onClick={() => guardar(true)}>
-          <Send size={14} /> Publicar agora
+          <Send size={14} /> Aprovar e publicar
         </button>
       </div>
+    </div>
+  );
+}
+
+function PreviewPost({ rede, imagem, legenda }: { rede: string; imagem: string; legenda: string }) {
+  return (
+    <div style={{ width: 300, background: '#fff', color: '#111', borderRadius: 12, overflow: 'hidden', border: '1px solid #1e293b' }}>
+      <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700 }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1d4ed8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>pp3d</div>
+        pp3d.pt <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748b', fontWeight: 400 }}>{rede}</span>
+      </div>
+      {imagem
+        ? <img src={imagem} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
+        : <div style={{ width: '100%', aspectRatio: '1 / 1', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12 }}>Sem imagem</div>}
+      <div style={{ padding: '10px 12px', fontSize: 13, whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>{legenda || '—'}</div>
     </div>
   );
 }
