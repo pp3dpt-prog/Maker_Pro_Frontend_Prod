@@ -84,7 +84,7 @@ export default function MarketingPage() {
           ))}
         </div>
 
-        {tab === 'criar' && <CriarPublicacao />}
+        {tab === 'criar' && <><CriarPublicacao /><SerieIA /></>}
         {tab === 'fila' && <Fila />}
         {tab === 'analytics' && <Analytics />}
       </div>
@@ -284,6 +284,161 @@ function PreviewPost({ rede, imagem, legenda }: { rede: string; imagem: string; 
         ? <img src={imagem} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
         : <div style={{ width: '100%', aspectRatio: '1 / 1', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12 }}>Sem imagem</div>}
       <div style={{ padding: '10px 12px', fontSize: 13, whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>{legenda || '—'}</div>
+    </div>
+  );
+}
+
+
+// ── Série de publicações com IA ─────────────────────────────────────────────
+
+interface ItemSerie { angulo: string; legenda: string; prompt: string; imagem: string; quando: string; incluir: boolean; estado: 'a-gerar' | 'ok' | 'erro'; erro?: string }
+
+function SerieIA() {
+  const [produtos, setProdutos] = useState<ProdutoRef[]>([]);
+  const [produtoId, setProdutoId] = useState('');
+  const [nomeLivre, setNomeLivre] = useState('');
+  const [tema, setTema] = useState('');
+  const [n, setN] = useState(4);
+  const [canal, setCanal] = useState<'instagram' | 'facebook' | 'ambos'>('ambos');
+  const [itens, setItens] = useState<ItemSerie[]>([]);
+  const [fase, setFase] = useState<'idle' | 'textos' | 'imagens' | 'guardar'>('idle');
+  const [msg, setMsg] = useState('');
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('prod_loja_produtos').select('id, nome, descricao').in('estado', ['ativo', 'rascunho']).order('nome');
+      setProdutos((data ?? []) as unknown as ProdutoRef[]);
+    })();
+  }, []);
+
+  function atualizar(i: number, patch: Partial<ItemSerie>) {
+    setItens(prev => prev.map((it, k) => (k === i ? { ...it, ...patch } : it)));
+  }
+
+  // Datas sugeridas: um dia sim, dia não, às 18:00, a começar amanhã (hora local).
+  function dataSugerida(i: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1 + i * 2);
+    d.setHours(18, 0, 0, 0);
+    const p = (x: number) => String(x).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  async function gerarSerie() {
+    const prod = produtos.find(x => x.id === produtoId);
+    const nome = prod?.nome ?? nomeLivre.trim();
+    if (!nome) { setMsg('Escolhe um produto ou escreve o nome.'); setOk(false); return; }
+    setFase('textos'); setMsg(''); setItens([]);
+    try {
+      const { posts } = await chamar('/api/admin/marketing/gerar-serie', { nome, descricao: prod?.descricao ?? '', angulo: tema, n });
+      const base: ItemSerie[] = (posts as { angulo?: string; legenda: string; prompt_imagem: string }[]).map((p, i) => ({
+        angulo: p.angulo ?? `Publicação ${i + 1}`, legenda: p.legenda, prompt: p.prompt_imagem,
+        imagem: '', quando: dataSugerida(i), incluir: true, estado: 'a-gerar',
+      }));
+      setItens(base);
+      setFase('imagens');
+      // Imagens uma a uma (cada chamada é um pedido separado ao servidor).
+      for (let i = 0; i < base.length; i++) {
+        try {
+          const { url } = await chamar('/api/admin/marketing/gerar-imagem', { prompt: base[i].prompt });
+          setItens(prev => prev.map((it, k) => (k === i ? { ...it, imagem: url, estado: 'ok' } : it)));
+        } catch (e: any) {
+          setItens(prev => prev.map((it, k) => (k === i ? { ...it, estado: 'erro', erro: e.message } : it)));
+        }
+      }
+    } catch (e: any) { setMsg(e.message); setOk(false); }
+    setFase('idle');
+  }
+
+  async function regenerarImagem(i: number) {
+    atualizar(i, { estado: 'a-gerar', erro: undefined });
+    try {
+      const { url } = await chamar('/api/admin/marketing/gerar-imagem', { prompt: itens[i].prompt });
+      atualizar(i, { imagem: url, estado: 'ok' });
+    } catch (e: any) { atualizar(i, { estado: 'erro', erro: e.message }); }
+  }
+
+  async function aprovarSerie() {
+    const sel = itens.filter(it => it.incluir && it.imagem && it.legenda.trim() && it.quando);
+    if (sel.length === 0) { setMsg('Nenhuma publicação completa selecionada (precisa de imagem, legenda e data).'); setOk(false); return; }
+    setFase('guardar'); setMsg('');
+    let feitos = 0;
+    try {
+      for (const it of sel) {
+        await chamar('/api/admin/marketing/criar-post', {
+          produto_id: produtoId || null, legenda: it.legenda, imagens: [it.imagem], canal,
+          agendado_para: new Date(it.quando).toISOString(),
+        });
+        feitos++;
+      }
+      setOk(true); setMsg(`${feitos} publicações agendadas. Vê-as em "Fila / Calendário".`);
+      setItens([]);
+    } catch (e: any) { setOk(false); setMsg(`Agendadas ${feitos} de ${sel.length}. Erro: ${e.message}`); }
+    setFase('idle');
+  }
+
+  return (
+    <div style={s.card}>
+      <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Sparkles size={16} /> Série de publicações com IA</h2>
+      <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 16 }}>Gera várias publicações do mesmo produto, com ângulos e imagens diferentes, para agendar em dias distintos.</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={s.label}>Produto</label>
+          <select value={produtoId} onChange={e => setProdutoId(e.target.value)} style={s.input}>
+            <option value="">— Escrever o nome —</option>
+            {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={s.label}>Canal</label>
+          <select value={canal} onChange={e => setCanal(e.target.value as any)} style={s.input}>
+            <option value="ambos">Instagram + Facebook</option>
+            <option value="instagram">Só Instagram</option>
+            <option value="facebook">Só Facebook</option>
+          </select>
+        </div>
+      </div>
+      {!produtoId && <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} style={{ ...s.input, marginBottom: 12 }} placeholder="Nome do produto" />}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12, marginBottom: 14 }}>
+        <input value={tema} onChange={e => setTema(e.target.value)} style={s.input} placeholder="Tema (opcional): ex. regresso às aulas, Natal…" />
+        <select value={n} onChange={e => setN(Number(e.target.value))} style={s.input}>
+          {[2, 3, 4, 5, 6].map(x => <option key={x} value={x}>{x} posts</option>)}
+        </select>
+      </div>
+      <button style={s.btn} disabled={fase !== 'idle'} onClick={gerarSerie}>
+        <Sparkles size={14} /> {fase === 'textos' ? 'A escrever…' : fase === 'imagens' ? 'A gerar imagens…' : 'Gerar série'}
+      </button>
+
+      {itens.length > 0 && (
+        <div style={{ marginTop: 20, display: 'grid', gap: 16 }}>
+          {itens.map((it, i) => (
+            <div key={i} style={{ border: '1px solid #1e293b', borderRadius: 12, padding: 14, opacity: it.incluir ? 1 : 0.5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <input type="checkbox" checked={it.incluir} onChange={e => atualizar(i, { incluir: e.target.checked })} />
+                <strong style={{ fontSize: 13 }}>{i + 1}. {it.angulo}</strong>
+                <input type="datetime-local" value={it.quando} onChange={e => atualizar(i, { quando: e.target.value })} style={{ ...s.input, width: 210, marginLeft: 'auto' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <PreviewPost rede={canal === 'facebook' ? 'Facebook' : 'Instagram'} imagem={it.imagem} legenda={it.legenda} />
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <label style={s.label}>Legenda</label>
+                  <textarea value={it.legenda} onChange={e => atualizar(i, { legenda: e.target.value })} rows={6} style={{ ...s.input, resize: 'vertical', marginBottom: 8 }} />
+                  <label style={s.label}>Prompt da imagem</label>
+                  <textarea value={it.prompt} onChange={e => atualizar(i, { prompt: e.target.value })} rows={3} style={{ ...s.input, resize: 'vertical', marginBottom: 8 }} />
+                  <button style={s.btnGhost} disabled={it.estado === 'a-gerar'} onClick={() => regenerarImagem(i)}>{it.estado === 'a-gerar' ? 'A gerar…' : 'Gerar outra imagem'}</button>
+                  {it.estado === 'erro' && <p style={{ fontSize: 12, color: '#f87171', marginTop: 6 }}>{it.erro}</p>}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div>
+            <button style={s.btn} disabled={fase !== 'idle'} onClick={aprovarSerie}><Clock size={14} /> Aprovar agendamento da série</button>
+          </div>
+        </div>
+      )}
+      {msg && <p style={{ fontSize: 13, color: ok ? '#4ade80' : '#f87171', marginTop: 14 }}>{msg}</p>}
     </div>
   );
 }
