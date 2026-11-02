@@ -380,13 +380,14 @@ function EtiquetaMochilaPreview({ params }: { params: Record<string, any> }) {
   const linha2 = String(params.linha2 ?? '');
   const verso = String(params.verso ?? params.texto2 ?? ''); // texto2: schema antigo
   const fontSize = Number(params.fontSize) > 0 ? Number(params.fontSize) : 9;
+  const forma = String(params.forma ?? 'Retangular');
 
   const grupo = useMemo(() => {
     if (!font) return null;
-    const g = construirEtiqueta({ nome, linha2, verso, fontSize }, font);
+    const g = construirEtiqueta({ nome, linha2, verso, fontSize, forma }, font);
     centerGroupXY(g);
     return g;
-  }, [font, nome, linha2, verso, fontSize]);
+  }, [font, nome, linha2, verso, fontSize, forma]);
 
   // liberta a geometria anterior quando a etiqueta é reconstruída
   useEffect(() => () => { if (grupo) libertarEtiqueta(grupo); }, [grupo]);
