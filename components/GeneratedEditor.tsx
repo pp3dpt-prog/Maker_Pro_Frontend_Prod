@@ -143,6 +143,44 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
           );
         }
 
+        // ── NUMBER (medida escrita à mão; vazio = valor automático) ──────
+        if (type === 'number') {
+          return (
+            <div key={name} className="space-y-1">
+              <label className="block text-xs text-slate-300 font-medium">
+                {label}
+                {unit ? ` (${unit})` : ''}
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={def.min}
+                max={def.max}
+                step={step}
+                value={value ?? ''}
+                onChange={(e) =>
+                  onChange({ ...values, [name]: e.target.value === '' ? '' : Number(e.target.value) })
+                }
+                placeholder={ui.placeholder ?? ''}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  background: '#020617',
+                  border: '1px solid #1f2937',
+                  borderRadius: '6px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
+                onBlur={(e)  => (e.target.style.borderColor = '#1f2937')}
+              />
+            </div>
+          );
+        }
+
         // ── SLIDER ────────────────────────────────────────────────────────
         if (type === 'slider') {
           return (

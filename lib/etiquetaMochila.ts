@@ -14,6 +14,8 @@
 import * as THREE from 'three';
 import type { Font } from 'three-stdlib';
 import formasJson from './formasEtiqueta.json';
+// @ts-ignore — porte JS do Clipper (ver lib/vendor/README.md), sem tipos
+import ClipperLib from './vendor/clipper.js';
 
 export const EM_POR_SIZE = 100 / 72;
 
@@ -26,12 +28,35 @@ export const GEO = {
 // Contornos das formas: ficheiro gerado no backend (scripts/gerar_formas.mjs) e copiado
 // para aqui — são os mesmos pontos que o OpenSCAD usa.
 export type FormaEtiqueta = {
-  nome: string; cx: number; cy: number; util: number;
-  aba: { w: number; r: number; ybase: number; hy: number; ytopo: number };
-  outer: [number, number][]; inner: [number, number][][];
+  nome: string; cx: number; cy: number; util: number; topo: number; bw: number; bh: number;
+  // recuo da aba para dentro do corpo, furo acima do topo, aba acima do furo
+  aba: { w: number; r: number; de: number; dhy: number; dtopo: number };
+  outer: [number, number][];
 };
 export const FORMAS: FormaEtiqueta[] = (formasJson as unknown as { formas: FormaEtiqueta[] }).formas;
 export const FORMA_DEFAULT = 'Retangular';
+
+/**
+ * Dimensão em mm → factor sobre o tamanho base da forma (mesmo limite 50–200 % que _esc()
+ * no .scad). Vazio ou inválido = 1 (tamanho da forma).
+ */
+export function fatorMedida(mm: unknown, base: number): number {
+  if (mm === '' || mm === null || mm === undefined) return 1;
+  const n = Number(mm);
+  return Number.isFinite(n) && n > 0 ? Math.max(0.5, Math.min(2, n / base)) : 1;
+}
+
+/** Recuo do contorno (como offset(delta = -d) do OpenSCAD); devolve 0..n polígonos. */
+function recuar(poly: [number, number][], d: number): [number, number][][] {
+  const K = 1000;
+  const co = new ClipperLib.ClipperOffset(1000, 0.05 * K);
+  const out = new ClipperLib.Paths();
+  co.AddPath(poly.map(([x, y]) => ({ X: Math.round(x * K), Y: Math.round(y * K) })), ClipperLib.JoinType.jtMiter, ClipperLib.EndType.etClosedPolygon);
+  co.Execute(out, -d * K);
+  return (out as { X: number; Y: number }[][])
+    .filter((p) => p.length >= 3)
+    .map((p) => p.map(({ X, Y }) => [X / K, Y / K] as [number, number]));
+}
 
 export function obterForma(nome?: string): FormaEtiqueta {
   return FORMAS.find((f) => f.nome === nome) ?? FORMAS[0];
@@ -50,6 +75,8 @@ export type ParamsEtiqueta = {
   verso?: string;
   fontSize?: number;
   forma?: string;
+  largura_mm?: number | string;   // largura da placa em mm ('' = tamanho da forma)
+  altura_mm?: number | string;    // altura da placa em mm
 };
 
 /**
@@ -130,7 +157,15 @@ export function construirEtiqueta(
   p: ParamsEtiqueta, font: Font, cores = { placa: '#93c5fd', texto: '#1d4ed8' },
 ): THREE.Group {
   const G = GEO;
-  const F = obterForma(p.forma);
+  const F0 = obterForma(p.forma);
+  // dimensões ajustáveis (mm): escala x/y do contorno; aba, furo e texto só mudam de posição
+  const sx = fatorMedida(p.largura_mm, F0.bw), sy = fatorMedida(p.altura_mm, F0.bh);
+  const F = {
+    ...F0,
+    cx: F0.cx * sx, cy: F0.cy * sy, util: F0.util * sx,
+    outer: F0.outer.map(([x, y]) => [x * sx, y * sy] as [number, number]),
+    topo: F0.topo * sy,
+  };
   const nome = p.nome ?? '', linha2 = p.linha2 ?? '', verso = p.verso ?? '';
   const fs = Number(p.fontSize) > 0 ? Number(p.fontSize) : 9;
 
@@ -162,16 +197,18 @@ export function construirEtiqueta(
 
   // Aba de fixação com furo para o cordão.
   const A = F.aba;
-  const aba = rrect(F.cx - A.w / 2, A.ybase, A.w, A.ytopo - A.ybase, A.r) as THREE.Shape;
+  const ybase = F.topo - A.de, hy = F.topo + A.dhy, ytopo = hy + A.dtopo;
+  const aba = rrect(F.cx - A.w / 2, ybase, A.w, ytopo - ybase, A.r) as THREE.Shape;
   const furo = new THREE.Path();
-  furo.absarc(F.cx, A.hy, G.r_furo, 0, Math.PI * 2, true);
+  furo.absarc(F.cx, hy, G.r_furo, 0, Math.PI * 2, true);
   aba.holes.push(furo);
   add(extrudir([aba], G.esp, 0), matPlaca);
 
   // Borda em relevo: contorno menos o contorno recuado (borda_larg).
-  if (F.inner.length) {
+  const interior = recuar(F.outer, G.borda_larg);
+  if (interior.length) {
     const borda = contorno();
-    for (const poly of F.inner) borda.holes.push(new THREE.Path(poly.map(([x, y]) => new THREE.Vector2(x, y))));
+    for (const poly of interior) borda.holes.push(new THREE.Path(poly.map(([x, y]) => new THREE.Vector2(x, y))));
     add(extrudir([borda], G.borda_esp, G.esp), matPlaca);
   }
 
