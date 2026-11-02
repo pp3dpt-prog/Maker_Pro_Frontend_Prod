@@ -1,6 +1,6 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -8,6 +8,7 @@ import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-std
 import type { Font } from 'three-stdlib';
 import ClipperLib from 'clipper-lib';
 import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila } from '@/lib/etiquetaMochila';
+import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 
 type Preview3DProps = {
   params: Record<string, any>;
@@ -395,6 +396,34 @@ function EtiquetaMochilaPreview({ params }: { params: Record<string, any> }) {
   useEffect(() => () => { if (grupo) libertarEtiqueta(grupo); }, [grupo]);
 
   if (!grupo) return null;
+  return <primitive object={grupo} />;
+}
+
+// ── Caixa PCB: corpo + tampa (lado a lado, como o STL) — ver lib/caixaPcb.ts ──
+function CaixaPcbPreview({ params }: { params: Record<string, any> }) {
+  const chave = JSON.stringify(params);
+  const grupo = useMemo(() => {
+    const g = construirCaixaPcb(params);
+    const box = new THREE.Box3().setFromObject(g);
+    const c = new THREE.Vector3(); box.getCenter(c);
+    g.position.set(-c.x, -c.y, 0);
+    g.userData.tamanho = box.getSize(new THREE.Vector3()).length();
+    return g;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave]);
+  useEffect(() => () => libertarCaixaPcb(grupo), [grupo]);
+
+  // enquadra a peça uma vez (as caixas vão de ~40 a 300 mm); depois o utilizador controla a câmara
+  const { camera } = useThree();
+  const enquadrado = useRef(false);
+  useEffect(() => {
+    if (enquadrado.current) return;
+    enquadrado.current = true;
+    const d = Math.max(120, Number(grupo.userData.tamanho) * 1.1);
+    camera.position.set(0, -d * 0.8, d * 0.7);
+    camera.lookAt(0, 0, 0);
+  }, [camera, grupo]);
+
   return <primitive object={grupo} />;
 }
 
@@ -1077,6 +1106,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // Etiqueta de mochila (nome + linha2 + verso + fonte + fontSize) — ver lib/etiquetaMochila.ts.
   const isEtiqueta = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro
     && isEtiquetaMochila(params);
+  // Caixa PCB (pcb_w/pcb_l/pcb_h + hinge_type) — ver lib/caixaPcb.ts.
+  const isCaixaPcbModelo = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro && !isEtiqueta
+    && isCaixaPcb(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1092,7 +1124,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           position: isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
-          far: 1000,
+          far: 2500,
         }}
         dpr={[1, 2]}
         gl={{ antialias: true, preserveDrawingBuffer: false }}
@@ -1136,6 +1168,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <EsquadroPreview params={params} />
           ) : isEtiqueta ? (
             <EtiquetaMochilaPreview params={params} />
+          ) : isCaixaPcbModelo ? (
+            <CaixaPcbPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1143,8 +1177,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
-            minDistance={isPetTag ? 20 : isEtiqueta ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={isPetTag ? 200 : isEtiqueta ? 300 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={isPetTag ? 20 : isEtiqueta ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={isPetTag ? 200 : isEtiqueta ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
