@@ -263,10 +263,10 @@ function CriarPublicacao() {
 
       <div style={{ display: 'flex', gap: 10 }}>
         <button style={s.btnGhost} disabled={status === 'loading'} onClick={() => guardar(false)}>
-          {agendarPara ? <Clock size={14} /> : null} {agendarPara ? 'Agendar' : 'Guardar rascunho'}
+          {agendarPara ? <Clock size={14} /> : null} {agendarPara ? 'Aprovar agendamento' : 'Guardar rascunho'}
         </button>
-        <button style={s.btn} disabled={status === 'loading'} onClick={() => guardar(true)}>
-          <Send size={14} /> Aprovar e publicar
+        <button style={agendarPara ? s.btnGhost : s.btn} disabled={status === 'loading'} onClick={() => guardar(true)}>
+          <Send size={14} /> Aprovar e publicar agora
         </button>
       </div>
     </div>
