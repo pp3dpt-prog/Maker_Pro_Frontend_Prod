@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { publicarPostMarketing } from '@/lib/marketing-publish';
 
 export const runtime = 'nodejs';
+// O Instagram pode demorar alguns segundos a processar cada imagem.
+export const maxDuration = 60;
 
 const admin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { publicarPostMarketing } from '@/lib/marketing-publish';
 
+// O Instagram pode demorar alguns segundos a processar a imagem.
+export const maxDuration = 60;
+
 async function assertAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

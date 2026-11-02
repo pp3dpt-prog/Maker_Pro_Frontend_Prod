@@ -89,12 +89,32 @@ export async function publicarInstagram(legenda: string, imagemUrl: string): Pro
     caption: legenda,
   }, 'POST');
 
+  // Passo 1b: o Instagram descarrega e processa a imagem em segundo plano; publicar
+  // antes de terminar dá "Media ID is not available". Esperamos pelo estado FINISHED.
+  await esperarContainerInstagram(container.id);
+
   // Passo 2: publicar o container
   const publicado = await graphFetch(`/${igUserId}/media_publish`, {
     creation_id: container.id,
   }, 'POST');
 
   return { mediaId: publicado.id };
+}
+
+async function esperarContainerInstagram(containerId: string, limiteMs = 40_000) {
+  const inicio = Date.now();
+  let intervaloMs = 1_500;
+  while (Date.now() - inicio < limiteMs) {
+    const json = await graphFetch(`/${containerId}`, { fields: 'status_code,status' }, 'GET');
+    const estado: string | undefined = json.status_code;
+    if (estado === 'FINISHED' || estado === 'PUBLISHED') return;
+    if (estado === 'ERROR' || estado === 'EXPIRED') {
+      throw new MetaApiError(`O Instagram não conseguiu processar a imagem (${estado}${json.status ? `: ${json.status}` : ''}).`, json);
+    }
+    await new Promise(r => setTimeout(r, intervaloMs));
+    intervaloMs = Math.min(intervaloMs * 1.5, 5_000);
+  }
+  throw new MetaApiError('O Instagram ainda está a processar a imagem. Tenta publicar outra vez daqui a um minuto.');
 }
 
 export async function obterInsightsPost(mediaId: string, canal: 'instagram' | 'facebook') {
