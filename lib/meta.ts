@@ -15,15 +15,43 @@ export class MetaApiError extends Error {
   }
 }
 
+// Token configurado: normalmente o de um utilizador do sistema (System User) do
+// Business Manager, que serve para Instagram e Marketing API.
 function pageToken(): string {
   const token = process.env.META_PAGE_ACCESS_TOKEN;
   if (!token) throw new MetaApiError('META_PAGE_ACCESS_TOKEN não configurado.');
   return token;
 }
 
-async function graphFetch(path: string, params: Record<string, string>, method: 'GET' | 'POST' = 'GET') {
+// Publicar e ler estatísticas na Página de Facebook exige um token DA PÁGINA;
+// com um token de utilizador/System User a Meta responde (#200) "publish_actions
+// deprecated". Pedimos o token da página com o token configurado (se este já for
+// de página, a Meta devolve-o igual) e guardamo-lo em memória enquanto a função vive.
+let tokenPaginaCache: string | null = null;
+
+async function tokenDaPagina(): Promise<string> {
+  if (tokenPaginaCache) return tokenPaginaCache;
+  const pageId = process.env.META_PAGE_ID;
+  if (!pageId) throw new MetaApiError('META_PAGE_ID não configurado.');
+
+  const json = await graphFetch(`/${pageId}`, { fields: 'access_token' }, 'GET');
+  if (!json.access_token) {
+    throw new MetaApiError(
+      'Não foi possível obter o token da Página. Confirma que o utilizador do sistema tem acesso total à Página e as permissões pages_manage_posts e pages_read_engagement.'
+    );
+  }
+  tokenPaginaCache = json.access_token as string;
+  return tokenPaginaCache;
+}
+
+async function graphFetch(
+  path: string,
+  params: Record<string, string>,
+  method: 'GET' | 'POST' = 'GET',
+  token: string = pageToken(),
+) {
   const url = new URL(`${GRAPH_BASE}${path}`);
-  const body = new URLSearchParams({ ...params, access_token: pageToken() });
+  const body = new URLSearchParams({ ...params, access_token: token });
 
   const res = method === 'GET'
     ? await fetch(`${url.toString()}?${body.toString()}`, { method: 'GET' })
@@ -46,7 +74,7 @@ export async function publicarFacebook(texto: string, imagemUrl: string): Promis
     url: imagemUrl,
     caption: texto,
     published: 'true',
-  }, 'POST');
+  }, 'POST', await tokenDaPagina());
 
   return { postId: json.post_id ?? json.id };
 }
@@ -74,7 +102,9 @@ export async function obterInsightsPost(mediaId: string, canal: 'instagram' | 'f
     ? 'impressions,reach,likes,comments,saved'
     : 'post_impressions,post_engaged_users';
 
-  const json = await graphFetch(`/${mediaId}/insights`, { metric: metricas }, 'GET');
+  // Estatísticas de posts da Página também precisam do token da página.
+  const token = canal === 'facebook' ? await tokenDaPagina() : pageToken();
+  const json = await graphFetch(`/${mediaId}/insights`, { metric: metricas }, 'GET', token);
   const resultado: Record<string, number> = {};
   for (const item of json.data ?? []) {
     resultado[item.name] = item.values?.[0]?.value ?? 0;
