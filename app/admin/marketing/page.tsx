@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus,
+  Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -102,6 +102,11 @@ function CriarPublicacao() {
   const [agendarPara, setAgendarPara] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [msg, setMsg] = useState('');
+  const [angulo, setAngulo] = useState('');
+  const [ia, setIa] = useState<null | { instagram: string; facebook: string; tiktok_guiao: string; hashtags: string[]; prompt_imagem: string }>(null);
+  const [promptImg, setPromptImg] = useState('');
+  const [iaEstado, setIaEstado] = useState<'idle' | 'texto' | 'imagem'>('idle');
+  const [iaMsg, setIaMsg] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -121,6 +126,28 @@ function CriarPublicacao() {
     setLegenda(p.descricao ?? p.nome);
     const fotos = (p.prod_loja_imagens ?? []).slice().sort((a, b) => a.ordem - b.ordem);
     setImagemUrl(fotos[0]?.url ?? '');
+  }
+
+  async function gerarTextos() {
+    const p = produtos.find(x => x.id === produtoId);
+    if (!p) { setIaMsg('Escolhe primeiro um produto.'); return; }
+    setIaEstado('texto'); setIaMsg('');
+    try {
+      const { conteudo } = await chamar('/api/admin/marketing/gerar-conteudo', { nome: p.nome, descricao: p.descricao, angulo });
+      setIa(conteudo); setPromptImg(conteudo.prompt_imagem ?? '');
+      setLegenda(`${conteudo.instagram}\n\n${(conteudo.hashtags ?? []).join(' ')}`);
+    } catch (e: any) { setIaMsg(e.message); }
+    setIaEstado('idle');
+  }
+
+  async function gerarImagem() {
+    if (!promptImg.trim()) { setIaMsg('Escreve ou gera primeiro o prompt da imagem.'); return; }
+    setIaEstado('imagem'); setIaMsg('');
+    try {
+      const { url } = await chamar('/api/admin/marketing/gerar-imagem', { prompt: promptImg });
+      setImagemUrl(url);
+    } catch (e: any) { setIaMsg(e.message); }
+    setIaEstado('idle');
   }
 
   async function guardar(publicarJa: boolean) {
@@ -155,6 +182,29 @@ function CriarPublicacao() {
           {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
         </select>
       </div>
+
+      {produtoId && (
+        <div style={{ marginBottom: 18, padding: 14, border: '1px dashed #334155', borderRadius: 10 }}>
+          <label style={s.label}><Sparkles size={12} style={{ display: 'inline', marginRight: 4 }} /> Gerar com IA</label>
+          <input value={angulo} onChange={e => setAngulo(e.target.value)} style={{ ...s.input, marginBottom: 10 }} placeholder="Ângulo (opcional): ex. regresso às aulas, presente de Natal…" />
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button style={s.btnGhost} disabled={iaEstado !== 'idle'} onClick={gerarTextos}>{iaEstado === 'texto' ? 'A gerar…' : 'Gerar textos'}</button>
+            <button style={s.btnGhost} disabled={iaEstado !== 'idle' || !promptImg} onClick={gerarImagem}>{iaEstado === 'imagem' ? 'A gerar imagem…' : 'Gerar imagem'}</button>
+          </div>
+          {ia && (
+            <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+              <div><label style={s.label}>Prompt da imagem (editável)</label>
+                <textarea value={promptImg} onChange={e => setPromptImg(e.target.value)} rows={3} style={{ ...s.input, resize: 'vertical' }} /></div>
+              <div><label style={s.label}>Texto Facebook</label>
+                <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: '#cbd5e1' }}>{ia.facebook}</div>
+                <button style={{ ...s.btnGhost, marginTop: 6 }} onClick={() => setLegenda(`${ia.facebook}\n\n${(ia.hashtags ?? []).slice(0, 5).join(' ')}`)}>Usar na legenda</button></div>
+              <div><label style={s.label}>Guião TikTok / Reels</label>
+                <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: '#cbd5e1' }}>{ia.tiktok_guiao}</div></div>
+            </div>
+          )}
+          {iaMsg && <p style={{ fontSize: 13, color: '#f87171', marginTop: 8 }}>{iaMsg}</p>}
+        </div>
+      )}
 
       <div style={{ marginBottom: 18 }}>
         <label style={s.label}>Legenda</label>
