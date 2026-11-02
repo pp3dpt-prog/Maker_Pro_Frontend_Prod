@@ -28,7 +28,7 @@ export const GEO = {
 // Contornos das formas: ficheiro gerado no backend (scripts/gerar_formas.mjs) e copiado
 // para aqui — são os mesmos pontos que o OpenSCAD usa.
 export type FormaEtiqueta = {
-  nome: string; cx: number; cy: number; util: number; topo: number;
+  nome: string; cx: number; cy: number; util: number; topo: number; bw: number; bh: number;
   // recuo da aba para dentro do corpo, furo acima do topo, aba acima do furo
   aba: { w: number; r: number; de: number; dhy: number; dtopo: number };
   outer: [number, number][];
@@ -36,10 +36,14 @@ export type FormaEtiqueta = {
 export const FORMAS: FormaEtiqueta[] = (formasJson as unknown as { formas: FormaEtiqueta[] }).formas;
 export const FORMA_DEFAULT = 'Retangular';
 
-/** Percentagem de largura/altura da placa → factor (mesmo limite 50–200 % que _pct() no .scad). */
-export function fatorPct(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) && v !== '' && v !== null ? Math.max(50, Math.min(200, n)) / 100 : 1;
+/**
+ * Dimensão em mm → factor sobre o tamanho base da forma (mesmo limite 50–200 % que _esc()
+ * no .scad). Vazio ou inválido = 1 (tamanho da forma).
+ */
+export function fatorMedida(mm: unknown, base: number): number {
+  if (mm === '' || mm === null || mm === undefined) return 1;
+  const n = Number(mm);
+  return Number.isFinite(n) && n > 0 ? Math.max(0.5, Math.min(2, n / base)) : 1;
 }
 
 /** Recuo do contorno (como offset(delta = -d) do OpenSCAD); devolve 0..n polígonos. */
@@ -71,8 +75,8 @@ export type ParamsEtiqueta = {
   verso?: string;
   fontSize?: number;
   forma?: string;
-  larg_pct?: number;   // largura da placa em % da forma base
-  alt_pct?: number;    // altura da placa em % da forma base
+  largura_mm?: number | string;   // largura da placa em mm ('' = tamanho da forma)
+  altura_mm?: number | string;    // altura da placa em mm
 };
 
 /**
@@ -154,8 +158,8 @@ export function construirEtiqueta(
 ): THREE.Group {
   const G = GEO;
   const F0 = obterForma(p.forma);
-  // dimensões ajustáveis: escala x/y do contorno; aba, furo e texto só mudam de posição
-  const sx = fatorPct(p.larg_pct), sy = fatorPct(p.alt_pct);
+  // dimensões ajustáveis (mm): escala x/y do contorno; aba, furo e texto só mudam de posição
+  const sx = fatorMedida(p.largura_mm, F0.bw), sy = fatorMedida(p.altura_mm, F0.bh);
   const F = {
     ...F0,
     cx: F0.cx * sx, cy: F0.cy * sy, util: F0.util * sx,
