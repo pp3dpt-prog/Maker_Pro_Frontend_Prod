@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { assertAdmin } from '@/lib/assertAdmin';
+import { CONTEXTO_PUBLICO, type Publico } from '@/lib/marketingPublico';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const guard = await assertAdmin();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-  const { nome, descricao, angulo } = await request.json() as { nome?: string; descricao?: string; angulo?: string };
+  const { nome, descricao, angulo, publico } = await request.json() as { nome?: string; descricao?: string; angulo?: string; publico?: Publico };
   if (!nome?.trim()) return NextResponse.json({ error: 'nome do produto em falta.' }, { status: 400 });
   if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: 'GEMINI_API_KEY não configurada.' }, { status: 500 });
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
         role: 'user',
         parts: [{ text: `Produto: ${nome}\nDescrição: ${descricao ?? '(sem descrição)'}\nÂngulo pretendido: ${angulo || 'apresentação do produto'}` }],
       }],
-      config: { systemInstruction: SISTEMA, responseMimeType: 'application/json' },
+      config: { systemInstruction: `${SISTEMA}\n\n${CONTEXTO_PUBLICO[publico === 'makers' ? 'makers' : 'clientes']}`, responseMimeType: 'application/json' },
     });
     // Tolera resposta embrulhada em ```json … ```
     const bruto = (r.text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
