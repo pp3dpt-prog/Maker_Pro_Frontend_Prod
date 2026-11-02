@@ -103,6 +103,7 @@ function CriarPublicacao() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [msg, setMsg] = useState('');
   const [angulo, setAngulo] = useState('');
+  const [nomeLivre, setNomeLivre] = useState('');
   const [ia, setIa] = useState<null | { instagram: string; facebook: string; tiktok_guiao: string; hashtags: string[]; prompt_imagem: string }>(null);
   const [promptImg, setPromptImg] = useState('');
   const [iaEstado, setIaEstado] = useState<'idle' | 'texto' | 'imagem'>('idle');
@@ -130,10 +131,11 @@ function CriarPublicacao() {
 
   async function gerarTextos() {
     const p = produtos.find(x => x.id === produtoId);
-    if (!p) { setIaMsg('Escolhe primeiro um produto.'); return; }
+    const nome = p?.nome ?? nomeLivre.trim();
+    if (!nome) { setIaMsg('Escolhe um produto ou escreve o nome do produto.'); return; }
     setIaEstado('texto'); setIaMsg('');
     try {
-      const { conteudo } = await chamar('/api/admin/marketing/gerar-conteudo', { nome: p.nome, descricao: p.descricao, angulo });
+      const { conteudo } = await chamar('/api/admin/marketing/gerar-conteudo', { nome, descricao: p?.descricao ?? '', angulo });
       setIa(conteudo); setPromptImg(conteudo.prompt_imagem ?? '');
       setLegenda(`${conteudo.instagram}\n\n${(conteudo.hashtags ?? []).join(' ')}`);
     } catch (e: any) { setIaMsg(e.message); }
@@ -183,9 +185,10 @@ function CriarPublicacao() {
         </select>
       </div>
 
-      {produtoId && (
+      {(
         <div style={{ marginBottom: 18, padding: 14, border: '1px dashed #334155', borderRadius: 10 }}>
           <label style={s.label}><Sparkles size={12} style={{ display: 'inline', marginRight: 4 }} /> Gerar com IA</label>
+          {!produtoId && <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} style={{ ...s.input, marginBottom: 10 }} placeholder="Nome do produto (ex.: Etiqueta de mochila personalizada)" />}
           <input value={angulo} onChange={e => setAngulo(e.target.value)} style={{ ...s.input, marginBottom: 10 }} placeholder="Ângulo (opcional): ex. regresso às aulas, presente de Natal…" />
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button style={s.btnGhost} disabled={iaEstado !== 'idle'} onClick={gerarTextos}>{iaEstado === 'texto' ? 'A gerar…' : 'Gerar textos'}</button>
