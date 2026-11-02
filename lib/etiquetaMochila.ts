@@ -39,14 +39,15 @@ export type ParamsEtiqueta = {
 
 /**
  * Deteção pelo schema (como os restantes previews ao vivo): só a etiqueta de mochila
- * tem nome + linha2 + verso + fonte + fontSize (número). Os pet-tags também têm
+ * tem nome + linha2 + verso + fonte + fontSize (número). O schema antigo chamava
+ * "texto2" ao verso, por isso a prévia funciona antes e depois do UPDATE do SQL. Os pet-tags também têm
  * "verso", mas são tratados antes (têm stlFilePath) e não têm linha2/fontSize.
  */
 export function isEtiquetaMochila(params: Record<string, any> | null | undefined): boolean {
   return !!params
     && typeof params.nome === 'string'
     && typeof params.linha2 === 'string'
-    && typeof params.verso === 'string'
+    && (typeof params.verso === 'string' || typeof params.texto2 === 'string') // texto2: schema antigo
     && typeof params.fonte === 'string'
     && typeof params.fontSize === 'number';
 }

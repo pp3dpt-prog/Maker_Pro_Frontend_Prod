@@ -378,7 +378,7 @@ function EtiquetaMochilaPreview({ params }: { params: Record<string, any> }) {
 
   const nome = String(params.nome ?? '');
   const linha2 = String(params.linha2 ?? '');
-  const verso = String(params.verso ?? '');
+  const verso = String(params.verso ?? params.texto2 ?? ''); // texto2: schema antigo
   const fontSize = Number(params.fontSize) > 0 ? Number(params.fontSize) : 9;
 
   const grupo = useMemo(() => {
