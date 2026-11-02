@@ -5,6 +5,7 @@ import Preview3D from './Preview3D';
 import STLViewer from '@/components/STLViewer';
 import LoadingViewer from './LoadingViewer';
 import { isEtiquetaMochila } from '@/lib/etiquetaMochila';
+import { isCaixaPcb } from '@/lib/caixaPcb';
 
 type Props = {
   designId: string;
@@ -52,7 +53,10 @@ export default function CustomizadorClient({
   // Etiqueta para mochila: nome + linha2 + verso + fonte + fontSize (muda fonte/tamanho em tempo real).
   const isEtiqueta = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro
     && isEtiquetaMochila(params);
-  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta;
+  // Caixa PCB: pcb_w/pcb_l/pcb_h + hinge_type (ver lib/caixaPcb.ts).
+  const isCaixaPcbModelo = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro && !isEtiqueta
+    && isCaixaPcb(params);
+  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,

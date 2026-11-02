@@ -14,8 +14,7 @@
 import * as THREE from 'three';
 import type { Font } from 'three-stdlib';
 import formasJson from './formasEtiqueta.json';
-// @ts-ignore — porte JS do Clipper (ver lib/vendor/README.md), sem tipos
-import ClipperLib from './vendor/clipper.js';
+import ClipperLib from 'clipper-lib';
 
 export const EM_POR_SIZE = 100 / 72;
 
@@ -50,10 +49,10 @@ export function fatorPct(pct: unknown): number {
 function recuar(poly: [number, number][], d: number): [number, number][][] {
   const K = 1000;
   const co = new ClipperLib.ClipperOffset(1000, 0.05 * K);
-  const out = new ClipperLib.Paths();
+  const out: { X: number; Y: number }[][] = [];
   co.AddPath(poly.map(([x, y]) => ({ X: Math.round(x * K), Y: Math.round(y * K) })), ClipperLib.JoinType.jtMiter, ClipperLib.EndType.etClosedPolygon);
   co.Execute(out, -d * K);
-  return (out as { X: number; Y: number }[][])
+  return out
     .filter((p) => p.length >= 3)
     .map((p) => p.map(({ X, Y }) => [X / K, Y / K] as [number, number]));
 }
