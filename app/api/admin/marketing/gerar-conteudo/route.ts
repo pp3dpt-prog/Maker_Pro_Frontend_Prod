@@ -36,10 +36,13 @@ export async function POST(request: Request) {
       }],
       config: { systemInstruction: SISTEMA, responseMimeType: 'application/json' },
     });
-    const dados = JSON.parse(r.text ?? '{}');
+    // Tolera resposta embrulhada em ```json … ```
+    const bruto = (r.text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    const dados = JSON.parse(bruto);
     return NextResponse.json({ ok: true, conteudo: dados });
   } catch (e) {
     console.error('[marketing/gerar-conteudo]', e);
-    return NextResponse.json({ error: 'Erro ao gerar o conteúdo. Tenta novamente.' }, { status: 502 });
+    const detalhe = e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200);
+    return NextResponse.json({ error: `Erro ao gerar o conteúdo: ${detalhe}` }, { status: 502 });
   }
 }
