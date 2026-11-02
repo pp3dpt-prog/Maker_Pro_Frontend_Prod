@@ -37,13 +37,13 @@ export const FORMAS: FormaEtiqueta[] = (formasJson as unknown as { formas: Forma
 export const FORMA_DEFAULT = 'Retangular';
 
 /**
- * Dimensão em mm → factor sobre o tamanho base da forma (mesmo limite 50–200 % que _esc()
- * no .scad). Vazio ou inválido = 1 (tamanho da forma).
+ * Largura/altura da placa em % da forma base → factor (mesmo limite 50–200 % que _esc()
+ * no .scad). Vazio ou inválido = 1.
  */
-export function fatorMedida(mm: unknown, base: number): number {
-  if (mm === '' || mm === null || mm === undefined) return 1;
-  const n = Number(mm);
-  return Number.isFinite(n) && n > 0 ? Math.max(0.5, Math.min(2, n / base)) : 1;
+export function fatorPct(pct: unknown): number {
+  if (pct === '' || pct === null || pct === undefined) return 1;
+  const n = Number(pct);
+  return Number.isFinite(n) && n > 0 ? Math.max(0.5, Math.min(2, n / 100)) : 1;
 }
 
 /** Recuo do contorno (como offset(delta = -d) do OpenSCAD); devolve 0..n polígonos. */
@@ -75,8 +75,8 @@ export type ParamsEtiqueta = {
   verso?: string;
   fontSize?: number;
   forma?: string;
-  largura_mm?: number | string;   // largura da placa em mm ('' = tamanho da forma)
-  altura_mm?: number | string;    // altura da placa em mm
+  largura_pct?: number | string;   // largura da placa em % da forma (100 = normal)
+  altura_pct?: number | string;    // altura da placa em %
 };
 
 /**
@@ -158,8 +158,8 @@ export function construirEtiqueta(
 ): THREE.Group {
   const G = GEO;
   const F0 = obterForma(p.forma);
-  // dimensões ajustáveis (mm): escala x/y do contorno; aba, furo e texto só mudam de posição
-  const sx = fatorMedida(p.largura_mm, F0.bw), sy = fatorMedida(p.altura_mm, F0.bh);
+  // dimensões ajustáveis (%): escala x/y do contorno; aba, furo e texto só mudam de posição
+  const sx = fatorPct(p.largura_pct), sy = fatorPct(p.altura_pct);
   const F = {
     ...F0,
     cx: F0.cx * sx, cy: F0.cy * sy, util: F0.util * sx,

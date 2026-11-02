@@ -183,6 +183,13 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
 
         // ── SLIDER ────────────────────────────────────────────────────────
         if (type === 'slider') {
+          // ui.mm_por_forma: mostra o tamanho em mm (% × tamanho base da forma escolhida)
+          const base = ui.mm_por_forma
+            ? Number(ui.mm_por_forma.valores?.[values[ui.mm_por_forma.param] ?? 'Retangular'])
+            : NaN;
+          const mmExtra = base > 0 && Number.isFinite(Number(value))
+            ? Math.round((Number(value) * base) / 100)
+            : null;
           return (
             <div key={name} className="space-y-1">
               <div className="flex items-center justify-between text-xs text-slate-300">
@@ -190,7 +197,10 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
                   {label}
                   {unit ? ` (${unit})` : ''}
                 </label>
-                <span className="tabular-nums text-slate-400">{value}</span>
+                <span className="tabular-nums text-slate-400">
+                  {value}
+                  {mmExtra ? ` (≈ ${mmExtra} mm)` : ''}
+                </span>
               </div>
               <input
                 type="range"
