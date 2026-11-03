@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { resizeImageToBase64 } from '@/lib/imageResize';
 import ReelsIA from '@/components/admin/campanhas/ReelsIA';
 import {
   Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
-  RefreshCw, ExternalLink,
+  RefreshCw, ExternalLink, Trophy, Download,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -640,6 +640,7 @@ function Analytics() {
   const [campanhas, setCampanhas] = useState<{ titulo: string; vistas: number; cliques: number }[]>([]);
   const [sugestoes, setSugestoes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [versaoHistorico, setVersaoHistorico] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -682,7 +683,7 @@ function Analytics() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <EstadoPlataformas />
+      <EstadoPlataformas onAtualizado={() => setVersaoHistorico(v => v + 1)} />
 
       <div style={s.card}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Receita por produto (últimos 30 dias)</h3>
@@ -725,6 +726,8 @@ function Analytics() {
               {sugestoes.map((s2, i) => <li key={i} style={{ fontSize: 13, color: '#cbd5e1', paddingLeft: 14, borderLeft: '2px solid #6366f1' }}>{s2}</li>)}
             </ul>}
       </div>
+
+      <HistoricoMetricas key={versaoHistorico} />
     </div>
   );
 }
@@ -798,7 +801,10 @@ function ChipRede({ nome, r }: { nome: string; r: EstadoRede }) {
   );
 }
 
-function EstadoPlataformas() {
+function EstadoPlataformas({ onAtualizado }: { onAtualizado?: () => void }) {
+  // Em ref para o carregar() não mudar a cada render do pai (evita ciclo de pedidos).
+  const onAtualizadoRef = useRef(onAtualizado);
+  onAtualizadoRef.current = onAtualizado;
   const [dados, setDados] = useState<{ atualizadoEm: string; posts: PostEstado[]; ads: AdEstado[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
@@ -810,6 +816,7 @@ function EstadoPlataformas() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Erro ao consultar as plataformas.');
       setDados(json);
+      onAtualizadoRef.current?.();
     } catch (e: any) { setErro(e.message); } finally { setLoading(false); }
   }, []);
 
@@ -906,4 +913,353 @@ function EstadoPlataformas() {
       )}
     </div>
   );
+}
+
+// ── Analytics: histórico de todos os tempos + melhores resultados ───────────
+
+interface LinhaHistorico {
+  post_id: string; plataforma: 'instagram' | 'facebook'; estado: string | null; link: string | null;
+  visualizacoes: number; alcance: number; gostos: number; comentarios: number; guardados: number; partilhas: number;
+  arquivado_em: string | null;
+  legenda: string; thumb: string | null; video: boolean; abordagem: string | null; publicado_em: string | null;
+  interacoes: number; taxa: number | null; // taxa de envolvimento = interações / alcance
+}
+interface AdHistorico {
+  id: string; nome: string; estado: string; gasto_real_cents: number; impressoes: number; alcance: number; cliques: number; created_at: string;
+}
+
+type ColunaOrd = 'publicado_em' | 'visualizacoes' | 'alcance' | 'gostos' | 'comentarios' | 'guardados' | 'partilhas' | 'interacoes' | 'taxa';
+
+const COLUNAS: { k: ColunaOrd; t: string }[] = [
+  { k: 'visualizacoes', t: 'Vistas' }, { k: 'alcance', t: 'Alcance' }, { k: 'gostos', t: 'Gostos' },
+  { k: 'comentarios', t: 'Coment.' }, { k: 'guardados', t: 'Guard.' }, { k: 'partilhas', t: 'Partilhas' },
+  { k: 'interacoes', t: 'Interações' }, { k: 'taxa', t: 'Envolv.' },
+];
+
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const ALCANCE_MINIMO_RANKING = 20; // abaixo disto a taxa de envolvimento é ruído
+
+const fmt = (n: number) => n.toLocaleString('pt-PT');
+const pct = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(1)}%`);
+const th: React.CSSProperties = { textAlign: 'right', padding: '8px 6px', fontSize: 11, color: '#8a96aa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #1e293b', whiteSpace: 'nowrap' };
+const td: React.CSSProperties = { textAlign: 'right', padding: '7px 6px', fontSize: 12, color: '#cbd5e1', borderBottom: '1px solid #131c2e', whiteSpace: 'nowrap' };
+
+function periodoDoDia(d: Date) {
+  const h = d.getHours();
+  return h < 12 ? 'Manhã (até 12h)' : h < 18 ? 'Tarde (12h–18h)' : 'Noite (depois das 18h)';
+}
+
+/** Médias por grupo, para comparar (rede, formato, abordagem, dia, hora). */
+function agrupar(linhas: LinhaHistorico[], chave: (l: LinhaHistorico) => string | null) {
+  const g = new Map<string, LinhaHistorico[]>();
+  for (const l of linhas) {
+    const k = chave(l);
+    if (!k) continue;
+    g.set(k, [...(g.get(k) ?? []), l]);
+  }
+  const out = [...g.entries()].map(([nome, ls]) => {
+    const alc = ls.reduce((a, l) => a + l.alcance, 0);
+    return {
+      nome, n: ls.length,
+      vistas: ls.reduce((a, l) => a + l.visualizacoes, 0) / ls.length,
+      alcance: alc / ls.length,
+      interacoes: ls.reduce((a, l) => a + l.interacoes, 0) / ls.length,
+      taxa: alc > 0 ? ls.reduce((a, l) => a + l.interacoes, 0) / alc : null,
+    };
+  });
+  return out.sort((a, b) => (b.taxa ?? -1) - (a.taxa ?? -1));
+}
+
+function TabelaComparacao({ titulo, grupos }: { titulo: string; grupos: ReturnType<typeof agrupar> }) {
+  if (grupos.length < 2) return null; // só faz sentido comparar com pelo menos 2 grupos
+  const melhorVistas = Math.max(...grupos.map(g => g.vistas));
+  return (
+    <div style={{ flex: 1, minWidth: 280 }}>
+      <h4 style={{ ...s.label, marginBottom: 6 }}>{titulo}</h4>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead><tr>
+          <th style={{ ...th, textAlign: 'left' }}></th><th style={th}>Posts</th><th style={th}>Vistas méd.</th><th style={th}>Alcance méd.</th><th style={th}>Envolv.</th>
+        </tr></thead>
+        <tbody>
+          {grupos.map((g, i) => (
+            <tr key={g.nome}>
+              <td style={{ ...td, textAlign: 'left', color: i === 0 ? '#facc15' : '#cbd5e1', fontWeight: i === 0 ? 700 : 400 }}>{i === 0 ? '★ ' : ''}{g.nome}</td>
+              <td style={td}>{g.n}</td>
+              <td style={{ ...td, color: g.vistas === melhorVistas ? '#4ade80' : td.color }}>{fmt(Math.round(g.vistas))}</td>
+              <td style={td}>{fmt(Math.round(g.alcance))}</td>
+              <td style={{ ...td, color: i === 0 ? '#facc15' : td.color }}>{pct(g.taxa)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function exportarCsv(linhas: LinhaHistorico[], ads: AdHistorico[]) {
+  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const cab = ['data', 'rede', 'formato', 'abordagem', 'legenda', 'vistas', 'alcance', 'gostos', 'comentarios', 'guardados', 'partilhas', 'interacoes', 'envolvimento', 'estado', 'link'];
+  const rows = linhas.map(l => [
+    l.publicado_em ?? '', l.plataforma, l.video ? 'reel' : 'imagem', l.abordagem ?? '', l.legenda,
+    l.visualizacoes, l.alcance, l.gostos, l.comentarios, l.guardados, l.partilhas, l.interacoes,
+    l.taxa == null ? '' : l.taxa.toFixed(4), l.estado ?? '', l.link ?? '',
+  ]);
+  const adsCab = ['anuncio', 'estado', 'criado', 'gasto_eur', 'impressoes', 'alcance', 'cliques', 'ctr', 'cpc_eur'];
+  const adsRows = ads.map(a => [
+    a.nome, a.estado, a.created_at, (a.gasto_real_cents / 100).toFixed(2), a.impressoes, a.alcance, a.cliques,
+    a.impressoes ? (a.cliques / a.impressoes).toFixed(4) : '', a.cliques ? (a.gasto_real_cents / 100 / a.cliques).toFixed(2) : '',
+  ]);
+  const csv = [cab, ...rows, [], adsCab, ...adsRows].map(r => r.map(esc).join(';')).join('\n');
+  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `pp3d-metricas-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function HistoricoMetricas() {
+  const [linhas, setLinhas] = useState<LinhaHistorico[]>([]);
+  const [ads, setAds] = useState<AdHistorico[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
+  const [rede, setRede] = useState<'todas' | 'instagram' | 'facebook'>('todas');
+  const [ord, setOrd] = useState<{ k: ColunaOrd; desc: boolean }>({ k: 'publicado_em', desc: true });
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: m, error: e1 }, { data: a }] = await Promise.all([
+        supabase.from('prod_marketing_metricas')
+          .select('post_id, plataforma, estado, link, visualizacoes, alcance, gostos, comentarios, guardados, partilhas, arquivado_em, prod_marketing_posts!inner(legenda, imagens, video_url, abordagem, publicado_em)'),
+        supabase.from('prod_marketing_ads')
+          .select('id, nome, estado, gasto_real_cents, impressoes, alcance, cliques, created_at')
+          .neq('estado', 'rascunho')
+          .order('created_at', { ascending: false }),
+      ]);
+      if (e1) setErro(e1.message.includes('prod_marketing_metricas') ? 'Falta correr scripts/sql/marketing_historico.sql no Supabase.' : e1.message);
+      setLinhas(((m ?? []) as any[]).map(r => {
+        const p = r.prod_marketing_posts;
+        const interacoes = (r.gostos ?? 0) + (r.comentarios ?? 0) + (r.guardados ?? 0) + (r.partilhas ?? 0);
+        return {
+          ...r,
+          legenda: p?.legenda ?? '', thumb: p?.imagens?.[0] ?? null, video: !!p?.video_url, abordagem: p?.abordagem ?? null, publicado_em: p?.publicado_em ?? null,
+          interacoes, taxa: r.alcance > 0 ? interacoes / r.alcance : null,
+        } as LinhaHistorico;
+      }));
+      setAds((a ?? []) as AdHistorico[]);
+      setLoading(false);
+    })();
+  }, []);
+
+  const visiveis = linhas
+    .filter(l => rede === 'todas' || l.plataforma === rede)
+    .sort((a, b) => {
+      const va = ord.k === 'publicado_em' ? (a.publicado_em ?? '') : (a[ord.k] ?? -1);
+      const vb = ord.k === 'publicado_em' ? (b.publicado_em ?? '') : (b[ord.k] ?? -1);
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (ord.desc ? -1 : 1);
+    });
+
+  const total = (k: keyof LinhaHistorico) => visiveis.reduce((a, l) => a + (Number(l[k]) || 0), 0);
+  const totalAlcance = total('alcance');
+  const totalInter = total('interacoes');
+
+  // ── Melhores resultados ──
+  const comAlcance = linhas.filter(l => l.alcance >= ALCANCE_MINIMO_RANKING && l.taxa != null);
+  const topEnvolvimento = [...comAlcance].sort((a, b) => (b.taxa ?? 0) - (a.taxa ?? 0)).slice(0, 5);
+  const topVistas = [...linhas].sort((a, b) => b.visualizacoes - a.visualizacoes).slice(0, 5);
+  const datado = linhas.filter(l => l.publicado_em);
+  const porRede = agrupar(linhas, l => (l.plataforma === 'instagram' ? 'Instagram' : 'Facebook'));
+  const porFormato = agrupar(linhas, l => (l.video ? 'Reel (vídeo)' : 'Imagem'));
+  const porAbordagem = agrupar(linhas, l => l.abordagem);
+  const porDia = agrupar(datado, l => DIAS_SEMANA[new Date(l.publicado_em!).getDay()]);
+  const porPeriodo = agrupar(datado, l => periodoDoDia(new Date(l.publicado_em!)));
+
+  const adsComCliques = ads.filter(a => a.cliques > 0 && a.gasto_real_cents > 0);
+  const melhorAd = [...adsComCliques].sort((a, b) => a.gasto_real_cents / a.cliques - b.gasto_real_cents / b.cliques)[0];
+
+  function cabecalho(k: ColunaOrd, t: string) {
+    const ativo = ord.k === k;
+    return (
+      <th key={k} style={{ ...th, cursor: 'pointer', color: ativo ? '#f1f5f9' : th.color }}
+        onClick={() => setOrd(o => ({ k, desc: o.k === k ? !o.desc : true }))}>
+        {t}{ativo ? (ord.desc ? ' ↓' : ' ↑') : ''}
+      </th>
+    );
+  }
+
+  if (loading) return <div style={s.card}><p style={{ color: '#8a96aa', fontSize: 13 }}>A carregar histórico…</p></div>;
+
+  return (
+    <>
+      <div style={s.card}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Trophy size={16} className="text-yellow-400" /> Melhores resultados (todos os tempos)
+        </h3>
+        {erro && <p style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>{erro}</p>}
+        {linhas.length === 0 ? (
+          <p style={{ color: '#64748b', fontSize: 13 }}>Ainda não há métricas guardadas. São gravadas sempre que carregas em “Atualizar” acima e todos os dias pelo cron.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <h4 style={{ ...s.label, marginBottom: 6 }}>Maior envolvimento (alcance ≥ {ALCANCE_MINIMO_RANKING})</h4>
+                {topEnvolvimento.length === 0 ? <p style={{ color: '#64748b', fontSize: 12 }}>Ainda nenhum post com alcance suficiente.</p> :
+                  topEnvolvimento.map((l, i) => (
+                    <p key={`${l.post_id}-${l.plataforma}`} style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: i === 0 ? '#facc15' : '#8a96aa', fontWeight: 700 }}>{i + 1}.</span>{' '}
+                      <strong style={{ color: '#facc15' }}>{pct(l.taxa)}</strong>{' '}
+                      <span style={{ color: '#64748b' }}>{l.plataforma === 'instagram' ? 'IG' : 'FB'}{l.video ? ' · Reel' : ''}</span>{' '}
+                      {l.link ? <a href={l.link} target="_blank" rel="noreferrer" style={{ color: '#cbd5e1' }}>{l.legenda.slice(0, 60)}</a> : l.legenda.slice(0, 60)}
+                    </p>
+                  ))}
+              </div>
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <h4 style={{ ...s.label, marginBottom: 6 }}>Mais vistas</h4>
+                {topVistas.map((l, i) => (
+                  <p key={`${l.post_id}-${l.plataforma}`} style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: i === 0 ? '#4ade80' : '#8a96aa', fontWeight: 700 }}>{i + 1}.</span>{' '}
+                    <strong style={{ color: '#4ade80' }}>{fmt(l.visualizacoes)}</strong>{' '}
+                    <span style={{ color: '#64748b' }}>{l.plataforma === 'instagram' ? 'IG' : 'FB'}{l.video ? ' · Reel' : ''}</span>{' '}
+                    {l.link ? <a href={l.link} target="_blank" rel="noreferrer" style={{ color: '#cbd5e1' }}>{l.legenda.slice(0, 60)}</a> : l.legenda.slice(0, 60)}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <TabelaComparacao titulo="Por rede" grupos={porRede} />
+              <TabelaComparacao titulo="Por formato" grupos={porFormato} />
+            </div>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <TabelaComparacao titulo="Por abordagem (Reels)" grupos={porAbordagem} />
+              <TabelaComparacao titulo="Por hora de publicação" grupos={porPeriodo} />
+            </div>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <TabelaComparacao titulo="Por dia da semana" grupos={porDia} />
+              <div style={{ flex: 1, minWidth: 280 }} />
+            </div>
+            <p style={{ fontSize: 11, color: '#64748b' }}>★ = melhor taxa de envolvimento (gostos + comentários + guardados + partilhas ÷ alcance). Com poucos posts por grupo, as diferenças ainda podem ser acaso.</p>
+          </div>
+        )}
+      </div>
+
+      <div style={s.card}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700 }}>Todas as métricas — publicações</h3>
+          <span style={{ fontSize: 11, color: '#64748b' }}>{visiveis.length} linhas</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            {(['todas', 'instagram', 'facebook'] as const).map(r => (
+              <button key={r} onClick={() => setRede(r)} style={{ ...(rede === r ? s.btn : s.btnGhost), padding: '5px 10px', fontSize: 12 }}>
+                {r === 'todas' ? 'Todas' : r === 'instagram' ? 'Instagram' : 'Facebook'}
+              </button>
+            ))}
+            <button style={{ ...s.btnGhost, padding: '5px 10px', fontSize: 12 }} disabled={linhas.length === 0} onClick={() => exportarCsv(linhas, ads)}>
+              <Download size={12} /> CSV
+            </button>
+          </div>
+        </div>
+        {visiveis.length === 0 ? <p style={{ color: '#64748b', fontSize: 13 }}>Sem dados.</p> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+              <thead><tr>
+                <th style={{ ...th, textAlign: 'left' }}>Publicação</th>
+                <th style={{ ...th, cursor: 'pointer', color: ord.k === 'publicado_em' ? '#f1f5f9' : th.color }} onClick={() => setOrd(o => ({ k: 'publicado_em', desc: o.k === 'publicado_em' ? !o.desc : true }))}>
+                  Data{ord.k === 'publicado_em' ? (ord.desc ? ' ↓' : ' ↑') : ''}
+                </th>
+                <th style={th}>Rede</th>
+                {COLUNAS.map(c => cabecalho(c.k, c.t))}
+              </tr></thead>
+              <tbody>
+                {visiveis.map(l => (
+                  <tr key={`${l.post_id}-${l.plataforma}`} style={{ opacity: l.estado === 'removido' ? 0.55 : 1 }}>
+                    <td style={{ ...td, textAlign: 'left', maxWidth: 260 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {l.thumb && !l.video && <img src={l.thumb} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4 }} />}
+                        {l.video && <span style={s.badge('#a855f7')}>Reel</span>}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {l.link ? <a href={l.link} target="_blank" rel="noreferrer" style={{ color: '#cbd5e1' }}>{l.legenda.slice(0, 50)}</a> : l.legenda.slice(0, 50)}
+                        </span>
+                      </div>
+                      {(l.abordagem || l.estado === 'removido' || l.arquivado_em) && (
+                        <span style={{ fontSize: 10, color: '#64748b' }}>
+                          {[l.abordagem, l.estado === 'removido' ? 'removido da rede' : null, l.arquivado_em ? 'arquivado' : null].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </td>
+                    <td style={td}>{l.publicado_em ? new Date(l.publicado_em).toLocaleDateString('pt-PT') : '—'}</td>
+                    <td style={td}>{l.plataforma === 'instagram' ? 'IG' : 'FB'}</td>
+                    <td style={td}>{fmt(l.visualizacoes)}</td>
+                    <td style={td}>{fmt(l.alcance)}</td>
+                    <td style={td}>{fmt(l.gostos)}</td>
+                    <td style={td}>{fmt(l.comentarios)}</td>
+                    <td style={td}>{fmt(l.guardados)}</td>
+                    <td style={td}>{fmt(l.partilhas)}</td>
+                    <td style={td}>{fmt(l.interacoes)}</td>
+                    <td style={td}>{pct(l.taxa)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td style={{ ...td, textAlign: 'left', fontWeight: 700, color: '#f1f5f9' }} colSpan={3}>Total</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(total('visualizacoes'))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(totalAlcance)}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(total('gostos'))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(total('comentarios'))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(total('guardados'))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(total('partilhas'))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(totalInter)}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{pct(totalAlcance > 0 ? totalInter / totalAlcance : null)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div style={s.card}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Todas as métricas — anúncios pagos</h3>
+        {ads.length === 0 ? <p style={{ color: '#64748b', fontSize: 13 }}>Sem campanhas pagas.</p> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+              <thead><tr>
+                <th style={{ ...th, textAlign: 'left' }}>Anúncio</th><th style={th}>Criado</th><th style={th}>Estado</th><th style={th}>Gasto</th>
+                <th style={th}>Impressões</th><th style={th}>Alcance</th><th style={th}>Cliques</th><th style={th}>CTR</th><th style={th}>CPC</th><th style={th}>CPM</th>
+              </tr></thead>
+              <tbody>
+                {ads.map(a => {
+                  const gasto = a.gasto_real_cents / 100;
+                  const melhor = melhorAd?.id === a.id && adsComCliques.length > 1;
+                  return (
+                    <tr key={a.id}>
+                      <td style={{ ...td, textAlign: 'left', color: melhor ? '#facc15' : td.color, fontWeight: melhor ? 700 : 400 }}>{melhor ? '★ ' : ''}{a.nome}</td>
+                      <td style={td}>{new Date(a.created_at).toLocaleDateString('pt-PT')}</td>
+                      <td style={td}><span style={s.badge(ESTADO_COR[a.estado] ?? '#64748b')}>{a.estado}</span></td>
+                      <td style={td}>€{gasto.toFixed(2)}</td>
+                      <td style={td}>{fmt(a.impressoes)}</td>
+                      <td style={td}>{fmt(a.alcance)}</td>
+                      <td style={td}>{fmt(a.cliques)}</td>
+                      <td style={td}>{a.impressoes ? pct(a.cliques / a.impressoes) : '—'}</td>
+                      <td style={td}>{a.cliques ? `€${(gasto / a.cliques).toFixed(2)}` : '—'}</td>
+                      <td style={td}>{a.impressoes ? `€${(gasto / a.impressoes * 1000).toFixed(2)}` : '—'}</td>
+                    </tr>
+                  );
+                })}
+                <tr>
+                  <td style={{ ...td, textAlign: 'left', fontWeight: 700, color: '#f1f5f9' }} colSpan={3}>Total</td>
+                  <td style={{ ...td, fontWeight: 700 }}>€{(ads.reduce((x, a) => x + a.gasto_real_cents, 0) / 100).toFixed(2)}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(ads.reduce((x, a) => x + a.impressoes, 0))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(ads.reduce((x, a) => x + a.alcance, 0))}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{fmt(ads.reduce((x, a) => x + a.cliques, 0))}</td>
+                  <td style={td} colSpan={3}></td>
+                </tr>
+              </tbody>
+            </table>
+            {notaMelhorCpc(melhorAd, adsComCliques.length)}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function notaMelhorCpc(melhorAd: AdHistorico | undefined, n: number) {
+  if (!melhorAd || n < 2) return null;
+  return <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>★ = anúncio com o clique mais barato (€{(melhorAd.gasto_real_cents / 100 / melhorAd.cliques).toFixed(2)}/clique).</p>;
 }

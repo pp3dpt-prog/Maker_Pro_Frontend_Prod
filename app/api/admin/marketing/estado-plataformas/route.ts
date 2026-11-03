@@ -4,7 +4,7 @@
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { assertAdmin } from '@/lib/assertAdmin';
-import { estadoInstagram, estadoFacebook, estadoAnuncio, type EstadoPlataforma } from '@/lib/meta';
+import { recolherMetricasPost, recolherMetricasAnuncio } from '@/lib/marketing-metricas';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -42,18 +42,8 @@ export async function GET() {
   ]);
 
   const postsOut = await emLotes(posts ?? [], 4, async (p) => {
-    const querIg = p.canal === 'instagram' || p.canal === 'ambos';
-    const querFb = p.canal === 'facebook' || p.canal === 'ambos';
-    const [instagram, facebook] = await Promise.all([
-      querIg ? estadoInstagram(p.meta_post_id_ig, p.meta_container_ig) : Promise.resolve<EstadoPlataforma | null>(null),
-      querFb ? estadoFacebook(p.meta_post_id, !!p.video_url) : Promise.resolve<EstadoPlataforma | null>(null),
-    ]);
-
-    // Guarda as métricas no cache (o mesmo campo que o cron sync-insights preenche).
-    const insights = { ...(instagram?.metricas ? { instagram: instagram.metricas } : {}), ...(facebook?.metricas ? { facebook: facebook.metricas } : {}) };
-    if (Object.keys(insights).length) {
-      await admin.from('prod_marketing_posts').update({ insights, updated_at: new Date().toISOString() }).eq('id', p.id);
-    }
+    // Consulta a Meta e grava no histórico permanente (prod_marketing_metricas).
+    const { instagram, facebook } = await recolherMetricasPost(admin, p);
 
     return {
       id: p.id,
@@ -72,10 +62,7 @@ export async function GET() {
   });
 
   const adsOut = await emLotes(ads ?? [], 4, async (a) => {
-    const meta = await estadoAnuncio(a.meta_campaign_id, a.meta_ad_id);
-    if (!meta.erro && meta.gastoCents > 0) {
-      await admin.from('prod_marketing_ads').update({ gasto_real_cents: meta.gastoCents, updated_at: new Date().toISOString() }).eq('id', a.id);
-    }
+    const meta = await recolherMetricasAnuncio(admin, a);
     return { id: a.id, post_id: a.post_id, nome: a.nome, estado: a.estado, orcamento_diario_cents: a.orcamento_diario_cents, meta };
   });
 
