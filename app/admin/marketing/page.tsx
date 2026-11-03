@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { resizeImageToBase64 } from '@/lib/imageResize';
+import ReelsIA from '@/components/admin/campanhas/ReelsIA';
 import {
   Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
 } from 'lucide-react';
@@ -22,6 +23,8 @@ interface PostMarketing {
   produto_id: string | null;
   legenda: string;
   imagens: string[];
+  video_url?: string | null;
+  abordagem?: string | null;
   canal: 'instagram' | 'facebook' | 'ambos';
   estado: 'rascunho' | 'agendado' | 'publicado' | 'falhou';
   agendado_para: string | null;
@@ -84,7 +87,7 @@ export default function MarketingPage() {
           ))}
         </div>
 
-        {tab === 'criar' && <><CriarPublicacao /><SerieIA /></>}
+        {tab === 'criar' && <><CriarPublicacao /><ReelsIA /><SerieIA /></>}
         {tab === 'fila' && <Fila />}
         {tab === 'analytics' && <Analytics />}
       </div>
@@ -475,7 +478,9 @@ function Fila() {
   useEffect(() => { carregar(); }, [carregar]);
 
   async function publicar(id: string) {
-    await chamar('/api/admin/marketing/publicar-agora', { post_id: id }).catch(e => alert(e.message));
+    await chamar('/api/admin/marketing/publicar-agora', { post_id: id })
+      .then(r => { if (r?.pendente) alert(r.mensagem); })
+      .catch(e => alert(e.message));
     carregar();
   }
 
@@ -487,11 +492,14 @@ function Fila() {
       {posts.map(post => (
         <div key={post.id} style={s.card}>
           <div style={{ display: 'flex', gap: 14 }}>
-            {post.imagens?.[0] && <img src={post.imagens[0]} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />}
+            {post.video_url
+              ? <video src={post.video_url} muted loop playsInline onMouseEnter={e => e.currentTarget.play()} onMouseLeave={e => e.currentTarget.pause()} style={{ width: 64, height: 114, objectFit: 'cover', borderRadius: 8, background: '#0a1120' }} />
+              : post.imagens?.[0] && <img src={post.imagens[0]} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />}
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                 <span style={s.badge(ESTADO_COR[post.estado])}>{post.estado}</span>
                 <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase' }}>{post.canal}</span>
+                {post.video_url && <span style={s.badge('#a855f7')}>Reel{post.abordagem ? ` · ${post.abordagem}` : ''}</span>}
               </div>
               <p style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 6 }}>{post.legenda.slice(0, 140)}{post.legenda.length > 140 ? '…' : ''}</p>
               {post.erro && <p style={{ fontSize: 12, color: '#f87171' }}>Erro: {post.erro}</p>}
@@ -503,7 +511,7 @@ function Fila() {
               {(post.estado === 'rascunho' || post.estado === 'agendado' || post.estado === 'falhou') && (
                 <button style={s.btn} onClick={() => publicar(post.id)}><Send size={13} /> Publicar</button>
               )}
-              {post.estado === 'publicado' && (
+              {post.estado === 'publicado' && !post.video_url && (
                 <button style={s.btnGhost} onClick={() => setAImpulsionar(aImpulsionar === post.id ? null : post.id)}>
                   <TrendingUp size={13} /> Impulsionar
                 </button>

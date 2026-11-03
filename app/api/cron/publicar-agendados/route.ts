@@ -8,8 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { publicarPostMarketing } from '@/lib/marketing-publish';
 
 export const runtime = 'nodejs';
-// O Instagram pode demorar alguns segundos a processar cada imagem.
-export const maxDuration = 60;
+// O Instagram pode demorar a processar imagens e sobretudo Reels (até ~45 s de espera por post).
+export const maxDuration = 300;
 
 const admin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const resultados = [];
   for (const p of pendentes ?? []) {
     const r = await publicarPostMarketing(admin, p.id);
-    resultados.push({ id: p.id, ok: r.ok, error: r.ok ? undefined : r.error });
+    resultados.push({ id: p.id, ok: r.ok, pendente: !r.ok && r.pendente === true, error: r.ok ? undefined : r.error });
   }
 
   return NextResponse.json({ ok: true, processados: resultados.length, resultados });

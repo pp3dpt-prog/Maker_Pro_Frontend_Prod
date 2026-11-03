@@ -84,6 +84,25 @@ silenciosamente.
 
 ---
 
+## 4b. Reels com IA (vídeo)
+
+Cartão "Reels com IA" no separador Criar publicação: mesma imagem + mesmo texto → o Gemini propõe 2
+abordagens de movimento (`gerar-abordagens`) → o **Wan 2.2** (image-to-video, open source, uso comercial
+permitido) anima a imagem ~5 s (`gerar-video`) → cada Reel é agendado num dia diferente.
+
+- **Onde corre o Wan:** Space público `zerogpu-aoti/wan2-2-fp8da-aoti-faster` no Hugging Face (ZeroGPU,
+  grátis). Chamado com `HF_TOKEN` (token Read da conta PP3D), por isso gasta a quota da conta (~5 min de
+  GPU/dia na conta gratuita; cada vídeo ~30-60 s). `HF_WAN_SPACE` muda o Space. **Uma cópia duplicada
+  (PP3D/…) gerou só ruído colorido** — provavelmente versões de bibliotecas diferentes das dos kernels
+  pré-compilados; usar o original até afinar a cópia com as mesmas versões.
+- **Conversão:** `lib/reelVideo.ts` (ffmpeg-static) → 720x1280, 30 fps, H.264 (GOP fechado 2 s) + AAC
+  48 kHz; imagens não verticais ficam sobre fundo desfocado. Specs da Meta: 9:16, ≥540x960, 24-60 fps, 3-90 s.
+- **Publicação:** Facebook pela Reels Publishing API (`video_reels`, 3 fases, `is_ai_generated=true`).
+  Instagram em 2 fases: cria o container `REELS` (guardado em `meta_container_ig`) e publica quando a Meta
+  acabar de processar — no mesmo pedido se for rápido, senão no ciclo seguinte do cron (30 min).
+- **SQL:** `scripts/sql/marketing_reels.sql` (colunas `video_url`, `meta_container_ig`, `abordagem`).
+- **Ainda não:** impulsionar Reels (a campanha paga atual usa o post de imagem do Facebook como criativo).
+
 ## 5. Restrição de segurança (não negociável)
 
 Criar uma campanha paga (`criar-campanha-paga`) nunca a ativa — fica sempre `status: PAUSED` na Meta

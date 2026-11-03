@@ -18,6 +18,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://www.google-analytics.com https://images.pexels.com",
       "font-src 'self'",
+      // Pré-visualização dos Reels (MP4 no Supabase Storage) no admin de marketing.
+      "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
       "worker-src 'self' blob:",
       "connect-src 'self' blob: https://*.supabase.co https://*.supabase.in https://www.google-analytics.com https://stats.g.doubleclick.net https://raw.githack.com https://raw.githubusercontent.com https://api.pexels.com",
       "frame-ancestors 'self'",
@@ -27,6 +29,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+
+  // ffmpeg-static resolve o caminho do binário em runtime (__dirname): não pode ser empacotado
+  // pelo bundler, e o binário tem de ir junto com a função que converte os Reels.
+  serverExternalPackages: ['ffmpeg-static'],
+  outputFileTracingIncludes: {
+    '/api/admin/marketing/gerar-video': ['./node_modules/ffmpeg-static/ffmpeg'],
+  },
 
   async headers() {
     return [

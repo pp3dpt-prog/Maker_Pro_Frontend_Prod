@@ -23,10 +23,14 @@ export async function POST(request: Request) {
   const guard = await assertAdmin();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-  const { produto_id, legenda, imagens, canal, agendado_para } = await request.json();
+  const { produto_id, legenda, imagens, canal, agendado_para, video_url, abordagem } = await request.json();
 
+  // Num Reel (video_url), imagens[0] é a imagem de partida — serve de miniatura no admin.
   if (!legenda || !Array.isArray(imagens) || imagens.length === 0 || !canal) {
     return NextResponse.json({ error: 'legenda, imagens e canal são obrigatórios.' }, { status: 400 });
+  }
+  if (video_url && !String(video_url).startsWith('https://')) {
+    return NextResponse.json({ error: 'video_url inválido.' }, { status: 400 });
   }
   if (!['instagram', 'facebook', 'ambos'].includes(canal)) {
     return NextResponse.json({ error: 'canal inválido.' }, { status: 400 });
@@ -43,6 +47,9 @@ export async function POST(request: Request) {
       estado: agendado_para ? 'agendado' : 'rascunho',
       agendado_para: agendado_para ?? null,
       criado_por: guard.userId,
+      // Só se envia quando é Reel, para os posts de imagem continuarem a gravar mesmo antes
+      // de correr scripts/sql/marketing_reels.sql.
+      ...(video_url ? { video_url, abordagem: abordagem ?? null } : {}),
     }])
     .select()
     .single();
