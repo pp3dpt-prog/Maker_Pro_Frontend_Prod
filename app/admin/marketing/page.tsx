@@ -7,7 +7,7 @@ import ReelsIA from '@/components/admin/campanhas/ReelsIA';
 import Concorrencia from '@/components/admin/marketing/Concorrencia';
 import {
   Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
-  RefreshCw, ExternalLink, Trophy, Download,
+  RefreshCw, ExternalLink, Trophy, Download, Film, Loader2,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -98,6 +98,38 @@ export default function MarketingPage() {
   );
 }
 
+// ── Vídeo (Reel) carregado do computador/telemóvel ──────────────────────────
+
+const REEL_MIN_S = 3;
+const REEL_MAX_FB_S = 90;   // Reels do Facebook via API: 3–90 s
+const REEL_MAX_IG_S = 900;  // Reels do Instagram via API: até 15 min
+
+interface InfoVideo { duracao: number; largura: number; altura: number }
+
+function lerVideo(file: File): Promise<{ info: InfoVideo; capa: Blob | null }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.preload = 'auto'; v.muted = true; v.playsInline = true; v.src = url;
+    const fim = (r: { info: InfoVideo; capa: Blob | null } | Error) => {
+      URL.revokeObjectURL(url);
+      r instanceof Error ? reject(r) : resolve(r);
+    };
+    v.onerror = () => fim(new Error('O browser não conseguiu ler este vídeo. Se for HEVC (iPhone), exporta em H.264/MP4.'));
+    v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 2) / 2); };
+    v.onseeked = () => {
+      const info = { duracao: v.duration, largura: v.videoWidth, altura: v.videoHeight };
+      // Capa: um frame perto do 1.º segundo (serve de miniatura no admin e na fila).
+      try {
+        const c = document.createElement('canvas');
+        c.width = v.videoWidth; c.height = v.videoHeight;
+        c.getContext('2d')!.drawImage(v, 0, 0);
+        c.toBlob(b => fim({ info, capa: b }), 'image/jpeg', 0.85);
+      } catch { fim({ info, capa: null }); }
+    };
+  });
+}
+
 // ── Tab: Criar publicação ───────────────────────────────────────────────────
 
 function CriarPublicacao() {
@@ -105,6 +137,11 @@ function CriarPublicacao() {
   const [produtoId, setProdutoId] = useState('');
   const [legenda, setLegenda] = useState('');
   const [imagemUrl, setImagemUrl] = useState('');
+  const [formato, setFormato] = useState<'imagem' | 'reel'>('imagem');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [infoVideo, setInfoVideo] = useState<InfoVideo | null>(null);
+  const [aEnviarVideo, setAEnviarVideo] = useState(false);
+  const [videoMsg, setVideoMsg] = useState<{ erro: boolean; t: string } | null>(null);
   const [canal, setCanal] = useState<'instagram' | 'facebook' | 'ambos'>('ambos');
   const [agendarPara, setAgendarPara] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -162,6 +199,45 @@ function CriarPublicacao() {
     setACarregar(false);
   }
 
+  async function carregarVideo(file: File | undefined) {
+    if (!file) return;
+    setVideoMsg(null);
+    if (!['video/mp4', 'video/quicktime'].includes(file.type)) {
+      setVideoMsg({ erro: true, t: 'Formato não suportado. Usa um vídeo MP4 ou MOV.' }); return;
+    }
+    setAEnviarVideo(true);
+    try {
+      const { info, capa } = await lerVideo(file);
+      if (info.duracao < REEL_MIN_S) throw new Error(`O vídeo tem ${info.duracao.toFixed(1)} s; um Reel precisa de pelo menos ${REEL_MIN_S} s.`);
+      if (info.duracao > REEL_MAX_IG_S) throw new Error('O vídeo tem mais de 15 minutos, o máximo para Reels do Instagram.');
+
+      // 1. URL assinado + envio direto do browser para o Storage (sem passar pela Vercel)
+      const prep = await chamar('/api/admin/marketing/upload-video', { tipo: file.type, tamanho: file.size });
+      const { error } = await supabase.storage.from(prep.bucket).uploadToSignedUrl(prep.path, prep.token, file, { contentType: file.type });
+      if (error) throw new Error(/mime|type/i.test(error.message) ? 'O Storage não aceita este formato — converte o vídeo para MP4.' : `Falhou o envio: ${error.message}`);
+
+      // 2. Capa (miniatura) a partir de um frame do vídeo
+      if (capa) {
+        const image_base64 = await resizeImageToBase64(new File([capa], 'capa.jpg', { type: 'image/jpeg' }), 1080);
+        const { url } = await chamar('/api/admin/loja/upload', { image_base64, pasta: 'marketing' });
+        setImagemUrl(url);
+      }
+
+      setVideoUrl(prep.url);
+      setInfoVideo(info);
+      const avisos: string[] = [];
+      if (info.largura >= info.altura) avisos.push('o vídeo não é vertical (9:16) — nos Reels vai aparecer com barras ou cortado');
+      if (info.duracao > REEL_MAX_FB_S) avisos.push(`tem ${Math.round(info.duracao)} s: o Facebook só aceita Reels até ${REEL_MAX_FB_S} s, por isso só dá para publicar no Instagram`);
+      setVideoMsg({ erro: false, t: `Vídeo carregado (${Math.round(info.duracao)} s, ${info.largura}×${info.altura}).${avisos.length ? ` Atenção: ${avisos.join('; ')}.` : ''}` });
+      if (info.duracao > REEL_MAX_FB_S) setCanal('instagram');
+    } catch (e: any) {
+      setVideoMsg({ erro: true, t: e.message });
+    }
+    setAEnviarVideo(false);
+  }
+
+  function limparVideo() { setVideoUrl(''); setInfoVideo(null); setVideoMsg(null); setImagemUrl(''); }
+
   async function gerarImagem() {
     if (!promptImg.trim()) { setIaMsg('Escreve ou gera primeiro o prompt da imagem.'); return; }
     setIaEstado('imagem'); setIaMsg('');
@@ -173,7 +249,12 @@ function CriarPublicacao() {
   }
 
   async function guardar(publicarJa: boolean) {
-    if (!legenda || !imagemUrl) { setStatus('error'); setMsg('Legenda e imagem são obrigatórias.'); return; }
+    const reel = formato === 'reel';
+    if (reel && !videoUrl) { setStatus('error'); setMsg('Carrega primeiro o vídeo do Reel.'); return; }
+    if (!legenda || !imagemUrl) { setStatus('error'); setMsg(reel ? 'A legenda é obrigatória (e a capa do vídeo ainda não está pronta).' : 'Legenda e imagem são obrigatórias.'); return; }
+    if (reel && infoVideo && infoVideo.duracao > REEL_MAX_FB_S && canal !== 'instagram') {
+      setStatus('error'); setMsg(`Reels com mais de ${REEL_MAX_FB_S} s só podem ir para o Instagram. Escolhe "Só Instagram".`); return;
+    }
     setStatus('loading'); setMsg('');
     try {
       const { post } = await chamar('/api/admin/marketing/criar-post', {
@@ -182,13 +263,18 @@ function CriarPublicacao() {
         imagens: [imagemUrl],
         canal,
         agendado_para: !publicarJa && agendarPara ? new Date(agendarPara).toISOString() : null,
+        ...(reel ? { video_url: videoUrl } : {}),
       });
+      let textoOk = publicarJa ? 'Publicado!' : agendarPara ? 'Agendado!' : 'Guardado como rascunho.';
       if (publicarJa) {
-        await chamar('/api/admin/marketing/publicar-agora', { post_id: post.id });
+        const r = await chamar('/api/admin/marketing/publicar-agora', { post_id: post.id });
+        // Reel do Instagram ainda a processar na Meta: o cron termina a publicação.
+        if (r?.pendente) textoOk = r.mensagem ?? 'O Instagram ainda está a processar o vídeo — o Reel é publicado automaticamente daqui a pouco.';
       }
       setStatus('success');
-      setMsg(publicarJa ? 'Publicado!' : agendarPara ? 'Agendado!' : 'Guardado como rascunho.');
+      setMsg(textoOk);
       setLegenda(''); setImagemUrl(''); setProdutoId(''); setAgendarPara('');
+      setVideoUrl(''); setInfoVideo(null); setVideoMsg(null);
       setTimeout(() => setStatus('idle'), 3000);
     } catch (e: any) {
       setStatus('error'); setMsg(e.message);
@@ -240,10 +326,33 @@ function CriarPublicacao() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
         <div>
-          <label style={s.label}><ImagePlus size={12} style={{ display: 'inline', marginRight: 4 }} /> Imagem</label>
-          <input type="file" accept="image/*" disabled={aCarregar} onChange={e => { carregarFoto(e.target.files?.[0]); e.target.value = ''; }} style={{ ...s.input, marginBottom: 8 }} />
-          {aCarregar && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 6 }}>A carregar…</p>}
-          <input value={imagemUrl} onChange={e => setImagemUrl(e.target.value)} style={s.input} placeholder="ou cola um URL https://..." />
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            <button type="button" onClick={() => setFormato('imagem')} style={{ ...(formato === 'imagem' ? s.btn : s.btnGhost), padding: '6px 12px', fontSize: 12 }}><ImagePlus size={12} /> Imagem</button>
+            <button type="button" onClick={() => setFormato('reel')} style={{ ...(formato === 'reel' ? s.btn : s.btnGhost), padding: '6px 12px', fontSize: 12 }}><Film size={12} /> Reel (vídeo)</button>
+          </div>
+          {formato === 'imagem' ? (
+            <>
+              <input type="file" accept="image/*" disabled={aCarregar} onChange={e => { carregarFoto(e.target.files?.[0]); e.target.value = ''; }} style={{ ...s.input, marginBottom: 8 }} />
+              {aCarregar && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 6 }}>A carregar…</p>}
+              <input value={imagemUrl} onChange={e => setImagemUrl(e.target.value)} style={s.input} placeholder="ou cola um URL https://..." />
+            </>
+          ) : (
+            <>
+              {!videoUrl && (
+                <input type="file" accept="video/mp4,video/quicktime" disabled={aEnviarVideo}
+                  onChange={e => { carregarVideo(e.target.files?.[0]); e.target.value = ''; }} style={{ ...s.input, marginBottom: 8 }} />
+              )}
+              {aEnviarVideo && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Loader2 size={12} className="animate-spin" /> A enviar o vídeo… (pode demorar se for grande)</p>}
+              {videoUrl && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: '#4ade80' }}>Vídeo pronto</span>
+                  <button type="button" style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 11 }} onClick={limparVideo}>Trocar vídeo</button>
+                </div>
+              )}
+              {videoMsg && <p style={{ fontSize: 12, color: videoMsg.erro ? '#f87171' : '#cbd5e1', marginBottom: 6 }}>{videoMsg.t}</p>}
+              <p style={{ fontSize: 11, color: '#64748b' }}>MP4 ou MOV, vertical 9:16, até 50 MB. Facebook: 3–90 s · Instagram: até 15 min.</p>
+            </>
+          )}
         </div>
         <div>
           <label style={s.label}>Canal</label>
@@ -255,12 +364,12 @@ function CriarPublicacao() {
         </div>
       </div>
 
-      {(imagemUrl || legenda) && (
+      {(imagemUrl || legenda || videoUrl) && (
         <div style={{ marginBottom: 18 }}>
           <label style={s.label}>Pré-visualização {canal === 'ambos' ? '(Instagram e Facebook)' : `(${canal === 'instagram' ? 'Instagram' : 'Facebook'})`}</label>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {(canal === 'ambos' || canal === 'instagram') && <PreviewPost rede="Instagram" imagem={imagemUrl} legenda={legenda} />}
-            {(canal === 'ambos' || canal === 'facebook') && <PreviewPost rede="Facebook" imagem={imagemUrl} legenda={legenda} />}
+            {(canal === 'ambos' || canal === 'instagram') && <PreviewPost rede="Instagram" imagem={imagemUrl} legenda={legenda} video={formato === 'reel' ? videoUrl : undefined} />}
+            {(canal === 'ambos' || canal === 'facebook') && <PreviewPost rede="Facebook" imagem={imagemUrl} legenda={legenda} video={formato === 'reel' ? videoUrl : undefined} />}
           </div>
         </div>
       )}
@@ -284,14 +393,16 @@ function CriarPublicacao() {
   );
 }
 
-function PreviewPost({ rede, imagem, legenda }: { rede: string; imagem: string; legenda: string }) {
+function PreviewPost({ rede, imagem, legenda, video }: { rede: string; imagem: string; legenda: string; video?: string }) {
   return (
     <div style={{ width: 300, background: '#fff', color: '#111', borderRadius: 12, overflow: 'hidden', border: '1px solid #1e293b' }}>
       <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700 }}>
         <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1d4ed8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>pp3d</div>
         pp3d.pt <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748b', fontWeight: 400 }}>{rede}</span>
       </div>
-      {imagem
+      {video
+        ? <video src={video} poster={imagem || undefined} controls muted playsInline style={{ width: '100%', aspectRatio: '9 / 16', objectFit: 'cover', display: 'block', background: '#000' }} />
+        : imagem
         ? <img src={imagem} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
         : <div style={{ width: '100%', aspectRatio: '1 / 1', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12 }}>Sem imagem</div>}
       <div style={{ padding: '10px 12px', fontSize: 13, whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>{legenda || '—'}</div>
