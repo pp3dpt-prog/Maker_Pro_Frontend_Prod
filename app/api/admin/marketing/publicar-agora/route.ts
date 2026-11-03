@@ -33,6 +33,8 @@ export async function POST(request: Request) {
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const resultado = await publicarPostMarketing(admin, post_id);
 
+  // Reel do Instagram ainda em processamento: não é erro — o cron conclui a publicação.
+  if (!resultado.ok && resultado.pendente) return NextResponse.json({ ok: true, pendente: true, mensagem: resultado.error }, { status: 202 });
   if (!resultado.ok) return NextResponse.json({ error: resultado.error }, { status: 502 });
   return NextResponse.json({ ok: true, post: resultado.post });
 }

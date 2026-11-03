@@ -117,6 +117,89 @@ async function esperarContainerInstagram(containerId: string, limiteMs = 40_000)
   throw new MetaApiError('O Instagram ainda está a processar a imagem. Tenta publicar outra vez daqui a um minuto.');
 }
 
+// ── Reels (vídeo vertical) ──────────────────────────────────────────────────
+// O Instagram processa o vídeo de forma assíncrona e pode demorar minutos, mais do que um
+// pedido HTTP deve esperar. Por isso o Reel do Instagram é feito em duas fases:
+//   1. criarContainerReelInstagram() → guarda-se o container_id na BD;
+//   2. estadoContainerInstagram() + publicarContainerInstagram() — no mesmo pedido se ficar
+//      pronto depressa, senão num ciclo seguinte do cron (de 30 em 30 min).
+
+export async function criarContainerReelInstagram(legenda: string, videoUrl: string): Promise<{ containerId: string }> {
+  const igUserId = process.env.META_IG_USER_ID;
+  if (!igUserId) throw new MetaApiError('META_IG_USER_ID não configurado.');
+  const json = await graphFetch(`/${igUserId}/media`, {
+    media_type: 'REELS',
+    video_url: videoUrl,
+    caption: legenda,
+    share_to_feed: 'true',
+  }, 'POST');
+  return { containerId: json.id };
+}
+
+export type EstadoContainer = 'pronto' | 'a_processar' | 'publicado';
+
+/** Espera até `limiteMs` pelo processamento do container; lança erro se falhou ou expirou. */
+export async function estadoContainerInstagram(containerId: string, limiteMs = 45_000): Promise<EstadoContainer> {
+  const inicio = Date.now();
+  let intervaloMs = 3_000;
+  for (;;) {
+    const json = await graphFetch(`/${containerId}`, { fields: 'status_code,status' }, 'GET');
+    const estado: string | undefined = json.status_code;
+    if (estado === 'FINISHED') return 'pronto';
+    if (estado === 'PUBLISHED') return 'publicado';
+    if (estado === 'ERROR' || estado === 'EXPIRED') {
+      throw new MetaApiError(`O Instagram não conseguiu processar o vídeo (${estado}${json.status ? `: ${json.status}` : ''}).`, json);
+    }
+    if (Date.now() - inicio + intervaloMs > limiteMs) return 'a_processar';
+    await new Promise(r => setTimeout(r, intervaloMs));
+    intervaloMs = Math.min(intervaloMs * 1.5, 8_000);
+  }
+}
+
+export async function publicarContainerInstagram(containerId: string): Promise<{ mediaId: string }> {
+  const igUserId = process.env.META_IG_USER_ID;
+  if (!igUserId) throw new MetaApiError('META_IG_USER_ID não configurado.');
+  const json = await graphFetch(`/${igUserId}/media_publish`, { creation_id: containerId }, 'POST');
+  return { mediaId: json.id };
+}
+
+/**
+ * Publica um Reel na Página de Facebook (Reels Publishing API, 3 passos). O Facebook vai
+ * buscar o ficheiro ao URL público e processa-o depois; o pedido não fica à espera disso.
+ * Devolve o video_id, que é o identificador do Reel.
+ */
+export async function publicarReelFacebook(descricao: string, videoUrl: string): Promise<{ videoId: string }> {
+  const pageId = process.env.META_PAGE_ID;
+  if (!pageId) throw new MetaApiError('META_PAGE_ID não configurado.');
+  const token = await tokenDaPagina();
+
+  // 1. Abrir a sessão de upload
+  const inicio = await graphFetch(`/${pageId}/video_reels`, { upload_phase: 'start' }, 'POST', token);
+  const videoId: string = inicio.video_id;
+  if (!videoId) throw new MetaApiError('O Facebook não devolveu video_id ao iniciar o Reel.', inicio);
+
+  // 2. O Facebook descarrega o vídeo do nosso URL público
+  const up = await fetch(`https://rupload.facebook.com/video-upload/${GRAPH_VERSION}/${videoId}`, {
+    method: 'POST',
+    headers: { Authorization: `OAuth ${token}`, file_url: videoUrl },
+  });
+  const upJson = await up.json().catch(() => ({}));
+  if (!up.ok || upJson?.success !== true) {
+    throw new MetaApiError(upJson?.debug_info?.message ?? upJson?.error?.message ?? `Falhou o envio do vídeo para o Facebook (HTTP ${up.status}).`, upJson);
+  }
+
+  // 3. Publicar (marcado como gerado por IA — o clip vem do Wan 2.2)
+  await graphFetch(`/${pageId}/video_reels`, {
+    video_id: videoId,
+    upload_phase: 'finish',
+    video_state: 'PUBLISHED',
+    description: descricao,
+    is_ai_generated: 'true',
+  }, 'POST', token);
+
+  return { videoId };
+}
+
 export async function obterInsightsPost(mediaId: string, canal: 'instagram' | 'facebook') {
   const metricas = canal === 'instagram'
     ? 'impressions,reach,likes,comments,saved'
