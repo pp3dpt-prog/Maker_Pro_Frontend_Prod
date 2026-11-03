@@ -506,3 +506,53 @@ export async function estadoAnuncio(metaCampaignId: string | null, metaAdId: str
 
   return r;
 }
+
+// ── Concorrência (Business Discovery) ───────────────────────────────────────
+// Lê dados PÚBLICOS de outra conta Instagram Business/Creator através da nossa
+// conta (META_IG_USER_ID). Contas pessoais não aparecem — a Meta não as expõe.
+
+export interface PostConcorrente {
+  id: string;
+  caption?: string;
+  like_count?: number;
+  comments_count?: number;
+  media_type?: string;
+  media_product_type?: string;
+  permalink?: string;
+  timestamp?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+}
+
+export interface PerfilConcorrente {
+  username: string;
+  name?: string;
+  biography?: string;
+  website?: string;
+  followers_count?: number;
+  media_count?: number;
+  profile_picture_url?: string;
+  media: PostConcorrente[];
+}
+
+export async function perfilConcorrente(username: string, nPosts = 30): Promise<PerfilConcorrente> {
+  const igUserId = process.env.META_IG_USER_ID;
+  if (!igUserId) throw new MetaApiError('META_IG_USER_ID não configurado.');
+  const u = username.replace(/^@/, '').trim().toLowerCase();
+  if (!/^[a-z0-9._]{1,30}$/.test(u)) throw new MetaApiError(`"${username}" não é um nome de utilizador do Instagram válido.`);
+
+  const camposMedia = 'id,caption,like_count,comments_count,media_type,media_product_type,permalink,timestamp,media_url,thumbnail_url';
+  try {
+    const json = await graphFetch(`/${igUserId}`, {
+      fields: `business_discovery.username(${u}){username,name,biography,website,followers_count,media_count,profile_picture_url,media.limit(${nPosts}){${camposMedia}}}`,
+    }, 'GET');
+    const bd = json.business_discovery ?? {};
+    return { ...bd, media: bd.media?.data ?? [] };
+  } catch (e) {
+    const d = (e instanceof MetaApiError ? e.detalhe : undefined) as { code?: number; error_subcode?: number } | undefined;
+    if (d?.code === 110 || d?.error_subcode === 2207013) {
+      throw new MetaApiError(`@${u} não existe ou é uma conta pessoal (só contas Business/Creator são visíveis).`, d);
+    }
+    throw e;
+  }
+}

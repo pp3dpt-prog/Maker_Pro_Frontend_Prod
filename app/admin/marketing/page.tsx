@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { resizeImageToBase64 } from '@/lib/imageResize';
 import ReelsIA from '@/components/admin/campanhas/ReelsIA';
+import Concorrencia from '@/components/admin/marketing/Concorrencia';
 import {
   Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
   RefreshCw, ExternalLink, Trophy, Download,
@@ -68,7 +69,7 @@ async function chamar(url: string, body: unknown) {
 // ── Página ───────────────────────────────────────────────────────────────────
 
 export default function MarketingPage() {
-  const [tab, setTab] = useState<'criar' | 'fila' | 'analytics'>('criar');
+  const [tab, setTab] = useState<'criar' | 'fila' | 'analytics' | 'concorrencia'>('criar');
 
   return (
     <div style={s.page}>
@@ -78,12 +79,12 @@ export default function MarketingPage() {
             <Rocket className="text-indigo-400" /> Marketing
           </h1>
           <p style={{ fontSize: 13, color: '#8a96aa', marginTop: 4 }}>
-            Publicações orgânicas no Instagram/Facebook, campanhas pagas e análise de resultados.
+            Publicações orgânicas no Instagram/Facebook, campanhas pagas, análise de resultados e concorrência.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-          {([['criar', 'Criar publicação'], ['fila', 'Fila / Calendário'], ['analytics', 'Analytics']] as const).map(([k, label]) => (
+          {([['criar', 'Criar publicação'], ['fila', 'Fila / Calendário'], ['analytics', 'Analytics'], ['concorrencia', 'Concorrência']] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} style={tab === k ? s.btn : s.btnGhost}>{label}</button>
           ))}
         </div>
@@ -91,6 +92,7 @@ export default function MarketingPage() {
         {tab === 'criar' && <><CriarPublicacao /><ReelsIA /><SerieIA /></>}
         {tab === 'fila' && <Fila />}
         {tab === 'analytics' && <Analytics />}
+        {tab === 'concorrencia' && <Concorrencia />}
       </div>
     </div>
   );

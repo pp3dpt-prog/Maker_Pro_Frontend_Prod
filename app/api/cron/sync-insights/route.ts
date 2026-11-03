@@ -4,10 +4,12 @@
 //   • posts com ≥ 28 dias ainda sem retrato final → tira o retrato final (arquivado_em),
 //     antes de saírem da janela do Analytics. Também apanha posts antigos que nunca
 //     foram arquivados (backfill), aos poucos para não estourar o tempo do cron;
-//   • anúncios pagos → gasto, impressões, alcance, cliques.
+//   • anúncios pagos → gasto, impressões, alcance, cliques;
+//   • concorrentes ativos → publicações públicas, uma vez por semana (para ir criando histórico).
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { recolherMetricasPost, recolherMetricasAnuncio, DIAS_JANELA, DIAS_ARQUIVO } from '@/lib/marketing-metricas';
+import { recolherConcorrente } from '@/lib/concorrencia';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -84,8 +86,22 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // 4. Concorrentes: recolha semanal (os que não foram recolhidos há ≥ 6 dias).
+  const seisDias = new Date(Date.now() - 6 * 86_400_000).toISOString();
+  const { data: concorrentes } = await admin
+    .from('prod_marketing_concorrentes')
+    .select('id, username')
+    .eq('ativo', true)
+    .or(`ultima_recolha.is.null,ultima_recolha.lt.${seisDias}`)
+    .limit(15);
+  let concorrentesRecolhidos = 0;
+  for (const c of concorrentes ?? []) {
+    if ((await recolherConcorrente(admin, c)).ok) concorrentesRecolhidos++;
+  }
+
   return NextResponse.json({
     ok: true,
+    concorrentesRecolhidos,
     postsAtualizados,
     postsArquivados,
     postsPorArquivar: Math.max(0, (antigos ?? []).filter(p => !arquivados.has(p.id)).length - porArquivar.length),
