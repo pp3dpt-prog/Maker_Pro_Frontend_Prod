@@ -180,7 +180,7 @@ export default function ReelsIA() {
       </h2>
       <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 16 }}>
         Mesma imagem e mesmo texto, abordagens de vídeo diferentes, para publicar em dias distintos. Cada vídeo
-        tem ~5 s e é gerado pelo Wan 2.2 (GPU gratuita do Hugging Face, ~5 min por dia; cada vídeo gasta ~30-60 s).
+        tem 3-5 s e é gerado pelo Wan 2.2 (GPU gratuita do Hugging Face: ~5 min por dia; cada vídeo de 5 s reserva ~70 s — se a quota do dia estiver a acabar, sai mais curto).
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>

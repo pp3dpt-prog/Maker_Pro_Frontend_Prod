@@ -23,6 +23,18 @@ export class WanError extends Error {
   }
 }
 
+/**
+ * O Space recusou o pedido logo à entrada, sem mensagem. Na ZeroGPU isto acontece quando o tempo
+ * de GPU que o Space reserva para o vídeo (proporcional à duração e à resolução) é maior do que a
+ * quota diária que ainda resta à conta. Um vídeo mais curto pede menos — vale a pena tentar.
+ */
+export class WanQuotaError extends WanError {
+  constructor() {
+    super('A quota diária de GPU gratuita do Hugging Face não chega para este vídeo. Renova 24 h depois do primeiro uso do dia; tenta mais tarde.');
+    this.name = 'WanQuotaError';
+  }
+}
+
 function urlDoSpace(): string {
   const id = (process.env.HF_WAN_SPACE || SPACE_POR_OMISSAO).trim();
   if (id.startsWith('http')) return id.replace(/\/+$/, '');
@@ -64,7 +76,8 @@ async function lerResultado(res: Response): Promise<unknown[]> {
           reader.cancel().catch(() => {});
           let msg = dados;
           try { const j = JSON.parse(dados); msg = typeof j === 'string' ? j : j?.message ?? j?.error ?? dados; } catch { /* texto simples */ }
-          if (!msg || msg === 'null') msg = 'o Space devolveu um erro sem mensagem (pode ser a quota diária de GPU esgotada ou o Space a reiniciar).';
+          if (!msg || msg === 'null') throw new WanQuotaError();
+          if (/quota/i.test(msg)) throw new WanQuotaError();
           throw new WanError(`Wan: ${msg}`);
         }
       }
