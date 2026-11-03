@@ -67,7 +67,7 @@ export async function descobrirConcorrentes(admin: SupabaseClient, ramos: string
   const r = await gemini().models.generateContent({
     model: MODELO,
     contents: [{ role: 'user', parts: [{ text:
-`A pp3d.pt é uma loja portuguesa (Quarteira, Algarve) de produtos impressos em 3D personalizáveis e de modelos 3D paramétricos para makers.
+`A pp3d.pt é uma loja portuguesa (Lisboa) de produtos impressos em 3D personalizáveis e de modelos 3D paramétricos para makers.
 ${catalogo}
 
 Ramos a pesquisar:
@@ -169,7 +169,7 @@ export async function analisarConcorrencia(admin: SupabaseClient, criadoPor: str
   const r = await gemini().models.generateContent({
     model: MODELO,
     contents: [{ role: 'user', parts: [{ text:
-`És analista de marketing da pp3d.pt (Quarteira, Algarve): loja de produtos impressos em 3D personalizáveis + gerador de modelos STL paramétricos para makers.
+`És analista de marketing da pp3d.pt (Lisboa): loja de produtos impressos em 3D personalizáveis + gerador de modelos STL paramétricos para makers.
 ${catalogo}
 
 Abaixo estão publicações recentes de concorrentes no Instagram, ordenadas por envolvimento ((gostos+comentários)/seguidores). Não sabemos as vendas deles: usa a interação como sinal de procura.

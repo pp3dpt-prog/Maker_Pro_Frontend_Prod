@@ -7,7 +7,7 @@ import { CONTEXTO_PUBLICO, type Publico } from '@/lib/marketingPublico';
 
 export const runtime = 'nodejs';
 
-const SISTEMA = `És o copywriter da pp3d.pt, uma loja portuguesa (Quarteira, Algarve) de produtos
+const SISTEMA = `És o copywriter da pp3d.pt, uma loja portuguesa (Lisboa) de produtos
 impressos em 3D e personalizáveis. Escreves em português de Portugal, tom próximo e entusiasta,
 sem exageros nem claims que não possas sustentar (nada de preços, prazos ou descontos inventados).
 Responde APENAS com JSON com estas chaves:
