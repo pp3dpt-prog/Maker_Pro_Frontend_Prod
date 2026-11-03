@@ -14,6 +14,43 @@ const run = promisify(execFile);
 export const REEL_LARGURA = 720;
 export const REEL_ALTURA = 1280;
 
+// Tamanho da imagem enviada ao Wan: 480x832 é o formato vertical que o Space usa sem cortar
+// (MIN_DIM x MAX_DIM no app.py). Uma imagem mais pequena também baixa o tempo de GPU que a
+// ZeroGPU reserva por vídeo (~70 s para 5 s de vídeo, contra ~100 s numa foto 3:4).
+export const WAN_LARGURA = 480;
+export const WAN_ALTURA = 832;
+
+/**
+ * Prepara a imagem de partida para o Wan: vertical 480x832, produto inteiro ao centro sobre
+ * um fundo desfocado da própria imagem (nada é cortado). Devolve um JPEG.
+ */
+export async function prepararImagemParaWan(entrada: Buffer): Promise<Buffer> {
+  if (!ffmpegPath) throw new Error('ffmpeg não disponível neste servidor.');
+  const dir = await mkdtemp(path.join(tmpdir(), 'wanimg-'));
+  const origem = path.join(dir, 'origem');
+  const destino = path.join(dir, 'vertical.jpg');
+  try {
+    await writeFile(origem, entrada);
+    const W = WAN_LARGURA, H = WAN_ALTURA;
+    const filtro = [
+      `[0:v]split=2[a][b]`,
+      `[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20:2[fundo]`,
+      `[b]scale=${W}:${H}:force_original_aspect_ratio=decrease[frente]`,
+      `[fundo][frente]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`,
+    ].join(';');
+    await run(ffmpegPath, [
+      '-y', '-hide_banner', '-loglevel', 'error',
+      '-i', origem,
+      '-filter_complex', filtro, '-map', '[v]',
+      '-frames:v', '1', '-q:v', '2',
+      destino,
+    ], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 });
+    return await readFile(destino);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 export async function converterParaReel(entrada: Buffer): Promise<Buffer> {
   if (!ffmpegPath) throw new Error('ffmpeg não disponível neste servidor.');
 
