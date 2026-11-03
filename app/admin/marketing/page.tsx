@@ -6,6 +6,7 @@ import { resizeImageToBase64 } from '@/lib/imageResize';
 import ReelsIA from '@/components/admin/campanhas/ReelsIA';
 import {
   Megaphone, Send, Clock, TrendingUp, Rocket, Pause, Play, Package, ImagePlus, Sparkles,
+  RefreshCw, ExternalLink,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -681,6 +682,8 @@ function Analytics() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <EstadoPlataformas />
+
       <div style={s.card}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Receita por produto (últimos 30 dias)</h3>
         {porProduto.length === 0 ? <p style={{ color: '#64748b', fontSize: 13 }}>Sem vendas confirmadas ainda.</p> : (
@@ -722,6 +725,185 @@ function Analytics() {
               {sugestoes.map((s2, i) => <li key={i} style={{ fontSize: 13, color: '#cbd5e1', paddingLeft: 14, borderLeft: '2px solid #6366f1' }}>{s2}</li>)}
             </ul>}
       </div>
+    </div>
+  );
+}
+
+// ── Analytics: estado real em cada plataforma ───────────────────────────────
+
+type EstadoNaRede = 'publicado' | 'a_processar' | 'removido' | 'erro' | 'nao_publicado';
+interface EstadoRede { estado: EstadoNaRede; detalhe?: string; link?: string; publicadoEm?: string; metricas?: Record<string, number> }
+interface PostEstado {
+  id: string; legenda: string; thumb: string | null; video_url: string | null; abordagem: string | null;
+  canal: string; estado: string; erro: string | null; agendado_para: string | null; publicado_em: string | null;
+  instagram: EstadoRede | null; facebook: EstadoRede | null;
+}
+interface AdEstado {
+  id: string; post_id: string; nome: string; estado: string; orcamento_diario_cents: number;
+  meta: {
+    campanhaStatus?: string; efetivo?: string; anuncioEfetivo?: string; problemas: string[];
+    gastoCents: number; impressoes: number; alcance: number; cliques: number; erro?: string;
+  };
+}
+
+const REDE_INFO: Record<EstadoNaRede, { cor: string; texto: string }> = {
+  publicado: { cor: '#22c55e', texto: 'Publicado' },
+  a_processar: { cor: '#f59e0b', texto: 'A processar' },
+  removido: { cor: '#94a3b8', texto: 'Removido' },
+  erro: { cor: '#ef4444', texto: 'Erro' },
+  nao_publicado: { cor: '#64748b', texto: 'Não publicado' },
+};
+
+// effective_status da Marketing API → texto e cor
+const AD_INFO: Record<string, { cor: string; texto: string }> = {
+  ACTIVE: { cor: '#22c55e', texto: 'A correr' },
+  PAUSED: { cor: '#64748b', texto: 'Pausada' },
+  CAMPAIGN_PAUSED: { cor: '#64748b', texto: 'Campanha pausada' },
+  ADSET_PAUSED: { cor: '#64748b', texto: 'Conjunto pausado' },
+  IN_PROCESS: { cor: '#f59e0b', texto: 'A processar' },
+  PENDING_REVIEW: { cor: '#f59e0b', texto: 'Em revisão' },
+  PREAPPROVED: { cor: '#f59e0b', texto: 'Pré-aprovada' },
+  PENDING_BILLING_INFO: { cor: '#ef4444', texto: 'Falta pagamento' },
+  WITH_ISSUES: { cor: '#ef4444', texto: 'Com problemas' },
+  DISAPPROVED: { cor: '#ef4444', texto: 'Rejeitada' },
+  DELETED: { cor: '#94a3b8', texto: 'Apagada' },
+  ARCHIVED: { cor: '#94a3b8', texto: 'Arquivada' },
+};
+
+const METRICA_NOME: Record<string, string> = {
+  visualizacoes: 'vistas', alcance: 'alcance', gostos: 'gostos', comentarios: 'coment.', guardados: 'guard.', partilhas: 'partilhas',
+};
+
+function ChipRede({ nome, r }: { nome: string; r: EstadoRede }) {
+  const info = REDE_INFO[r.estado];
+  const metricas = Object.entries(r.metricas ?? {}).filter(([k]) => METRICA_NOME[k]);
+  return (
+    <div style={{ flex: 1, minWidth: 220, padding: 10, background: '#0a1120', borderRadius: 8, border: `1px solid ${info.cor}33` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <strong style={{ fontSize: 12 }}>{nome}</strong>
+        <span style={s.badge(info.cor)}>{info.texto}</span>
+        {r.link && (
+          <a href={r.link} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: '#8a96aa', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+            abrir <ExternalLink size={11} />
+          </a>
+        )}
+      </div>
+      {metricas.length > 0 && (
+        <p style={{ fontSize: 12, color: '#cbd5e1' }}>
+          {metricas.map(([k, v]) => `${v.toLocaleString('pt-PT')} ${METRICA_NOME[k]}`).join(' · ')}
+        </p>
+      )}
+      {r.detalhe && <p style={{ fontSize: 11, color: r.estado === 'erro' ? '#f87171' : '#8a96aa', marginTop: 2 }}>{r.detalhe}</p>}
+    </div>
+  );
+}
+
+function EstadoPlataformas() {
+  const [dados, setDados] = useState<{ atualizadoEm: string; posts: PostEstado[]; ads: AdEstado[] } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const carregar = useCallback(async () => {
+    setLoading(true); setErro('');
+    try {
+      const res = await fetch('/api/admin/marketing/estado-plataformas', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao consultar as plataformas.');
+      setDados(json);
+    } catch (e: any) { setErro(e.message); } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const resumo = (() => {
+    const c = { publicado: 0, a_processar: 0, erro: 0, removido: 0 };
+    for (const p of dados?.posts ?? []) for (const r of [p.instagram, p.facebook]) {
+      if (r && r.estado in c) c[r.estado as keyof typeof c]++;
+    }
+    return c;
+  })();
+
+  return (
+    <div style={s.card}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700 }}>Estado nas plataformas</h3>
+        {dados && <span style={{ fontSize: 11, color: '#64748b' }}>verificado às {new Date(dados.atualizadoEm).toLocaleTimeString('pt-PT')}</span>}
+        <button style={{ ...s.btnGhost, marginLeft: 'auto', padding: '6px 12px' }} disabled={loading} onClick={carregar}>
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> {loading ? 'A verificar…' : 'Atualizar'}
+        </button>
+      </div>
+
+      {erro && <p style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>{erro}</p>}
+      {!dados && loading && <p style={{ color: '#8a96aa', fontSize: 13 }}>A perguntar à Meta o estado de cada publicação…</p>}
+
+      {dados && (
+        <>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <span style={s.badge('#22c55e')}>{resumo.publicado} publicadas</span>
+            {resumo.a_processar > 0 && <span style={s.badge('#f59e0b')}>{resumo.a_processar} a processar</span>}
+            {resumo.erro > 0 && <span style={s.badge('#ef4444')}>{resumo.erro} com erro</span>}
+            {resumo.removido > 0 && <span style={s.badge('#94a3b8')}>{resumo.removido} removidas</span>}
+          </div>
+
+          <h4 style={{ ...s.label, marginBottom: 10 }}>Publicações (últimos 30 dias)</h4>
+          {dados.posts.length === 0 ? <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>Sem publicações agendadas ou publicadas nos últimos 30 dias.</p> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              {dados.posts.map(p => (
+                <div key={p.id} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: '1px solid #1e293b' }}>
+                  {p.video_url
+                    ? <video src={p.video_url} muted playsInline style={{ width: 40, height: 70, objectFit: 'cover', borderRadius: 6, background: '#0a1120' }} />
+                    : p.thumb && <img src={p.thumb} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={s.badge(ESTADO_COR[p.estado] ?? '#64748b')}>{p.estado}</span>
+                      {p.video_url && <span style={s.badge('#a855f7')}>Reel{p.abordagem ? ` · ${p.abordagem}` : ''}</span>}
+                      <span style={{ fontSize: 11, color: '#64748b' }}>
+                        {p.publicado_em ? new Date(p.publicado_em).toLocaleString('pt-PT')
+                          : p.agendado_para ? `agendado ${new Date(p.agendado_para).toLocaleString('pt-PT')}` : ''}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.legenda}</p>
+                    {p.erro && <p style={{ fontSize: 11, color: '#f87171', marginBottom: 6 }}>Último erro: {p.erro}</p>}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {p.instagram && <ChipRede nome="Instagram" r={p.instagram} />}
+                      {p.facebook && <ChipRede nome="Facebook" r={p.facebook} />}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <h4 style={{ ...s.label, marginBottom: 10 }}>Anúncios pagos (Meta Ads)</h4>
+          {dados.ads.length === 0 ? <p style={{ color: '#64748b', fontSize: 13 }}>Sem campanhas pagas criadas.</p> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {dados.ads.map(a => {
+                const efetivo = a.meta.anuncioEfetivo && a.meta.anuncioEfetivo !== 'ACTIVE' && a.meta.efetivo === 'ACTIVE' ? a.meta.anuncioEfetivo : a.meta.efetivo;
+                const info = efetivo ? (AD_INFO[efetivo] ?? { cor: '#64748b', texto: efetivo }) : { cor: '#ef4444', texto: 'Sem dados' };
+                const desalinhado = (a.estado === 'ativa' && a.meta.campanhaStatus === 'PAUSED') || (a.estado === 'pausada' && a.meta.campanhaStatus === 'ACTIVE');
+                return (
+                  <div key={a.id} style={{ padding: 12, background: '#0a1120', borderRadius: 8, border: `1px solid ${info.cor}33` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                      <strong style={{ fontSize: 13 }}>{a.nome}</strong>
+                      <span style={s.badge(info.cor)}>Meta: {info.texto}</span>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>no pp3d: {a.estado} · €{(a.orcamento_diario_cents / 100).toFixed(2)}/dia</span>
+                    </div>
+                    {!a.meta.erro && (
+                      <p style={{ fontSize: 12, color: '#cbd5e1' }}>
+                        Gasto €{(a.meta.gastoCents / 100).toFixed(2)} · {a.meta.impressoes.toLocaleString('pt-PT')} impressões · {a.meta.alcance.toLocaleString('pt-PT')} alcance · {a.meta.cliques.toLocaleString('pt-PT')} cliques
+                        {a.meta.cliques > 0 && a.meta.gastoCents > 0 ? ` · €${(a.meta.gastoCents / 100 / a.meta.cliques).toFixed(2)}/clique` : ''}
+                      </p>
+                    )}
+                    {desalinhado && <p style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>O estado na Meta ({a.meta.campanhaStatus}) não coincide com o do pp3d — foi alterada no Gestor de Anúncios?</p>}
+                    {a.meta.erro && <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>{a.meta.erro}</p>}
+                    {a.meta.problemas.map((pr, i) => <p key={i} style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>{pr}</p>)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

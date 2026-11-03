@@ -317,3 +317,192 @@ export async function obterGastoCampanha(metaCampaignId: string): Promise<number
   const spendEuros = Number(json.data?.[0]?.spend ?? 0);
   return Math.round(spendEuros * 100); // cents
 }
+
+// ── Estado nas plataformas (leitura em tempo real para o separador Analytics) ─
+// Pergunta à Meta o que está mesmo publicado/a correr, em vez de confiar só na BD.
+// Nunca altera nada na Meta — só lê.
+
+export type EstadoNaPlataforma =
+  | 'publicado'      // existe e está visível
+  | 'a_processar'    // container/vídeo ainda em processamento
+  | 'removido'       // tinha id mas a Meta já não o encontra (apagado)
+  | 'erro'           // a Meta devolveu erro (processamento falhou, permissões…)
+  | 'nao_publicado'; // ainda não tem id nesta rede
+
+export interface EstadoPlataforma {
+  estado: EstadoNaPlataforma;
+  detalhe?: string;
+  link?: string;
+  publicadoEm?: string;
+  metricas?: Record<string, number>;
+}
+
+function objetoNaoExiste(e: unknown): boolean {
+  if (!(e instanceof MetaApiError)) return false;
+  const d = e.detalhe as { code?: number; error_subcode?: number } | undefined;
+  return d?.code === 100 && (d.error_subcode === 33 || /does not exist|cannot be loaded/i.test(e.message));
+}
+
+// A Meta vai retirando métricas (ex.: 'impressions' → 'views'); um pedido com uma
+// métrica inválida falha por inteiro, por isso tentamos várias listas por ordem.
+async function insightsTolerante(caminho: string, listas: string[], token: string) {
+  for (const lista of listas) {
+    try {
+      const json = await graphFetch(caminho, { metric: lista }, 'GET', token);
+      const r: Record<string, number> = {};
+      for (const item of json.data ?? []) {
+        const v = item.values?.[0]?.value ?? item.total_value?.value;
+        if (typeof v === 'number') r[item.name] = v;
+      }
+      return r;
+    } catch { /* tenta a lista seguinte */ }
+  }
+  return null;
+}
+
+export async function estadoInstagram(mediaId: string | null, containerId: string | null): Promise<EstadoPlataforma> {
+  if (!mediaId) {
+    if (!containerId) return { estado: 'nao_publicado' };
+    try {
+      const c = await graphFetch(`/${containerId}`, { fields: 'status_code,status' }, 'GET');
+      if (c.status_code === 'ERROR' || c.status_code === 'EXPIRED') {
+        return { estado: 'erro', detalhe: `Container ${c.status_code}${c.status ? `: ${c.status}` : ''}` };
+      }
+      return { estado: 'a_processar', detalhe: `Container ${c.status_code ?? 'IN_PROGRESS'} — o cron publica quando ficar pronto.` };
+    } catch (e) {
+      return { estado: 'erro', detalhe: e instanceof Error ? e.message : 'Erro a ler o container.' };
+    }
+  }
+
+  const token = pageToken();
+  try {
+    const m = await graphFetch(`/${mediaId}`, { fields: 'permalink,timestamp,media_type,like_count,comments_count' }, 'GET', token);
+    const metricas: Record<string, number> = {
+      gostos: m.like_count ?? 0,
+      comentarios: m.comments_count ?? 0,
+    };
+    const ins = await insightsTolerante(`/${mediaId}/insights`, [
+      'views,reach,saved,shares',
+      'reach,saved,shares',
+      'impressions,reach,saved',
+      'reach',
+    ], token);
+    if (ins) {
+      if (ins.views != null) metricas.visualizacoes = ins.views;
+      else if (ins.impressions != null) metricas.visualizacoes = ins.impressions;
+      if (ins.reach != null) metricas.alcance = ins.reach;
+      if (ins.saved != null) metricas.guardados = ins.saved;
+      if (ins.shares != null) metricas.partilhas = ins.shares;
+    }
+    return { estado: 'publicado', link: m.permalink, publicadoEm: m.timestamp, metricas };
+  } catch (e) {
+    if (objetoNaoExiste(e)) return { estado: 'removido', detalhe: 'O Instagram já não encontra esta publicação (foi apagada?).' };
+    return { estado: 'erro', detalhe: e instanceof Error ? e.message : 'Erro a ler a publicação.' };
+  }
+}
+
+export async function estadoFacebook(postId: string | null, ehReel: boolean): Promise<EstadoPlataforma> {
+  if (!postId) return { estado: 'nao_publicado' };
+  let token: string;
+  try { token = await tokenDaPagina(); } catch (e) {
+    return { estado: 'erro', detalhe: e instanceof Error ? e.message : 'Sem token da Página.' };
+  }
+
+  try {
+    if (ehReel) {
+      // Reels do Facebook: o id guardado é o video_id.
+      const v = await graphFetch(`/${postId}`, {
+        fields: 'permalink_url,created_time,status,likes.summary(true).limit(0),comments.summary(true).limit(0)',
+      }, 'GET', token);
+      const st: string | undefined = v.status?.video_status;
+      const metricas: Record<string, number> = {
+        gostos: v.likes?.summary?.total_count ?? 0,
+        comentarios: v.comments?.summary?.total_count ?? 0,
+      };
+      const ins = await insightsTolerante(`/${postId}/video_insights`, [
+        'blue_reels_play_count,post_impressions_unique',
+        'blue_reels_play_count',
+      ], token);
+      if (ins?.blue_reels_play_count != null) metricas.visualizacoes = ins.blue_reels_play_count;
+      if (ins?.post_impressions_unique != null) metricas.alcance = ins.post_impressions_unique;
+      const link = v.permalink_url ? (v.permalink_url.startsWith('http') ? v.permalink_url : `https://www.facebook.com${v.permalink_url}`) : undefined;
+
+      if (st === 'error') return { estado: 'erro', detalhe: 'O Facebook não conseguiu processar o vídeo.', link };
+      if (st && st !== 'ready') return { estado: 'a_processar', detalhe: `Vídeo: ${st}`, link, metricas };
+      return { estado: 'publicado', link, publicadoEm: v.created_time, metricas };
+    }
+
+    const p = await graphFetch(`/${postId}`, {
+      fields: 'permalink_url,created_time,is_published,reactions.summary(total_count).limit(0),comments.summary(true).limit(0),shares',
+    }, 'GET', token);
+    const metricas: Record<string, number> = {
+      gostos: p.reactions?.summary?.total_count ?? 0,
+      comentarios: p.comments?.summary?.total_count ?? 0,
+      partilhas: p.shares?.count ?? 0,
+    };
+    const ins = await insightsTolerante(`/${postId}/insights`, [
+      'post_media_view,post_impressions_unique',
+      'post_impressions,post_impressions_unique',
+      'post_impressions_unique',
+    ], token);
+    if (ins) {
+      const vistas = ins.post_media_view ?? ins.post_impressions;
+      if (vistas != null) metricas.visualizacoes = vistas;
+      if (ins.post_impressions_unique != null) metricas.alcance = ins.post_impressions_unique;
+    }
+    if (p.is_published === false) return { estado: 'a_processar', detalhe: 'Post ainda não publicado na Página.', link: p.permalink_url, metricas };
+    return { estado: 'publicado', link: p.permalink_url, publicadoEm: p.created_time, metricas };
+  } catch (e) {
+    if (objetoNaoExiste(e)) return { estado: 'removido', detalhe: 'O Facebook já não encontra esta publicação (foi apagada?).' };
+    return { estado: 'erro', detalhe: e instanceof Error ? e.message : 'Erro a ler a publicação.' };
+  }
+}
+
+export interface EstadoAnuncio {
+  campanhaStatus?: string;      // o que está configurado (ACTIVE/PAUSED…)
+  efetivo?: string;             // o que a Meta está mesmo a fazer (ACTIVE, PAUSED, IN_PROCESS, WITH_ISSUES, DISAPPROVED…)
+  anuncioEfetivo?: string;
+  problemas: string[];          // revisão rejeitada, problemas de entrega, erros
+  gastoCents: number;
+  impressoes: number;
+  alcance: number;
+  cliques: number;
+  erro?: string;
+}
+
+export async function estadoAnuncio(metaCampaignId: string | null, metaAdId: string | null): Promise<EstadoAnuncio> {
+  const r: EstadoAnuncio = { problemas: [], gastoCents: 0, impressoes: 0, alcance: 0, cliques: 0 };
+  if (!metaCampaignId) { r.erro = 'Campanha sem id da Meta.'; return r; }
+
+  try {
+    const c = await graphFetch(`/${metaCampaignId}`, { fields: 'status,effective_status' }, 'GET');
+    r.campanhaStatus = c.status;
+    r.efetivo = c.effective_status;
+  } catch (e) {
+    r.erro = objetoNaoExiste(e) ? 'A campanha já não existe na Meta (foi apagada?).' : (e instanceof Error ? e.message : 'Erro a ler a campanha.');
+    return r;
+  }
+
+  if (metaAdId) {
+    try {
+      const a = await graphFetch(`/${metaAdId}`, { fields: 'effective_status,ad_review_feedback,issues_info' }, 'GET');
+      r.anuncioEfetivo = a.effective_status;
+      const global = a.ad_review_feedback?.global as Record<string, string> | undefined;
+      if (global) for (const [motivo, texto] of Object.entries(global)) r.problemas.push(`Revisão: ${texto || motivo}`);
+      for (const i of (a.issues_info ?? []) as { error_summary?: string; error_message?: string }[]) {
+        r.problemas.push(i.error_summary ?? i.error_message ?? 'Problema de entrega.');
+      }
+    } catch { /* o estado da campanha já chega */ }
+  }
+
+  try {
+    const ins = await graphFetch(`/${metaCampaignId}/insights`, { fields: 'spend,impressions,reach,clicks', date_preset: 'maximum' }, 'GET');
+    const d = ins.data?.[0] ?? {};
+    r.gastoCents = Math.round(Number(d.spend ?? 0) * 100);
+    r.impressoes = Number(d.impressions ?? 0);
+    r.alcance = Number(d.reach ?? 0);
+    r.cliques = Number(d.clicks ?? 0);
+  } catch { /* sem dados de entrega ainda */ }
+
+  return r;
+}
