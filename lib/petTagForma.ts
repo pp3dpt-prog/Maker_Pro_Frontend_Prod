@@ -90,15 +90,16 @@ function formas(f: FormaPetTag): { corpo: Path[]; argola: Path; furo: Path } {
         argola: circulo(0, 10, 5.5), furo: circulo(0, 10, 2.8),
       };
     case 'pata':
-      // Almofada grande (para o nome) + 4 dedos; o "fecho" de 2,5 mm une os dedos à
-      // almofada numa só peça, deixando os entalhes entre eles.
+      // Almofada grande (para o nome) + 4 dedos encostados a ela; o "fecho" de 0,8 mm suaviza a
+      // ligação dedo-almofada sem tapar os entalhes entre os dedos.
       return {
         corpo: fechar(uniao([
-          elipse(0, -7, 13, 10),
-          elipse(-6, 10.5, 4.3, 5.6, 8), elipse(6, 10.5, 4.3, 5.6, -8),
-          elipse(-15, 4.5, 4, 5.2, 35), elipse(15, 4.5, 4, 5.2, -35),
-        ]), 1.6),
-        argola: circulo(0, 17.5, 5), furo: circulo(0, 17.5, 2.6),
+          elipse(0, -6, 13, 10),
+          elipse(-5.6, 8, 4.3, 5.6, 8), elipse(5.6, 8, 4.3, 5.6, -8),
+          elipse(-13.2, 2.5, 4, 5.2, 32), elipse(13.2, 2.5, 4, 5.2, -32),
+          poligono([[-2.5, 5], [2.5, 5], [2.5, 15.5], [-2.5, 15.5]]),   // tapa a fenda sob a argola
+        ]), 0.8),
+        argola: circulo(0, 15.5, 5), furo: circulo(0, 15.5, 2.6),
       };
     case 'hexagono':
       return {
