@@ -9,7 +9,7 @@ import ClipperLib from 'clipper-lib';
 // @ts-ignore — módulo JS partilhado (extrusão de regiões Clipper em triângulos)
 import { fatiasParaTriangulos } from '@/lib/vetorGeom';
 
-export type FormaPetTag = 'redondo' | 'coracao' | 'osso' | 'hexagono';
+export type FormaPetTag = 'redondo' | 'coracao' | 'osso' | 'hexagono' | 'pata';
 
 const ESC = 1000; // µm, igual a lib/vetorGeom.js
 export const ALTURA_PET_TAG = 3; // altura_fixa dos templates
@@ -19,7 +19,7 @@ type Path = Pt[];
 
 /** Identifica a forma pelo STL em branco associado ao design. */
 export function formaPetTag(stlFilePath: string | null | undefined): FormaPetTag | null {
-  const m = /blank_(redondo|coracao|osso|hexagono)/.exec(stlFilePath ?? '');
+  const m = /blank_(redondo|coracao|osso|hexagono|pata)/.exec(stlFilePath ?? '');
   return (m?.[1] as FormaPetTag) ?? null;
 }
 
@@ -28,6 +28,27 @@ const circulo = (cx: number, cy: number, r: number, seg = 72): Path =>
     const a = (i / seg) * Math.PI * 2;
     return { X: Math.round((cx + r * Math.cos(a)) * ESC), Y: Math.round((cy + r * Math.sin(a)) * ESC) };
   });
+/** scale([rx, ry]) circle(1) rodado `rot` graus e colocado em (cx, cy) — como no SCAD. */
+const elipse = (cx: number, cy: number, rx: number, ry: number, rot = 0, seg = 72): Path => {
+  const a = (rot * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+  return Array.from({ length: seg }, (_, i) => {
+    const t = (i / seg) * Math.PI * 2, x = rx * Math.cos(t), y = ry * Math.sin(t);
+    return { X: Math.round((cx + x * ca - y * sa) * ESC), Y: Math.round((cy + x * sa + y * ca) * ESC) };
+  });
+};
+
+/** offset(r = +r) offset(r = −r) do OpenSCAD: fecha os vãos estreitos com cantos redondos. */
+function fechar(paths: Path[], r: number): Path[] {
+  const off = (ps: Path[], d: number) => {
+    const co = new ClipperLib.ClipperOffset(2, 0.02 * ESC);
+    co.AddPaths(ps, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    const out: Path[] = [];
+    co.Execute(out, d * ESC);
+    return out;
+  };
+  return off(off(paths, r), -r);
+}
+
 const poligono = (pts: [number, number][]): Path => pts.map(([x, y]) => ({ X: Math.round(x * ESC), Y: Math.round(y * ESC) }));
 
 function executar(tipo: number, a: Path[], b: Path[] = []): Path[] {
@@ -67,6 +88,17 @@ function formas(f: FormaPetTag): { corpo: Path[]; argola: Path; furo: Path } {
       return {
         corpo: uniao([poligono([[-15, -8], [15, -8], [15, 8], [-15, 8]]), circulo(-15, 6, 8), circulo(-15, -6, 8), circulo(15, 6, 8), circulo(15, -6, 8)]),
         argola: circulo(0, 10, 5.5), furo: circulo(0, 10, 2.8),
+      };
+    case 'pata':
+      // Almofada grande (para o nome) + 4 dedos; o "fecho" de 2,5 mm une os dedos à
+      // almofada numa só peça, deixando os entalhes entre eles.
+      return {
+        corpo: fechar(uniao([
+          elipse(0, -7, 13, 10),
+          elipse(-6, 10.5, 4.3, 5.6, 8), elipse(6, 10.5, 4.3, 5.6, -8),
+          elipse(-15, 4.5, 4, 5.2, 35), elipse(15, 4.5, 4, 5.2, -35),
+        ]), 1.6),
+        argola: circulo(0, 17.5, 5), furo: circulo(0, 17.5, 2.6),
       };
     case 'hexagono':
       return {
