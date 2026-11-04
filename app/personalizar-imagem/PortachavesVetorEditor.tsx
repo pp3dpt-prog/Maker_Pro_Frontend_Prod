@@ -8,8 +8,9 @@
 //    browser com lib/vetorGeom.js — o MESMO código que gera o ficheiro final no
 //    backend — por isso a pré-visualização em tempo real é exatamente o que sai.
 //
-//   Sem AMS + SVG ....... peça única: base + desenho em relevo (troca de filamento a meio)
-//   Sem AMS + PNG/JPG ... base com encaixes + uma peça por cor, para imprimir à parte e colar
+//   Sem AMS, pausas ..... peça única: base numa cor + cada outra cor um nível acima,
+//                         com uma pausa/troca de filamento no início de cada nível
+//   Sem AMS, peças ...... base com encaixes + uma peça por cor, para imprimir à parte e colar
 //   Com AMS ............. 3MF com cada cor numa parte (SVG ou PNG)
 import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
@@ -44,9 +45,9 @@ type Props = {
 };
 
 const PADRAO = {
-  modo: 'sem_ams', num_cores: 3, remover_fundo: 1, tolerancia: 40,
+  modo: 'sem_ams', num_cores: 2, remover_fundo: 1, tolerancia: 40,
   largura: 40, contorno: 2.5, espessura_base: 2, relevo: 1.2, acabamento: 'relevo',
-  cor_relevo: 1, furo_pos: 'cima', furo_d: 4.5, detalhe_min: 0.4, preencher_buracos: 1,
+  metodo: 'pausas', cor_base: 0, ordem: 'escuras_cima', furo_pos: 'cima', furo_d: 4.5, detalhe_min: 0.4, preencher_buracos: 1,
   encaixe: 0.6, folga: 0.2,
 };
 
@@ -125,7 +126,7 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
       const path = await onUpload(ehSvg && !file.type ? new File([file], file.name, { type: 'image/svg+xml' }) : file);
       setImagePath(path);
       // Valores de partida sensatos por tipo de ficheiro
-      setP(prev => ({ ...prev, num_cores: ehSvg ? Math.max(prev.num_cores, 2) : prev.num_cores, cor_relevo: 1 }));
+      setP(prev => ({ ...prev, num_cores: ehSvg ? Math.max(prev.num_cores, 2) : prev.num_cores, cor_base: 0 }));
     } catch (e: any) {
       setErro(/mime|type|svg/i.test(e.message) ? 'O servidor recusou este tipo de ficheiro. Experimenta exportar como PNG.' : e.message);
       setEstado('erro');
@@ -141,11 +142,15 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
   }, [vetor, pd]);
   const r = resultado.r;
 
-  const ehSvg = !!vetor?.ehSvg;
+  const nCores = vetor?.cores.length ?? p.num_cores;
+  const pausas = p.modo === 'sem_ams' && p.metodo === 'pausas';
+  const niveis = Math.max(1, nCores - 1);
   const descricaoModo = p.modo === 'ams'
     ? 'Ficheiro 3MF com a base e cada cor numa parte separada, já montadas. No slicer atribuis um filamento do AMS a cada parte.'
-    : ehSvg
-      ? 'Peça única: base + o desenho em relevo. Imprimes a base e trocas de filamento a meio (o guia diz em que altura).'
+    : pausas
+      ? nCores <= 2
+        ? 'Peça única: a base numa cor e o desenho em relevo noutra. Uma pausa a meio da impressão para trocar o filamento (o guia diz a altura).'
+        : `Peça única: a base numa cor e cada uma das outras ${niveis} cores um nível acima, com uma pausa por nível. Vista de cima fica com as cores certas; de lado vês degraus e riscas.`
       : 'Base com encaixes + uma peça por cor. Imprimes cada cor à parte, encaixas na base e colas.';
   const formato = p.modo === 'ams' ? '3MF' : 'ZIP';
 
@@ -174,6 +179,12 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
             <button type="button" style={c.seg(p.modo === 'ams')} onClick={() => set('modo', 'ams')}>Com AMS / multicor</button>
           </div>
           <p style={c.ajuda}>{vetor ? descricaoModo : 'Escolhe se a tua impressora troca de cor sozinha (AMS, MMU…) ou não.'}</p>
+          {p.modo === 'sem_ams' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" style={c.seg(p.metodo === 'pausas')} onClick={() => set('metodo', 'pausas')}>Trocar filamento (pausas)</button>
+              <button type="button" style={c.seg(p.metodo === 'pecas')} onClick={() => set('metodo', 'pecas')}>Peças para colar</button>
+            </div>
+          )}
           {p.modo === 'ams' && (
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" style={c.seg(p.acabamento === 'relevo')} onClick={() => set('acabamento', 'relevo')}>Cores em relevo</button>
@@ -188,11 +199,12 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
           {vetor && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {vetor.cores.map((cor, i) => {
-                const escolhivel = p.modo === 'sem_ams' && ehSvg;
-                const ativa = escolhivel && p.cor_relevo === i + 1;
+                const escolhivel = pausas && vetor.cores.length > 1;
+                const baseAtual = p.cor_base >= 1 && p.cor_base <= vetor.cores.length ? p.cor_base : vetor.cores.length;
+                const ativa = escolhivel && baseAtual === i + 1;
                 return (
-                  <button key={i} type="button" disabled={!escolhivel} onClick={() => set('cor_relevo', i + 1)}
-                    title={escolhivel ? 'Esta cor fica em relevo' : cor.hex}
+                  <button key={i} type="button" disabled={!escolhivel} onClick={() => set('cor_base', i + 1)}
+                    title={escolhivel ? 'Usar esta cor na base' : cor.hex}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'transparent', border: 'none', cursor: escolhivel ? 'pointer' : 'default', padding: 0, fontFamily: 'inherit' }}>
                     <span style={{ width: 34, height: 34, borderRadius: 8, background: cor.hex, border: ativa ? '3px solid #3b82f6' : '1px solid #334155', boxShadow: '0 2px 6px rgba(0,0,0,0.4)' }} />
                     <span style={{ fontSize: 10, color: '#8a96aa' }}>{Math.round(cor.fracao * 100)}%</span>
@@ -201,7 +213,13 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
               })}
             </div>
           )}
-          {vetor && p.modo === 'sem_ams' && ehSvg && <p style={c.ajuda}>Toca na cor que fica em relevo (por omissão, a mais escura).</p>}
+          {vetor && pausas && vetor.cores.length > 1 && <p style={c.ajuda}>Toca na cor da <strong>base</strong> (por omissão, a mais clara). As outras ficam em relevo.</p>}
+          {vetor && pausas && vetor.cores.length > 2 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" style={c.seg(p.ordem === 'escuras_cima')} onClick={() => set('ordem', 'escuras_cima')}>Escuras em cima</button>
+              <button type="button" style={c.seg(p.ordem === 'claras_cima')} onClick={() => set('ordem', 'claras_cima')}>Claras em cima</button>
+            </div>
+          )}
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
             <input type="checkbox" checked={!!p.remover_fundo} onChange={e => set('remover_fundo', e.target.checked ? 1 : 0)} /> Remover o fundo da imagem
           </label>
@@ -213,7 +231,7 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
           <Slider label="Largura do desenho" valor={p.largura} min={20} max={80} passo={1} onChange={v => set('largura', v)} />
           <Slider label="Contorno da base" valor={p.contorno} min={0} max={6} passo={0.5} onChange={v => set('contorno', v)} />
           <Slider label="Espessura da base" valor={p.espessura_base} min={1.2} max={5} passo={0.2} onChange={v => set('espessura_base', Math.round(v * 10) / 10)} />
-          <Slider label={p.modo === 'ams' && p.acabamento === 'liso' ? 'Espessura das cores' : 'Altura do relevo'} valor={p.relevo} min={0.4} max={3} passo={0.2} onChange={v => set('relevo', Math.round(v * 10) / 10)} />
+          <Slider label={p.modo === 'ams' && p.acabamento === 'liso' ? 'Espessura das cores' : pausas && niveis > 1 ? 'Altura de cada nível' : 'Altura do relevo'} valor={p.relevo} min={0.4} max={3} passo={0.2} onChange={v => set('relevo', Math.round(v * 10) / 10)} />
         </div>
 
         <div style={c.bloco}>
@@ -230,7 +248,7 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
             <input type="checkbox" checked={!!p.preencher_buracos} onChange={e => set('preencher_buracos', e.target.checked ? 1 : 0)} /> Base sem buracos no meio
           </label>
-          {p.modo === 'sem_ams' && !ehSvg && (
+          {p.modo === 'sem_ams' && p.metodo === 'pecas' && (
             <>
               <Slider label="Profundidade dos encaixes" valor={p.encaixe} min={0.4} max={1.2} passo={0.1} onChange={v => set('encaixe', Math.round(v * 10) / 10)} />
               <Slider label="Folga das peças" valor={p.folga} min={0} max={0.6} passo={0.05} onChange={v => set('folga', Math.round(v * 100) / 100)} />
