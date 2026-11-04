@@ -19,6 +19,7 @@ set
       "num_cores":         { "order": 3,  "default": 2,   "min": 1,   "max": 6,   "ui": { "label": "Número de cores", "widget": "slider", "step": 1 } },
       "remover_fundo":     { "order": 4,  "default": 1,   "ui": { "label": "Remover fundo", "widget": "checkbox" } },
       "tolerancia":        { "order": 5,  "default": 40,  "min": 10,  "max": 120, "ui": { "label": "Sensibilidade do fundo", "widget": "slider", "step": 5 } },
+      "buracos_fundo":     { "order": 5,  "default": 1,   "ui": { "label": "Fundo dentro do desenho é buraco", "widget": "checkbox" } },
       "largura":           { "order": 6,  "default": 40,  "min": 20,  "max": 80,  "unit": "mm", "ui": { "label": "Largura do desenho", "widget": "slider", "step": 1 } },
       "contorno":          { "order": 7,  "default": 2.5, "min": 0,   "max": 6,   "unit": "mm", "ui": { "label": "Contorno da base", "widget": "slider", "step": 0.5 } },
       "espessura_base":    { "order": 8,  "default": 2,   "min": 1.2, "max": 5,   "unit": "mm", "ui": { "label": "Espessura da base", "widget": "slider", "step": 0.2 } },
@@ -30,7 +31,7 @@ set
       "furo_pos":          { "order": 12, "default": "cima", "ui": { "label": "Furo", "widget": "select", "options": ["cima", "cima-esquerda", "cima-direita", "esquerda", "direita", "nenhum"] } },
       "furo_d":            { "order": 13, "default": 4.5, "min": 3,   "max": 8,   "unit": "mm", "ui": { "label": "Diâmetro do furo", "widget": "slider", "step": 0.5 } },
       "detalhe_min":       { "order": 14, "default": 0.4, "min": 0,   "max": 3,   "unit": "mm²", "ui": { "label": "Ignorar detalhes menores que", "widget": "slider", "step": 0.1 } },
-      "preencher_buracos": { "order": 15, "default": 1,   "ui": { "label": "Base sem buracos", "widget": "checkbox" } },
+      "preencher_buracos": { "order": 15, "default": 1,   "ui": { "label": "Tapar os buracos do desenho com a base", "widget": "checkbox" } },
       "encaixe":           { "order": 16, "default": 0.6, "min": 0.4, "max": 1.2, "unit": "mm", "ui": { "label": "Profundidade dos encaixes", "widget": "slider", "step": 0.1 } },
       "folga":             { "order": 17, "default": 0.2, "min": 0,   "max": 0.6, "unit": "mm", "ui": { "label": "Folga das peças", "widget": "slider", "step": 0.05 } }
     }

@@ -21,7 +21,7 @@ import DownloadStlButton from '@/components/DownloadStlButton';
 import { construirPecas, fatiasParaTriangulos } from '@/lib/vetorGeom';
 
 type Vetor = {
-  w: number; h: number; ehSvg: boolean;
+  w: number; h: number; ehSvg: boolean; fundoOpaco?: boolean;
   cores: { hex: string; fracao: number; aneis: number[][] }[];
   silhueta: number[][];
   ancoras: Record<string, [number, number]> | null;
@@ -45,7 +45,7 @@ type Props = {
 };
 
 const PADRAO = {
-  modo: 'sem_ams', num_cores: 2, remover_fundo: 1, tolerancia: 40,
+  modo: 'sem_ams', num_cores: 2, remover_fundo: 1, tolerancia: 40, buracos_fundo: 1,
   largura: 40, contorno: 2.5, espessura_base: 2, relevo: 1.2, acabamento: 'relevo',
   metodo: 'pausas', cor_base: 0, ordem: 'escuras_cima', furo_pos: 'cima', furo_d: 4.5, detalhe_min: 0.4, preencher_buracos: 1,
   encaixe: 0.6, folga: 0.2,
@@ -102,7 +102,7 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
         const res = await fetch('/api/vetorizar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` },
-          body: JSON.stringify({ image_path: imagePath, num_cores: p.num_cores, remover_fundo: p.remover_fundo, tolerancia: p.tolerancia }),
+          body: JSON.stringify({ image_path: imagePath, num_cores: p.num_cores, remover_fundo: p.remover_fundo, tolerancia: p.tolerancia, buracos_fundo: p.buracos_fundo }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error ?? 'Erro ao processar a imagem.');
@@ -115,7 +115,7 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
       }
     }, 350);
     return () => clearTimeout(t);
-  }, [imagePath, p.num_cores, p.remover_fundo, p.tolerancia]);
+  }, [imagePath, p.num_cores, p.remover_fundo, p.tolerancia, p.buracos_fundo]);
 
   async function escolherFicheiro(file: File | undefined) {
     if (!file) return;
@@ -224,6 +224,12 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
             <input type="checkbox" checked={!!p.remover_fundo} onChange={e => set('remover_fundo', e.target.checked ? 1 : 0)} /> Remover o fundo da imagem
           </label>
           {!!p.remover_fundo && <Slider label="Sensibilidade do fundo" valor={p.tolerancia} min={10} max={120} passo={5} unidade="" onChange={v => set('tolerancia', v)} />}
+          {!!p.remover_fundo && vetor?.fundoOpaco && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
+              <input type="checkbox" checked={!!p.buracos_fundo} onChange={e => set('buracos_fundo', e.target.checked ? 1 : 0)} />
+              Fundo dentro do desenho é buraco (o meio de um "O", de um anel…)
+            </label>
+          )}
         </div>
 
         <div style={c.bloco}>
@@ -246,8 +252,9 @@ export default function PortachavesVetorEditor({ designId, nome, userId, canDown
           <summary style={{ ...c.titulo, cursor: 'pointer' }}>6 · Afinação</summary>
           <Slider label="Ignorar detalhes menores que" valor={p.detalhe_min} min={0} max={3} passo={0.1} unidade="mm²" onChange={v => set('detalhe_min', Math.round(v * 10) / 10)} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
-            <input type="checkbox" checked={!!p.preencher_buracos} onChange={e => set('preencher_buracos', e.target.checked ? 1 : 0)} /> Base sem buracos no meio
+            <input type="checkbox" checked={!!p.preencher_buracos} onChange={e => set('preencher_buracos', e.target.checked ? 1 : 0)} /> Tapar os buracos do desenho com a base
           </label>
+          <p style={c.ajuda}>Ligado: os buracos do desenho ficam com a base por baixo. Desligado: atravessam a peça (vê-se através).</p>
           {p.modo === 'sem_ams' && p.metodo === 'pecas' && (
             <>
               <Slider label="Profundidade dos encaixes" valor={p.encaixe} min={0.4} max={1.2} passo={0.1} onChange={v => set('encaixe', Math.round(v * 10) / 10)} />
