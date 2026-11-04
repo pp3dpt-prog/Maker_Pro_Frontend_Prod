@@ -6,9 +6,11 @@ type Props = {
   designId: string;
   params: Record<string, any>;
   onSuccess?: () => void;
+  /** Texto do botão (por omissão "Download STL"). */
+  label?: string;
 };
 
-export default function DownloadStlButton({ designId, params, onSuccess }: Props) {
+export default function DownloadStlButton({ designId, params, onSuccess, label = 'Download STL' }: Props) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +81,7 @@ export default function DownloadStlButton({ designId, params, onSuccess }: Props
           width: '100%', fontFamily: 'inherit',
         }}
       >
-        {loading ? (<><Spinner />A preparar download…</>) : done ? '✅ Download concluído!' : (<><DownloadIcon />Download STL</>)}
+        {loading ? (<><Spinner />A preparar download…</>) : done ? '✅ Download concluído!' : (<><DownloadIcon />{label}</>)}
       </button>
       {error && <p style={{ margin: 0, color: '#f87171', fontSize: 12, textAlign: 'center' }}>{error}</p>}
       {done && (

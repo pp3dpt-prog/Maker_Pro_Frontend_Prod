@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import PortachavesPreview3D from './PortachavesPreview3D';
+import PortachavesVetorEditor from './PortachavesVetorEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
@@ -414,6 +415,27 @@ export default function PageInner() {
 
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const paramsParaDownload = filtrarParamsBackend(params);
+
+  // Porta-chaves de imagem a cores (SVG/PNG → cores separadas, STL/ZIP/3MF): editor próprio
+  if ((design.generation_schema as any)?.engine === 'vetor-cores') {
+    return (
+      <>
+        <div style={{ padding: '20px 24px 0' }}>
+          <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
+        </div>
+        <PortachavesVetorEditor
+          designId={designId}
+          nome={design.nome}
+          userId={userId}
+          canDownload={!!userId && canDownloadStl && !semDownloads}
+          bloqueioMsg={!userId ? null : stlBloqueadoDownload ? (design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar` : 'Download não disponível neste plano') : semDownloads ? 'Limite mensal de downloads atingido — upgrade do plano' : null}
+          downloadsInfo={userId && isMaker ? { usados: userProfile?.downloads_mes ?? 0, limite: userProfile?.downloads_limite ?? 3 } : null}
+          onUpload={file => handleFileUpload('image_path', file)}
+          onDownloadSuccess={handleDownloadSuccess}
+        />
+      </>
+    );
+  }
 
   return (
     <>
