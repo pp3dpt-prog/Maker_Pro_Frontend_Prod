@@ -76,7 +76,7 @@ $scad$,
   'pet-tags', h.preco_base, h.pvp,
   0, -7, 5, -15, 15, -15, 10,
   0, -7, 4, -15, 15, -15, 10,
-  h.default_fonte, h.credit_price, 'blank_pata',
+  h.default_fonte, h.credit_price, null,  -- base_template_id: FK para prod_scad_templates; não é usado pelo código
   '{
     "parameters": {
       "mostrar_texto":   { "order": 0,  "default": true, "ui": { "label": "Mostrar simulação do texto", "widget": "checkbox" } },
@@ -100,7 +100,7 @@ where h.id = 'tag-hexagono'
 on conflict (id) do update set
   nome = excluded.nome, descricao = excluded.descricao, thumbnail_url = excluded.thumbnail_url,
   stl_file_path = excluded.stl_file_path, scad_template = excluded.scad_template,
-  generation_schema = excluded.generation_schema, base_template_id = excluded.base_template_id;
+  generation_schema = excluded.generation_schema;
 
 -- Confirmação
 select id, nome, familia, estado, stl_file_path from public.prod_designs where id = 'tag-pata';
