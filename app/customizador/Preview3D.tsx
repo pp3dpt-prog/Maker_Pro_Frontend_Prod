@@ -8,6 +8,7 @@ import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-std
 import type { Font } from 'three-stdlib';
 import ClipperLib from 'clipper-lib';
 import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila } from '@/lib/etiquetaMochila';
+import { formaPetTag, corpoPetTag, rebordoPetTag, ALTURA_PET_TAG } from '@/lib/petTagForma';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 
 type Preview3DProps = {
@@ -86,8 +87,37 @@ function PetTagModel({
   const [stlHeight, setStlHeight] = useState(3);
   const [stlOffsetY, setStlOffsetY] = useState(0); // offset Y do centro geométrico
 
-  // Carregar STL em branco
+  // Formas conhecidas (redonda, coração, osso, hexágono): a chapa é desenhada com as
+  // MESMAS medidas do scad_template (lib/petTagForma.ts) — os STL em branco antigos
+  // não coincidiam com o ficheiro final. Outras formas continuam a usar o STL.
+  const forma = formaPetTag(stlFilePath);
+  const rebordoOn = params.rebordo === true || params.rebordo === 1 || params.rebordo === '1';
+  const rebordoLarg = Number(params.rebordo_largura ?? 1.2);
+  const rebordoAlt = Number(params.rebordo_altura ?? 1);
+  const rebordoMesh = useMemo(() => {
+    if (!forma || !rebordoOn) return null;
+    const { centro } = corpoPetTag(forma);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(rebordoPetTag(forma, rebordoLarg, rebordoAlt), 3));
+    geo.translate(-centro[0], -centro[1], 0);
+    geo.computeVertexNormals();
+    return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 }));
+  }, [forma, rebordoOn, rebordoLarg, rebordoAlt]);
+  useEffect(() => () => { rebordoMesh?.geometry.dispose(); }, [rebordoMesh]);
+
+  // Carregar a chapa (forma conhecida) ou o STL em branco
   useEffect(() => {
+    if (forma) {
+      const { tri, centro } = corpoPetTag(forma);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(tri, 3));
+      geometry.translate(-centro[0], -centro[1], 0);
+      geometry.computeVertexNormals();
+      setStlOffsetY(centro[1]);
+      setStlHeight(ALTURA_PET_TAG);
+      setBodyMesh(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 })));
+      return;
+    }
     const loader = new STLLoader();
     loader.load(stlFilePath, (geometry: THREE.BufferGeometry) => {
       geometry.computeVertexNormals();
@@ -114,7 +144,7 @@ function PetTagModel({
         })
       ));
     });
-  }, [stlFilePath]);
+  }, [stlFilePath, forma]);
 
   // Regenerar texto sempre que params mudam
   useEffect(() => {
@@ -241,6 +271,9 @@ function PetTagModel({
     <group>
       {/* Corpo em branco */}
       <primitive object={bodyMesh} />
+
+      {/* Rebordo opcional à volta da frente */}
+      {rebordoMesh && <primitive object={rebordoMesh} />}
 
       {/* Texto frente — acima da superfície */}
       {showText && frontText && (
