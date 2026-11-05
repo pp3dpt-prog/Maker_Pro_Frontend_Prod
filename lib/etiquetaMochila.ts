@@ -152,8 +152,34 @@ function extrudir(shapes: THREE.Shape[], depth: number, z: number): THREE.Buffer
 }
 
 /** Constrói a etiqueta (mesmas coordenadas do SCAD: contorno da forma com origem em (0,0)). */
+// Cores por omissão de cada parte — iguais às do .scad e aos defaults do generation_schema.
+export const CORES_ETIQUETA = { placa: '#1E3A8A', borda: '#FFFFFF', texto: '#FFFFFF' };
+export type CoresEtiqueta = typeof CORES_ETIQUETA;
+
+/** Cores a partir dos params (cor_base, cor_borda, cor_texto); valor inválido = omissão. */
+export function coresDeParams(params: Record<string, any> | null | undefined): CoresEtiqueta {
+  const ok = (v: unknown, d: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+  return {
+    placa: ok(params?.cor_base, CORES_ETIQUETA.placa),
+    borda: ok(params?.cor_borda, CORES_ETIQUETA.borda),
+    texto: ok(params?.cor_texto, CORES_ETIQUETA.texto),
+  };
+}
+
+/**
+ * Muda só as cores dos materiais (cada mesh tem userData.parte = placa | borda | texto),
+ * sem reconstruir a geometria — o seletor de cor dispara muitas vezes por segundo.
+ */
+export function aplicarCoresEtiqueta(grupo: THREE.Group, cores: CoresEtiqueta) {
+  grupo.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const parte = m.userData?.parte as keyof CoresEtiqueta | undefined;
+    if (parte && m.material) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]);
+  });
+}
+
 export function construirEtiqueta(
-  p: ParamsEtiqueta, font: Font, cores = { placa: '#93c5fd', texto: '#1d4ed8' },
+  p: ParamsEtiqueta, font: Font, cores: CoresEtiqueta = CORES_ETIQUETA,
 ): THREE.Group {
   const G = GEO;
   const F0 = obterForma(p.forma);
@@ -169,9 +195,15 @@ export function construirEtiqueta(
   const fs = Number(p.fontSize) > 0 ? Number(p.fontSize) : 9;
 
   const matPlaca = new THREE.MeshStandardMaterial({ color: cores.placa, metalness: 0.1, roughness: 0.5 });
+  const matBorda = new THREE.MeshStandardMaterial({ color: cores.borda, metalness: 0.1, roughness: 0.5 });
   const matTexto = new THREE.MeshStandardMaterial({ color: cores.texto, metalness: 0.1, roughness: 0.5 });
+  const parteDe = new Map<THREE.Material, keyof CoresEtiqueta>([[matPlaca, 'placa'], [matBorda, 'borda'], [matTexto, 'texto']]);
   const grupo = new THREE.Group();
-  const add = (g: THREE.BufferGeometry, m: THREE.Material) => grupo.add(new THREE.Mesh(g, m));
+  const add = (g: THREE.BufferGeometry, m: THREE.Material) => {
+    const mesh = new THREE.Mesh(g, m);
+    mesh.userData.parte = parteDe.get(m);
+    grupo.add(mesh);
+  };
   const contorno = () => new THREE.Shape(F.outer.map(([x, y]) => new THREE.Vector2(x, y)));
 
   // Placa — com o verso escavado a partir da face de baixo (z = 0).
@@ -208,7 +240,7 @@ export function construirEtiqueta(
   if (interior.length) {
     const borda = contorno();
     for (const poly of interior) borda.holes.push(new THREE.Path(poly.map(([x, y]) => new THREE.Vector2(x, y))));
-    add(extrudir([borda], G.borda_esp, G.esp), matPlaca);
+    add(extrudir([borda], G.borda_esp, G.esp), matBorda);
   }
 
   // Texto da frente em relevo (1 ou 2 linhas).

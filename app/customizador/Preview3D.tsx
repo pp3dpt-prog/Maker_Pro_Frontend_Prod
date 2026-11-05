@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-stdlib';
 import type { Font } from 'three-stdlib';
 import ClipperLib from 'clipper-lib';
-import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila } from '@/lib/etiquetaMochila';
+import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila, aplicarCoresEtiqueta, coresDeParams } from '@/lib/etiquetaMochila';
 import { formaPetTag, corpoPetTag, rebordoPetTag, ALTURA_PET_TAG } from '@/lib/petTagForma';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 
@@ -418,12 +418,21 @@ function EtiquetaMochilaPreview({ params }: { params: Record<string, any> }) {
   const largura_pct = params.largura_pct ?? 100;
   const altura_pct = params.altura_pct ?? 100;
 
+  // Cores fora das dependências da geometria: mudar a cor só actualiza os materiais.
+  const cores = coresDeParams(params);
+  const coresRef = useRef(cores);
+  coresRef.current = cores;
+
   const grupo = useMemo(() => {
     if (!font) return null;
-    const g = construirEtiqueta({ nome, linha2, verso, fontSize, forma, largura_pct, altura_pct }, font);
+    const g = construirEtiqueta({ nome, linha2, verso, fontSize, forma, largura_pct, altura_pct }, font, coresRef.current);
     centerGroupXY(g);
     return g;
   }, [font, nome, linha2, verso, fontSize, forma, largura_pct, altura_pct]);
+
+  useEffect(() => {
+    if (grupo) aplicarCoresEtiqueta(grupo, cores);
+  }, [grupo, cores.placa, cores.borda, cores.texto]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // liberta a geometria anterior quando a etiqueta é reconstruída
   useEffect(() => () => { if (grupo) libertarEtiqueta(grupo); }, [grupo]);

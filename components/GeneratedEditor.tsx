@@ -51,14 +51,19 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
 
   // Oculta parâmetros condicionais (visible_when no schema)
   // Ex: { "visible_when": { "num_cores": { "min": 2 } } }
+  //     { "visible_when": { "impressao": { "ne": "Sem AMS (troca de cor manual)" } } }
+  // eq/ne com texto comparam o valor como texto (para selects).
   const paramVisivel = ([, def]: [string, any]): boolean => {
     const cond = def.ui?.visible_when;
     if (!cond) return true;
     return Object.entries(cond).every(([param, constraint]: [string, any]) => {
-      const val = Number(values[param] ?? 0);
+      const bruto = values[param] ?? (schema.parameters as any)[param]?.default;
+      const val = Number(bruto ?? 0);
       if (constraint.min !== undefined && val < constraint.min) return false;
       if (constraint.max !== undefined && val > constraint.max) return false;
-      if (constraint.eq  !== undefined && val !== constraint.eq) return false;
+      if (typeof constraint.eq === 'string') { if (String(bruto ?? '') !== constraint.eq) return false; }
+      else if (constraint.eq !== undefined && val !== constraint.eq) return false;
+      if (constraint.ne !== undefined && String(bruto ?? '') === String(constraint.ne)) return false;
       return true;
     });
   };
@@ -219,11 +224,38 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
 
         // ── COLOR ─────────────────────────────────────────────────────────
         if (type === 'color') {
+          // ui.paleta (opcional): [{ "nome": "Azul", "hex": "#1E3A8A" }, ...] — os filamentos
+          // disponíveis; aparecem como amostras clicáveis por cima do seletor livre.
+          const paleta: { nome: string; hex: string }[] = Array.isArray(ui.paleta) ? ui.paleta : [];
+          const atual = String(value ?? def.default ?? '').toUpperCase();
           return (
             <div key={name} className="space-y-1">
               <label className="block text-xs text-slate-300 font-medium">
                 {label}
               </label>
+              {paleta.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+                  {paleta.map((c) => {
+                    const sel = atual === String(c.hex).toUpperCase();
+                    return (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        title={c.nome}
+                        aria-label={c.nome}
+                        aria-pressed={sel}
+                        onClick={() => onChange({ ...values, [name]: c.hex })}
+                        style={{
+                          width: 26, height: 26, borderRadius: '50%', padding: 0,
+                          background: c.hex, cursor: 'pointer',
+                          border: sel ? '2px solid #60a5fa' : '1px solid #334155',
+                          boxShadow: sel ? '0 0 0 2px rgba(96,165,250,0.35)' : 'none',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input
                   type="color"
