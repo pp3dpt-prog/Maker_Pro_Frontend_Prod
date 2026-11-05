@@ -34,6 +34,7 @@ const FONT_MAP: Record<string, string> = {
   'Press Start 2P':      '/fonts/Press_Start_2P.json',
   'Racing Sans One':     '/fonts/Racing_Sans_One.json',
   'Sigmar One':          '/fonts/Sigmar_One.json',
+  'Open Sans':           '/fonts/Open_Sans.json',
 };
 
 // Letras Decorativas — fontes "de sistema" do backend (Liberation/Ubuntu/DejaVu/URW

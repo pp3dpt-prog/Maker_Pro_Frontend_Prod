@@ -1,5 +1,6 @@
 // Geometria das pet tags para a pré-visualização — réplica 2D das formas dos
-// scad_template em prod_designs (tag-redonda, tag-coracao, tag-osso, tag-hexagono).
+// scad_template em prod_designs (tag-redonda, tag-coracao, tag-osso, tag-hexagono,
+// tag-pata, tag-estrela, tag-gato, tag-escudo).
 // Antes a pré-visualização carregava STLs em branco (/models/blank_*.stl), mas os da
 // redonda e do osso tinham medidas diferentes dos templates; agora a chapa e o
 // rebordo saem das mesmas medidas que o OpenSCAD usa no ficheiro final.
@@ -9,7 +10,7 @@ import ClipperLib from 'clipper-lib';
 // @ts-ignore — módulo JS partilhado (extrusão de regiões Clipper em triângulos)
 import { fatiasParaTriangulos } from '@/lib/vetorGeom';
 
-export type FormaPetTag = 'redondo' | 'coracao' | 'osso' | 'hexagono' | 'pata';
+export type FormaPetTag = 'redondo' | 'coracao' | 'osso' | 'hexagono' | 'pata' | 'estrela' | 'gato' | 'escudo';
 
 const ESC = 1000; // µm, igual a lib/vetorGeom.js
 export const ALTURA_PET_TAG = 3; // altura_fixa dos templates
@@ -19,7 +20,7 @@ type Path = Pt[];
 
 /** Identifica a forma pelo STL em branco associado ao design. */
 export function formaPetTag(stlFilePath: string | null | undefined): FormaPetTag | null {
-  const m = /blank_(redondo|coracao|osso|hexagono|pata)/.exec(stlFilePath ?? '');
+  const m = /blank_(redondo|coracao|osso|hexagono|pata|estrela|gato|escudo)/.exec(stlFilePath ?? '');
   return (m?.[1] as FormaPetTag) ?? null;
 }
 
@@ -71,6 +72,15 @@ function encolher(paths: Path[], d: number): Path[] {
   return out;
 }
 
+/** offset(r = +r) offset(delta = −r) do OpenSCAD: arredonda os cantos convexos (pontas). */
+function arredondar(paths: Path[], r: number): Path[] {
+  const co = new ClipperLib.ClipperOffset(2, 0.02 * ESC);
+  co.AddPaths(encolher(paths, r), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const out: Path[] = [];
+  co.Execute(out, r * ESC);
+  return out;
+}
+
 /** Corpo da chapa (sem argola), argola e furo — medidas dos scad_template. */
 function formas(f: FormaPetTag): { corpo: Path[]; argola: Path; furo: Path } {
   switch (f) {
@@ -104,6 +114,30 @@ function formas(f: FormaPetTag): { corpo: Path[]; argola: Path; furo: Path } {
     case 'hexagono':
       return {
         corpo: [poligono(Array.from({ length: 6 }, (_, i) => [15 * Math.cos((i * Math.PI) / 3), 15 * Math.sin((i * Math.PI) / 3)] as [number, number]))],
+        argola: circulo(0, 15, 5), furo: circulo(0, 15, 2.5),
+      };
+    case 'estrela':
+      // 5 pontas (raio 19 / 9), pontas arredondadas com 2 mm; argola na ponta de cima
+      return {
+        corpo: arredondar([poligono(Array.from({ length: 10 }, (_, i) => {
+          const a = ((90 + i * 36) * Math.PI) / 180, r = i % 2 === 0 ? 19 : 9;
+          return [r * Math.cos(a), r * Math.sin(a)] as [number, number];
+        }))], 2),
+        argola: circulo(0, 15.5, 4.5), furo: circulo(0, 15.5, 2.4),
+      };
+    case 'gato':
+      // cabeça (círculo) + 2 orelhas; fecho de 1 mm na ligação e pontas arredondadas com 1,5 mm
+      return {
+        corpo: arredondar(fechar(uniao([
+          circulo(0, 0, 14, 96),
+          poligono([[-13.5, 4.5], [-5, 12.8], [-11, 21]]),
+          poligono([[13.5, 4.5], [5, 12.8], [11, 21]]),
+        ]), 1), 1.5),
+        argola: circulo(0, 15.5, 4.5), furo: circulo(0, 15.5, 2.4),
+      };
+    case 'escudo':
+      return {
+        corpo: arredondar([poligono([[-14, 12], [14, 12], [14, 1], [9, -9], [0, -17], [-9, -9], [-14, 1]])], 2),
         argola: circulo(0, 15, 5), furo: circulo(0, 15, 2.5),
       };
   }
