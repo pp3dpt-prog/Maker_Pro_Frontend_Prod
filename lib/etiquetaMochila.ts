@@ -159,10 +159,14 @@ export type CoresEtiqueta = typeof CORES_ETIQUETA;
 /** Cores a partir dos params (cor_base, cor_borda, cor_texto); valor inválido = omissão. */
 export function coresDeParams(params: Record<string, any> | null | undefined): CoresEtiqueta {
   const ok = (v: unknown, d: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+  const texto = ok(params?.cor_texto, CORES_ETIQUETA.texto);
+  // Sem AMS há uma só troca de cor (a 3,5 mm): a borda imprime-se com o filamento do texto,
+  // e o seletor da borda fica escondido — a pré-visualização tem de mostrar isso.
+  const semAms = /^sem/i.test(String(params?.impressao ?? '').trim());
   return {
     placa: ok(params?.cor_base, CORES_ETIQUETA.placa),
-    borda: ok(params?.cor_borda, CORES_ETIQUETA.borda),
-    texto: ok(params?.cor_texto, CORES_ETIQUETA.texto),
+    borda: semAms ? texto : ok(params?.cor_borda, CORES_ETIQUETA.borda),
+    texto,
   };
 }
 
