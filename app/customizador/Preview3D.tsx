@@ -9,6 +9,7 @@ import type { Font } from 'three-stdlib';
 import ClipperLib from 'clipper-lib';
 import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila, aplicarCoresEtiqueta, coresDeParams } from '@/lib/etiquetaMochila';
 import { formaPetTag, corpoPetTag, rebordoPetTag, ALTURA_PET_TAG } from '@/lib/petTagForma';
+import { coresPetTag } from '@/lib/coresMulticor';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 
 type Preview3DProps = {
@@ -104,6 +105,18 @@ function PetTagModel({
     return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 }));
   }, [forma, rebordoOn, rebordoLarg, rebordoAlt]);
   useEffect(() => () => { rebordoMesh?.geometry.dispose(); }, [rebordoMesh]);
+
+  // Cores das peças (cor_base / cor_texto / cor_borda): só muda os materiais, sem
+  // regenerar geometria nem recarregar a fonte. O telefone do verso é escavado na
+  // medalha, por isso mantém o tom escuro para se ler na pré-visualização.
+  const cores = coresPetTag(params);
+  useEffect(() => {
+    const pintar = (m: THREE.Mesh | null, cor: string) =>
+      (m?.material as THREE.MeshStandardMaterial | undefined)?.color.set(cor);
+    pintar(bodyMesh, cores.base);
+    pintar(frontText, cores.texto);
+    pintar(rebordoMesh, cores.borda);
+  }, [bodyMesh, frontText, rebordoMesh, cores.base, cores.texto, cores.borda]);
 
   // Carregar a chapa (forma conhecida) ou o STL em branco
   useEffect(() => {
