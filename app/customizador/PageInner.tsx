@@ -407,6 +407,17 @@ export default function PageInner() {
     }
   };
 
+  // Modelos sem pré-visualização ao vivo no browser (generation_schema.preview_servidor):
+  // geram-se sozinhos no servidor (OpenSCAD) ao abrir e ~1 s depois de cada alteração, em vez
+  // de o visualizador ficar vazio até se carregar em "Gerar STL". Só com sessão iniciada.
+  const previewServidor = !!(design?.generation_schema as any)?.preview_servidor;
+  useEffect(() => {
+    if (!previewServidor || !userId || !params || !designId) return;
+    const t = setTimeout(() => { gerarSTL(); }, 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewServidor, userId, designId, params]);
+
   const handleLike = async () => {
     if (liked || liking || !designId) return;
     setLiking(true);
