@@ -589,13 +589,23 @@ export default function PageInner() {
             const alt = isPortachaves
               ? Number(params?.altura ?? params?.altura_mm ?? 35)
               : Number(params?.altura_mm ?? 150);
-            const ratio = larg / alt;
-
-            // Calcular tamanho do preview para caber no viewer (max 480px altura)
-            const maxH = 480, maxW = 280;
-            let pW: number, pH: number;
-            if (ratio > maxW / maxH) { pW = maxW; pH = Math.round(maxW / ratio); }
-            else                      { pH = maxH; pW = Math.round(maxH * ratio); }
+            // Escala fixa em px/mm, calculada a partir dos máximos do produto:
+            // assim a moldura cresce/encolhe com a largura E com a altura
+            // (antes ajustava sempre o lado maior à caixa e a largura parecia
+            // não mudar nada).
+            const sp = design.generation_schema?.parameters ?? {};
+            const maxDe = (nomes: string[], def: number) => {
+              for (const n of nomes) { const v = Number(sp?.[n]?.max); if (v > 0) return v; }
+              return def;
+            };
+            const largMax = Math.max(larg, maxDe(isPortachaves ? ['largura', 'largura_mm'] : ['largura_mm'], larg));
+            const altMax  = Math.max(alt,  maxDe(isPortachaves ? ['altura', 'altura_mm'] : ['altura_mm'], alt));
+            const ecraW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+            const maxH = 480, maxW = Math.max(200, Math.min(480, ecraW - 80));
+            const pxMm = Math.min(maxW / largMax, maxH / altMax);
+            const pW = Math.max(12, Math.round(larg * pxMm));
+            const pH = Math.max(12, Math.round(alt * pxMm));
+            const painelW = Math.max(pW, 280);
 
             // Parâmetros de ajuste da imagem
             const ajuste    = params?.img_ajuste ?? 'Preencher';
@@ -661,7 +671,7 @@ export default function PageInner() {
                 </div>
 
                 {isPortachaves && previewImageUrl && (
-                  <p style={{ color: '#8a96aa', fontSize: 11, textAlign: 'center', lineHeight: 1.5, maxWidth: pW }}>
+                  <p style={{ color: '#8a96aa', fontSize: 11, textAlign: 'center', lineHeight: 1.5, maxWidth: painelW }}>
                     <strong style={{ color: '#60a5fa' }}>Pré-visualização em tempo real.</strong>{' '}
                     Pode mostrar pequenas irregularidades que não aparecem no STL final.
                   </p>
@@ -676,7 +686,7 @@ export default function PageInner() {
                   <p style={{ color: '#8a96aa', fontSize: 12 }}>🔍 A analisar cores…</p>
                 )}
                 {imageAnalysis && !analysing && (
-                  <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '16px 20px', width: pW, boxSizing: 'border-box' }}>
+                  <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '16px 20px', width: painelW, boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         🎨 {imageAnalysis.suggestedColors} tons detectados
