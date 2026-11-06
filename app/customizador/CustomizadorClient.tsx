@@ -6,6 +6,9 @@ import STLViewer from '@/components/STLViewer';
 import LoadingViewer from './LoadingViewer';
 import { isEtiquetaMochila } from '@/lib/etiquetaMochila';
 import { isCaixaPcb } from '@/lib/caixaPcb';
+import { isBaseCopos } from '@/lib/baseCopos';
+import { isSuporteBases } from '@/lib/suporteBases';
+import { isNomeFlexivel } from '@/lib/nomeFlexivel';
 
 type Props = {
   designId: string;
@@ -56,7 +59,13 @@ export default function CustomizadorClient({
   // Caixa PCB: pcb_w/pcb_l/pcb_h + hinge_type (ver lib/caixaPcb.ts).
   const isCaixaPcbModelo = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro && !isEtiqueta
     && isCaixaPcb(params);
-  const temPreviewVivo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo;
+  // Base para copos, suporte para bases e nome flexível — a MESMA deteção do Preview3D.tsx
+  // (as duas listas têm de andar juntas: um modelo que falte aqui mostra a miniatura fixa).
+  const outroModelo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo;
+  const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
+  const isSuporteModelo = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
+  const isNomeFlexModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
+  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,
