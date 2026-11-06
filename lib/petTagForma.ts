@@ -99,7 +99,10 @@ function arredondar(paths: Path[], r: number): Path[] {
 
 /** Corpo da chapa (sem argola), argola e furo — medidas dos scad_template. */
 // `rebordo` (opcional): formas cujo contorno o rebordo desenha; por omissão, o corpo.
-function formas(f: FormaPetTag): { corpo: Path[]; rebordo?: Path[]; argola: Path; furo: Path } {
+// `dedos` / `almofada` (só na pata): para os estilos de rebordo com dedos cheios.
+function formas(f: FormaPetTag): {
+  corpo: Path[]; rebordo?: Path[]; dedos?: Path[]; almofada?: Path[]; argola: Path; furo: Path;
+} {
   switch (f) {
     case 'redondo':
       return { corpo: [circulo(0, 0, 15)], argola: circulo(0, 18, 6), furo: circulo(0, 18, 3) };
@@ -119,17 +122,18 @@ function formas(f: FormaPetTag): { corpo: Path[]; rebordo?: Path[]; argola: Path
     case 'pata': {
       // 5 "feijões" separados (almofada + 4 dedos). A medalha é o contorno deles alargado
       // 1,6 mm, com o interior cheio e um fecho de 1,2 mm; o rebordo desenha cada feijão.
-      const feijoes = [
-        elipse(0, -5.5, 12, 9),
+      const almofada = [elipse(0, -5.5, 12, 9)];
+      const dedos = [
         elipse(-5.3, 10, 3.8, 5, 10), elipse(5.3, 10, 3.8, 5, -10),
         elipse(-13, 5, 3.3, 4.5, 40), elipse(13, 5, 3.3, 4.5, -40),
       ];
+      const feijoes = [...almofada, ...dedos];
       return {
         corpo: fechar(uniao([
           ...alargar(feijoes, 1.6),
           poligono([[-13, 5], [-5.3, 10], [-2.5, 15], [2.5, 15], [5.3, 10], [13, 5], [0, -5.5]]),
         ]), 1.2),
-        rebordo: feijoes,
+        rebordo: feijoes, dedos, almofada,
         argola: circulo(0, 18, 4.5), furo: circulo(0, 18, 2.4),
       };
     }
@@ -218,10 +222,17 @@ export function corpoPetTag(f: FormaPetTag): { tri: number[]; centro: [number, n
   };
 }
 
-/** Rebordo: faixa de `largura` mm junto ao contorno do corpo, com `altura` mm, por cima da chapa. */
-export function rebordoPetTag(f: FormaPetTag, largura: number, altura: number): number[] {
-  const { corpo, rebordo, furo } = formas(f);
-  const base = rebordo ?? corpo;
-  const regiao = diferenca(base, [...encolher(base, largura), furo]);
+/**
+ * Rebordo: faixa de `largura` mm junto ao contorno do corpo, com `altura` mm, por cima da chapa.
+ * Na pata, `estilo` (rebordo_estilo do template): "Contorno em todos" (omissão), "Dedos cheios"
+ * ou "Dedos cheios + contorno do nome".
+ */
+export function rebordoPetTag(f: FormaPetTag, largura: number, altura: number, estilo?: string): number[] {
+  const { corpo, rebordo, dedos, almofada, furo } = formas(f);
+  const anel = (ps: Path[]) => diferenca(ps, [...encolher(ps, largura), furo]);
+  let regiao: Path[];
+  if (dedos && almofada && estilo === 'Dedos cheios') regiao = dedos;
+  else if (dedos && almofada && estilo === 'Dedos cheios + contorno do nome') regiao = uniao([...dedos, ...anel(almofada)]);
+  else regiao = anel(rebordo ?? corpo);
   return fatiasParaTriangulos([{ z0: ALTURA_PET_TAG, z1: ALTURA_PET_TAG + altura, regiao }]);
 }

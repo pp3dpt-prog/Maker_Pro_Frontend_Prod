@@ -96,15 +96,16 @@ function PetTagModel({
   const rebordoOn = params.rebordo === true || params.rebordo === 1 || params.rebordo === '1';
   const rebordoLarg = Number(params.rebordo_largura ?? 1.2);
   const rebordoAlt = Number(params.rebordo_altura ?? 1);
+  const rebordoEstilo = typeof params.rebordo_estilo === 'string' ? params.rebordo_estilo : undefined;
   const rebordoMesh = useMemo(() => {
     if (!forma || !rebordoOn) return null;
     const { centro } = corpoPetTag(forma);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(rebordoPetTag(forma, rebordoLarg, rebordoAlt), 3));
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(rebordoPetTag(forma, rebordoLarg, rebordoAlt, rebordoEstilo), 3));
     geo.translate(-centro[0], -centro[1], 0);
     geo.computeVertexNormals();
     return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 }));
-  }, [forma, rebordoOn, rebordoLarg, rebordoAlt]);
+  }, [forma, rebordoOn, rebordoLarg, rebordoAlt, rebordoEstilo]);
   useEffect(() => () => { rebordoMesh?.geometry.dispose(); }, [rebordoMesh]);
 
   // Cores das peças (cor_base / cor_texto / cor_borda): só muda os materiais, sem
