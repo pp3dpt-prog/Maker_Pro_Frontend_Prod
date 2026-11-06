@@ -79,6 +79,15 @@ function encolher(paths: Path[], d: number): Path[] {
   return out;
 }
 
+/** offset(r = +r) do OpenSCAD: alarga com cantos redondos. */
+function alargar(paths: Path[], r: number): Path[] {
+  const co = new ClipperLib.ClipperOffset(2, 0.02 * ESC);
+  co.AddPaths(paths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const out: Path[] = [];
+  co.Execute(out, r * ESC);
+  return out;
+}
+
 /** offset(r = +r) offset(delta = −r) do OpenSCAD: arredonda os cantos convexos (pontas). */
 function arredondar(paths: Path[], r: number): Path[] {
   const co = new ClipperLib.ClipperOffset(2, 0.02 * ESC);
@@ -89,7 +98,8 @@ function arredondar(paths: Path[], r: number): Path[] {
 }
 
 /** Corpo da chapa (sem argola), argola e furo — medidas dos scad_template. */
-function formas(f: FormaPetTag): { corpo: Path[]; argola: Path; furo: Path } {
+// `rebordo` (opcional): formas cujo contorno o rebordo desenha; por omissão, o corpo.
+function formas(f: FormaPetTag): { corpo: Path[]; rebordo?: Path[]; argola: Path; furo: Path } {
   switch (f) {
     case 'redondo':
       return { corpo: [circulo(0, 0, 15)], argola: circulo(0, 18, 6), furo: circulo(0, 18, 3) };
@@ -106,18 +116,23 @@ function formas(f: FormaPetTag): { corpo: Path[]; argola: Path; furo: Path } {
         corpo: uniao([poligono([[-15, -8], [15, -8], [15, 8], [-15, 8]]), circulo(-15, 6, 8), circulo(-15, -6, 8), circulo(15, 6, 8), circulo(15, -6, 8)]),
         argola: circulo(0, 10, 5.5), furo: circulo(0, 10, 2.8),
       };
-    case 'pata':
-      // Almofada grande (para o nome) + 4 dedos encostados a ela; o "fecho" de 0,8 mm suaviza a
-      // ligação dedo-almofada sem tapar os entalhes entre os dedos.
+    case 'pata': {
+      // 5 "feijões" separados (almofada + 4 dedos). A medalha é o contorno deles alargado
+      // 1,6 mm, com o interior cheio e um fecho de 1,2 mm; o rebordo desenha cada feijão.
+      const feijoes = [
+        elipse(0, -5.5, 12, 9),
+        elipse(-5.3, 10, 3.8, 5, 10), elipse(5.3, 10, 3.8, 5, -10),
+        elipse(-13, 5, 3.3, 4.5, 40), elipse(13, 5, 3.3, 4.5, -40),
+      ];
       return {
         corpo: fechar(uniao([
-          elipse(0, -6, 13, 10),
-          elipse(-5.6, 8, 4.3, 5.6, 8), elipse(5.6, 8, 4.3, 5.6, -8),
-          elipse(-13.2, 2.5, 4, 5.2, 32), elipse(13.2, 2.5, 4, 5.2, -32),
-          poligono([[-2.5, 5], [2.5, 5], [2.5, 15.5], [-2.5, 15.5]]),   // tapa a fenda sob a argola
-        ]), 0.8),
-        argola: circulo(0, 15.5, 5), furo: circulo(0, 15.5, 2.6),
+          ...alargar(feijoes, 1.6),
+          poligono([[-13, 5], [-5.3, 10], [-2.5, 15], [2.5, 15], [5.3, 10], [13, 5], [0, -5.5]]),
+        ]), 1.2),
+        rebordo: feijoes,
+        argola: circulo(0, 18, 4.5), furo: circulo(0, 18, 2.4),
       };
+    }
     case 'hexagono':
       return {
         corpo: [poligono(Array.from({ length: 6 }, (_, i) => [15 * Math.cos((i * Math.PI) / 3), 15 * Math.sin((i * Math.PI) / 3)] as [number, number]))],
@@ -205,7 +220,8 @@ export function corpoPetTag(f: FormaPetTag): { tri: number[]; centro: [number, n
 
 /** Rebordo: faixa de `largura` mm junto ao contorno do corpo, com `altura` mm, por cima da chapa. */
 export function rebordoPetTag(f: FormaPetTag, largura: number, altura: number): number[] {
-  const { corpo, furo } = formas(f);
-  const regiao = diferenca(corpo, [...encolher(corpo, largura), furo]);
+  const { corpo, rebordo, furo } = formas(f);
+  const base = rebordo ?? corpo;
+  const regiao = diferenca(base, [...encolher(base, largura), furo]);
   return fatiasParaTriangulos([{ z0: ALTURA_PET_TAG, z1: ALTURA_PET_TAG + altura, regiao }]);
 }
