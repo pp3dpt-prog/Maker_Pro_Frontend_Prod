@@ -11,6 +11,9 @@ import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila, aplicarCoresEti
 import { formaPetTag, corpoPetTag, rebordoPetTag, ALTURA_PET_TAG } from '@/lib/petTagForma';
 import { coresPetTag } from '@/lib/coresMulticor';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
+import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
+import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
+import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 
 type Preview3DProps = {
   params: Record<string, any>;
@@ -454,6 +457,89 @@ function EtiquetaMochilaPreview({ params }: { params: Record<string, any> }) {
 
   if (!grupo) return null;
   return <primitive object={grupo} />;
+}
+
+// Malha a partir de triângulos soltos (mm); devolve null se não houver triângulos.
+function malhaDeTriangulos(tri: number[], cor: string): THREE.Mesh | null {
+  if (!tri.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(tri, 3));
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: cor, metalness: 0.1, roughness: 0.45 }));
+}
+const corDe = (v: unknown, d: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+
+// ── Base para copos: base + padrão/rebordo + logótipo — ver lib/baseCopos.ts ──
+// O logótipo (só com AMS) vem do vetorizador do backend (/api/vetorizar), uma vez por imagem.
+function BaseCoposPreview({ params }: { params: Record<string, any> }) {
+  const semAms = /^sem/i.test(String(params.impressao ?? '').trim());
+  const logoPath = !semAms && typeof params.logo === 'string' && params.logo.startsWith('uploads/') ? params.logo : '';
+  const [vetor, setVetor] = useState<any>(null);
+  useEffect(() => {
+    if (!logoPath) { setVetor(null); return; }
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/auth/refresh', { method: 'POST' });
+        const { access_token } = r.ok ? await r.json() : {};
+        if (!access_token) return;
+        const res = await fetch('/api/vetorizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` },
+          body: JSON.stringify({ image_path: logoPath, num_cores: 1, remover_fundo: 1, tolerancia: 40, buracos_fundo: 1 }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!cancelado && res.ok) setVetor(json.vetor);
+      } catch { /* sem logótipo na pré-visualização */ }
+    })();
+    return () => { cancelado = true; };
+  }, [logoPath]);
+
+  const geomKey = JSON.stringify([params.forma, params.largura, params.espessura, params.padrao, params.tamanho_padrao, params.linha, params.relevo, params.rebordo, params.rebordo_largura, params.logo_largura, logoPath, !!vetor]);
+  const grupo = useMemo(() => {
+    const regiaoLogo = logoPath && vetor ? logoParaRegiao(vetor, Number(params.logo_largura) || 45) : [];
+    const partes = construirBaseCopos(params, regiaoLogo);
+    const g = new THREE.Group();
+    const add = (tri: number[], nome: string) => { const m = malhaDeTriangulos(tri, '#ffffff'); if (m) { m.userData.parte = nome; g.add(m); } };
+    add(partes.base, 'base'); add(partes.padrao, 'padrao'); add(partes.logo, 'logo');
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+
+  // cores: só os materiais, sem recalcular a geometria
+  const cores = { base: corDe(params.cor_base, '#FFFFFF'), padrao: corDe(params.cor_padrao, '#1E3A8A'), logo: corDe(params.cor_logo, '#DC2626') };
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as keyof typeof cores | undefined; if (parte) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
+  }, [grupo, cores.base, cores.padrao, cores.logo]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Suporte para bases de copos — ver lib/suporteBases.ts ──
+function SuporteBasesPreview({ params }: { params: Record<string, any> }) {
+  const geomKey = JSON.stringify([params.forma, params.largura, params.num_bases, params.altura_base, params.folga, params.parede, params.fundo, params.textura, params.tamanho_textura, params.profundidade, params.entalhe, params.degrau]);
+  const malha = useMemo(() => malhaDeTriangulos(construirSuporte(params), '#F59E0B'), [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { malha?.geometry.dispose(); (malha?.material as THREE.Material | undefined)?.dispose(); }, [malha]);
+  return malha ? <primitive object={malha} /> : null;
+}
+
+// ── Nome flexível: letras com dobradiças — ver lib/nomeFlexivel.ts ──
+function NomeFlexivelPreview({ params }: { params: Record<string, any> }) {
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Luckiest Guy')] ?? ETIQUETA_FONT_MAP['Luckiest Guy'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath]);
+  const chave = JSON.stringify([params.nome, params.tamanho, params.espessura, params.barra, params.folga, params.teste_folgas, params.cor_impares, params.cor_pares]);
+  const grupo = useMemo(() => {
+    if (!font) return null;
+    const g = construirNomeFlexivel(params, font);
+    centerGroupXY(g);
+    return g;
+  }, [font, chave]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (grupo) libertarGrupo(grupo); }, [grupo]);
+  return grupo ? <primitive object={grupo} /> : null;
 }
 
 // ── Caixa PCB: corpo + tampa (lado a lado, como o STL) — ver lib/caixaPcb.ts ──
@@ -1166,6 +1252,11 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // Caixa PCB (pcb_w/pcb_l/pcb_h + hinge_type) — ver lib/caixaPcb.ts.
   const isCaixaPcbModelo = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro && !isEtiqueta
     && isCaixaPcb(params);
+  // Base para copos, suporte e nome flexível (ver lib/baseCopos.ts, lib/suporteBases.ts, lib/nomeFlexivel.ts)
+  const outroModelo = isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo;
+  const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
+  const isSuporteModelo   = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
+  const isNomeFlexModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1178,7 +1269,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1227,6 +1318,12 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <EtiquetaMochilaPreview params={params} />
           ) : isCaixaPcbModelo ? (
             <CaixaPcbPreview params={params} />
+          ) : isBaseCoposModelo ? (
+            <BaseCoposPreview params={params} />
+          ) : isSuporteModelo ? (
+            <SuporteBasesPreview params={params} />
+          ) : isNomeFlexModelo ? (
+            <NomeFlexivelPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
