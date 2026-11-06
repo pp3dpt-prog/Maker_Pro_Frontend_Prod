@@ -198,10 +198,12 @@ export default function PageInner() {
 
         const data: Design = await res.json();
 
-        // Redirecionar produtos com image_upload para /personalizar-imagem
+        // Redirecionar produtos com image_upload para /personalizar-imagem — excepto os que só
+        // usam a imagem como logótipo (generation_schema.logo, p.ex. a base para copos): esses
+        // ficam aqui, com a pré-visualização do servidor.
         const hasImageUpload = Object.values(data.generation_schema?.parameters ?? {})
           .some((p: any) => p?.ui?.widget === 'image_upload');
-        if (hasImageUpload) {
+        if (hasImageUpload && !(data.generation_schema as any)?.logo) {
           const p = new URLSearchParams();
           p.set('id', data.id);
           if (familiaParam) p.set('familia', familiaParam);

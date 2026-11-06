@@ -437,7 +437,7 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
               {/* Input oculto */}
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept={typeof ui.accept === 'string' ? ui.accept : "image/png,image/jpeg,image/webp"}
                 style={{ display: 'none' }}
                 ref={(el) => { fileInputRefs.current[name] = el; }}
                 onChange={handleFileChange}
