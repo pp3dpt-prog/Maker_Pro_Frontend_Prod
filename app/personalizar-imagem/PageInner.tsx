@@ -12,7 +12,17 @@ import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
   parameters: Record<string, any>;
+  /** Gerador a usar (ex.: 'litofania-cubo'); sem ele usa-se a família. */
+  gerador?: string;
 };
+
+// A família é só a categoria da loja (pode ser "Iluminárias", etc.); o tipo de
+// peça vem de generation_schema.gerador — igual ao backend (lib/tipoDesign.js).
+function tipoDesign(d: { familia?: string | null; generation_schema?: GenerationSchema | null } | null | undefined): string {
+  const g = d?.generation_schema?.gerador;
+  if (typeof g === 'string' && g.trim()) return g.trim().toLowerCase();
+  return String(d?.familia ?? '').trim().toLowerCase();
+}
 
 type Design = {
   id: string;
@@ -308,7 +318,7 @@ export default function PageInner() {
     if (_paramName === 'image_path' || !previewImageUrl) setPreviewImageUrl(localUrl);
     setImageAnalysis(null);
     // Litofânias não usam filamentos por tom → sem análise de tons
-    if (!String(design?.familia ?? '').startsWith('litofania')) {
+    if (!tipoDesign(design).startsWith('litofania')) {
       setAnalysing(true);
       analyzeImage(localUrl).then(result => {
         setImageAnalysis(result);
@@ -565,14 +575,14 @@ export default function PageInner() {
             )}
 
             {mode === 'done' && txtUrl && (
-              <a href={txtUrl} download={String(design.familia).startsWith('litofania') ? 'guia_litofania.txt' : 'hueforge_cores.txt'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+              <a href={txtUrl} download={tipoDesign(design).startsWith('litofania') ? 'guia_litofania.txt' : 'hueforge_cores.txt'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                   <line x1="12" y1="11" x2="12" y2="17"/>
                   <polyline points="9 14 12 17 15 14"/>
                 </svg>
-                {String(design.familia).startsWith('litofania') ? 'Guia de Impressão (TXT)' : 'Guia de Cores (TXT)'}
+                {tipoDesign(design).startsWith('litofania') ? 'Guia de Impressão (TXT)' : 'Guia de Cores (TXT)'}
               </a>
             )}
           </div>
@@ -592,11 +602,12 @@ export default function PageInner() {
           ) : (() => {
             // Dimensões reais da peça em mm (porta-chaves usa largura/altura,
             // os restantes produtos de imagem usam largura_mm/altura_mm)
-            const isPortachaves = design.familia === 'portachaves';
-            const isLito  = String(design.familia).startsWith('litofania');
-            const isCurva = design.familia === 'litofania-curva';
-            const isEsfera = design.familia === 'litofania-esfera';
-            const isCubo = design.familia === 'litofania-cubo';
+            const tipo = tipoDesign(design);
+            const isPortachaves = tipo === 'portachaves';
+            const isLito  = tipo.startsWith('litofania');
+            const isCurva = tipo === 'litofania-curva';
+            const isEsfera = tipo === 'litofania-esfera';
+            const isCubo = tipo === 'litofania-cubo';
             const larg = isPortachaves
               ? Number(params?.largura ?? params?.largura_mm ?? 55)
               : Number(params?.largura_mm ?? 20);
