@@ -591,6 +591,7 @@ export default function PageInner() {
             const isPortachaves = design.familia === 'portachaves';
             const isLito  = String(design.familia).startsWith('litofania');
             const isCurva = design.familia === 'litofania-curva';
+            const isEsfera = design.familia === 'litofania-esfera';
             const larg = isPortachaves
               ? Number(params?.largura ?? params?.largura_mm ?? 55)
               : Number(params?.largura_mm ?? 20);
@@ -616,7 +617,9 @@ export default function PageInner() {
             const pW = isLito ? ladoLito : Math.max(12, Math.round(larg * pxMm));
             const pH = isLito ? Math.round(ladoLito * 0.9) : Math.max(12, Math.round(alt * pxMm));
             const moldura = Number(params?.moldura_mm ?? 0);
-            const etiquetaDim = isCurva
+            const etiquetaDim = isEsfera
+              ? `Ø ${Number(params?.diametro_mm ?? 80)} mm · furo LED ${Number(params?.furo_led_mm ?? 40)} mm`
+              : isCurva
               ? `Ø ${2 * Number(params?.raio ?? 50)} mm × ${Number(params?.altura_mm ?? 150)} mm · ${Number(params?.angulo ?? 270)}°`
               : isLito && moldura > 0
                 ? `${larg + 2 * moldura} × ${alt + 2 * moldura} mm (imagem ${larg} × ${alt})`
@@ -658,7 +661,7 @@ export default function PageInner() {
                   boxShadow: '0 0 0 1px #1e293b, 0 8px 32px rgba(0,0,0,0.5)',
                 }}>
                   {isLito && previewImageUrl ? (
-                    <LitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={isCurva} />
+                    <LitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={isCurva} esfera={isEsfera} />
                   ) : isPortachaves && previewImageUrl ? (
                     <PortachavesPreview3D params={params} previewImageUrl={previewImageUrl} />
                   ) : previewImageUrl ? (

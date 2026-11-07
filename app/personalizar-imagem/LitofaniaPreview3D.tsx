@@ -18,7 +18,20 @@ type Props = {
   params: Record<string, any>;
   previewImageUrl: string;
   curva: boolean;
+  esfera?: boolean;
 };
+
+// ── Réplica de esferaGeometria (Docker: app/image-proc.js) ──
+export function esferaGeometria(p: Record<string, any>) {
+  const deg = Math.PI / 180;
+  const R = Math.max(25, Math.min(75, Number(p?.diametro_mm ?? 80) / 2));
+  const furo = Math.max(10, Math.min(1.7 * R, Number(p?.furo_led_mm ?? 40)));
+  const phiCut = -Math.acos(Math.min(0.99, furo / 2 / R));
+  const phi1 = Math.max(-30 * deg, phiCut + 6 * deg);
+  const phi2 = 40 * deg;
+  const A = Math.max(30, Math.min(360, Number(p?.angulo ?? 360))) * deg;
+  return { R, furo, phiCut, phi1, phi2, A };
+}
 
 const GRID_LONG = 220;          // células no lado maior (só visual)
 const K_PLA_BRANCO = 1.2;       // igual a LITO_K_PLA_BRANCO no backend
@@ -108,9 +121,9 @@ function faixa(a: [number, number, number][], b: [number, number, number][]): TH
   return geo;
 }
 
-type Pecas = { frente: THREE.BufferGeometry; tras: THREE.BufferGeometry; bordas: THREE.BufferGeometry[]; tamanho: number };
+type Pecas = { frente: THREE.BufferGeometry; tras: THREE.BufferGeometry; bordas: THREE.BufferGeometry[]; tamanho: number; argola?: { y: number } };
 
-function construir(img: HTMLImageElement, params: Record<string, any>, curva: boolean): Pecas {
+function construir(img: HTMLImageElement, params: Record<string, any>, curva: boolean, esfera = false): Pecas {
   const espMin = Number(params?.esp_min ?? 0.6);
   const espMax = Math.max(espMin + 0.1, Number(params?.esp_max ?? 3.0));
   const alturaMm = Number(params?.altura_mm ?? 150);
@@ -127,6 +140,57 @@ function construir(img: HTMLImageElement, params: Record<string, any>, curva: bo
     const k = Math.exp(-K_PLA_BRANCO * t) / tRef;
     return [LUZ_QUENTE[0] * k, LUZ_QUENTE[1] * k, LUZ_QUENTE[2] * k];
   };
+
+  if (esfera) {
+    // ── Esfera (bola de Natal): mesma lógica do generateLithophaneSphereStl ──
+    const g = esferaGeometria(params);
+    const completo = g.A >= 2 * Math.PI - 1e-6;
+    const aspect = g.A / (g.phi2 - g.phi1);
+    const cols = aspect >= 1 ? GRID_LONG : Math.max(8, Math.round(GRID_LONG * aspect));
+    const rows = aspect >= 1 ? Math.max(8, Math.round(GRID_LONG / aspect)) : GRID_LONG;
+    const mapa = mapaEspessura(img, cols, rows, enq);
+    const capT = Math.max(espMax, 3);
+    const deg = Math.PI / 180;
+    const amostra = (lam: number, phi: number): number | null => {
+      let u: number;
+      if (completo) u = ((lam + Math.PI) / (2 * Math.PI)) * cols;
+      else { if (Math.abs(lam) > g.A / 2) return null; u = ((lam + g.A / 2) / g.A) * (cols - 1); }
+      const v = ((g.phi2 - phi) / (g.phi2 - g.phi1)) * (rows - 1);
+      const r0 = Math.max(0, Math.min(rows - 1, Math.floor(v))), r1 = Math.min(rows - 1, r0 + 1);
+      const fv = Math.max(0, Math.min(1, v - r0));
+      let c0 = Math.floor(u); const fu = u - c0; let c1 = c0 + 1;
+      if (completo) { c0 = ((c0 % cols) + cols) % cols; c1 = c1 % cols; }
+      else { c0 = Math.max(0, Math.min(cols - 1, c0)); c1 = Math.min(cols - 1, c1); }
+      const a = mapa[r0 * cols + c0] * (1 - fu) + mapa[r0 * cols + c1] * fu;
+      const b = mapa[r1 * cols + c0] * (1 - fu) + mapa[r1 * cols + c1] * fu;
+      return a * (1 - fv) + b * fv;
+    };
+    const esp = (lam: number, phi: number) => {
+      if (phi > g.phi2) return espMax + (capT - espMax) * Math.min(1, (phi - g.phi2) / (15 * deg));
+      if (phi < g.phi1) return espMax;
+      return amostra(lam, phi) ?? espMax;
+    };
+    const NL = 240;
+    const nLat = Math.max(16, Math.round(((Math.PI / 2 - g.phiCut) / (g.phi2 - g.phi1)) * rows));
+    const phi = (i: number) => g.phiCut + (i / nLat) * (Math.PI / 2 - g.phiCut);   // i = nLat → polo
+    const lam = (j: number) => -Math.PI + (j / NL) * 2 * Math.PI;                    // j = NL repete j = 0
+    // three: y para cima, frente (+z) = λ 0; λ cresce para a direita (+x)
+    const P = (rad: number, l: number, f: number): [number, number, number] =>
+      [rad * Math.cos(f) * Math.sin(l), rad * Math.sin(f), rad * Math.cos(f) * Math.cos(l)];
+    const yCut = g.R * Math.sin(g.phiCut);
+    const interior = (i: number, j: number): [number, number, number] => {
+      const l = lam(j), f = phi(i), t = esp(l, f);
+      if (i === 0) { const rr = g.R * Math.cos(g.phiCut) - t; return [rr * Math.sin(l), yCut, rr * Math.cos(l)]; }
+      if (i === nLat) return [0, g.R - capT, 0];
+      return P(g.R - t, l, f);
+    };
+    const frente = grelha(nLat + 1, NL + 1, (i, j) => P(g.R, lam(j), phi(i)), (i, j) => luz(esp(lam(j), phi(i))), true);
+    const tras = grelha(nLat + 1, NL + 1, interior);
+    const anel = faixa(
+      Array.from({ length: NL + 1 }, (_, j) => P(g.R, lam(j), g.phiCut)),
+      Array.from({ length: NL + 1 }, (_, j) => interior(0, j)));
+    return { frente, tras, bordas: [anel], tamanho: 2 * g.R + 12, argola: { y: g.R - 1.6 + 4.5 + 1.6 } };
+  }
 
   if (!curva) {
     // ── Plana: frente lisa (z=0) virada para a câmara, relevo atrás ──
@@ -192,11 +256,11 @@ function construir(img: HTMLImageElement, params: Record<string, any>, curva: bo
   return { frente, tras, bordas, tamanho: Math.max(2 * raio, alturaMm) };
 }
 
-function Litofania({ params, previewImageUrl, curva, luzAcesa, onTamanho }: Props & { luzAcesa: boolean; onTamanho: (t: number) => void }) {
+function Litofania({ params, previewImageUrl, curva, esfera = false, luzAcesa, onTamanho }: Props & { luzAcesa: boolean; onTamanho: (t: number) => void }) {
   const [pecas, setPecas] = useState<Pecas | null>(null);
   const depsKey = JSON.stringify({
-    previewImageUrl, curva,
-    p: ['largura_mm', 'altura_mm', 'esp_min', 'esp_max', 'moldura_mm', 'raio', 'angulo', 'img_ajuste', 'img_zoom', 'img_pos_x', 'img_pos_y']
+    previewImageUrl, curva, esfera,
+    p: ['diametro_mm', 'furo_led_mm', 'largura_mm', 'altura_mm', 'esp_min', 'esp_max', 'moldura_mm', 'raio', 'angulo', 'img_ajuste', 'img_zoom', 'img_pos_x', 'img_pos_y']
       .map(k => params?.[k]),
   });
 
@@ -205,7 +269,7 @@ function Litofania({ params, previewImageUrl, curva, luzAcesa, onTamanho }: Prop
     const img = new Image();
     img.onload = () => {
       if (cancelado) return;
-      const p = construir(img, params, curva);
+      const p = construir(img, params, curva, esfera);
       setPecas(prev => {
         if (prev) { prev.frente.dispose(); prev.tras.dispose(); prev.bordas.forEach(b => b.dispose()); }
         return p;
@@ -228,9 +292,17 @@ function Litofania({ params, previewImageUrl, curva, luzAcesa, onTamanho }: Prop
       </mesh>
       <mesh geometry={pecas.tras}>
         {luzAcesa
-          ? <meshBasicMaterial color={curva ? '#ffe4b8' : '#3a3125'} toneMapped={false} side={THREE.DoubleSide} />
+          ? <meshBasicMaterial color={curva || esfera ? '#ffe4b8' : '#3a3125'} toneMapped={false} side={THREE.DoubleSide} />
           : <meshStandardMaterial color={branco} roughness={0.55} side={THREE.DoubleSide} />}
       </mesh>
+      {pecas.argola && (
+        <mesh position={[0, pecas.argola.y, 0]}>
+          <torusGeometry args={[4.5, 1.6, 16, 40]} />
+          {luzAcesa
+            ? <meshBasicMaterial color="#5a4a34" />
+            : <meshStandardMaterial color={branco} roughness={0.55} />}
+        </mesh>
+      )}
       {pecas.bordas.map((b, i) => (
         <mesh key={i} geometry={b}>
           {luzAcesa
@@ -242,22 +314,22 @@ function Litofania({ params, previewImageUrl, curva, luzAcesa, onTamanho }: Prop
   );
 }
 
-export default function LitofaniaPreview3D({ params, previewImageUrl, curva }: Props) {
+export default function LitofaniaPreview3D({ params, previewImageUrl, curva, esfera = false }: Props) {
   const [luzAcesa, setLuzAcesa] = useState(true);
   const [tamanho, setTamanho] = useState(150);
   // Curva: um pouco mais longe e de cima, para se perceber a curvatura
-  const dist = useMemo(() => Math.max(60, tamanho * (curva ? 2.0 : 1.45)), [tamanho, curva]);
+  const dist = useMemo(() => Math.max(60, tamanho * (curva || esfera ? 2.0 : 1.45)), [tamanho, curva, esfera]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas dpr={[1, 2]} gl={{ antialias: true }} style={{ width: '100%', height: '100%' }}>
-        <PerspectiveCamera makeDefault position={[0, curva ? dist * 0.35 : 0, dist]} fov={40} near={0.5} far={5000} />
+        <PerspectiveCamera makeDefault position={[0, curva ? dist * 0.35 : esfera ? dist * 0.15 : 0, dist]} fov={40} near={0.5} far={5000} />
         <Suspense fallback={null}>
           <color attach="background" args={[luzAcesa ? '#07070a' : '#1a1d24']} />
           <ambientLight intensity={luzAcesa ? 0.15 : 0.9} />
           <directionalLight position={[60, 80, 120]} intensity={luzAcesa ? 0.2 : 1.6} />
           <directionalLight position={[-80, -40, -60]} intensity={luzAcesa ? 0 : 0.6} />
-          <Litofania params={params} previewImageUrl={previewImageUrl} curva={curva} luzAcesa={luzAcesa} onTamanho={setTamanho} />
+          <Litofania params={params} previewImageUrl={previewImageUrl} curva={curva} esfera={esfera} luzAcesa={luzAcesa} onTamanho={setTamanho} />
           <OrbitControls makeDefault enablePan={false} minDistance={20} maxDistance={dist * 3} />
         </Suspense>
       </Canvas>
