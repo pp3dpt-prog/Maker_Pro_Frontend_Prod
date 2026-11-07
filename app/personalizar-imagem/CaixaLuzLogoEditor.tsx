@@ -200,7 +200,18 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
 
         <div style={c.bloco}>
           <p style={c.titulo}>4 · Tamanho</p>
-          <Slider label="Largura do desenho" valor={p.largura} min={40} max={600} passo={5} onChange={v => set('largura', v)} />
+          <Slider label="Largura da caixa" valor={r ? Math.round(r.largura) : p.largura} min={40} max={650} passo={5}
+            onChange={v => {
+              // A proporção vem da imagem — mexer na largura ajusta a altura
+              // na mesma percentagem, para não distorcer o desenho.
+              if (r && r.largura > 0) set('largura', Math.round((p.largura * v) / r.largura));
+              else set('largura', v);
+            }} />
+          <Slider label="Altura da caixa" valor={r ? Math.round(r.altura) : Math.round(p.largura * 0.8)} min={40} max={650} passo={5}
+            onChange={v => {
+              if (r && r.altura > 0) set('largura', Math.round((p.largura * v) / r.altura));
+            }} />
+          <p style={c.ajuda}>A largura e a altura mudam juntas, na mesma proporção da imagem — para esticar só um lado, usa um SVG/imagem já com essa proporção.</p>
           <Slider label="Moldura/contorno" valor={p.contorno} min={8} max={30} passo={1} onChange={v => set('contorno', v)} />
           <Slider label="Espessura da frente (passa luz)" valor={p.espessura_base} min={1} max={3} passo={0.1} onChange={v => set('espessura_base', Math.round(v * 10) / 10)} />
           <Slider label="Altura das cores em relevo" valor={p.relevo} min={0.4} max={3} passo={0.2} onChange={v => set('relevo', Math.round(v * 10) / 10)} />
