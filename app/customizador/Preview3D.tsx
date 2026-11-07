@@ -14,6 +14,7 @@ import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb'
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
+import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
   params: Record<string, any>;
@@ -1228,6 +1229,9 @@ function EsquadroPreview({ params }: { params: Record<string, any> }) {
 // ── Componente principal ──
 export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCaixaLuz }: Preview3DProps) {
   const isPetTag    = !!stlFilePath;
+  // Iluminárias (abajur torcido / candeeiro perfurado) — ver IluminariaPreview.tsx
+  const isIluminaria = !isPetTag && geradorIluminaria(params) !== null;
+  const [luzAcesa, setLuzAcesa] = useState(true);
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
   // todos os nomes de parâmetros com "Letras Decorativas" (letra, nome,
@@ -1269,7 +1273,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1298,7 +1302,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             cellColor="#0b0f14"
           />
 
-          {isPetTag ? (
+          {isIluminaria ? (
+            <IluminariaPreview params={params} luzAcesa={luzAcesa} />
+          ) : isPetTag ? (
             <PetTagModel
               stlFilePath={stlFilePath!}
               params={params}
@@ -1331,12 +1337,27 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
+            target={isIluminaria ? [0, 80, 0] : undefined}
             minDistance={isPetTag ? 20 : isEtiqueta ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
             maxDistance={isPetTag ? 200 : isEtiqueta ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
       </Canvas>
+      {isIluminaria && (
+        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
+          {[true, false].map(v => (
+            <button key={String(v)} type="button" onClick={() => setLuzAcesa(v)} style={{
+              padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${luzAcesa === v ? '#f59e0b' : 'rgba(255,255,255,0.15)'}`,
+              background: luzAcesa === v ? 'rgba(245,158,11,0.18)' : 'rgba(15,23,42,0.7)',
+              color: luzAcesa === v ? '#fbbf24' : '#94a3b8',
+            }}>
+              {v ? '💡 Luz acesa' : '🌙 Luz apagada'}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

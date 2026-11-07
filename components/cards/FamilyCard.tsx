@@ -49,6 +49,13 @@ const FAMILY_CONFIG: Record<string, {
     glow: 'rgba(167,139,250,0.4)',
     tag: 'Destaque',
   },
+  'iluminárias': {
+    icon: '💡',
+    description: 'Candeeiros e abajures paramétricos com base para luz LED. Imprime, encaixa e acende.',
+    accent: '#fbbf24',
+    glow: 'rgba(251,191,36,0.4)',
+    tag: 'Novo',
+  },
   'vasos': {
     icon: '🌿',
     description: 'Vasos e recipientes com geometria orgânica. Design vivo para espaços vivos.',
