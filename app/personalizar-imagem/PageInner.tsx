@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import PortachavesPreview3D from './PortachavesPreview3D';
+import LitofaniaPreview3D from './LitofaniaPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
@@ -302,11 +303,14 @@ export default function PageInner() {
     const localUrl = URL.createObjectURL(file);
     setPreviewImageUrl(localUrl);
     setImageAnalysis(null);
-    setAnalysing(true);
-    analyzeImage(localUrl).then(result => {
-      setImageAnalysis(result);
-      setAnalysing(false);
-    });
+    // Litofânias não usam filamentos por tom → sem análise de tons
+    if (!String(design?.familia ?? '').startsWith('litofania')) {
+      setAnalysing(true);
+      analyzeImage(localUrl).then(result => {
+        setImageAnalysis(result);
+        setAnalysing(false);
+      });
+    }
 
     return storagePath;
   };
@@ -557,14 +561,14 @@ export default function PageInner() {
             )}
 
             {mode === 'done' && txtUrl && (
-              <a href={txtUrl} download="hueforge_cores.txt" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+              <a href={txtUrl} download={String(design.familia).startsWith('litofania') ? 'guia_litofania.txt' : 'hueforge_cores.txt'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                   <line x1="12" y1="11" x2="12" y2="17"/>
                   <polyline points="9 14 12 17 15 14"/>
                 </svg>
-                Guia de Cores (TXT)
+                {String(design.familia).startsWith('litofania') ? 'Guia de Impressão (TXT)' : 'Guia de Cores (TXT)'}
               </a>
             )}
           </div>
@@ -585,6 +589,8 @@ export default function PageInner() {
             // Dimensões reais da peça em mm (porta-chaves usa largura/altura,
             // os restantes produtos de imagem usam largura_mm/altura_mm)
             const isPortachaves = design.familia === 'portachaves';
+            const isLito  = String(design.familia).startsWith('litofania');
+            const isCurva = design.familia === 'litofania-curva';
             const larg = isPortachaves
               ? Number(params?.largura ?? params?.largura_mm ?? 55)
               : Number(params?.largura_mm ?? 20);
@@ -605,8 +611,16 @@ export default function PageInner() {
             const ecraW = typeof window !== 'undefined' ? window.innerWidth : 1200;
             const maxH = 480, maxW = Math.max(200, Math.min(480, ecraW - 80));
             const pxMm = Math.min(maxW / largMax, maxH / altMax);
-            const pW = Math.max(12, Math.round(larg * pxMm));
-            const pH = Math.max(12, Math.round(alt * pxMm));
+            // Litofânias: caixa fixa para o visualizador 3D (a peça escala lá dentro)
+            const ladoLito = Math.max(260, Math.min(520, ecraW - 80));
+            const pW = isLito ? ladoLito : Math.max(12, Math.round(larg * pxMm));
+            const pH = isLito ? Math.round(ladoLito * 0.9) : Math.max(12, Math.round(alt * pxMm));
+            const moldura = Number(params?.moldura_mm ?? 0);
+            const etiquetaDim = isCurva
+              ? `Ø ${2 * Number(params?.raio ?? 50)} mm × ${Number(params?.altura_mm ?? 150)} mm · ${Number(params?.angulo ?? 270)}°`
+              : isLito && moldura > 0
+                ? `${larg + 2 * moldura} × ${alt + 2 * moldura} mm (imagem ${larg} × ${alt})`
+                : `${larg} × ${alt} mm`;
             const painelW = Math.max(pW, 280);
 
             // Parâmetros de ajuste da imagem
@@ -630,7 +644,7 @@ export default function PageInner() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                 {/* Etiqueta de dimensões */}
                 <p style={{ color: '#8a96aa', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  {larg} × {alt} mm
+                  {etiquetaDim}
                 </p>
 
                 {/* Contorno proporcional ao marcador */}
@@ -643,7 +657,9 @@ export default function PageInner() {
                   background: '#0f172a',
                   boxShadow: '0 0 0 1px #1e293b, 0 8px 32px rgba(0,0,0,0.5)',
                 }}>
-                  {isPortachaves && previewImageUrl ? (
+                  {isLito && previewImageUrl ? (
+                    <LitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={isCurva} />
+                  ) : isPortachaves && previewImageUrl ? (
                     <PortachavesPreview3D params={params} previewImageUrl={previewImageUrl} />
                   ) : previewImageUrl ? (
                     <img
@@ -672,6 +688,13 @@ export default function PageInner() {
                   )}
                 </div>
 
+                {isLito && previewImageUrl && (
+                  <p style={{ color: '#8a96aa', fontSize: 11, textAlign: 'center', lineHeight: 1.5, maxWidth: painelW }}>
+                    <strong style={{ color: '#fbbf24' }}>Simulação com luz por trás</strong>, a partir da espessura real da peça.
+                    Arrasta para rodar e ver o relevo. O resultado depende do filamento (PLA branco) e da luz.
+                  </p>
+                )}
+
                 {isPortachaves && previewImageUrl && (
                   <p style={{ color: '#8a96aa', fontSize: 11, textAlign: 'center', lineHeight: 1.5, maxWidth: painelW }}>
                     <strong style={{ color: '#60a5fa' }}>Pré-visualização em tempo real.</strong>{' '}
@@ -687,7 +710,7 @@ export default function PageInner() {
                 {analysing && (
                   <p style={{ color: '#8a96aa', fontSize: 12 }}>🔍 A analisar cores…</p>
                 )}
-                {imageAnalysis && !analysing && (
+                {imageAnalysis && !analysing && !isLito && (
                   <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '16px 20px', width: painelW, boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
