@@ -38,7 +38,7 @@ type Pecas = {
 
 type Resultado = {
   r: Pecas;
-  geo: { paredeMm: number; profundidadeMm: number; mesaXMm: number; mesaYMm: number; temTampa: boolean; espessuraTampaMm: number };
+  geo: { paredeMm: number; profundidadeMm: number; mesaXMm: number; mesaYMm: number; temTampa: boolean; espessuraTampaMm: number; montagem: 'pe' | 'parede' };
   corpoTris: number[];
   tampaTris: number[] | null;
   formaTipo: 'imagem' | 'redonda' | 'quadrada' | 'hexagonal';
@@ -61,11 +61,15 @@ const PADRAO = {
   metodo: 'pecas', cor_base: 0, ordem: 'escuras_cima', furo_pos: 'nenhum', detalhe_min: 0.4, preencher_buracos: 1,
   encaixe: 0.6, folga: 0.2,
   parede_caixa_mm: 2.4, profundidade_mm: 25, mesa_x_mm: 256, mesa_y_mm: 256,
-  forma_caixa: 'imagem', tem_tampa: 0, espessura_tampa_mm: 2,
+  forma_caixa: 'imagem', tem_tampa: 0, espessura_tampa_mm: 2, montagem: 'pe',
 };
 
 const FORMAS: [string, string][] = [
   ['imagem', '🖼️ À volta da imagem'], ['redonda', '⚪ Redonda'], ['quadrada', '⬛ Quadrada'], ['hexagonal', '⬡ Hexagonal'],
+];
+
+const MONTAGENS: [string, string][] = [
+  ['pe', '🪑 De pé'], ['parede', '🧱 Na parede'],
 ];
 
 const c = {
@@ -246,11 +250,16 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
           {!!p.tem_tampa && (
             <Slider label="Espessura da tampa" valor={p.espessura_tampa_mm} min={1.2} max={4} passo={0.2} onChange={v => set('espessura_tampa_mm', Math.round(v * 10) / 10)} />
           )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {MONTAGENS.map(([k, t]) => <button key={k} type="button" style={c.seg(p.montagem === k)} onClick={() => set('montagem', k)}>{t}</button>)}
+          </div>
           <p style={c.ajuda}>
-            {p.tem_tampa
-              ? 'Cola a fita de LED por dentro das paredes, depois fecha com a tampa (o cabo passa pela folga ou por um furo no meio, se tiver saído com um).'
-              : 'Cola a fita de LED por dentro das paredes, perto do fundo aberto. A caixa fica aberta — o cabo sai livremente por ali.'}
-            {' '}A frente cola-se sempre em cima.
+            {p.montagem === 'parede'
+              ? 'Fixa à parede: o cabo sai por um furo lateral no corpo (o fundo fica encostado à parede, por isso sai sem furo, mesmo com tampa).'
+              : p.tem_tampa
+                ? 'De pé: o cabo sai por um furo na tampa, perto da base (nunca no meio).'
+                : 'De pé, sem tampa: a caixa fica aberta por trás — o cabo sai livremente por ali.'}
+            {' '}A frente e a tampa encaixam num rebordo do corpo antes de colar.
           </p>
         </div>
 
