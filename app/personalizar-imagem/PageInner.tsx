@@ -7,6 +7,7 @@ import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import PortachavesPreview3D from './PortachavesPreview3D';
 import LitofaniaPreview3D, { CuboLitofaniaPreview3D, CaixaLuzLitofaniaPreview3D } from './LitofaniaPreview3D';
+import TermoformagemPreview3D from './TermoformagemPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
@@ -609,6 +610,7 @@ export default function PageInner() {
             const isEsfera = tipo === 'litofania-esfera';
             const isCubo = tipo === 'litofania-cubo';
             const isCaixaLuz = tipo === 'litofania-caixa-luz';
+            const isTermo = tipo === 'termoformagem-molde';
             const larg = isPortachaves
               ? Number(params?.largura ?? params?.largura_mm ?? 55)
               : Number(params?.largura_mm ?? 20);
@@ -631,8 +633,8 @@ export default function PageInner() {
             const pxMm = Math.min(maxW / largMax, maxH / altMax);
             // Litofânias: caixa fixa para o visualizador 3D (a peça escala lá dentro)
             const ladoLito = Math.max(260, Math.min(520, ecraW - 80));
-            const pW = isLito ? ladoLito : Math.max(12, Math.round(larg * pxMm));
-            const pH = isLito ? Math.round(ladoLito * 0.9) : Math.max(12, Math.round(alt * pxMm));
+            const pW = (isLito || isTermo) ? ladoLito : Math.max(12, Math.round(larg * pxMm));
+            const pH = (isLito || isTermo) ? Math.round(ladoLito * 0.9) : Math.max(12, Math.round(alt * pxMm));
             const moldura = Number(params?.moldura_mm ?? 0);
             const etiquetaDim = isCubo
               ? `Cubo ${Number(params?.lado_mm ?? 100)} × ${Number(params?.lado_mm ?? 100)} × ${Number(params?.altura_mm ?? 100)} mm · ${params?.luz ?? 'LED Kit 001 (Bambu)'}`
@@ -640,6 +642,8 @@ export default function PageInner() {
               ? `Ø ${Number(params?.diametro_mm ?? 80)} mm · furo LED ${Number(params?.furo_led_mm ?? 40)} mm`
               : isCurva
               ? `Ø ${2 * Number(params?.raio ?? 50)} mm × ${Number(params?.altura_mm ?? 150)} mm · ${Number(params?.angulo ?? 270)}°`
+              : isTermo
+              ? `Forma ${larg} × ${alt} mm · chapa ${Number(params?.espessura_chapa_mm ?? 0.5)} mm`
               : isLito && moldura > 0
                 ? `${larg + 2 * moldura} × ${alt + 2 * moldura} mm (imagem ${larg} × ${alt})`
                 : `${larg} × ${alt} mm`;
@@ -683,6 +687,8 @@ export default function PageInner() {
                     <CuboLitofaniaPreview3D params={params ?? {}} imagens={['image_path', 'image_path_2', 'image_path_3', 'image_path_4'].map(k => previewPorParam[k] ?? '')} />
                   ) : isCaixaLuz && previewImageUrl ? (
                     <CaixaLuzLitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={false} />
+                  ) : isTermo ? (
+                    <TermoformagemPreview3D params={params ?? {}} imagePath={typeof params?.image_path === 'string' ? params.image_path : null} />
                   ) : isLito && previewImageUrl ? (
                     <LitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={isCurva} esfera={isEsfera} />
                   ) : isPortachaves && previewImageUrl ? (
