@@ -485,6 +485,139 @@ function Cubo({ params, imagens, luzAcesa, onTamanho }: { params: Record<string,
   );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Litofânia Caixa de Luz — painel plano (reusa a mesma malha da litofania
+// plana, ver `construir(..., curva=false)`) de pé numa base com luz própria
+// (Docker: app/litofaniaCaixaLuz.js). Peça nova — ver guia_caixa_luz.txt.
+// ═════════════════════════════════════════════════════════════════════════════
+
+const CAIXA_LUZ_LUZES: Record<string, { pocketD: number; pocketH: number; floor: number }> = {
+  'LED Kit 001 (Bambu)': { pocketD: 60.2, pocketH: 10, floor: 7 },
+  'Casquilho E14 (M10)': { pocketD: 0, pocketH: 0, floor: 8 },
+  'Vela LED': { pocketD: 39.5, pocketH: 8, floor: 3 },
+};
+const CAIXA_LUZ_FOLGA = 0.4;
+const CAIXA_LUZ_SLOT_H = 12;
+const CAIXA_LUZ_PAREDE = 4;
+const CAIXA_LUZ_PROF_MIN = 60;
+export const CAIXA_LUZ_MOLDURA_MIN = 3;
+
+// Réplica de caixaLuzGeometria (Docker: app/litofaniaCaixaLuz.js)
+export function caixaLuzGeometria(p: Record<string, any>) {
+  const larguraMm = Math.max(60, Math.min(200, Number(p?.largura_mm ?? 120)));
+  const alturaMm  = Math.max(80, Math.min(220, Number(p?.altura_mm ?? 150)));
+  const molduraMm = Math.max(CAIXA_LUZ_MOLDURA_MIN, Math.min(12, Number(p?.moldura_mm ?? 5)));
+  const espMax = Math.max(2, Math.min(5, Number(p?.esp_max ?? 3)));
+  const espMin = Math.min(espMax - 0.3, Math.max(0.3, Math.min(1.5, Number(p?.esp_min ?? 0.6))));
+  const luz = CAIXA_LUZ_LUZES[p?.luz] ?? CAIXA_LUZ_LUZES['LED Kit 001 (Bambu)'];
+  const hb = luz.floor + luz.pocketH;
+  const painelL = larguraMm + 2 * molduraMm;
+  const painelT = espMax;
+  const standW = painelL + 2 * (CAIXA_LUZ_PAREDE + CAIXA_LUZ_FOLGA);
+  const slotT = painelT + 2 * CAIXA_LUZ_FOLGA;
+  const holeY = CAIXA_LUZ_PAREDE + CAIXA_LUZ_FOLGA + Math.max(slotT, luz.pocketD) / 2;
+  const standD = Math.max(CAIXA_LUZ_PROF_MIN, holeY + luz.pocketD / 2 + 10, painelL * 0.42);
+  const standH = hb + CAIXA_LUZ_SLOT_H;
+  return { larguraMm, alturaMm, molduraMm, espMax, espMin, hb, painelL, painelT, standW, standD, standH, holeY };
+}
+
+function CaixaLuz({ params, previewImageUrl, luzAcesa, onTamanho }: Props & { luzAcesa: boolean; onTamanho: (w: number, h: number) => void }) {
+  const [painel, setPainel] = useState<Pecas | null>(null);
+  const g = useMemo(() => caixaLuzGeometria(params), [params]);
+  const depsKey = JSON.stringify({
+    previewImageUrl,
+    p: ['largura_mm', 'altura_mm', 'esp_min', 'esp_max', 'moldura_mm', 'luz', 'img_ajuste', 'img_zoom', 'img_pos_x', 'img_pos_y']
+      .map(k => params?.[k]),
+  });
+
+  useEffect(() => {
+    let cancelado = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelado) return;
+      const p = construir(img, params, false, false);
+      setPainel(prev => {
+        if (prev) { prev.frente.dispose(); prev.tras.dispose(); prev.bordas.forEach(b => b.dispose()); }
+        return p;
+      });
+      onTamanho(g.standW, g.standH + p.tamanho);
+    };
+    img.src = previewImageUrl;
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depsKey]);
+
+  if (!painel) return null;
+  const branco = '#f2f0ea';
+  const escuro = '#2b2c31';
+  // O painel (construir) fica centrado na própria altura/largura — eleva-se
+  // para assentar na ranhura, a CAIXA_LUZ_SLOT_H/2 acima do topo da base
+  // (metade entra na ranhura, resto fica à vista).
+  const painelY = g.standH + g.alturaMm / 2 + g.molduraMm - CAIXA_LUZ_SLOT_H / 2;
+  return (
+    <group>
+      <group position={[0, painelY, 0]}>
+        <mesh geometry={painel.frente}>
+          {luzAcesa
+            ? <meshBasicMaterial vertexColors toneMapped={false} side={THREE.DoubleSide} />
+            : <meshStandardMaterial color={branco} roughness={0.55} side={THREE.DoubleSide} />}
+        </mesh>
+        <mesh geometry={painel.tras}>
+          {luzAcesa
+            ? <meshBasicMaterial color="#3a3125" toneMapped={false} side={THREE.DoubleSide} />
+            : <meshStandardMaterial color={branco} roughness={0.55} side={THREE.DoubleSide} />}
+        </mesh>
+        {painel.bordas.map((b, i) => (
+          <mesh key={i} geometry={b}>
+            {luzAcesa
+              ? <meshBasicMaterial color="#5a4a34" side={THREE.DoubleSide} />
+              : <meshStandardMaterial color={branco} roughness={0.55} side={THREE.DoubleSide} />}
+          </mesh>
+        ))}
+      </group>
+      {/* Base — bloco com o encaixe da luz + ranhura (ver caixaLuzBaseScad) */}
+      <mesh position={[0, g.standH / 2, 0]}>
+        <boxGeometry args={[g.standW, g.standH, g.standD]} />
+        <meshStandardMaterial color={escuro} roughness={0.6} />
+      </mesh>
+    </group>
+  );
+}
+
+export function CaixaLuzLitofaniaPreview3D({ params, previewImageUrl }: Props) {
+  const [luzAcesa, setLuzAcesa] = useState(true);
+  const [tam, setTam] = useState<[number, number]>([160, 200]);
+  const dist = Math.max(90, Math.max(tam[0], tam[1]) * 1.6);
+  const cy = tam[1] / 2;
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <Canvas dpr={[1, 2]} gl={{ antialias: true }} style={{ width: '100%', height: '100%' }}>
+        <PerspectiveCamera makeDefault position={[0, cy + dist * 0.12, dist]} fov={38} near={0.5} far={5000} />
+        <Suspense fallback={null}>
+          <color attach="background" args={[luzAcesa ? '#07070a' : '#1a1d24']} />
+          <ambientLight intensity={luzAcesa ? 0.2 : 0.9} />
+          <directionalLight position={[60, 120, 120]} intensity={luzAcesa ? 0.25 : 1.6} />
+          <directionalLight position={[-80, 40, -60]} intensity={luzAcesa ? 0.08 : 0.6} />
+          <CaixaLuz params={params ?? {}} previewImageUrl={previewImageUrl} curva={false} luzAcesa={luzAcesa} onTamanho={(w, h) => setTam([w, h])} />
+          <OrbitControls makeDefault enablePan={false} target={[0, cy, 0]} minDistance={40} maxDistance={dist * 3} />
+        </Suspense>
+      </Canvas>
+      <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
+        {[true, false].map(v => (
+          <button key={String(v)} type="button" onClick={() => setLuzAcesa(v)} style={{
+            padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            border: `1px solid ${luzAcesa === v ? '#f59e0b' : 'rgba(255,255,255,0.15)'}`,
+            background: luzAcesa === v ? 'rgba(245,158,11,0.18)' : 'rgba(15,23,42,0.7)',
+            color: luzAcesa === v ? '#fbbf24' : '#94a3b8',
+          }}>
+            {v ? '💡 Luz acesa' : '🌙 Luz apagada'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function CuboLitofaniaPreview3D({ params, imagens }: { params: Record<string, any>; imagens: string[] }) {
   const [luzAcesa, setLuzAcesa] = useState(true);
   const [tam, setTam] = useState<[number, number]>([140, 111]);

@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import PortachavesPreview3D from './PortachavesPreview3D';
-import LitofaniaPreview3D, { CuboLitofaniaPreview3D } from './LitofaniaPreview3D';
+import LitofaniaPreview3D, { CuboLitofaniaPreview3D, CaixaLuzLitofaniaPreview3D } from './LitofaniaPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
@@ -608,6 +608,7 @@ export default function PageInner() {
             const isCurva = tipo === 'litofania-curva';
             const isEsfera = tipo === 'litofania-esfera';
             const isCubo = tipo === 'litofania-cubo';
+            const isCaixaLuz = tipo === 'litofania-caixa-luz';
             const larg = isPortachaves
               ? Number(params?.largura ?? params?.largura_mm ?? 55)
               : Number(params?.largura_mm ?? 20);
@@ -680,6 +681,8 @@ export default function PageInner() {
                 }}>
                   {isCubo && previewImageUrl ? (
                     <CuboLitofaniaPreview3D params={params ?? {}} imagens={['image_path', 'image_path_2', 'image_path_3', 'image_path_4'].map(k => previewPorParam[k] ?? '')} />
+                  ) : isCaixaLuz && previewImageUrl ? (
+                    <CaixaLuzLitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={false} />
                   ) : isLito && previewImageUrl ? (
                     <LitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={isCurva} esfera={isEsfera} />
                   ) : isPortachaves && previewImageUrl ? (
