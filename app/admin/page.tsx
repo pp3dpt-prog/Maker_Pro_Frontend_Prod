@@ -260,7 +260,7 @@ export default function AdminDashboard() {
           onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <span>🖼️ Fotos dos produtos</span>
+          <span>🖼️ Fotos dos Designs</span>
         </Link>
 
         <Link
@@ -352,7 +352,7 @@ export default function AdminDashboard() {
           onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <span>🖼️ Fotos de Produto</span>
+          <span>🖼️ Fotos de Loja</span>
         </Link>
 
         <Link

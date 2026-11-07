@@ -135,11 +135,12 @@ export default function AdminProdutosPage() {
       <div style={s.wrap}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
-            <h1 style={s.h1}>Fotos dos produtos</h1>
+            <h1 style={s.h1}>Fotos dos Designs</h1>
             <p style={s.sub}>
-              Uma foto por modelo — substitui a imagem usada no customizador e no catálogo.
-              A foto marcada como <strong style={{ color: '#fbbf24' }}>★ capa</strong> é a que aparece
-              no cartão da família em /produtos.
+              Uma foto por modelo do customizador (iluminárias, litofânias, porta-chaves, etc.) —
+              substitui a imagem usada no customizador e no catálogo. A foto marcada como{' '}
+              <strong style={{ color: '#fbbf24' }}>★ capa</strong> é a que aparece no cartão da
+              família em /produtos. Fotos da loja (prod_loja_produtos) ficam em Fotos de Loja.
             </p>
           </div>
           <Link href="/admin" style={s.btnGhost}>← Admin</Link>
