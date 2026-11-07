@@ -22,6 +22,7 @@ type Design = {
   total_likes: number;
   total_downloads: number;
   estado: string;
+  capa_familia?: boolean;
 };
 
 type FamilyInfo = {
@@ -61,7 +62,7 @@ export default async function Page() {
   // Buscar designs conforme o role
   let query = supabase
     .from('prod_designs')
-    .select('id, nome, descricao, familia, tags, thumbnail_url, total_likes, total_downloads, estado');
+    .select('id, nome, descricao, familia, tags, thumbnail_url, total_likes, total_downloads, estado, capa_familia');
 
   // Admin vê tudo (incluindo rascunhos) — utilizadores normais só veem designs activos
   if (!isAdmin) {
@@ -88,6 +89,8 @@ export default async function Page() {
       if (!acc[familia]) {
         acc[familia] = {
           count: 0,
+          // Imagem provisória — substituída abaixo se este ou outro design
+          // da família tiver capa_familia marcada no admin (/admin/produtos).
           thumbnail_url: design.thumbnail_url,
           totalLikes: 0,
           totalDownloads: 0,
@@ -100,6 +103,11 @@ export default async function Page() {
       acc[familia].totalLikes += design.total_likes ?? 0;
       acc[familia].totalDownloads += design.total_downloads ?? 0;
       acc[familia].designIds.push(design.id);
+
+      // Capa escolhida no admin ganha sempre à imagem provisória.
+      if (design.capa_familia && design.thumbnail_url) {
+        acc[familia].thumbnail_url = design.thumbnail_url;
+      }
 
       // Se qualquer design da família for exclusivo, a família é exclusiva
       if (design.estado === 'exclusivo') {

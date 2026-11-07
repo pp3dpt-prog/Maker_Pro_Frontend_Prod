@@ -20,6 +20,7 @@ type Design = {
   total_downloads: number;
   estado: string;
   gratuito?: boolean;
+  capa_familia?: boolean;
 };
 
 type FamilyInfo = {
@@ -78,7 +79,7 @@ export default async function MakersPage() {
   // Designs: admin vê tudo; restantes veem ativos + exclusivos (bloqueados)
   let query = supabase
     .from('prod_designs')
-    .select('id, nome, familia, thumbnail_url, total_likes, total_downloads, estado, gratuito');
+    .select('id, nome, familia, thumbnail_url, total_likes, total_downloads, estado, gratuito, capa_familia');
   if (!isAdmin) query = query.in('estado', ['ativo', 'exclusivo']);
 
   const { data, error } = await query;
@@ -93,6 +94,7 @@ export default async function MakersPage() {
     acc[fam].designIds.push(d.id);
     if (d.estado === 'exclusivo') acc[fam].isExclusivo = true;
     if (d.gratuito) acc[fam].temGratuito = true;
+    if (d.capa_familia && d.thumbnail_url) acc[fam].thumbnail_url = d.thumbnail_url;
     return acc;
   }, {});
 
