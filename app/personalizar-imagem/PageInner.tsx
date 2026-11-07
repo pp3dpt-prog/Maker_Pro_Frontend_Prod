@@ -345,7 +345,9 @@ export default function PageInner() {
         res = await fetch('/api/gerar-stl-hueforge', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ id: designId, params: paramsBackend }),
+          // 'final': resolução real da peça (5 px/mm). Sem isto o backend
+          // gerava em modo preview (150 px no lado maior) → STL com pouco detalhe.
+          body: JSON.stringify({ id: designId, params: paramsBackend, mode: 'final' }),
           signal: controller.signal,
         });
       } finally {
