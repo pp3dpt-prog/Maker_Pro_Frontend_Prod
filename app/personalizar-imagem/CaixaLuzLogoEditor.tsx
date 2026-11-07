@@ -36,7 +36,13 @@ type Pecas = {
   base2d: any[];
 };
 
-type Resultado = { r: Pecas; geo: { paredeMm: number; profundidadeMm: number; mesaXMm: number; mesaYMm: number }; corpoTris: number[] };
+type Resultado = {
+  r: Pecas;
+  geo: { paredeMm: number; profundidadeMm: number; mesaXMm: number; mesaYMm: number; temTampa: boolean; espessuraTampaMm: number };
+  corpoTris: number[];
+  tampaTris: number[] | null;
+  formaTipo: 'imagem' | 'redonda' | 'quadrada' | 'hexagonal';
+};
 
 type Props = {
   designId: string;
@@ -55,7 +61,12 @@ const PADRAO = {
   metodo: 'pecas', cor_base: 0, ordem: 'escuras_cima', furo_pos: 'nenhum', detalhe_min: 0.4, preencher_buracos: 1,
   encaixe: 0.6, folga: 0.2,
   parede_caixa_mm: 2.4, profundidade_mm: 25, mesa_x_mm: 256, mesa_y_mm: 256,
+  forma_caixa: 'imagem', tem_tampa: 0, espessura_tampa_mm: 2,
 };
+
+const FORMAS: [string, string][] = [
+  ['imagem', '🖼️ À volta da imagem'], ['redonda', '⚪ Redonda'], ['quadrada', '⬛ Quadrada'], ['hexagonal', '⬡ Hexagonal'],
+];
 
 const c = {
   bloco: { padding: 14, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 10 } as React.CSSProperties,
@@ -219,9 +230,28 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
 
         <div style={c.bloco}>
           <p style={c.titulo}>5 · Caixa (luz atrás)</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            {FORMAS.map(([k, t]) => <button key={k} type="button" style={c.seg(p.forma_caixa === k)} onClick={() => set('forma_caixa', k)}>{t}</button>)}
+          </div>
+          <p style={c.ajuda}>
+            {p.forma_caixa === 'imagem'
+              ? 'A caixa segue o contorno exato do logótipo/texto/desenho.'
+              : 'A caixa fica com esta forma fixa, grande o suficiente para a arte caber lá dentro, com a moldura à volta.'}
+          </p>
           <Slider label="Espessura da parede" valor={p.parede_caixa_mm} min={1.6} max={4} passo={0.2} onChange={v => set('parede_caixa_mm', Math.round(v * 10) / 10)} />
           <Slider label="Profundidade" valor={p.profundidade_mm} min={15} max={60} passo={1} onChange={v => set('profundidade_mm', v)} />
-          <p style={c.ajuda}>Cola a fita de LED por dentro das paredes, perto do fundo aberto. A caixa fica aberta dos dois lados — a frente cola-se em cima.</p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
+            <input type="checkbox" checked={!!p.tem_tampa} onChange={e => set('tem_tampa', e.target.checked ? 1 : 0)} /> Tampa a fechar o fundo
+          </label>
+          {!!p.tem_tampa && (
+            <Slider label="Espessura da tampa" valor={p.espessura_tampa_mm} min={1.2} max={4} passo={0.2} onChange={v => set('espessura_tampa_mm', Math.round(v * 10) / 10)} />
+          )}
+          <p style={c.ajuda}>
+            {p.tem_tampa
+              ? 'Cola a fita de LED por dentro das paredes, depois fecha com a tampa (o cabo passa pela folga ou por um furo no meio, se tiver saído com um).'
+              : 'Cola a fita de LED por dentro das paredes, perto do fundo aberto. A caixa fica aberta — o cabo sai livremente por ali.'}
+            {' '}A frente cola-se sempre em cima.
+          </p>
         </div>
 
         {p.modo === 'sem_ams' && (
@@ -295,7 +325,8 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
         {r && (
           <div style={c.bloco}>
             <p style={c.titulo}>O que vais receber ({formato})</p>
-            <p style={{ ...c.ajuda, color: '#cbd5e1' }}>corpo.stl — paredes ocas da caixa, abertas dos dois lados</p>
+            <p style={{ ...c.ajuda, color: '#cbd5e1' }}>corpo.stl — paredes ocas da caixa{p.tem_tampa ? '' : ', abertas dos dois lados'}</p>
+            {!!p.tem_tampa && <p style={{ ...c.ajuda, color: '#cbd5e1' }}>tampa.stl — fecha o fundo</p>}
             {r.guia.map((g, i) => <p key={i} style={{ ...c.ajuda, color: '#cbd5e1' }}>{g}</p>)}
             {r.avisos.map((a, i) => <p key={`a${i}`} style={{ ...c.ajuda, color: '#fbbf24' }}>⚠ {a}</p>)}
           </div>
@@ -309,7 +340,7 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
 // ── Modelo 3D ────────────────────────────────────────────────────────────────
 
 function Modelo({ res, luzAcesa }: { res: Resultado; luzAcesa: boolean }) {
-  const { r, geo, corpoTris } = res;
+  const { r, geo, corpoTris, tampaTris } = res;
 
   const corpoGeo = useMemo(() => {
     const g = new THREE.BufferGeometry();
@@ -318,6 +349,15 @@ function Modelo({ res, luzAcesa }: { res: Resultado; luzAcesa: boolean }) {
     return g;
   }, [corpoTris]);
   useEffect(() => () => corpoGeo.dispose(), [corpoGeo]);
+
+  const tampaGeo = useMemo(() => {
+    if (!tampaTris) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(tampaTris, 3));
+    g.computeVertexNormals();
+    return g;
+  }, [tampaTris]);
+  useEffect(() => () => tampaGeo?.dispose(), [tampaGeo]);
 
   const malhas = useMemo(() => {
     const out: { geo: THREE.BufferGeometry; cor: string; frente: boolean }[] = [];
@@ -341,6 +381,11 @@ function Modelo({ res, luzAcesa }: { res: Resultado; luzAcesa: boolean }) {
       <mesh geometry={corpoGeo}>
         <meshStandardMaterial color="#2b2c31" roughness={0.6} />
       </mesh>
+      {tampaGeo && (
+        <mesh geometry={tampaGeo}>
+          <meshStandardMaterial color="#2b2c31" roughness={0.6} />
+        </mesh>
+      )}
       <group position={[0, 0, geo.profundidadeMm]}>
         {malhas.map((m, i) => (
           <mesh key={i} geometry={m.geo}>
