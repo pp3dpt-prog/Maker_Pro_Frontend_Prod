@@ -348,3 +348,173 @@ export default function LitofaniaPreview3D({ params, previewImageUrl, curva, esf
     </div>
   );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Litofânia Cubo — candeeiro de 4 faces (Docker: app/litofaniaCubo.js)
+// ═════════════════════════════════════════════════════════════════════════════
+
+const CUBO_LUZES: Record<string, { pocketH: number; floor: number }> = {
+  'LED Kit 001 (Bambu)': { pocketH: 10, floor: 7 },
+  'Casquilho E14 (M10)': { pocketH: 0, floor: 8 },
+  'Vela LED': { pocketH: 8, floor: 3 },
+};
+
+// Réplica de cuboGeometria
+export function cuboGeometria(p: Record<string, any>) {
+  const espMin = Math.max(0.3, Number(p?.esp_min ?? 0.6));
+  const espMax = Math.max(espMin + 0.5, Number(p?.esp_max ?? 3.0));
+  const L = Math.max(80, Math.min(160, Number(p?.lado_mm ?? 100)));
+  const H = Math.max(60, Math.min(220, Number(p?.altura_mm ?? 100)));
+  const m = Math.max(espMax + 1, Math.min(20, Number(p?.moldura_mm ?? 6)));
+  const mB = m + 5, mT = m + 3;
+  const luz = CUBO_LUZES[p?.luz] ?? CUBO_LUZES['LED Kit 001 (Bambu)'];
+  return { L, H, m, mB, mT, espMin, espMax, hb: luz.floor + luz.pocketH, imgW: L - 2 * m, imgH: H - mB - mT };
+}
+
+type CuboPecas = { faces: { frente: THREE.BufferGeometry; tras: THREE.BufferGeometry }[]; g: ReturnType<typeof cuboGeometria> };
+
+function construirCubo(imgs: (HTMLImageElement | null)[], params: Record<string, any>): CuboPecas {
+  const g = cuboGeometria(params);
+  const enq = {
+    fit: String(params?.img_ajuste ?? 'Preencher'),
+    zoom: Number(params?.img_zoom ?? 100),
+    posX: Number(params?.img_pos_x ?? 0),
+    posY: Number(params?.img_pos_y ?? 0),
+    espMin: g.espMin, espMax: g.espMax,
+  };
+  const tRef = Math.exp(-K_PLA_BRANCO * g.espMin);
+  const luz = (t: number): [number, number, number] => {
+    const k = Math.exp(-K_PLA_BRANCO * t) / tRef;
+    return [LUZ_QUENTE[0] * k, LUZ_QUENTE[1] * k, LUZ_QUENTE[2] * k];
+  };
+  // Resolução da imagem por face (só visual)
+  const asp = g.imgW / g.imgH;
+  const ic = asp >= 1 ? 140 : Math.max(8, Math.round(140 * asp));
+  const ir = asp >= 1 ? Math.max(8, Math.round(140 / asp)) : 140;
+  const mapas = new Map<HTMLImageElement, Float32Array>();
+  const passo = 0.8;
+  const nC = Math.round(g.L / passo), nR = Math.round(g.H / passo);
+  const { L, H } = g;
+  // three: y para cima; frente em +z (virada para a câmara); "u" = direita de quem vê de fora
+  const defs = [
+    { C: [-L / 2, L / 2], u: [1, 0], n: [0, -1] },     // 0 frente
+    { C: [L / 2, L / 2], u: [0, -1], n: [-1, 0] },     // 1 direita
+    { C: [L / 2, -L / 2], u: [-1, 0], n: [0, 1] },     // 2 trás
+    { C: [-L / 2, -L / 2], u: [0, 1], n: [1, 0] },     // 3 esquerda
+  ];
+  const faces = defs.map((d, k) => {
+    const img = imgs[k] ?? imgs[0];
+    let mapa: Float32Array | null = null;
+    if (img) {
+      if (!mapas.has(img)) mapas.set(img, mapaEspessura(img, ic, ir, enq));
+      mapa = mapas.get(img)!;
+    }
+    const esp = (r: number, c: number) => {
+      const s = (c / nC) * L, z = H - (r / nR) * H;             // r = 0 → topo
+      const sx = s - g.m, sz = (H - g.mT) - z;
+      if (!mapa || sx < 0 || sx > g.imgW || sz < 0 || sz > g.imgH) return g.espMax;
+      const cc = Math.min(ic - 1, Math.round((sx / g.imgW) * (ic - 1)));
+      const rr = Math.min(ir - 1, Math.round((sz / g.imgH) * (ir - 1)));
+      return mapa[rr * ic + cc];
+    };
+    const P = (r: number, c: number, t: number): [number, number, number] => {
+      const s = (c / nC) * L;
+      return [d.C[0] + d.u[0] * s + d.n[0] * t, g.hb + H - (r / nR) * H, d.C[1] + d.u[1] * s + d.n[1] * t];
+    };
+    return {
+      frente: grelha(nR + 1, nC + 1, (r, c) => P(r, c, 0), (r, c) => luz(esp(r, c))),
+      tras: grelha(nR + 1, nC + 1, (r, c) => P(r, c, esp(r, c))),
+    };
+  });
+  return { faces, g };
+}
+
+function Cubo({ params, imagens, luzAcesa, onTamanho }: { params: Record<string, any>; imagens: string[]; luzAcesa: boolean; onTamanho: (t: number, alt: number) => void }) {
+  const [pecas, setPecas] = useState<CuboPecas | null>(null);
+  const depsKey = JSON.stringify({ imagens, p: ['lado_mm', 'altura_mm', 'esp_min', 'esp_max', 'moldura_mm', 'luz', 'img_ajuste', 'img_zoom', 'img_pos_x', 'img_pos_y'].map(k => params?.[k]) });
+
+  useEffect(() => {
+    let cancelado = false;
+    const carregar = (url: string) => new Promise<HTMLImageElement | null>(res => {
+      if (!url) return res(null);
+      const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = url;
+    });
+    Promise.all(imagens.map(carregar)).then(imgs => {
+      if (cancelado) return;
+      const p = construirCubo(imgs, params);
+      setPecas(prev => {
+        prev?.faces.forEach(f => { f.frente.dispose(); f.tras.dispose(); });
+        return p;
+      });
+      onTamanho(Math.max(p.g.L * 1.4, p.g.hb + p.g.H + 3), p.g.hb + p.g.H + 3);
+    });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depsKey]);
+
+  if (!pecas) return null;
+  const { g } = pecas;
+  const branco = '#f2f0ea';
+  const escuro = '#2b2c31';
+  return (
+    <group>
+      {pecas.faces.map((f, i) => (
+        <group key={i}>
+          <mesh geometry={f.frente}>
+            {luzAcesa
+              ? <meshBasicMaterial vertexColors toneMapped={false} side={THREE.DoubleSide} />
+              : <meshStandardMaterial color={branco} roughness={0.55} side={THREE.DoubleSide} />}
+          </mesh>
+          <mesh geometry={f.tras}>
+            {luzAcesa
+              ? <meshBasicMaterial color="#ffe4b8" toneMapped={false} side={THREE.DoubleSide} />
+              : <meshStandardMaterial color={branco} roughness={0.55} side={THREE.DoubleSide} />}
+          </mesh>
+        </group>
+      ))}
+      {/* Base e tampa */}
+      <mesh position={[0, g.hb / 2, 0]}>
+        <boxGeometry args={[g.L, g.hb, g.L]} />
+        <meshStandardMaterial color={escuro} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, g.hb + g.H + 1.5, 0]}>
+        <boxGeometry args={[g.L, 3, g.L]} />
+        <meshStandardMaterial color={escuro} roughness={0.6} />
+      </mesh>
+    </group>
+  );
+}
+
+export function CuboLitofaniaPreview3D({ params, imagens }: { params: Record<string, any>; imagens: string[] }) {
+  const [luzAcesa, setLuzAcesa] = useState(true);
+  const [tam, setTam] = useState<[number, number]>([140, 111]);
+  const dist = Math.max(80, tam[0] * 1.9);
+  const cy = tam[1] / 2;
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <Canvas dpr={[1, 2]} gl={{ antialias: true }} style={{ width: '100%', height: '100%' }}>
+        <PerspectiveCamera makeDefault position={[dist * 0.5, cy + dist * 0.28, dist * 0.82]} fov={40} near={0.5} far={5000} />
+        <Suspense fallback={null}>
+          <color attach="background" args={[luzAcesa ? '#07070a' : '#1a1d24']} />
+          <ambientLight intensity={luzAcesa ? 0.35 : 0.9} />
+          <directionalLight position={[60, 120, 120]} intensity={luzAcesa ? 0.5 : 1.6} />
+          <directionalLight position={[-80, 40, -60]} intensity={luzAcesa ? 0.1 : 0.6} />
+          <Cubo params={params} imagens={imagens} luzAcesa={luzAcesa} onTamanho={(t, a) => setTam([t, a])} />
+          <OrbitControls makeDefault enablePan={false} target={[0, cy, 0]} minDistance={30} maxDistance={dist * 3} />
+        </Suspense>
+      </Canvas>
+      <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
+        {[true, false].map(v => (
+          <button key={String(v)} type="button" onClick={() => setLuzAcesa(v)} style={{
+            padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            border: `1px solid ${luzAcesa === v ? '#f59e0b' : 'rgba(255,255,255,0.15)'}`,
+            background: luzAcesa === v ? 'rgba(245,158,11,0.18)' : 'rgba(15,23,42,0.7)',
+            color: luzAcesa === v ? '#fbbf24' : '#94a3b8',
+          }}>
+            {v ? '💡 Luz acesa' : '🌙 Luz apagada'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

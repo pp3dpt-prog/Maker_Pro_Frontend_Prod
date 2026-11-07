@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import PortachavesPreview3D from './PortachavesPreview3D';
-import LitofaniaPreview3D from './LitofaniaPreview3D';
+import LitofaniaPreview3D, { CuboLitofaniaPreview3D } from './LitofaniaPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
@@ -161,6 +161,8 @@ export default function PageInner() {
   const [stlUrl, setStlUrl] = useState<string | null>(null);
   const [txtUrl, setTxtUrl] = useState<string | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  // URL local de cada imagem carregada, por parâmetro (o cubo tem até 4 fotos)
+  const [previewPorParam, setPreviewPorParam] = useState<Record<string, string>>({});
 
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
@@ -301,7 +303,9 @@ export default function PageInner() {
 
     // Gerar preview local e analisar cores
     const localUrl = URL.createObjectURL(file);
-    setPreviewImageUrl(localUrl);
+    setPreviewPorParam(prev => ({ ...prev, [_paramName]: localUrl }));
+    // A pré-visualização principal é a 1.ª imagem (as fotos 2–4 do cubo não a substituem)
+    if (_paramName === 'image_path' || !previewImageUrl) setPreviewImageUrl(localUrl);
     setImageAnalysis(null);
     // Litofânias não usam filamentos por tom → sem análise de tons
     if (!String(design?.familia ?? '').startsWith('litofania')) {
@@ -592,6 +596,7 @@ export default function PageInner() {
             const isLito  = String(design.familia).startsWith('litofania');
             const isCurva = design.familia === 'litofania-curva';
             const isEsfera = design.familia === 'litofania-esfera';
+            const isCubo = design.familia === 'litofania-cubo';
             const larg = isPortachaves
               ? Number(params?.largura ?? params?.largura_mm ?? 55)
               : Number(params?.largura_mm ?? 20);
@@ -617,7 +622,9 @@ export default function PageInner() {
             const pW = isLito ? ladoLito : Math.max(12, Math.round(larg * pxMm));
             const pH = isLito ? Math.round(ladoLito * 0.9) : Math.max(12, Math.round(alt * pxMm));
             const moldura = Number(params?.moldura_mm ?? 0);
-            const etiquetaDim = isEsfera
+            const etiquetaDim = isCubo
+              ? `Cubo ${Number(params?.lado_mm ?? 100)} × ${Number(params?.lado_mm ?? 100)} × ${Number(params?.altura_mm ?? 100)} mm · ${params?.luz ?? 'LED Kit 001 (Bambu)'}`
+              : isEsfera
               ? `Ø ${Number(params?.diametro_mm ?? 80)} mm · furo LED ${Number(params?.furo_led_mm ?? 40)} mm`
               : isCurva
               ? `Ø ${2 * Number(params?.raio ?? 50)} mm × ${Number(params?.altura_mm ?? 150)} mm · ${Number(params?.angulo ?? 270)}°`
@@ -660,7 +667,9 @@ export default function PageInner() {
                   background: '#0f172a',
                   boxShadow: '0 0 0 1px #1e293b, 0 8px 32px rgba(0,0,0,0.5)',
                 }}>
-                  {isLito && previewImageUrl ? (
+                  {isCubo && previewImageUrl ? (
+                    <CuboLitofaniaPreview3D params={params ?? {}} imagens={['image_path', 'image_path_2', 'image_path_3', 'image_path_4'].map(k => previewPorParam[k] ?? '')} />
+                  ) : isLito && previewImageUrl ? (
                     <LitofaniaPreview3D params={params ?? {}} previewImageUrl={previewImageUrl} curva={isCurva} esfera={isEsfera} />
                   ) : isPortachaves && previewImageUrl ? (
                     <PortachavesPreview3D params={params} previewImageUrl={previewImageUrl} />
