@@ -10,6 +10,7 @@ import LitofaniaPreview3D, { CuboLitofaniaPreview3D, CaixaLuzLitofaniaPreview3D 
 import TermoformagemPreview3D from './TermoformagemPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import CaixaLuzLogoEditor from './CaixaLuzLogoEditor';
+import CaixaLuzNeonEditor from './CaixaLuzNeonEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
 type GenerationSchema = {
@@ -468,6 +469,28 @@ export default function PageInner() {
           <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
         </div>
         <CaixaLuzLogoEditor
+          designId={designId}
+          nome={design.nome}
+          userId={userId}
+          canDownload={!!userId && canDownloadStl && !semDownloads}
+          bloqueioMsg={!userId ? null : stlBloqueadoDownload ? (design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar` : 'Download não disponível neste plano') : semDownloads ? 'Limite mensal de downloads atingido — upgrade do plano' : null}
+          downloadsInfo={userId && isMaker ? { usados: userProfile?.downloads_mes ?? 0, limite: userProfile?.downloads_limite ?? 3 } : null}
+          onUpload={file => handleFileUpload('image_path', file)}
+          onDownloadSuccess={handleDownloadSuccess}
+        />
+      </>
+    );
+  }
+
+  // Caixa de luz — canal de neon (SVG de linhas → canal em U só): editor
+  // próprio, sem vetorização por imagem (não há cores nem silhueta a preencher).
+  if ((design.generation_schema as any)?.engine === 'caixa-luz-neon') {
+    return (
+      <>
+        <div style={{ padding: '20px 24px 0' }}>
+          <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
+        </div>
+        <CaixaLuzNeonEditor
           designId={designId}
           nome={design.nome}
           userId={userId}
