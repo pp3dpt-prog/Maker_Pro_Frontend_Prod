@@ -9,6 +9,7 @@ import { isCaixaPcb } from '@/lib/caixaPcb';
 import { isBaseCopos } from '@/lib/baseCopos';
 import { isSuporteBases } from '@/lib/suporteBases';
 import { isNomeFlexivel } from '@/lib/nomeFlexivel';
+import { isDecoracao } from '@/lib/decoracao';
 
 type Props = {
   designId: string;
@@ -59,13 +60,15 @@ export default function CustomizadorClient({
   // Caixa PCB: pcb_w/pcb_l/pcb_h + hinge_type (ver lib/caixaPcb.ts).
   const isCaixaPcbModelo = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro && !isEtiqueta
     && isCaixaPcb(params);
-  // Base para copos, suporte para bases e nome flexível — a MESMA deteção do Preview3D.tsx
+  // Base para copos, suporte para bases, nome flexível e decoração — a MESMA deteção do Preview3D.tsx
   // (as duas listas têm de andar juntas: um modelo que falte aqui mostra a miniatura fixa).
   const outroModelo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
   const isNomeFlexModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
-  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo;
+  // Decoração (vasos, taça, porta-velas, estrela): parâmetro escondido "deco" (ver lib/decoracao.ts)
+  const isDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && isDecoracao(params);
+  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,

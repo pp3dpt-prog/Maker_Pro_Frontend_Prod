@@ -446,6 +446,9 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
           );
         }
 
+        // ── HIDDEN (valor fixo do modelo, p.ex. "deco" na família Decoração) ──
+        if (type === 'hidden') return null;
+
         // ── FALLBACK ──────────────────────────────────────────────────────
         return (
           <div key={name} className="text-xs text-yellow-400">
