@@ -16,6 +16,7 @@ import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
+import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/enfeitesNatal';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -548,6 +549,40 @@ function ArvoreNatalPreview({ params }: { params: Record<string, any> }) {
     return g;
   }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  return <primitive object={grupo} />;
+}
+
+// ── Enfeites de Natal (placa a 2 cores) — ver lib/enfeitesNatal.ts ──
+// A fonte só se carrega quando há nome; mudar as cores só muda os materiais.
+function EnfeiteNatalPreview({ params }: { params: Record<string, any> }) {
+  const comNome = temNome(params);
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Luckiest Guy')] ?? ETIQUETA_FONT_MAP['Luckiest Guy'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comNome) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comNome]);
+
+  const geomKey = JSON.stringify([params.forma, params.tamanho, params.largura_linha, params.espessura, comNome ? params.nome : '', comNome ? fontPath : '']);
+  const fontPronta = comNome && font ? font : null;
+  const grupo = useMemo(() => {
+    const { base, relevo } = construirEnfeite(params, fontPronta);
+    const g = new THREE.Group();
+    const mb = new THREE.Mesh(base, new THREE.MeshStandardMaterial({ metalness: 0.1, roughness: 0.55 }));
+    const mr = new THREE.Mesh(relevo, new THREE.MeshStandardMaterial({ metalness: 0.35, roughness: 0.35 }));
+    mb.userData.parte = 'base'; mr.userData.parte = 'relevo';
+    g.add(mb, mr);
+    centerGroupXY(g);
+    return g;
+  }, [geomKey, fontPronta]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+
+  const cores = coresEnfeite(params);
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as 'base' | 'relevo' | undefined; if (parte) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
+  }, [grupo, cores.base, cores.relevo]);
   return <primitive object={grupo} />;
 }
 
@@ -1291,6 +1326,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isNomeFlexModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
   const isDecoModelo      = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && isDecoracao(params);
   const isArvoreModelo    = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && isArvoreNatal(params);
+  const isEnfeiteModelo   = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && isEnfeiteNatal(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1303,7 +1339,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : (isEtiqueta || isEnfeiteModelo) ? [0, -70, 110] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1364,6 +1400,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <DecoracaoPreview params={params} />
           ) : isArvoreModelo ? (
             <ArvoreNatalPreview params={params} />
+          ) : isEnfeiteModelo ? (
+            <EnfeiteNatalPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1372,8 +1410,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             makeDefault
             enablePan={false}
             target={isIluminaria ? [0, 80, 0] : isDecoModelo ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
-            minDistance={(isDecoModelo || isArvoreModelo) ? 60 : isPetTag ? 20 : isEtiqueta ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={(isDecoModelo || isArvoreModelo) ? 900 : isPetTag ? 200 : isEtiqueta ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={(isDecoModelo || isArvoreModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={(isDecoModelo || isArvoreModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
