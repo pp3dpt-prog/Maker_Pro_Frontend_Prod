@@ -39,6 +39,8 @@ export const CATEGORIA_DESCRICOES: Record<string, string> = {
   'Porta-chaves': 'Porta-chaves personalizados impressos em 3D — com nome, iniciais, logótipo ou o design que preferires. Peças resistentes e leves, perfeitas para presente ou para o dia a dia. Personaliza a cor e o texto e recebe em casa.',
   'Marcadores': 'Marcadores de livros personalizados e impressos em 3D, em designs originais ou à tua medida. Um pormenor simples que torna qualquer livro — ou prenda — mais especial. Escolhe o modelo e a cor que preferires.',
   'Caixas': 'Caixas personalizadas impressas em 3D, com o tamanho e o design pensados para guardar ou oferecer o que quiseres. Cada caixa é orçamentada à medida das tuas necessidades — fala connosco para o teu projeto.',
+  'Caixas Dobráveis': 'Caixas dobráveis impressas em 3D, planas e prontas a montar à mão — sem colas nem ferramentas. Escolhe o tamanho que precisares para embalar presentes, organizar ou guardar o que quiseres.',
+  'Selos': 'Selos personalizados impressos em 3D, com o teu nome, iniciais ou logótipo em relevo. Perfeitos para marcar cartões, convites ou papel mais grosso com um toque único.',
 };
 
 export function categoriaDescricao(nome: string, descricaoBd?: string | null): string {
