@@ -122,41 +122,65 @@ function espiral(p: Record<string, any>) {
   return { arvore: arv, estrela: estrelaTopo(p, H, R) };
 }
 
+// Perfil da árvore em camadas, como lista de pontos (z, raio) ligados a direito — igual a
+// _perfil() em arvore_camadas.scad (lá com lookup()). Camadas = cones empilhados: cada uma abre
+// a 45° (sem suportes) a partir do degrau da de baixo e afina a direito até ao degrau seguinte.
+function perfilCamadas(p: Record<string, any>) {
+  const N = Math.max(2, Math.round(num(p.niveis, 4))), R = num(p.raio, 50), H = num(p.altura, 160);
+  const rtr = num(p.raio_tronco, 22), htr = num(p.altura_tronco, 16), nw = Math.max(0, Math.round(num(p.ondas, 8)));
+  const ow = nw === 0 ? 0 : num(p.onda, 3), dg = Math.min(1, Math.max(0, num(p.degrau, 60) / 100)), t = num(p.parede, 2);
+  const oco = oca(p), tronco = rtr > 0 && htr > 0;
+  // vela LED: cavidade cilíndrica (Ø + 2 mm de folga) até altura_vela + 5 mm, depois tecto a 45°
+  const rc = num(p.diametro_vela, 38) / 2 + 1, tw = t * 1.42;
+  const hv = Math.min(num(p.altura_vela, 40) + 5, H - rc - 15), zcav = hv + rc - 3;
+  const rcav = (z: number) => (z <= hv ? rc : rc - (z - hv));
+  const rtrE = tronco ? (oco ? Math.max(rtr, rc + tw + 0.5) : rtr) : 0;
+  const zt = tronco ? htr : 0, h = (H - zt) / N;
+  // a camada de baixo abre a 45° a partir do tronco: usa até metade da 1.ª camada e pode "comer"
+  // metade do tronco. Se não chegar ao raio pedido, a árvore toda fica mais estreita (tronco fino = copa estreita).
+  const zs0 = zt / 2;
+  const Rb = tronco ? Math.max(rtrE, Math.min(R, rtrE + (zt - zs0) + 0.5 * h)) : R;
+  const rb = (i: number) => Rb * (1 - (0.82 * i) / N);
+  const d = dg * 0.45 * h;                                       // altura do degrau (= o que a camada seguinte abre a 45°)
+  const neck = (i: number) => (i >= N - 1 ? 1.5 : Math.max(1.5, rb(i + 1) - d));
+  const P: [number, number][] = [];
+  const F: [number, number][] = [];                               // peso da onda (0 no tronco/degrau, 1 na orla)
+  if (tronco) {
+    const zs = Math.min(zt, zt + 0.5 * h - (Rb - rtrE));          // >= zs0 pela conta de Rb
+    P.push([0, rtrE], [zs, rtrE], [zs + (Rb - rtrE), Rb]); F.push([0, 0], [zs, 0], [zs + (Rb - rtrE), 1]);
+  } else { P.push([0, Rb]); F.push([0, 1]); }
+  for (let i = 0; i < N; i++) {
+    const zn = zt + (i + 1) * h;
+    P.push([zn, neck(i)]); F.push([zn, 0]);
+    if (i < N - 1) { const zr = zn + (rb(i + 1) - neck(i)); P.push([zr, rb(i + 1)]); F.push([zr, 1]); }
+  }
+  return { N, H, zt, h, nw, ow, oco, rc, hv, zcav, rcav, tw, Rb, P, F };
+}
+const interp = (T: [number, number][], z: number) => {
+  if (z <= T[0][0]) return T[0][1];
+  for (let k = 1; k < T.length; k++) if (z <= T[k][0]) { const [z0, r0] = T[k - 1], [z1, r1] = T[k]; return z1 - z0 < 1e-9 ? r1 : r0 + ((r1 - r0) * (z - z0)) / (z1 - z0); }
+  return T[T.length - 1][1];
+};
+const subdiv = (Z: number[], passo: number) => {
+  const zs = [...Z].sort((a, b) => a - b).filter((z, k, a) => k === 0 || z - a[k - 1] > 0.01);
+  const out: number[] = [];
+  for (let s = 0; s < zs.length - 1; s++) { const m = Math.max(1, Math.ceil((zs[s + 1] - zs[s]) / passo)); for (let q = 0; q < m; q++) out.push(zs[s] + ((zs[s + 1] - zs[s]) * q) / m); }
+  out.push(zs[zs.length - 1]);
+  return out;
+};
+
 function camadas(p: Record<string, any>) {
-  const N = Math.max(2, Math.round(num(p.niveis, 5))), R = num(p.raio, 55), H = num(p.altura, 160);
-  const rtr = num(p.raio_tronco, 9), htr = num(p.altura_tronco, 15), nw = Math.max(0, Math.round(num(p.ondas, 8)));
-  const ow = nw === 0 ? 0 : num(p.onda, 3), e = num(p.estreitar, 55) / 100, t = num(p.parede, 2);
-  const zt = rtr > 0 && htr > 0 ? htr : 0, h = (H - zt) / N;
-  const rb = (i: number) => R * (1 - (0.82 * i) / N);
-  const neck = (i: number) => (i >= N - 1 ? 1.5 : e * rb(i + 1));
-  const rprev = (i: number) => (i === 0 ? (zt > 0 ? rtr : rb(0)) : neck(i - 1));
-  const rbe = (i: number) => Math.max(rprev(i), Math.min(rb(i), rprev(i) + 0.6 * h));
-  const fl = (i: number) => rbe(i) - rprev(i);
-  const zi = (i: number) => zt + i * h;
-  const tier = (z: number) => Math.max(0, Math.min(N - 1, Math.floor((z - zt) / h)));
-  const rbase = (z: number) => {
-    if (zt > 0 && z <= zt) return rtr;
-    const i = tier(z), dz = z - zi(i);
-    return dz < fl(i) ? rprev(i) + dz : rbe(i) + ((neck(i) - rbe(i)) * (dz - fl(i))) / (h - fl(i));
-  };
-  const fonda = (z: number) => {
-    if (zt > 0 && z <= zt) return 0;
-    const i = tier(z), dz = z - zi(i);
-    return dz < fl(i) ? dz / fl(i) : Math.max(0, 1 - (dz - fl(i)) / (h - fl(i)));
-  };
-  const Z: number[] = [0];
-  if (zt > 0) Z.push(zt);
-  for (let i = 0; i < N; i++) { if (fl(i) > 0.01) Z.push(zi(i) + fl(i)); Z.push(zi(i) + h); }
-  const rows: number[] = [];
-  for (let s = 0; s < Z.length - 1; s++) { const m = Math.max(1, Math.ceil((Z[s + 1] - Z[s]) / 3)); for (let q = 0; q < m; q++) rows.push(Z[s] + ((Z[s + 1] - Z[s]) * q) / m); }
-  rows.push(Z[Z.length - 1]);
-  const incl = (z: number) => Math.max(Math.abs(rbase(z + 0.01) - rbase(z)), Math.abs(rbase(z) - rbase(Math.max(0, z - 0.01)))) / 0.01;
+  const c = perfilCamadas(p);
+  const rbase = (z: number) => Math.max(interp(c.P, z), c.oco && z <= c.zcav ? c.rcav(z) + c.tw + c.ow : 0);
+  const fonda = (z: number) => interp(c.F, z);
+  const tier = (z: number) => Math.max(0, Math.min(c.N - 1, Math.floor((z - c.zt) / c.h)));
+  const brk = c.P.map(([z]) => z).concat(c.oco ? [c.hv, c.zcav] : []).filter((z) => z <= c.H);
   const arv = arvorePolar({
-    NA: 360, zrows: rows, oco: oca(p), zirows: rows,
-    rAt: (a, z) => rbase(z) + ow * fonda(z) * cosd(nw * a + (tier(z) * 180) / Math.max(1, nw)),
-    rcAt: (z) => (z > H - 6 ? -1 : rbase(z) - ow * fonda(z) - t * Math.sqrt(1 + incl(z) ** 2)),
+    NA: 360, zrows: subdiv(brk, 3), oco: c.oco, zirows: subdiv([0, c.hv, c.zcav], 3),
+    rAt: (a, z) => rbase(z) + c.ow * fonda(z) * cosd(c.nw * a + (tier(z) * 180) / Math.max(1, c.nw)),
+    rcAt: (z) => (z > c.zcav + 1e-6 ? -1 : c.rcav(z)),
   });
-  return { arvore: arv, estrela: estrelaTopo(p, H, R + ow) };
+  return { arvore: arv, estrela: estrelaTopo(p, c.H, c.Rb + c.ow) };
 }
 
 function texturizada(p: Record<string, any>) {
