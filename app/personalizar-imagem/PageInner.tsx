@@ -225,7 +225,11 @@ export default function PageInner() {
           event === 'TOKEN_REFRESHED' ||
           event === 'SIGNED_OUT'
         ) {
-          await handleSession(session?.user ? session : null);
+          // Nada de await ao Supabase DENTRO do callback: o supabase-js segura o lock da sessão
+          // enquanto o callback corre e uma query lá dentro bloqueia o cliente (a página ficava
+          // ~10 s em "A carregar…" e depois sem perfil — admin via rascunhos como "não disponível").
+          // setTimeout(…, 0) corre a query depois de o lock ser libertado.
+          setTimeout(() => { handleSession(session?.user ? session : null); }, 0);
         }
       });
       subscription = data.subscription;

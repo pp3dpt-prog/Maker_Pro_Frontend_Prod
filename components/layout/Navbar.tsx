@@ -46,8 +46,8 @@ export default function Navbar() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         setUser(session.user);
-        const admin = await checkAdminRole(session.user.id);
-        setIsAdmin(admin);
+        // Sem await dentro do callback (bloqueia o cliente Supabase) — corre a seguir.
+        setTimeout(() => { checkAdminRole(session.user.id).then(setIsAdmin); }, 0);
       }
 
       if (event === 'SIGNED_OUT') {
