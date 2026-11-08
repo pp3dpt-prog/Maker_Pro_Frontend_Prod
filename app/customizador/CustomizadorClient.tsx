@@ -10,6 +10,7 @@ import { isBaseCopos } from '@/lib/baseCopos';
 import { isSuporteBases } from '@/lib/suporteBases';
 import { isNomeFlexivel } from '@/lib/nomeFlexivel';
 import { isDecoracao } from '@/lib/decoracao';
+import { isArvoreNatal } from '@/lib/arvoresNatal';
 
 type Props = {
   designId: string;
@@ -68,7 +69,9 @@ export default function CustomizadorClient({
   const isNomeFlexModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
   // Decoração (vasos, taça, porta-velas, estrela): parâmetro escondido "deco" (ver lib/decoracao.ts)
   const isDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && isDecoracao(params);
-  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo;
+  // Árvores de Natal: parâmetro escondido "arvore" (ver lib/arvoresNatal.ts)
+  const isArvoreModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && isArvoreNatal(params);
+  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo || isArvoreModelo;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,

@@ -15,6 +15,7 @@ import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
+import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -532,6 +533,22 @@ function DecoracaoPreview({ params }: { params: Record<string, any> }) {
   const malha = useMemo(() => malhaDeTriangulos(construirDecoracao(params), modelo ? COR_DECORACAO[modelo] : '#38BDF8'), [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { malha?.geometry.dispose(); (malha?.material as THREE.Material | undefined)?.dispose(); }, [malha]);
   return malha ? <primitive object={malha} rotation={[-Math.PI / 2, 0, 0]} /> : null;
+}
+
+// ── Árvores de Natal — ver lib/arvoresNatal.ts ──
+// Árvore verde e estrela dourada (no STL vão no mesmo polyhedron); z para cima → roda -90° em X.
+function ArvoreNatalPreview({ params }: { params: Record<string, any> }) {
+  const geomKey = JSON.stringify(params);
+  const grupo = useMemo(() => {
+    const { arvore, estrela } = construirArvoreNatal(params);
+    const g = new THREE.Group();
+    const a = malhaDeTriangulos(arvore, '#16A34A'); if (a) g.add(a);
+    const e = malhaDeTriangulos(estrela, '#FACC15'); if (e) g.add(e);
+    g.rotation.x = -Math.PI / 2;
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  return <primitive object={grupo} />;
 }
 
 // ── Nome flexível: letras com dobradiças — ver lib/nomeFlexivel.ts ──
@@ -1273,6 +1290,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isSuporteModelo   = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
   const isNomeFlexModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
   const isDecoModelo      = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && isDecoracao(params);
+  const isArvoreModelo    = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && isArvoreNatal(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1285,7 +1303,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : isDecoModelo ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1344,6 +1362,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <NomeFlexivelPreview params={params} />
           ) : isDecoModelo ? (
             <DecoracaoPreview params={params} />
+          ) : isArvoreModelo ? (
+            <ArvoreNatalPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1351,9 +1371,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
-            target={isIluminaria ? [0, 80, 0] : isDecoModelo ? [0, 50, 0] : undefined}
-            minDistance={isDecoModelo ? 60 : isPetTag ? 20 : isEtiqueta ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={isDecoModelo ? 900 : isPetTag ? 200 : isEtiqueta ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            target={isIluminaria ? [0, 80, 0] : isDecoModelo ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
+            minDistance={(isDecoModelo || isArvoreModelo) ? 60 : isPetTag ? 20 : isEtiqueta ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={(isDecoModelo || isArvoreModelo) ? 900 : isPetTag ? 200 : isEtiqueta ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
