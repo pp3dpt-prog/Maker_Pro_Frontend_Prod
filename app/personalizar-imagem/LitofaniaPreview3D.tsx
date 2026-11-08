@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
+import { tampaGeometria, golaTriangulos, tampaTriangulos } from '@/lib/tampaBola';
 
 // Pré-visualização realista de litofânias (plana e curva).
 //
@@ -22,15 +23,29 @@ type Props = {
 };
 
 // ── Réplica de esferaGeometria (Docker: app/image-proc.js) ──
+export const comTampa = (p: Record<string, any> | null | undefined) => !/^furo/i.test(String(p?.fecho ?? 'Tampa').trim());
 export function esferaGeometria(p: Record<string, any>) {
   const deg = Math.PI / 180;
-  const R = Math.max(25, Math.min(75, Number(p?.diametro_mm ?? 80) / 2));
-  const furo = Math.max(10, Math.min(1.7 * R, Number(p?.furo_led_mm ?? 40)));
-  const phiCut = -Math.acos(Math.min(0.99, furo / 2 / R));
+  const espMax = Math.max(Number(p?.esp_min ?? 0.6) + 0.1, Number(p?.esp_max ?? 3.0));
+  const tampa = comTampa(p) ? tampaGeometria(p?.diametro_vela ?? 38) : null;
+  const rCorte = tampa ? tampa.rg : Math.max(5, Number(p?.furo_led_mm ?? 40) / 2) + espMax;
+  const R = Math.max(25, rCorte / 0.65, Math.min(75, Number(p?.diametro_mm ?? 80) / 2));
+  const furo = tampa ? 2 * tampa.ra : 2 * (rCorte - espMax);
+  const phiCut = -Math.acos(Math.min(0.99, rCorte / R));
   const phi1 = Math.max(-30 * deg, phiCut + 6 * deg);
   const phi2 = 40 * deg;
   const A = Math.max(30, Math.min(360, Number(p?.angulo ?? 360))) * deg;
-  return { R, furo, phiCut, phi1, phi2, A };
+  return { R, furo, phiCut, phi1, phi2, A, tampa, hc: tampa ? tampa.hc : 0 };
+}
+
+// Triângulos (coordenadas do gerador: z para cima, frente = −y) → geometria three (y para cima, frente = +z)
+function malhaTri(tri: number[][], dy: number): THREE.BufferGeometry {
+  const p = new Float32Array(tri.length * 3);
+  tri.forEach((v, i) => { p[i * 3] = v[0]; p[i * 3 + 1] = v[2] + dy; p[i * 3 + 2] = -v[1]; });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  geo.computeVertexNormals();
+  return geo;
 }
 
 const GRID_LONG = 220;          // células no lado maior (só visual)
@@ -121,7 +136,7 @@ function faixa(a: [number, number, number][], b: [number, number, number][]): TH
   return geo;
 }
 
-type Pecas = { frente: THREE.BufferGeometry; tras: THREE.BufferGeometry; bordas: THREE.BufferGeometry[]; tamanho: number; argola?: { y: number } };
+type Pecas = { frente: THREE.BufferGeometry; tras: THREE.BufferGeometry; bordas: THREE.BufferGeometry[]; tamanho: number; argola?: { y: number }; tampa?: THREE.BufferGeometry };
 
 function construir(img: HTMLImageElement, params: Record<string, any>, curva: boolean, esfera = false): Pecas {
   const espMin = Number(params?.esp_min ?? 0.6);
@@ -180,12 +195,22 @@ function construir(img: HTMLImageElement, params: Record<string, any>, curva: bo
     const yCut = g.R * Math.sin(g.phiCut);
     const interior = (i: number, j: number): [number, number, number] => {
       const l = lam(j), f = phi(i), t = esp(l, f);
-      if (i === 0) { const rr = g.R * Math.cos(g.phiCut) - t; return [rr * Math.sin(l), yCut, rr * Math.cos(l)]; }
+      if (i === 0) { const rr = g.tampa ? g.tampa.ra : g.R * Math.cos(g.phiCut) - t; return [rr * Math.sin(l), yCut, rr * Math.cos(l)]; }
       if (i === nLat) return [0, g.R - capT, 0];
       return P(g.R - t, l, f);
     };
     const frente = grelha(nLat + 1, NL + 1, (i, j) => P(g.R, lam(j), phi(i)), (i, j) => luz(esp(lam(j), phi(i))), true);
     const tras = grelha(nLat + 1, NL + 1, interior);
+    if (g.tampa) {
+      // gola (por baixo da esfera) e tampa fechada no sítio — o STL leva a tampa ao lado, deitada
+      const tp = g.tampa, dy = yCut - tp.hc;          // z do gerador → y da pré-visualização
+      const NG = 360, lamsG = Array.from({ length: NG }, (_, j) => -Math.PI + (j * 2 * Math.PI) / NG);
+      const rCorte = g.R * Math.cos(g.phiCut);
+      const gola: number[][] = [], tampa: number[][] = [];
+      golaTriangulos(tp, lamsG, (j) => [rCorte * Math.sin(lamsG[j]), -rCorte * Math.cos(lamsG[j]), tp.hc], (a, b, c) => { gola.push(a, b, c); });
+      tampaTriangulos(tp, (a, b, c) => { tampa.push(a, b, c); }, { z0: -tp.tf - 0.7, rodar: tp.rot, NC: 240 });
+      return { frente, tras, bordas: [malhaTri(gola, dy)], tampa: malhaTri(tampa, dy), tamanho: 2 * g.R + 24, argola: { y: g.R - 1.6 + 4.5 + 1.6 } };
+    }
     const anel = faixa(
       Array.from({ length: NL + 1 }, (_, j) => P(g.R, lam(j), g.phiCut)),
       Array.from({ length: NL + 1 }, (_, j) => interior(0, j)));
@@ -260,7 +285,7 @@ function Litofania({ params, previewImageUrl, curva, esfera = false, luzAcesa, o
   const [pecas, setPecas] = useState<Pecas | null>(null);
   const depsKey = JSON.stringify({
     previewImageUrl, curva, esfera,
-    p: ['diametro_mm', 'furo_led_mm', 'largura_mm', 'altura_mm', 'esp_min', 'esp_max', 'moldura_mm', 'raio', 'angulo', 'img_ajuste', 'img_zoom', 'img_pos_x', 'img_pos_y']
+    p: ['diametro_mm', 'furo_led_mm', 'fecho', 'diametro_vela', 'largura_mm', 'altura_mm', 'esp_min', 'esp_max', 'moldura_mm', 'raio', 'angulo', 'img_ajuste', 'img_zoom', 'img_pos_x', 'img_pos_y']
       .map(k => params?.[k]),
   });
 
@@ -271,7 +296,7 @@ function Litofania({ params, previewImageUrl, curva, esfera = false, luzAcesa, o
       if (cancelado) return;
       const p = construir(img, params, curva, esfera);
       setPecas(prev => {
-        if (prev) { prev.frente.dispose(); prev.tras.dispose(); prev.bordas.forEach(b => b.dispose()); }
+        if (prev) { prev.frente.dispose(); prev.tras.dispose(); prev.bordas.forEach(b => b.dispose()); prev.tampa?.dispose(); }
         return p;
       });
       onTamanho(p.tamanho);
@@ -298,6 +323,13 @@ function Litofania({ params, previewImageUrl, curva, esfera = false, luzAcesa, o
       {pecas.argola && (
         <mesh position={[0, pecas.argola.y, 0]}>
           <torusGeometry args={[4.5, 1.6, 16, 40]} />
+          {luzAcesa
+            ? <meshBasicMaterial color="#5a4a34" />
+            : <meshStandardMaterial color={branco} roughness={0.55} />}
+        </mesh>
+      )}
+      {pecas.tampa && (
+        <mesh geometry={pecas.tampa}>
           {luzAcesa
             ? <meshBasicMaterial color="#5a4a34" />
             : <meshStandardMaterial color={branco} roughness={0.55} />}

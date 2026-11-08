@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import GeneratedEditor from '@/components/GeneratedEditor';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import PortachavesPreview3D from './PortachavesPreview3D';
-import LitofaniaPreview3D, { CuboLitofaniaPreview3D, CaixaLuzLitofaniaPreview3D } from './LitofaniaPreview3D';
+import LitofaniaPreview3D, { CuboLitofaniaPreview3D, CaixaLuzLitofaniaPreview3D, esferaGeometria } from './LitofaniaPreview3D';
 import TermoformagemPreview3D from './TermoformagemPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import CaixaLuzLogoEditor from './CaixaLuzLogoEditor';
@@ -689,7 +689,9 @@ export default function PageInner() {
             const etiquetaDim = isCubo
               ? `Cubo ${Number(params?.lado_mm ?? 100)} × ${Number(params?.lado_mm ?? 100)} × ${Number(params?.altura_mm ?? 100)} mm · ${params?.luz ?? 'LED Kit 001 (Bambu)'}`
               : isEsfera
-              ? `Ø ${Number(params?.diametro_mm ?? 80)} mm · furo LED ${Number(params?.furo_led_mm ?? 40)} mm`
+              ? (() => { const g = esferaGeometria(params ?? {}); return g.tampa
+                  ? `Ø ${Math.round(2 * g.R)} mm · tampa ¼ de volta p/ vela LED ${g.tampa.Dv} mm`
+                  : `Ø ${Math.round(2 * g.R)} mm · furo LED ${Math.round(g.furo)} mm`; })()
               : isCurva
               ? `Ø ${2 * Number(params?.raio ?? 50)} mm × ${Number(params?.altura_mm ?? 150)} mm · ${Number(params?.angulo ?? 270)}°`
               : isTermo
