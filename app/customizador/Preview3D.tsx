@@ -1339,7 +1339,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : (isEtiqueta || isEnfeiteModelo) ? [0, -70, 110] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
