@@ -18,6 +18,7 @@ import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from 
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
 import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/enfeitesNatal';
 import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
+import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDeco';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -535,6 +536,33 @@ function DecoracaoPreview({ params }: { params: Record<string, any> }) {
   const malha = useMemo(() => malhaDeTriangulos(construirDecoracao(params), modelo ? COR_DECORACAO[modelo] : '#38BDF8'), [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { malha?.geometry.dispose(); (malha?.material as THREE.Material | undefined)?.dispose(); }, [malha]);
   return malha ? <primitive object={malha} rotation={[-Math.PI / 2, 0, 0]} /> : null;
+}
+
+// ── Decoração de Natal (rena, anjo, gorro, casinha, cena com luz, silhueta, árvore com nomes) ──
+// Ver lib/natalDeco.ts. Peças com z para cima (como no .scad) → roda -90° em X. A fonte só se
+// carrega para a árvore com nomes.
+function NatalDecoPreview({ params }: { params: Record<string, any> }) {
+  const comTexto = modeloNatalDeco(params) === 'arvore_nomes';
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Luckiest Guy')] ?? ETIQUETA_FONT_MAP['Luckiest Guy'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+  const fontPronta = comTexto ? font : null;
+  const geomKey = JSON.stringify(params);
+  const grupo = useMemo(() => {
+    const g = new THREE.Group();
+    for (const { geo, cor } of construirNatalDeco(params, fontPronta)) {
+      g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: cor, metalness: 0.1, roughness: 0.5 })));
+    }
+    g.rotation.x = -Math.PI / 2;
+    return g;
+  }, [geomKey, fontPronta]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  return <primitive object={grupo} />;
 }
 
 // ── Árvores de Natal — ver lib/arvoresNatal.ts ──
@@ -1366,6 +1394,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isArvoreModelo    = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && isArvoreNatal(params);
   const isEnfeiteModelo   = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && isEnfeiteNatal(params);
   const isDobravelModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && isCaixaDobravel(params);
+  // Decoração de Natal (parâmetro escondido deco = rena, anjo, ... — ver lib/natalDeco.ts): câmara como a decoração
+  const isNatalDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && isNatalDeco(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1378,7 +1408,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1443,6 +1473,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <EnfeiteNatalPreview params={params} />
           ) : isDobravelModelo ? (
             <CaixaDobravelPreview params={params} dobra={dobra} />
+          ) : isNatalDecoModelo ? (
+            <NatalDecoPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1450,9 +1482,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
-            target={isIluminaria ? [0, 80, 0] : isDecoModelo ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
-            minDistance={(isDecoModelo || isArvoreModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={(isDecoModelo || isArvoreModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            target={isIluminaria ? [0, 80, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
+            minDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>

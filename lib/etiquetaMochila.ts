@@ -112,7 +112,7 @@ export function fatorEscala(font: Font, texto: string, sizeMm: number, util = LA
 
 // Texto centrado em (cx, cy): horizontal pela largura de avanço, vertical pelo centro
 // da tinta — como halign/valign = "center" do OpenSCAD.
-function textoShapes(
+export function textoShapes(
   font: Font, txt: string, sizeMm: number, esc: number, cx: number, cy: number, espelhar = false,
 ): THREE.Shape[] {
   if (!txt) return [];

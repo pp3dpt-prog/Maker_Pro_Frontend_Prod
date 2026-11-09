@@ -13,6 +13,7 @@ import { isDecoracao } from '@/lib/decoracao';
 import { isArvoreNatal } from '@/lib/arvoresNatal';
 import { isEnfeiteNatal } from '@/lib/enfeitesNatal';
 import { isCaixaDobravel } from '@/lib/caixaDobravel';
+import { isNatalDeco } from '@/lib/natalDeco';
 
 type Props = {
   designId: string;
@@ -77,7 +78,9 @@ export default function CustomizadorClient({
   const isEnfeiteModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && isEnfeiteNatal(params);
   // Caixa dobrável: parâmetro escondido dobravel = "caixa" (ver lib/caixaDobravel.ts)
   const isDobravelModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && isCaixaDobravel(params);
-  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo || isArvoreModelo || isEnfeiteModelo || isDobravelModelo;
+  // Decoração de Natal: parâmetro escondido deco = rena, anjo, ... (ver lib/natalDeco.ts)
+  const isNatalDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && isNatalDeco(params);
+  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo || isArvoreModelo || isEnfeiteModelo || isDobravelModelo || isNatalDecoModelo;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,
