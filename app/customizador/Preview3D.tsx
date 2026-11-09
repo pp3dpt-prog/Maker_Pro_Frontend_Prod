@@ -17,6 +17,7 @@ import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nome
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
 import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/enfeitesNatal';
+import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -584,6 +585,42 @@ function EnfeiteNatalPreview({ params }: { params: Record<string, any> }) {
     grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as 'base' | 'relevo' | undefined; if (parte) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
   }, [grupo, cores.base, cores.relevo]);
   return <primitive object={grupo} />;
+}
+
+// ── Caixa dobrável — ver lib/caixaDobravel.ts ──
+// Cada painel é um prisma (sem os chanfros, só visual) na posição da planificação; `dobra`
+// (0 = plana, como sai da impressora; 1 = fechada) roda os painéis em torno das dobradiças.
+function CaixaDobravelPreview({ params, dobra }: { params: Record<string, any>; dobra: number }) {
+  const geomKey = JSON.stringify([params.largura, params.profundidade, params.altura, params.espessura]);
+  const { pain, grupos, raiz } = useMemo(() => {
+    const m = medidasCaixa(params);
+    const pain = planificacao(params);
+    const raiz = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: '#C08552', roughness: 0.6, metalness: 0.05 });
+    const grupos: Record<string, THREE.Group> = {};
+    const rect = ([x0, y0, x1, y1]: number[], sh: THREE.Shape | THREE.Path = new THREE.Shape()) => {
+      sh.moveTo(x0, y0); sh.lineTo(x1, y0); sh.lineTo(x1, y1); sh.lineTo(x0, y1); sh.lineTo(x0, y0); return sh;
+    };
+    for (const q of pain) {
+      const g = new THREE.Group();
+      g.matrixAutoUpdate = false;
+      const sh = rect(q.r) as THREE.Shape;
+      for (const f of q.furos) sh.holes.push(rect(f, new THREE.Path()) as THREE.Path);
+      const shapes = [sh, ...q.extra.map((r) => rect(r) as THREE.Shape)];
+      const geo = new THREE.ExtrudeGeometry(shapes, { depth: m.t, bevelEnabled: false });
+      g.add(new THREE.Mesh(geo, mat));
+      grupos[q.id] = g;
+      raiz.add(g);
+    }
+    raiz.position.set(-m.L / 2, -m.P / 2, 0);
+    return { pain, grupos, raiz };
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(raiz), [raiz]);
+  useEffect(() => {
+    const M = dobrar(pain, dobra);
+    for (const q of pain) { grupos[q.id].matrix.fromArray(M[q.id]); grupos[q.id].matrixWorldNeedsUpdate = true; }
+  }, [pain, grupos, dobra]);
+  return <primitive object={raiz} />;
 }
 
 // ── Nome flexível: letras com dobradiças — ver lib/nomeFlexivel.ts ──
@@ -1295,6 +1332,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // Iluminárias (abajur torcido / candeeiro perfurado) — ver IluminariaPreview.tsx
   const isIluminaria = !isPetTag && geradorIluminaria(params) !== null;
   const [luzAcesa, setLuzAcesa] = useState(true);
+  const [dobra, setDobra] = useState(0.7);   // caixa dobrável: 0 = plana, 1 = fechada
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
   // todos os nomes de parâmetros com "Letras Decorativas" (letra, nome,
@@ -1327,6 +1365,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isDecoModelo      = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && isDecoracao(params);
   const isArvoreModelo    = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && isArvoreNatal(params);
   const isEnfeiteModelo   = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && isEnfeiteNatal(params);
+  const isDobravelModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && isCaixaDobravel(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1339,7 +1378,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : (isDecoModelo || isArvoreModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1402,6 +1441,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <ArvoreNatalPreview params={params} />
           ) : isEnfeiteModelo ? (
             <EnfeiteNatalPreview params={params} />
+          ) : isDobravelModelo ? (
+            <CaixaDobravelPreview params={params} dobra={dobra} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1416,6 +1457,13 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           />
         </Suspense>
       </Canvas>
+      {isDobravelModelo && (
+        <div style={{ position: 'absolute', left: 12, right: 12, bottom: 64, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.8)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.25)' }}>
+          <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>📦 Dobrar</span>
+          <input type="range" min={0} max={100} value={Math.round(dobra * 100)} onChange={(e) => setDobra(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Dobrar a caixa" />
+          <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{dobra <= 0.001 ? 'plana' : dobra >= 0.999 ? 'fechada' : `${Math.round(dobra * 100)}%`}</span>
+        </div>
+      )}
       {isIluminaria && (
         <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
           {[true, false].map(v => (
