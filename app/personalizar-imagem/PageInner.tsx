@@ -443,13 +443,29 @@ export default function PageInner() {
   const semDownloads = userId && (userProfile?.downloads_mes ?? 0) >= (userProfile?.downloads_limite ?? 3);
   const paramsParaDownload = filtrarParamsBackend(params);
 
+  // Cabeçalho dos editores próprios (porta-chaves a cores, caixas de luz): voltar + escolha do
+  // modelo da família. Sem o seletor, numa família só com editores próprios (p.ex. "Caixas de
+  // Luz": canal de neon + logótipo) ficava-se preso no primeiro modelo.
+  const cabecalhoEditor = (
+    <div style={{ padding: '20px 24px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
+      {familyDesigns.length > 1 && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#94a3b8' }}>
+          Outros modelos:
+          <select value={designId} onChange={e => handleDesignChange(e.target.value)}
+            style={{ padding: '6px 10px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: 6, fontSize: 14, fontFamily: 'inherit' }}>
+            {familyDesigns.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+
   // Porta-chaves de imagem a cores (SVG/PNG → cores separadas, STL/ZIP/3MF): editor próprio
   if ((design.generation_schema as any)?.engine === 'vetor-cores') {
     return (
       <>
-        <div style={{ padding: '20px 24px 0' }}>
-          <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
-        </div>
+        {cabecalhoEditor}
         <PortachavesVetorEditor
           designId={designId}
           nome={design.nome}
@@ -469,9 +485,7 @@ export default function PageInner() {
   if ((design.generation_schema as any)?.engine === 'caixa-luz-logo') {
     return (
       <>
-        <div style={{ padding: '20px 24px 0' }}>
-          <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
-        </div>
+        {cabecalhoEditor}
         <CaixaLuzLogoEditor
           designId={designId}
           nome={design.nome}
@@ -491,9 +505,7 @@ export default function PageInner() {
   if ((design.generation_schema as any)?.engine === 'caixa-luz-neon') {
     return (
       <>
-        <div style={{ padding: '20px 24px 0' }}>
-          <Link href="/produtos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14 }}>← Voltar para os produtos</Link>
-        </div>
+        {cabecalhoEditor}
         <CaixaLuzNeonEditor
           designId={designId}
           nome={design.nome}
