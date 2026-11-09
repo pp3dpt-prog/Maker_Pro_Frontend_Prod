@@ -38,7 +38,7 @@ type Pecas = {
 
 type Resultado = {
   r: Pecas;
-  geo: { paredeMm: number; profundidadeMm: number; mesaXMm: number; mesaYMm: number; temTampa: boolean; espessuraTampaMm: number; montagem: 'pe' | 'parede' };
+  geo: { paredeMm: number; profundidadeMm: number; mesaXMm: number; mesaYMm: number; temTampa: boolean; espessuraTampaMm: number; montagem: 'pe' | 'parede'; zFrente?: number };
   corpoTris: number[];
   tampaTris: number[] | null;
   formaTipo: 'imagem' | 'redonda' | 'quadrada' | 'hexagonal';
@@ -325,7 +325,7 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
           {r && (
             <div style={{ position: 'absolute', top: 10, right: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#cbd5e1', background: 'rgba(15,23,42,0.8)', padding: '6px 10px', borderRadius: 8 }}>
-                {r.largura.toFixed(0)} × {r.altura.toFixed(0)} × {(res!.geo.profundidadeMm + r.alturaTotal).toFixed(0)} mm
+                {r.largura.toFixed(0)} × {r.altura.toFixed(0)} × {((res!.geo.zFrente ?? res!.geo.profundidadeMm) + r.alturaTotal).toFixed(0)} mm
               </span>
             </div>
           )}
@@ -395,7 +395,8 @@ function Modelo({ res, luzAcesa }: { res: Resultado; luzAcesa: boolean }) {
           <meshStandardMaterial color="#2b2c31" roughness={0.6} />
         </mesh>
       )}
-      <group position={[0, 0, geo.profundidadeMm]}>
+      {/* a frente assenta no rebaixo de cima do corpo (lib/caixaLuzLogo.js: zFrente) */}
+      <group position={[0, 0, geo.zFrente ?? geo.profundidadeMm]}>
         {malhas.map((m, i) => (
           <mesh key={i} geometry={m.geo}>
             {luzAcesa
