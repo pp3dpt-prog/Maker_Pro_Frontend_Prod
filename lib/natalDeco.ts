@@ -165,15 +165,15 @@ function rena(p: Record<string, any>): Parte[] {
   const perfil = (z: number) => (z > zc ? cabeca(z) : Math.max(corpo(z), cabeca(z)));
   const rp: Rp = (a, z) => { const b = perfil(z); return Math.max(0.05, b - re * (0.5 + 0.5 * cosd(ne * a)) * Math.min(1, (1.6 * b) / R)); };
   const zcup = (f: number) => zc + hh * Math.sqrt(1 - f * f);
-  const out: Parte[] = [{ geo: solidoPolar(rp, H, Math.max(96, 8 * ne), 90), cor: '#C9A27A' }];
+  const out: Parte[] = [{ geo: solidoPolar(rp, H, Math.max(96, 6 * ne), 70), cor: '#C9A27A' }];
   const s = (1.25 * hs * R) / 30;
-  const haste = placaXZ(shapes(f2d(D.haste, s)), 3.6 * Math.max(1, s * 0.8)).rotateY(-6 * RAD).translate(0.4 * rh, 0, zcup(0.4) - 2 * s);
+  const haste = placaXZ(shapes(f2d(D.haste, s)), 3.6 * Math.max(1, s * 0.8)).rotateY(-6 * RAD).translate(0.34 * rh, 0, zcup(0.4) - 2 * s);
   const partes = [haste];
   if (sim(p.orelhas, true)) {
     const so = (1.3 * R) / 30;
     // rotate(32) no plano da forma = rotação em torno de -y depois de deitada em XZ
     partes.push(placaXZ(shapes(f2d(D.orelha.map((q) => q.map(([x, y]): Pt => [(x * cosd(32) - y * sind(32)) * so, (x * sind(32) + y * cosd(32)) * so])))), 2.6)
-      .translate(0.8 * rh, 0, zcup(0.8)));
+      .translate(0.7 * rh, 0, zcup(0.8)));
   }
   for (const g of partes) out.push({ geo: g, cor: '#8B5A2B' }, { geo: espelhar(g, 'x'), cor: '#8B5A2B' });
   return out;
@@ -184,11 +184,10 @@ function anjo(p: Record<string, any>): Parte[] {
   const ne = Math.round(cl(num(p.estrias, 24), 8, 60)), re = cl(num(p.relevo, 1.5), 0, 4), as = cl(num(p.asas, 100), 50, 160) / 100;
   const rc = Math.max(6, Math.min(0.14 * H, 0.55 * R)), Hb = H - 1.85 * rc, rn = 0.7 * rc, zh = Hb + 0.85 * rc;
   const saia = (z: number) => { const u = z / Hb; return rn + (R - rn) * Math.pow(1 - u, 1.35) + 0.05 * R * Math.pow(1 - u, 8); };
-  const rp: Rp = (a, z) => Math.max(0.05, saia(z) - re * (0.5 + 0.5 * cosd(ne * a)) * cl((Hb - z) / (0.18 * Hb), 0, 1));
-  const out: Parte[] = [
-    { geo: solidoPolar(rp, Hb, Math.max(96, 8 * ne), 70, false), cor: '#F1E7D6' },
-    { geo: esfera(rc, 0, 0, zh), cor: '#F1E7D6' },
-  ];
+  // saia e cabeça num só perfil (o maior dos dois)
+  const cabeca = (z: number) => { const t = z - zh; return Math.abs(t) < rc ? Math.sqrt(rc * rc - t * t) : 0; };
+  const rp: Rp = (a, z) => Math.max(0.05, z <= Hb ? saia(z) - re * (0.5 + 0.5 * cosd(ne * a)) * cl((Hb - z) / (0.18 * Hb), 0, 1) : 0, cabeca(z));
+  const out: Parte[] = [{ geo: solidoPolar(rp, zh + rc, Math.max(96, 6 * ne), 100, false), cor: '#F1E7D6' }];
   const s = (1.6 * as * R) / 30, zw = 0.56 * Hb;
   const asa = placaXZ(shapes(f2d(D.asa, s)), 3).translate(1.5, 0.42 * saia(zw), zw);
   out.push({ geo: asa, cor: '#E5D3B3' }, { geo: espelhar(asa, 'x'), cor: '#E5D3B3' });
@@ -206,8 +205,11 @@ function gorroBombom(p: Record<string, any>): Parte[] {
   const rpp = pp ? Math.max(4, 0.13 * Hg + 0.08 * d) : 0, rt = pp ? 0.65 * rpp : 2, Hc = Hg - (pp ? 0.2 * rpp : 0);
   const Rcp = 0.8 * rd + 3, hcp = Math.max(8, 0.34 * d);
   const cone = (z: number) => { const r0 = 0.88 * Rb; return z <= hb ? Rb : r0 + ((rt - r0) * (z - hb)) / (Hc - hb); };
-  const cx: Cx = (z) => (z > hb ? 0.2 * Hg * Math.pow((z - hb) / (Hc - hb), 2) : 0);
-  const rpG: Rp = (a, z) => (z <= hb ? Rb - 1.1 * (0.5 + 0.5 * cosd(ne * a)) * cl(Math.min(z, hb - z) / 0.6, 0, 1) : cone(z));
+  const cx: Cx = (z) => (z > hb ? 0.2 * Hg * Math.pow((Math.min(z, Hc) - hb) / (Hc - hb), 2) : 0);
+  // o pompom faz parte do perfil do gorro (o maior dos dois raios)
+  const zp = Hc + 0.2 * rpp, Ht = pp ? zp + rpp : Hc;
+  const pompom = (z: number) => (pp && Math.abs(z - zp) < rpp ? Math.sqrt(rpp * rpp - (z - zp) ** 2) : 0);
+  const rpG: Rp = (a, z) => (z <= hb ? Rb - 1.1 * (0.5 + 0.5 * cosd(ne * a)) * cl(Math.min(z, hb - z) / 0.6, 0, 1) : Math.max(z <= Hc ? cone(z) : 0, pompom(z), 0.05));
   const riG = (z: number) => Math.max(0.4, Math.min(0.86 * rd + 0.0001 * z, cone(z) - PAREDE));
   const rpC: Rp = (a, z) => Rcp - 1 * (0.5 + 0.5 * cosd(ne * a)) * cl(Math.min(z, hcp - z) / 0.6, 0, 1);
   const N = Math.max(96, 6 * ne);
@@ -216,8 +218,7 @@ function gorroBombom(p: Record<string, any>): Parte[] {
   const out: Parte[] = [];
   if (!soB) {
     const z0 = soG ? 0 : zg;
-    out.push({ geo: cascaPolar(rpG, riG, Hc, Hc - 2.2, N, 60, 40, cx).translate(0, 0, z0), cor: '#C62828' });
-    if (pp) out.push({ geo: esfera(rpp, cx(Hc), 0, z0 + Hc + 0.2 * rpp), cor: '#FFFFFF' });
+    out.push({ geo: cascaPolar(rpG, riG, Ht, Hc - 2.2, N, 90, 40, cx).translate(0, 0, z0), cor: '#C62828' });
   }
   if (!soG) {
     // copo: casca virada ao contrário (cavidade em cima)
