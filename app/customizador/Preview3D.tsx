@@ -18,6 +18,7 @@ import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from 
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
 import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/enfeitesNatal';
 import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
+import { construirCaixaDobradica, definirAbertura, libertarCaixaDobradica, isCaixaDobradica } from '@/lib/caixaDobradica';
 import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDeco';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
@@ -669,6 +670,41 @@ function NomeFlexivelPreview({ params }: { params: Record<string, any> }) {
   }, [font, chave]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (grupo) libertarGrupo(grupo); }, [grupo]);
   return grupo ? <primitive object={grupo} /> : null;
+}
+
+// ── Caixa com dobradiça print-in-place — ver lib/caixaDobradica.ts ──
+// A tampa roda em torno do eixo da dobradiça: `abertura` 0 = fechada, 1 = como imprime.
+function CaixaDobradicaPreview({ params, abertura }: { params: Record<string, any>; abertura: number }) {
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Open Sans')] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath]);
+  const chave = JSON.stringify(params);
+  const { grupo, pivo, raiz } = useMemo(() => {
+    const { grupo, pivo, m } = construirCaixaDobradica(params, font);
+    const raiz = new THREE.Group();
+    grupo.position.set(-m.EW / 2, -m.YA, 0); // centra no eixo da dobradiça (caixa à frente, tampa aberta atrás)
+    raiz.add(grupo);
+    raiz.userData.tamanho = Math.hypot(m.EW, 2 * m.YA, m.HB);
+    return { grupo, pivo, raiz };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave, font]);
+  useEffect(() => () => libertarCaixaDobradica(grupo), [grupo]);
+  useEffect(() => { definirAbertura(pivo, abertura); }, [pivo, abertura]);
+
+  const { camera } = useThree();
+  const enquadrado = useRef(false);
+  useEffect(() => {
+    if (enquadrado.current) return;
+    enquadrado.current = true;
+    const d = Math.max(130, Number(raiz.userData.tamanho) * 1.15);
+    camera.position.set(d * 0.35, -d * 0.85, d * 0.7);
+    camera.lookAt(0, 0, 0);
+  }, [camera, raiz]);
+  return <primitive object={raiz} />;
 }
 
 // ── Caixa PCB: corpo + tampa (lado a lado, como o STL) — ver lib/caixaPcb.ts ──
@@ -1361,6 +1397,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isIluminaria = !isPetTag && geradorIluminaria(params) !== null;
   const [luzAcesa, setLuzAcesa] = useState(true);
   const [dobra, setDobra] = useState(0.7);   // caixa dobrável: 0 = plana, 1 = fechada
+  const [abertura, setAbertura] = useState(0.55); // caixa com dobradiça: 0 = fechada, 1 = como imprime
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
   // todos os nomes de parâmetros com "Letras Decorativas" (letra, nome,
@@ -1396,6 +1433,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isDobravelModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && isCaixaDobravel(params);
   // Decoração de Natal (parâmetro escondido deco = rena, anjo, ... — ver lib/natalDeco.ts): câmara como a decoração
   const isNatalDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && isNatalDeco(params);
+  // Caixa com dobradiça (parâmetro escondido caixa_dobradica — ver lib/caixaDobradica.ts)
+  const isDobradicaModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && !isNatalDecoModelo && isCaixaDobradica(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1475,6 +1514,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <CaixaDobravelPreview params={params} dobra={dobra} />
           ) : isNatalDecoModelo ? (
             <NatalDecoPreview params={params} />
+          ) : isDobradicaModelo ? (
+            <CaixaDobradicaPreview params={params} abertura={abertura} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1483,8 +1524,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             makeDefault
             enablePan={false}
             target={isIluminaria ? [0, 80, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
-            minDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : (isCaixaPcbModelo || isDobradicaModelo) ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : (isCaixaPcbModelo || isDobradicaModelo) ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
@@ -1494,6 +1535,13 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>📦 Dobrar</span>
           <input type="range" min={0} max={100} value={Math.round(dobra * 100)} onChange={(e) => setDobra(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Dobrar a caixa" />
           <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{dobra <= 0.001 ? 'plana' : dobra >= 0.999 ? 'fechada' : `${Math.round(dobra * 100)}%`}</span>
+        </div>
+      )}
+      {isDobradicaModelo && (
+        <div style={{ position: 'absolute', left: 12, right: 12, bottom: 64, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.8)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.25)' }}>
+          <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>📦 Abrir</span>
+          <input type="range" min={0} max={100} value={Math.round(abertura * 100)} onChange={(e) => setAbertura(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Abrir a tampa" />
+          <span style={{ fontSize: 12, color: '#94a3b8', width: 96, textAlign: 'right' }}>{abertura <= 0.001 ? 'fechada' : abertura >= 0.999 ? 'como imprime' : `${Math.round(abertura * 180)}°`}</span>
         </div>
       )}
       {isIluminaria && (
