@@ -19,6 +19,7 @@ import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
 import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/enfeitesNatal';
 import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
 import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDeco';
+import { construirOrganizador, libertarOrganizador, isOrganizadorGaveta, medidasGaveta } from '@/lib/organizadorGaveta';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -536,6 +537,28 @@ function DecoracaoPreview({ params }: { params: Record<string, any> }) {
   const malha = useMemo(() => malhaDeTriangulos(construirDecoracao(params), modelo ? COR_DECORACAO[modelo] : '#38BDF8'), [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { malha?.geometry.dispose(); (malha?.material as THREE.Material | undefined)?.dispose(); }, [malha]);
   return malha ? <primitive object={malha} rotation={[-Math.PI / 2, 0, 0]} /> : null;
+}
+
+// ── Organizador de gaveta — ver lib/organizadorGaveta.ts ──
+// Módulos montados na gaveta (fundo/contorno translúcidos só para referência). A geometria está em z para
+// cima com origem no canto frente-esquerda → roda -90° em X e centra; a câmara afasta-se conforme a gaveta.
+function OrganizadorGavetaPreview({ params }: { params: Record<string, any> }) {
+  const geomKey = JSON.stringify(params);
+  const { GW, GD } = medidasGaveta(params);
+  const grupo = useMemo(() => {
+    const g = construirOrganizador(params);
+    g.rotation.x = -Math.PI / 2;
+    g.position.set(-GW / 2, 0, GD / 2);
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarOrganizador(grupo), [grupo]);
+  const { camera } = useThree();
+  useEffect(() => {
+    const r = Math.max(GW, GD);
+    camera.position.set(0, r * 1.05, r * 0.95);
+    camera.lookAt(0, 0, 0);
+  }, [GW, GD, camera]);
+  return <primitive object={grupo} />;
 }
 
 // ── Decoração de Natal (rena, anjo, gorro, casinha, cena com luz, silhueta, árvore com nomes) ──
@@ -1396,6 +1419,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isDobravelModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && isCaixaDobravel(params);
   // Decoração de Natal (parâmetro escondido deco = rena, anjo, ... — ver lib/natalDeco.ts): câmara como a decoração
   const isNatalDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && isNatalDeco(params);
+  // Organizador de gaveta (parâmetro escondido organizador_gaveta = 'gaveta' — ver lib/organizadorGaveta.ts)
+  const isGavetaModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && !isNatalDecoModelo && isOrganizadorGaveta(params);
   // A peça do nome sozinha ("tampa" no schema — ver nota em CaixaLuzPreview) é
   // bem mais pequena do que o corpo/traseira da letra (até 250mm) — precisa de
   // câmara/zoom próprios. Só se aplica quando é a ÚNICA peça mostrada (numa
@@ -1475,6 +1500,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             <CaixaDobravelPreview params={params} dobra={dobra} />
           ) : isNatalDecoModelo ? (
             <NatalDecoPreview params={params} />
+          ) : isGavetaModelo ? (
+            <OrganizadorGavetaPreview params={params} />
           ) : (
             <CaixaPreview params={params} />
           )}
@@ -1483,8 +1510,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             makeDefault
             enablePan={false}
             target={isIluminaria ? [0, 80, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
-            minDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={isGavetaModelo ? 80 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={isGavetaModelo ? 1800 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
