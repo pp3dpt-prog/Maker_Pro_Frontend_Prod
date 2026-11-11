@@ -19,14 +19,16 @@ export async function GET(req: Request) {
     // Verificar se é admin (DB role ou ADMIN_EMAIL env var)
     const { data: { user } } = await supabase.auth.getUser();
     let isAdmin = false;
+    let isMaker = false; // makers também veem os exclusivos (só para makers; o download pede o plano)
     if (user) {
       const adminEmail = process.env.ADMIN_EMAIL;
       if (adminEmail && user.email?.toLowerCase().trim() === adminEmail.toLowerCase().trim()) {
         isAdmin = true;
       } else {
         const { data: perfil } = await supabase
-          .from('prod_perfis').select('role').eq('id', user.id).maybeSingle();
+          .from('prod_perfis').select('role, tipo_utilizador').eq('id', user.id).maybeSingle();
         isAdmin = perfil?.role === 'admin';
+        isMaker = perfil?.tipo_utilizador === 'maker' || perfil?.tipo_utilizador === 'ambos';
       }
     }
 
@@ -38,7 +40,7 @@ export async function GET(req: Request) {
 
     // Admin vê todos os estados — utilizadores normais só veem activos
     if (!isAdmin) {
-      query = query.eq('estado', 'ativo');
+      query = isMaker ? query.in('estado', ['ativo', 'exclusivo']) : query.eq('estado', 'ativo');
     }
 
     const { data, error } = await query;

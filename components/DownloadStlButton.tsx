@@ -35,6 +35,11 @@ export default function DownloadStlButton({ designId, params, onSuccess, label =
         if (text === 'DOWNLOAD_LIMIT_REACHED') throw new Error('Limite de downloads mensais atingido. Faz upgrade do teu plano.');
         throw new Error('Não tens acesso a este download.');
       }
+      if (res.status === 403) {
+        const text = await res.text();
+        if (text === 'COMMERCIAL_LICENSE_REQUIRED') throw new Error('Este modelo é exclusivo para makers com licença comercial (plano Fundador Pro ou Commercial).');
+        throw new Error(text || 'Não tens acesso a este download.');
+      }
       if (!res.ok) throw new Error(await res.text() || 'Erro ao gerar o download.');
 
       const blob = await res.blob();
