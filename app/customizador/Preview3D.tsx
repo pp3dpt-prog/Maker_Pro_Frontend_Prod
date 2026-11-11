@@ -107,15 +107,16 @@ function PetTagModel({
   const rebordoLarg = Number(params.rebordo_largura ?? 1.2);
   const rebordoAlt = Number(params.rebordo_altura ?? 1);
   const rebordoEstilo = typeof params.rebordo_estilo === 'string' ? params.rebordo_estilo : undefined;
+  const deitado = params.orientacao === 'Deitado';   // barril de pé ou deitado (tag-barril)
   const rebordoMesh = useMemo(() => {
     if (!forma || !rebordoOn) return null;
-    const { centro } = corpoPetTag(forma);
+    const { centro } = corpoPetTag(forma, deitado);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(rebordoPetTag(forma, rebordoLarg, rebordoAlt, rebordoEstilo), 3));
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(rebordoPetTag(forma, rebordoLarg, rebordoAlt, rebordoEstilo, deitado), 3));
     geo.translate(-centro[0], -centro[1], 0);
     geo.computeVertexNormals();
     return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 }));
-  }, [forma, rebordoOn, rebordoLarg, rebordoAlt, rebordoEstilo]);
+  }, [forma, rebordoOn, rebordoLarg, rebordoAlt, rebordoEstilo, deitado]);
   useEffect(() => () => { rebordoMesh?.geometry.dispose(); }, [rebordoMesh]);
 
   // Cores das peças (cor_base / cor_texto / cor_borda): só muda os materiais, sem
@@ -133,7 +134,7 @@ function PetTagModel({
   // Carregar a chapa (forma conhecida) ou o STL em branco
   useEffect(() => {
     if (forma) {
-      const { tri, centro } = corpoPetTag(forma);
+      const { tri, centro } = corpoPetTag(forma, deitado);
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(tri, 3));
       geometry.translate(-centro[0], -centro[1], 0);
@@ -169,7 +170,7 @@ function PetTagModel({
         })
       ));
     });
-  }, [stlFilePath, forma]);
+  }, [stlFilePath, forma, deitado]);
 
   // Regenerar texto sempre que params mudam
   useEffect(() => {

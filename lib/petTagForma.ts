@@ -100,7 +100,7 @@ function arredondar(paths: Path[], r: number): Path[] {
 /** Corpo da chapa (sem argola), argola e furo — medidas dos scad_template. */
 // `rebordo` (opcional): formas cujo contorno o rebordo desenha; por omissão, o corpo.
 // `dedos` / `almofada` (só na pata): para os estilos de rebordo com dedos cheios.
-function formas(f: FormaPetTag): {
+function formas(f: FormaPetTag, deitado = false): {
   corpo: Path[]; rebordo?: Path[]; dedos?: Path[]; almofada?: Path[]; argola: Path; furo: Path;
 } {
   switch (f) {
@@ -203,14 +203,16 @@ function formas(f: FormaPetTag): {
       const pts: [number, number][] = [];
       for (let i = 0; i <= 26; i++) { const y = -13 + i; pts.push([13 * Math.sqrt(1 - (y / 16) ** 2), y]); }
       for (let i = 0; i <= 26; i++) { const y = 13 - i; pts.push([-13 * Math.sqrt(1 - (y / 16) ** 2), y]); }
-      return { corpo: arredondar([poligono(pts)], 1.5), argola: circulo(0, 15.5, 4.5), furo: circulo(0, 15.5, 2.4) };
+      // deitado (orientacao = "Deitado"): o mesmo barril rodado 90° — arcos em cima e em baixo
+      const p2: [number, number][] = deitado ? pts.map(([x, y]) => [-y, x]) : pts;
+      return { corpo: arredondar([poligono(p2)], 1.5), argola: circulo(0, 15.5, 4.5), furo: circulo(0, 15.5, 2.4) };
     }
   }
 }
 
 /** Triângulos da chapa (corpo + argola − furo), z 0..3, e o centro da caixa envolvente. */
-export function corpoPetTag(f: FormaPetTag): { tri: number[]; centro: [number, number] } {
-  const { corpo, argola, furo } = formas(f);
+export function corpoPetTag(f: FormaPetTag, deitado = false): { tri: number[]; centro: [number, number] } {
+  const { corpo, argola, furo } = formas(f, deitado);
   const regiao = diferenca(uniao([...corpo, argola]), [furo]);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of regiao) for (const q of p) {
@@ -227,8 +229,8 @@ export function corpoPetTag(f: FormaPetTag): { tri: number[]; centro: [number, n
  * Na pata, `estilo` (rebordo_estilo do template): "Contorno em todos" (omissão), "Dedos cheios"
  * ou "Dedos cheios + contorno do nome".
  */
-export function rebordoPetTag(f: FormaPetTag, largura: number, altura: number, estilo?: string): number[] {
-  const { corpo, rebordo, dedos, almofada, furo } = formas(f);
+export function rebordoPetTag(f: FormaPetTag, largura: number, altura: number, estilo?: string, deitado = false): number[] {
+  const { corpo, rebordo, dedos, almofada, furo } = formas(f, deitado);
   const anel = (ps: Path[]) => diferenca(ps, [...encolher(ps, largura), furo]);
   let regiao: Path[];
   if (dedos && almofada && estilo === 'Dedos cheios') regiao = dedos;
