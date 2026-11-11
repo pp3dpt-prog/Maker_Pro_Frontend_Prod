@@ -13,7 +13,7 @@ import { coresPetTag } from '@/lib/coresMulticor';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
-import { construirSuporteTelemovel, construirParafusosTelemovel, isSuporteTelemovel } from '@/lib/suporteTelemovel';
+import { construirSuporteTelemovel, construirParafusosTelemovel, isSuporteTelemovel, isSuporteTelemovelPersonalizado, conteudoZona, imagemZona, larguraImagemZona, regiaoTexto, construirEmbutidos, type Zona } from '@/lib/suporteTelemovel';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
@@ -532,12 +532,64 @@ function SuporteBasesPreview({ params }: { params: Record<string, any> }) {
 // ── Suporte de telemóvel para debaixo do monitor — ver lib/suporteTelemovel.ts ──
 // Na posição de uso: o perfil do .scad (que sai deitado para imprimir) roda 90° em Z — base por baixo
 // da moldura do ecrã, lábio à frente (+x), abas e parafusos atrás, rampa a descer até ao gancho.
+// O personalizado (suporte = "telemovel_personalizado") junta o texto/imagem à face na rampa e/ou
+// no lábio, com as cores das partes do 3MF; as imagens vêm do vetorizador (/api/vetorizar).
+async function vetorizarImagem(caminho: string): Promise<any> {
+  const r = await fetch('/api/auth/refresh', { method: 'POST' });
+  const { access_token } = r.ok ? await r.json() : {};
+  if (!access_token) return null;
+  const res = await fetch('/api/vetorizar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` },
+    body: JSON.stringify({ image_path: caminho, num_cores: 1, remover_fundo: 1, tolerancia: 40, buracos_fundo: 1 }),
+  });
+  const json = await res.json().catch(() => ({}));
+  return res.ok ? json.vetor : null;
+}
 function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
-  const geomKey = JSON.stringify(params);
+  const perso = isSuporteTelemovelPersonalizado(params);
+  const zonas: Zona[] = ['rampa', 'labio'];
+  const comTexto = perso && zonas.some((z) => conteudoZona(params, z) === 'Texto');
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Open Sans')] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+
+  // imagens: uma vectorização por caminho (fica em cache enquanto o componente vive)
+  const imgRampa = perso && conteudoZona(params, 'rampa') === 'Imagem' ? imagemZona(params, 'rampa') : '';
+  const imgLabio = perso && conteudoZona(params, 'labio') === 'Imagem' ? imagemZona(params, 'labio') : '';
+  const [vetores, setVetores] = useState<Record<string, any>>({});
+  useEffect(() => {
+    for (const c of [imgRampa, imgLabio]) {
+      if (!c || vetores[c] !== undefined) continue;
+      setVetores((v) => ({ ...v, [c]: null }));
+      vetorizarImagem(c).then((vet) => { if (vet) setVetores((v) => ({ ...v, [c]: vet })); }).catch(() => {});
+    }
+  }, [imgRampa, imgLabio]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fontPronta = comTexto ? font : null;
+  const corKey = ['cor_suporte', 'cor_parafusos', 'cor_rampa', 'cor_labio'];
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !corKey.includes(k)), !!fontPronta, fontPath, !!vetores[imgRampa], !!vetores[imgLabio]]);
   const grupo = useMemo(() => {
     const peca = new THREE.Group();
-    const s = malhaDeTriangulos(construirSuporteTelemovel(params), '#F97316'); if (s) peca.add(s);
-    if (String(params.peca ?? 'Tudo') !== 'Suporte') { const pf = malhaDeTriangulos(construirParafusosTelemovel(params), '#4ADE80'); if (pf) peca.add(pf); }
+    const add = (tri: number[], cor: string, parte: string) => { const m = malhaDeTriangulos(tri, cor); if (m) { m.userData.parte = parte; peca.add(m); } };
+    add(construirSuporteTelemovel(params), '#F97316', 'suporte');
+    if (perso || String(params.peca ?? 'Tudo') !== 'Suporte') add(construirParafusosTelemovel(params), '#4ADE80', 'parafusos');
+    if (perso) {
+      const regioes: Partial<Record<Zona, any[]>> = {};
+      for (const z of zonas) {
+        const tipo = conteudoZona(params, z);
+        if (tipo === 'Texto' && fontPronta) regioes[z] = regiaoTexto(fontPronta, params, z);
+        if (tipo === 'Imagem') { const vet = vetores[imagemZona(params, z)]; if (vet) regioes[z] = logoParaRegiao(vet, larguraImagemZona(params, z)); }
+      }
+      const emb = construirEmbutidos(params, regioes);
+      add(emb.rampa, '#FFFFFF', 'rampa');
+      add(emb.labio, '#FFFFFF', 'labio');
+    }
     peca.rotation.z = Math.PI / 2;
     const g = new THREE.Group();
     g.add(peca);
@@ -546,6 +598,15 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
     return g;
   }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => libertarGrupo(grupo), [grupo]);
+
+  // cores (só no personalizado): só os materiais, sem recalcular a geometria
+  const cores: Record<string, string> = perso
+    ? { suporte: corDe(params.cor_suporte, '#111111'), parafusos: corDe(params.cor_parafusos, '#111111'), rampa: corDe(params.cor_rampa, '#FFFFFF'), labio: corDe(params.cor_labio, '#FFFFFF') }
+    : {};
+  useEffect(() => {
+    if (!perso) return;
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as string | undefined; if (parte && cores[parte]) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
+  }, [grupo, perso, cores.suporte, cores.parafusos, cores.rampa, cores.labio]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
 

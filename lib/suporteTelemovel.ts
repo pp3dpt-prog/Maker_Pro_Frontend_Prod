@@ -8,9 +8,19 @@
 // Os parafusos aparecem enfiados nas abas.
 
 import * as THREE from 'three';
+import ClipperLib from 'clipper-lib';
+import type { Font } from 'three-stdlib';
+// @ts-ignore — módulo JS partilhado (extrusão de regiões Clipper em triângulos)
+import { fatiasParaTriangulos } from '@/lib/vetorGeom';
+import { textoShapes, fatorEscala } from '@/lib/etiquetaMochila';
 
+/** Os dois modelos: o simples (suporte = "telemovel_monitor") e o personalizado com texto/imagem à
+ *  face, em 3MF (suporte = "telemovel_personalizado" — templates/suporte_telemovel_monitor_personalizado.scad). */
 export function isSuporteTelemovel(p: Record<string, any> | null | undefined): boolean {
-  return !!p && p.suporte === 'telemovel_monitor';
+  return !!p && (p.suporte === 'telemovel_monitor' || p.suporte === 'telemovel_personalizado');
+}
+export function isSuporteTelemovelPersonalizado(p: Record<string, any> | null | undefined): boolean {
+  return !!p && p.suporte === 'telemovel_personalizado';
 }
 
 const num = (v: unknown, d: number) => (v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : d);
@@ -188,3 +198,78 @@ export function construirParafusosTelemovel(p: Record<string, any>): number[] {
   return out;
 }
 
+
+// ══ Personalizado: texto/imagem à face na frente da rampa e/ou do lábio (igual ao .scad) ══
+const ESC = 1000; // µm, igual a lib/vetorGeom.js
+type Pt = { X: number; Y: number };
+type Path = Pt[];
+export type Zona = 'rampa' | 'labio';
+const MARG = 4, MV = 1;
+
+export function conteudoZona(p: Record<string, any>, z: Zona): 'Nada' | 'Texto' | 'Imagem' {
+  const v = String(z === 'rampa' ? (p.conteudo_rampa ?? 'Texto') : (p.conteudo_labio ?? 'Nada'));
+  return v === 'Texto' || v === 'Imagem' ? v : 'Nada';
+}
+export const textoZona = (p: Record<string, any>, z: Zona) => String((z === 'rampa' ? p.texto_rampa ?? 'pp3d' : p.texto_labio) ?? '');
+export const tamanhoZona = (p: Record<string, any>, z: Zona) => (z === 'rampa' ? num(p.tamanho_texto_rampa, 12) : num(p.tamanho_texto_labio, 8));
+export const imagemZona = (p: Record<string, any>, z: Zona) => {
+  const v = z === 'rampa' ? p.imagem_rampa : p.imagem_labio;
+  return typeof v === 'string' && v.startsWith('uploads/') ? v : '';
+};
+export const larguraImagemZona = (p: Record<string, any>, z: Zona) => (z === 'rampa' ? num(p.largura_imagem_rampa, 40) : num(p.largura_imagem_labio, 40));
+
+/** Região (Clipper, µm) do texto centrado, com o mesmo ajuste à largura do servidor (lib/textFit.js). */
+export function regiaoTexto(font: Font, p: Record<string, any>, z: Zona): Path[] {
+  const txt = textoZona(p, z);
+  if (!txt) return [];
+  const size = tamanhoZona(p, z);
+  const esc = Math.max(0.05, fatorEscala(font, txt, size, num(p.largura, 70) - 8));
+  const paths: Path[] = [];
+  for (const sh of textoShapes(font, txt, size, esc, 0, 0)) {
+    const ext = sh.extractPoints(12);
+    const fora = ext.shape.map((q) => ({ X: Math.round(q.x * ESC), Y: Math.round(q.y * ESC) }));
+    if (fora.length >= 3) paths.push(ClipperLib.Clipper.Orientation(fora) ? fora : fora.reverse());
+    for (const h of ext.holes) {
+      const b = h.map((q) => ({ X: Math.round(q.x * ESC), Y: Math.round(q.y * ESC) }));
+      if (b.length >= 3) paths.push(ClipperLib.Clipper.Orientation(b) ? b.reverse() : b);
+    }
+  }
+  return ClipperLib.Clipper.SimplifyPolygons(paths, ClipperLib.PolyFillType.pftNonZero);
+}
+
+/** Enchimentos (triângulos, mm, coordenadas do .scad) de cada zona, já recortados pela zona útil. */
+export function construirEmbutidos(p: Record<string, any>, regioes: Partial<Record<Zona, Path[]>>): Record<Zona, number[]> {
+  const m = medidas(p);
+  const dp = Math.max(0.4, Math.min(num(p.profundidade_embutido, 1), Math.min(m.tr, m.tl) - 1.5));
+  const sc = (m.Lr * Math.max(0, Math.min(100, num(p.posicao_rampa, 50)))) / 100;
+  const c = Math.cos(m.a * RAD), s = Math.sin(m.a * RAD), W = m.W;
+  const zonas: Record<Zona, { r: [number, number, number, number]; M: (u: number, v: number, w: number) => V3 }> = {
+    rampa: {
+      r: [-(W / 2 - MARG), sc - (m.Lr - MV), W / 2 - MARG, sc - MV],
+      M: (u, v, w) => [v * c + w * s - sc * c, v * s - w * c - sc * s, W / 2 - u],
+    },
+    labio: {
+      r: [-(W / 2 - MARG), -((m.tp + m.ll) / 2 - MV), W / 2 - MARG, (m.tp + m.ll) / 2 - MV],
+      M: (u, v, w) => [v + (m.tp + m.ll) / 2, -w, W / 2 - u],
+    },
+  };
+  const out: Record<Zona, number[]> = { rampa: [], labio: [] };
+  for (const z of ['rampa', 'labio'] as Zona[]) {
+    const reg = regioes[z];
+    if (!reg?.length) continue;
+    const [x0, y0, x1, y1] = zonas[z].r;
+    if (x1 <= x0 || y1 <= y0) continue;
+    const ret: Path = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => ({ X: Math.round(x * ESC), Y: Math.round(y * ESC) }));
+    const cl = new ClipperLib.Clipper();
+    cl.AddPaths(reg, ClipperLib.PolyType.ptSubject, true);
+    cl.AddPath(ret, ClipperLib.PolyType.ptClip, true);
+    const dentro: Path[] = [];
+    cl.Execute(ClipperLib.ClipType.ctIntersection, dentro, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    if (!dentro.length) continue;
+    // ligeiramente para fora da face (0,05 mm) para não "lutar" com a face do corpo no ecrã
+    const tri: number[] = fatiasParaTriangulos([{ z0: -dp, z1: 0.05, regiao: dentro }]);
+    const M = zonas[z].M;
+    for (let i = 0; i < tri.length; i += 3) out[z].push(...M(tri[i], tri[i + 1], tri[i + 2]));
+  }
+  return out;
+}
