@@ -8,7 +8,7 @@ import { STLLoader, FontLoader, TextGeometry, toCreasedNormals } from 'three-std
 import type { Font } from 'three-stdlib';
 import ClipperLib from 'clipper-lib';
 import { construirEtiqueta, libertarEtiqueta, isEtiquetaMochila, aplicarCoresEtiqueta, coresDeParams } from '@/lib/etiquetaMochila';
-import { formaPetTag, corpoPetTag, rebordoPetTag, ALTURA_PET_TAG } from '@/lib/petTagForma';
+import { formaPetTag, corpoPetTag, rebordoPetTag, arosBarril, ALTURA_PET_TAG } from '@/lib/petTagForma';
 import { coresPetTag } from '@/lib/coresMulticor';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
@@ -108,15 +108,18 @@ function PetTagModel({
   const rebordoAlt = Number(params.rebordo_altura ?? 1);
   const rebordoEstilo = typeof params.rebordo_estilo === 'string' ? params.rebordo_estilo : undefined;
   const deitado = params.orientacao === 'Deitado';   // barril de pé ou deitado (tag-barril)
+  // aros do barril (tag-barril): em relevo, da cor do rebordo — vão na mesma malha
+  const arosOn = forma === 'barril' && !(params.aros === false || params.aros === 0 || params.aros === '0');
   const rebordoMesh = useMemo(() => {
-    if (!forma || !rebordoOn) return null;
+    if (!forma || (!rebordoOn && !arosOn)) return null;
     const { centro } = corpoPetTag(forma, deitado);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(rebordoPetTag(forma, rebordoLarg, rebordoAlt, rebordoEstilo, deitado), 3));
+    const tri = [...(rebordoOn ? rebordoPetTag(forma, rebordoLarg, rebordoAlt, rebordoEstilo, deitado) : []), ...(arosOn ? arosBarril(deitado, rebordoAlt) : [])];
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(tri, 3));
     geo.translate(-centro[0], -centro[1], 0);
     geo.computeVertexNormals();
     return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#93c5fd', metalness: 0.1, roughness: 0.4 }));
-  }, [forma, rebordoOn, rebordoLarg, rebordoAlt, rebordoEstilo, deitado]);
+  }, [forma, rebordoOn, arosOn, rebordoLarg, rebordoAlt, rebordoEstilo, deitado]);
   useEffect(() => () => { rebordoMesh?.geometry.dispose(); }, [rebordoMesh]);
 
   // Cores das peças (cor_base / cor_texto / cor_borda): só muda os materiais, sem

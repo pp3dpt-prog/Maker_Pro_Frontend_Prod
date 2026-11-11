@@ -203,8 +203,8 @@ function formas(f: FormaPetTag, deitado = false): {
       const pts: [number, number][] = [];
       for (let i = 0; i <= 26; i++) { const y = -13 + i; pts.push([13 * Math.sqrt(1 - (y / 16) ** 2), y]); }
       for (let i = 0; i <= 26; i++) { const y = 13 - i; pts.push([-13 * Math.sqrt(1 - (y / 16) ** 2), y]); }
-      // deitado (orientacao = "Deitado"): o mesmo barril rodado 90° — arcos em cima e em baixo
-      const p2: [number, number][] = deitado ? pts.map(([x, y]) => [-y, x]) : pts;
+      // deitado (orientacao = "Deitado"): rodado 90° e esticado em x (32 × 26 mm), tampos dos lados
+      const p2: [number, number][] = deitado ? pts.map(([x, y]) => [(-y * 16) / 13, x]) : pts;
       return { corpo: arredondar([poligono(p2)], 1.5), argola: circulo(0, 15.5, 4.5), furo: circulo(0, 15.5, 2.4) };
     }
   }
@@ -222,6 +222,16 @@ export function corpoPetTag(f: FormaPetTag, deitado = false): { tri: number[]; c
     tri: fatiasParaTriangulos([{ z0: 0, z1: ALTURA_PET_TAG, regiao }]),
     centro: [(minX + maxX) / 2 / ESC, (minY + maxY) / 2 / ESC],
   };
+}
+
+/** Aros do barril (tag-barril, aros = true): duas faixas de 1,6 mm perto dos tampos, em relevo como o rebordo. */
+export function arosBarril(deitado: boolean, altura: number): number[] {
+  const { corpo } = formas('barril', deitado);
+  const faixa = (x0: number, y0: number, x1: number, y1: number) => poligono([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]);
+  const faixas = deitado ? [-1, 1].map((s) => faixa(s * 13.6 - 0.8, -20, s * 13.6 + 0.8, 20))
+    : [-1, 1].map((s) => faixa(-20, s * 9.8 - 0.8, 20, s * 9.8 + 0.8));
+  const regiao = executar(ClipperLib.ClipType.ctIntersection, encolher(corpo, 0.6), faixas);
+  return fatiasParaTriangulos([{ z0: ALTURA_PET_TAG, z1: ALTURA_PET_TAG + altura, regiao }]);
 }
 
 /**
