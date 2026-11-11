@@ -99,6 +99,10 @@ export function PainelDivisao({ divisao, p, set }: { divisao: Divisao | null | u
           <CortesEixo eixo="x" fr={divisao.fx} comp={divisao.bb.w} onChange={fx => setCortes(fx, divisao.fy)} />
           <CortesEixo eixo="y" fr={divisao.fy} comp={divisao.bb.h} onChange={fy => setCortes(divisao.fx, fy)} />
           {manual && <button type="button" style={st.mini} onClick={() => { set('cortes_x', undefined); set('cortes_y', undefined); }}>↺ Repor a sugestão</button>}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
+            <input type="checkbox" checked={!(p.encaixes_blocos === 0 || p.encaixes_blocos === false)} onChange={e => set('encaixes_blocos', e.target.checked ? 1 : 0)} style={{ marginTop: 2 }} />
+            <span>Encaixes nas juntas <span style={{ color: '#8a96aa' }}>— rabos de andorinha na frente e na tampa, dentes a 45° nas paredes (alinham e seguram os blocos, sem peças por trás a fazer sombra). Vê-os em "Separar blocos".</span></span>
+          </label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {divisao.blocos.map(b => (
               <span key={b.id} style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 6, border: `1px solid ${b.cabe ? '#14532d' : '#7f1d1d'}`, color: b.cabe ? '#86efac' : '#fca5a5', background: b.cabe ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.12)' }}>
