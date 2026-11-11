@@ -27,6 +27,43 @@ export const MOLDURAS_NATAL = Object.keys(D.molduras);
 /** Zonas dos nomes da árvore: [cx, cy, largura útil, tamanho da letra] (para o ajuste_texto do schema). */
 export const ZONAS_ARVORE_NOMES = D.arvore_zonas;
 
+// ── Árvore com nomes: 2 a 7 ramos (as mesmas contas de arvore_nomes.scad: ramo/zona) ──
+const NOMES_ARVORE_OMISSAO = ['Maria', 'João', 'Ana', 'Rui', 'Rita', 'Tiago', 'Inês'];
+function ramosArvore(n: number) {
+  const passo = Math.min(9.5, 28.5 / (n - 1));
+  return Array.from({ length: n }, (_, i) => {
+    const hw = 50 - passo * i, yb = 11 + 24 * i, topo = i === n - 1;
+    return { hw, yb, alt: topo ? 40 : 36, ht: topo ? 0 : hw * 0.3 };
+  });
+}
+/** Zonas dos nomes [cx, cy, largura útil, tamanho] (nominal, largura 100) para n ramos. */
+export function zonasArvore(n: number): [number, number, number, number][] {
+  return ramosArvore(n).map(({ hw, yb, alt, ht }, i) => {
+    const tam = 10.5 - (1.5 * i) / (n - 1), cy = yb + 11;
+    const meia = hw - ((hw - ht) * (cy + tam * 0.55 - yb)) / alt;
+    return [0, cy, Math.round((2 * meia - 8) * 10) / 10, tam];
+  });
+}
+function offsetRedondo(paths: CPath[], d: number): CPath[] {
+  const co = new ClipperLib.ClipperOffset(2, 0.02 * S);
+  co.AddPaths(paths, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const out: CPath[] = [];
+  co.Execute(out, d * S);
+  return out;
+}
+/** Contorno da árvore (nominal) para n ramos, arredondado como no .scad. */
+function formaArvore(n: number, k: number): CPath[] {
+  const partes: CPath[] = [rect(-8, 0, 16, 14)];
+  const R = ramosArvore(n);
+  for (const { hw, yb, alt, ht } of R)
+    partes.push(cp(ht > 0 ? [[-hw, yb], [hw, yb], [ht, yb + alt], [-ht, yb + alt]] : [[-hw, yb], [hw, yb], [0, yb + alt]]));
+  const t = R[n - 1], cy = t.yb + t.alt + 6;
+  partes.push(cp(Array.from({ length: 10 }, (_, i) => { const a = (90 + i * 36) * RAD, q = i % 2 ? 4.8 : 11; return [q * Math.cos(a), cy + q * Math.sin(a)] as Pt; })));
+  let f = uniao(partes);
+  f = offsetRedondo(offsetRedondo(offsetRedondo(offsetRedondo(f, -0.6), 0.6), 1.6), -1.6);
+  return f.map((q) => q.map(({ X, Y }) => ({ X: Math.round(X * k), Y: Math.round(Y * k) })));
+}
+
 export type ModeloNatal = 'rena' | 'anjo' | 'gorro_bombom' | 'casinha' | 'cena_led' | 'silhueta_porta' | 'arvore_nomes';
 const MODELOS: ModeloNatal[] = ['rena', 'anjo', 'gorro_bombom', 'casinha', 'cena_led', 'silhueta_porta', 'arvore_nomes'];
 export function modeloNatalDeco(p: Record<string, any> | null | undefined): ModeloNatal | null {
@@ -263,17 +300,28 @@ function casinha(p: Record<string, any>): Parte[] {
   const v = tr / cosd(th);
   const A: Pt = [W / 2 + BEIRAL * cosd(th), Hw - BEIRAL * sind(th)];
   const agua = placaXZ(shapes([cp([A, [0, Hw + Hr], [0, Hw + Hr + v], [A[0], A[1] + v]])]), P + 2 * BEIRAL);
-  const parede = '#B5651D', telhado = '#7F1D1D';
+  const hex = (c: unknown, d: string) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : d);
+  const parede = hex(p.cor_casa, '#B5651D'), telhado = hex(p.cor_telhado, '#7F1D1D');
+  // telhado à parte (p.telhado não começa por "Sem AMS — tudo"): mostra-se levantado 12 mm, com os
+  // encaixes (uma placa por dentro de cada empena — ver encaixe2d no .scad)
+  const aParte = !/^sem ams — tudo/i.test(str(p.telhado, 'Sem AMS — telhado à parte (encaixa)'));
+  const dz = aParte ? 12 : 0;
   const out: Parte[] = [
     { geo: placaXZ(empena(true), t).translate(0, -P / 2 + t / 2, 0), cor: parede },
     { geo: placaXZ(empena(false), t).translate(0, P / 2 - t / 2, 0), cor: parede },
-    { geo: agua, cor: telhado }, { geo: espelhar(agua, 'x'), cor: telhado },
+    { geo: agua.translate(0, 0, dz), cor: telhado }, { geo: espelhar(agua, 'x'), cor: telhado },
   ];
+  if (aParte) {
+    const F = 0.3, E = 1.6, xi = W / 2 - t - F, ze = Hw - BEIRAL * sind(th), zt = Hw + Hr * (1 - xi / (W / 2)) + 0.5;
+    const oc: CPath[] = Hr > 16 ? [circ(0, Hw + 0.4 * Hr, Math.min(0.16 * Hr, 0.09 * W), 40)] : [];
+    const enc = shapes(dif([cp([[-xi, ze], [xi, ze], [xi, zt], [0, Hw + Hr + 0.5], [-xi, zt]])], oc));
+    for (const sy of [-1, 1]) out.push({ geo: placaXZ(enc, E).translate(0, sy * (P / 2 - t - F - E / 2), dz), cor: telhado });
+  }
   for (const s of [-1, 1]) out.push({ geo: extrudir(lado(), t, true).rotateX(Math.PI / 2).rotateZ(Math.PI / 2).translate(s * (W / 2 - t / 2), 0, 0), cor: parede });
   if (sim(p.chamine, true)) {
     const zr = (x: number) => Hw + Hr * (1 - x / (W / 2)) + v;
     const x1 = 0.22 * W, x2 = x1 + Math.max(6, 0.14 * W), zt = Hw + Hr + v + 0.12 * Hr;
-    out.push({ geo: placaXZ(shapes([cp([[x1, zr(x1) - 1.5], [x2, zr(x2) - 1.5], [x2, zt], [x1, zt]])]), Math.max(6, 0.14 * W)).translate(0, 0.18 * P, 0), cor: telhado });
+    out.push({ geo: placaXZ(shapes([cp([[x1, zr(x1) - 1.5], [x2, zr(x2) - 1.5], [x2, zt], [x1, zt]])]), Math.max(6, 0.14 * W)).translate(0, 0.18 * P, dz), cor: telhado });
   }
   return out;
 }
@@ -326,16 +374,17 @@ function silhuetaPorta(p: Record<string, any>): Parte[] {
 function arvoreNomes(p: Record<string, any>, font: Font | null): Parte[] {
   const W = cl(num(p.largura, 140), 80, 240), e = cl(num(p.espessura, 4), 2.4, 8), dv = cl(num(p.diametro_vela, 39.5), 30, 60);
   const pecas = str(p.pecas, 'Árvore e base'), k = W / 100, ALT = 1.2;
-  const nomes = [p.nome1 ?? 'Maria', p.nome2 ?? 'João', p.nome3 ?? 'Ana', p.nome4 ?? 'Rui'].map((n) => String(n));
+  const nr = Math.round(cl(num(p.num_ramos, 4), 2, 7));
+  const nomes = NOMES_ARVORE_OMISSAO.slice(0, nr).map((d, i) => String(p[`nome${i + 1}`] ?? d));
   const hb = 9, prof = 4, Db = dv + e + 19, Wb = Math.max(0.62 * W, 2 * dv + 20), ys = Db / 2 - 10;
   const out: Parte[] = [];
   if (pecas !== 'Só a base') {
     const z0 = pecas === 'Só a árvore' ? 0 : hb - prof;
     const pos = (g: THREE.BufferGeometry) => g.translate(0, 0, -e / 2).rotateX(Math.PI / 2).translate(0, ys, z0);
-    out.push({ geo: pos(extrudir(shapes(f2d(D.arvore, k)), e)), cor: '#166534' });
+    out.push({ geo: pos(extrudir(shapes(formaArvore(nr, k)), e)), cor: '#166534' });
     if (font) {
       const sh: THREE.Shape[] = [];
-      D.arvore_zonas.forEach(([zx, zy, zw, tam], i) => {
+      zonasArvore(nr).forEach(([zx, zy, zw, tam], i) => {
         const txt = nomes[i]; if (!txt) return;
         const esc = fatorEscala(font, txt, tam, zw);   // igual ao esc_nomeN do servidor (não depende da largura)
         sh.push(...textoShapes(font, txt, tam * k, esc, zx * k, zy * k));
