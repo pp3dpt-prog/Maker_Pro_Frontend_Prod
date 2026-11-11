@@ -198,9 +198,22 @@ function portaVelas(p: Record<string, any>): Superficie {
 /** Estrela facetada + argola (igual a estrela.scad). */
 function estrela(p: Record<string, any>): number[] {
   const np = Math.max(3, Math.round(num(p.pontas, 5))), R = num(p.raio, 40), ri = (R * num(p.interior, 45)) / 100;
-  const hr = num(p.altura_relevo, 8), b = num(p.base, 2), M = 2 * np;
-  const pt = (i: number, z: number) => { const a = 90 + (i * 180) / np, r = i % 2 === 0 ? R : ri; return [r * cosd(a), r * sind(a), z]; };
-  const P = Array.from({ length: M }, (_, i) => pt(i, 0)), Q = Array.from({ length: M }, (_, i) => pt(i, b));
+  const hr = num(p.altura_relevo, 8), b = num(p.base, 2), rp = Math.max(0, num(p.arredondar, 1.5));
+  // contorno 2D com as pontas arredondadas (arco de raio rp tangente às duas arestas — igual ao .scad)
+  const vert = (i: number) => { const a = 90 + (i * 180) / np, r = i % 2 === 0 ? R : ri; return [r * cosd(a), r * sind(a)]; };
+  const P0 = vert(0), Q0 = vert(1), lu = Math.hypot(Q0[0] - P0[0], Q0[1] - P0[1]);
+  const meio = Math.acos(-(P0[0] * (Q0[0] - P0[0]) + P0[1] * (Q0[1] - P0[1])) / (lu * Math.hypot(P0[0], P0[1]))) * 180 / Math.PI;
+  const recuo = rp > 0 ? rp / sind(meio) - rp : 0, NARCO = 8;
+  const L: number[][] = [];
+  for (let i = 0; i < 2 * np; i++) {
+    const v = vert(i);
+    if (i % 2 === 1 || rp <= 0) { L.push(v); continue; }
+    const n = Math.hypot(v[0], v[1]), d = [v[0] / n, v[1] / n], k = rp / sind(meio), c = [v[0] - d[0] * k, v[1] - d[1] * k];
+    const a0 = Math.atan2(d[1], d[0]) * 180 / Math.PI, abre = 90 - meio;
+    for (let j = 0; j <= NARCO; j++) { const a = a0 - abre + (2 * abre * j) / NARCO; L.push([c[0] + rp * cosd(a), c[1] + rp * sind(a)]); }
+  }
+  const M = L.length;
+  const P = L.map(([x, y]) => [x, y, 0]), Q = L.map(([x, y]) => [x, y, b]);
   const C = [0, 0, 0], A = [0, 0, b + hr];
   const out: number[] = [];
   const t = (a: number[], bb: number[], c: number[]) => out.push(...a, ...bb, ...c);
@@ -211,7 +224,7 @@ function estrela(p: Record<string, any>): number[] {
     t(A, Q[i], Q[j]);                       // facetas
   }
   if (verdade(p.argola, true)) {
-    const rIn = num(p.diametro_argola, 5) / 2, rOut = rIn + 2.4, h = Math.max(b, 2), cy = R + rIn + 0.3, N = 48;
+    const rIn = num(p.diametro_argola, 5) / 2, rOut = rIn + 2.4, h = Math.max(b, 2), cy = R - recuo + rIn + 0.3, N = 48;
     const v = (r: number, k: number, z: number) => [r * cosd((k * 360) / N), cy + r * sind((k * 360) / N), z];
     for (let k = 0; k < N; k++) {
       const k2 = k + 1;
