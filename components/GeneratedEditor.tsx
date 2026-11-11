@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useRef, useState } from 'react';
+import EditorGaveta from './EditorGaveta';
 
 type Props = {
   schema: any;
@@ -82,6 +83,11 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
         const type   = ui.widget;
         const unit   = def.unit;
         const value  = values[name];
+
+        // ── ORGANIZADOR DE GAVETA (lista de módulos) ──────────────────────
+        if (type === 'gaveta_layout') {
+          return <EditorGaveta key={name} param={name} values={values} onChange={onChange} />;
+        }
 
         // ── TEXT ──────────────────────────────────────────────────────────
         if (type === 'text') {
