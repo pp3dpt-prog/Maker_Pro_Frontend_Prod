@@ -3,8 +3,9 @@
 // + curva + reforço, abas com rosca fêmea, parafusos de cabeça serrilhada). Se mudares o .scad,
 // muda também aqui.
 //
-// Coordenadas como no .scad (perfil em XY, largura em Z): com o y do three.js para cima o suporte
-// já aparece de pé, na posição de uso. Os parafusos aparecem enfiados nas abas.
+// Coordenadas como no .scad (perfil em XY, largura em Z). Para a posição de uso roda-se 90° em Z
+// (base deitada por baixo da moldura do ecrã, lábio à frente, abas atrás) — ver Preview3D.tsx.
+// Os parafusos aparecem enfiados nas abas.
 
 import * as THREE from 'three';
 
@@ -19,7 +20,7 @@ type V3 = [number, number, number];
 type V2 = [number, number];
 
 function medidas(p: Record<string, any>) {
-  const a = num(p.angulo_rampa, 18), tr = num(p.espessura_rampa, 6), Lr = num(p.comprimento_rampa, 50);
+  const a = num(p.angulo_rampa, 18), tr = num(p.espessura_rampa, 6), Lr = Math.min(150, num(p.altura_rampa, 48)) / Math.cos(a * RAD);
   const tl = num(p.espessura_labio, 6), vao = num(p.vao, 50), ha = num(p.altura_aba, 13);
   const H = tl + vao + ha;
   const d = num(p.diametro_rosca, 12), lado = Math.max(num(p.lado_aba, 25), d + 6), W = num(p.largura, 70);
@@ -187,9 +188,3 @@ export function construirParafusosTelemovel(p: Record<string, any>): number[] {
   return out;
 }
 
-/** Caixa (mm) do conjunto, para centrar a câmara. */
-export function caixaSuporteTelemovel(p: Record<string, any>) {
-  const m = medidas(p);
-  const yMin = -(m.Lr * Math.sin(m.a * RAD)) - 2 * m.R - m.tr;
-  return { xMin: -(m.Lr * Math.cos(m.a * RAD)) - m.R - m.tr, xMax: m.tp + m.lado, yMin, yMax: m.H + m.hh, W: m.W };
-}

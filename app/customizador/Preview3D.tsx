@@ -13,7 +13,7 @@ import { coresPetTag } from '@/lib/coresMulticor';
 import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb';
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
-import { construirSuporteTelemovel, construirParafusosTelemovel, caixaSuporteTelemovel, isSuporteTelemovel } from '@/lib/suporteTelemovel';
+import { construirSuporteTelemovel, construirParafusosTelemovel, isSuporteTelemovel } from '@/lib/suporteTelemovel';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
@@ -530,15 +530,19 @@ function SuporteBasesPreview({ params }: { params: Record<string, any> }) {
 }
 
 // ── Suporte de telemóvel para debaixo do monitor — ver lib/suporteTelemovel.ts ──
-// De pé, como fica a uso (o .scad sai deitado para imprimir); os parafusos aparecem nas abas.
+// Na posição de uso: o perfil do .scad (que sai deitado para imprimir) roda 90° em Z — base por baixo
+// da moldura do ecrã, lábio à frente (+x), abas e parafusos atrás, rampa a descer até ao gancho.
 function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
   const geomKey = JSON.stringify(params);
   const grupo = useMemo(() => {
+    const peca = new THREE.Group();
+    const s = malhaDeTriangulos(construirSuporteTelemovel(params), '#F97316'); if (s) peca.add(s);
+    if (String(params.peca ?? 'Tudo') !== 'Suporte') { const pf = malhaDeTriangulos(construirParafusosTelemovel(params), '#4ADE80'); if (pf) peca.add(pf); }
+    peca.rotation.z = Math.PI / 2;
     const g = new THREE.Group();
-    const s = malhaDeTriangulos(construirSuporteTelemovel(params), '#F97316'); if (s) g.add(s);
-    if (String(params.peca ?? 'Tudo') !== 'Suporte') { const pf = malhaDeTriangulos(construirParafusosTelemovel(params), '#4ADE80'); if (pf) g.add(pf); }
-    const c = caixaSuporteTelemovel(params);
-    g.position.set(-(c.xMin + c.xMax) / 2, -c.yMin, -c.W / 2);
+    g.add(peca);
+    const caixa = new THREE.Box3().setFromObject(g);
+    peca.position.set(-(caixa.min.x + caixa.max.x) / 2, -caixa.min.y, -(caixa.min.z + caixa.max.z) / 2);
     return g;
   }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => libertarGrupo(grupo), [grupo]);
@@ -1428,7 +1432,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : isTelemovelModelo ? [-150, 110, 170] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isIluminaria ? [230, 200, 230] : isTelemovelModelo ? [210, 120, 190] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1504,7 +1508,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <OrbitControls
             makeDefault
             enablePan={false}
-            target={isIluminaria ? [0, 80, 0] : isTelemovelModelo ? [0, 50, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
+            target={isIluminaria ? [0, 80, 0] : isTelemovelModelo ? [0, 60, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
             minDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
             maxDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
