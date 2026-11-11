@@ -212,7 +212,17 @@ function rena(p: Record<string, any>): Parte[] {
     partes.push(placaXZ(shapes(f2d(D.orelha.map((q) => q.map(([x, y]): Pt => [(x * cosd(32) - y * sind(32)) * so, (x * sind(32) + y * cosd(32)) * so])))), 2.6)
       .translate(0.7 * rh, 0, zcup(0.8)));
   }
-  for (const g of partes) out.push({ geo: g, cor: '#8B5A2B' }, { geo: espelhar(g, 'x'), cor: '#8B5A2B' });
+  // hastes e orelhas à parte (encaixam em ranhuras na cabeça): mostram-se levantadas 10 mm
+  const aParte = /parte/i.test(str(p.pecas, 'Numa peça'));
+  for (const g of partes) {
+    if (aParte) g.translate(0, 0, 10);
+    out.push({ geo: g, cor: '#8B5A2B' }, { geo: espelhar(g, 'x'), cor: '#8B5A2B' });
+  }
+  // olhos (no .scad são covinhas): aqui duas bolinhas escuras na frente (−y) da cabeça
+  if (sim(p.olhos, true)) {
+    const z = zc + 0.22 * hh, ro = 0.1 * rh;
+    for (const sx of [-1, 1]) { const a = 270 + sx * 24, r = rp(a, z) - 0.55 * ro; out.push({ geo: esfera(ro * 0.8, r * cosd(a), r * sind(a), z), cor: '#2B1B12' }); }
+  }
   return out;
 }
 
@@ -232,6 +242,10 @@ function anjo(p: Record<string, any>): Parte[] {
   const asa = placaXZ(shapes(f2d(D.asa, s)), 3).translate(1.5, 0.42 * saia(zw), zw);
   const corAsa = '#' + new THREE.Color(corCorpo).multiplyScalar(0.9).getHexString();
   out.push({ geo: asa, cor: corAsa }, { geo: espelhar(asa, 'x'), cor: corAsa });
+  if (sim(p.olhos, true)) {   // covinhas no .scad; aqui bolinhas escuras na frente (−y) da cabeça
+    const ro = 0.1 * rc, z = zh + 0.08 * rc, rr = Math.sqrt(rc * rc - Math.pow(z - zh, 2)) - 0.55 * ro;
+    for (const sx of [-1, 1]) { const a = 270 + sx * 22; out.push({ geo: esfera(ro * 0.8, rr * cosd(a), rr * sind(a), z), cor: '#3A2A20' }); }
+  }
   if (sim(p.aureola, true)) {
     // a auréola é uma peça à parte (sem AMS imprime-se deitada e cola-se atrás da cabeça); aqui
     // mostra-se montada — a parte que fica dentro da cabeça não se vê
