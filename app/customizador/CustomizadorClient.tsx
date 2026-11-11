@@ -8,6 +8,7 @@ import { isEtiquetaMochila } from '@/lib/etiquetaMochila';
 import { isCaixaPcb } from '@/lib/caixaPcb';
 import { isBaseCopos } from '@/lib/baseCopos';
 import { isSuporteBases } from '@/lib/suporteBases';
+import { isSuporteTelemovel } from '@/lib/suporteTelemovel';
 import { isNomeFlexivel } from '@/lib/nomeFlexivel';
 import { isDecoracao } from '@/lib/decoracao';
 import { isArvoreNatal } from '@/lib/arvoresNatal';
@@ -66,7 +67,10 @@ export default function CustomizadorClient({
     && isCaixaPcb(params);
   // Base para copos, suporte para bases, nome flexível e decoração — a MESMA deteção do Preview3D.tsx
   // (as duas listas têm de andar juntas: um modelo que falte aqui mostra a miniatura fixa).
-  const outroModelo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo;
+  // Suporte de telemóvel para debaixo do monitor: parâmetro escondido suporte = "telemovel_monitor" (ver lib/suporteTelemovel.ts)
+  const isTelemovelModelo = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro && !isEtiqueta && !isCaixaPcbModelo
+    && isSuporteTelemovel(params);
+  const outroModelo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
   const isNomeFlexModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
