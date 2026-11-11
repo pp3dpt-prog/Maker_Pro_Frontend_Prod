@@ -19,6 +19,7 @@ import DownloadStlButton from '@/components/DownloadStlButton';
 import { vetorizarLinhasSvg } from '@/lib/vetorLinhas';
 // @ts-ignore — módulo JS partilhado com o backend (Maker_Pro_Docker_Prod/app/caixaLuzNeon.js)
 import { construirCaixaLuzNeon } from '@/lib/caixaLuzNeon';
+import { PainelDivisao, PlanosCorte, deslocamentoBloco, PARAMS_REPOEM_CORTES, type Divisao, type Bloco } from './DivisaoBlocos';
 
 type VetorLinhas = {
   w: number; h: number;
@@ -31,6 +32,8 @@ type Resultado = {
   tris: number[];
   geo: { largura: number; largura_canal_mm: number; profundidade_canal_mm: number; parede_mm: number; espessura_fundo_mm: number; mesa_x_mm: number; mesa_y_mm: number };
   largura: number; altura: number; alturaTotal: number; avisos: string[];
+  // divisão em blocos (lib/divisaoBlocos.js)
+  divisao?: (Omit<Divisao, 'blocos'> & { blocos: (Bloco & { tris: number[] })[] }) | null;
 };
 
 type Props = {
@@ -72,7 +75,7 @@ function Slider({ label, valor, min, max, passo, unidade = 'mm', onChange }: {
   );
 }
 
-function Modelo({ tris }: { tris: number[] }) {
+function Malha({ tris }: { tris: number[] }) {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(tris, 3));
@@ -81,11 +84,19 @@ function Modelo({ tris }: { tris: number[] }) {
   }, [tris]);
   useEffect(() => () => geo.dispose(), [geo]);
   return (
-    // Z para cima, igual à cama da impressora
     <mesh geometry={geo}>
       <meshStandardMaterial color="#5a8fd6" roughness={0.5} metalness={0.05} />
     </mesh>
   );
+}
+
+function Modelo({ res, separar }: { res: Resultado; separar: boolean }) {
+  const d = res.divisao;
+  // Z para cima, igual à cama da impressora
+  if (separar && d?.ativo) {
+    return <>{d.blocos.map(b => <group key={b.id} position={deslocamentoBloco(b, d)}><Malha tris={b.tris} /></group>)}</>;
+  }
+  return <><Malha tris={res.tris} /><PlanosCorte divisao={d} altura={res.alturaTotal} /></>;
 }
 
 export default function CaixaLuzNeonEditor({ designId, nome, userId, canDownload, bloqueioMsg, downloadsInfo, onUpload, onDownloadSuccess }: Props) {
@@ -95,7 +106,9 @@ export default function CaixaLuzNeonEditor({ designId, nome, userId, canDownload
   const [vetor, setVetor] = useState<VetorLinhas | null>(null);
   const [estado, setEstado] = useState<'idle' | 'upload' | 'erro'>('idle');
   const [erro, setErro] = useState('');
-  const set = (k: string, v: any) => setP(prev => ({ ...prev, [k]: v }));
+  const [separar, setSeparar] = useState(false);
+  // mudar o tamanho/mesa/canal repõe a sugestão de cortes
+  const set = (k: string, v: any) => setP(prev => ({ ...prev, [k]: v, ...(PARAMS_REPOEM_CORTES.includes(k) ? { cortes_x: undefined, cortes_y: undefined } : {}) }));
 
   async function escolherFicheiro(file: File | undefined) {
     if (!file) return;
@@ -103,6 +116,7 @@ export default function CaixaLuzNeonEditor({ designId, nome, userId, canDownload
     const ehSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
     if (!ehSvg) { setErro('Só SVG — este modelo precisa das linhas do desenho, não de pixels.'); setEstado('erro'); return; }
     setEstado('upload'); setErro(''); setVetor(null); setNomeFicheiro(file.name);
+    setP(prev => ({ ...prev, cortes_x: undefined, cortes_y: undefined }));
     try {
       const texto = await file.text();
       const v = vetorizarLinhasSvg(texto) as VetorLinhas;
@@ -149,8 +163,10 @@ export default function CaixaLuzNeonEditor({ designId, nome, userId, canDownload
             <Slider label="Mesa X" valor={p.mesa_x_mm} min={100} max={500} passo={5} onChange={v => set('mesa_x_mm', v)} />
             <Slider label="Mesa Y" valor={p.mesa_y_mm} min={100} max={500} passo={5} onChange={v => set('mesa_y_mm', v)} />
           </div>
-          <p style={c.ajuda}>Se a peça não couber, avisamos-te — a divisão automática em blocos ainda não está disponível.</p>
+          <p style={c.ajuda}>Se a peça não couber, é dividida em blocos — sugerimos os cortes e podes ajustá-los.</p>
         </div>
+
+        <PainelDivisao divisao={res?.divisao} p={p} set={set} />
 
         <div style={c.bloco}>
           <p style={c.titulo}>3 · Canal (para a fita de neon)</p>
@@ -181,12 +197,21 @@ export default function CaixaLuzNeonEditor({ designId, nome, userId, canDownload
             <Canvas camera={{ position: [0, -res.largura * 1.3 - 100, res.altura * 0.9 + 60], up: [0, 0, 1], fov: 40, near: 0.1, far: 3000 }} dpr={[1, 2]}>
               <ambientLight intensity={0.6} />
               <directionalLight position={[40, -40, 120]} intensity={0.9} />
-              <Modelo tris={res.tris} />
+              <Modelo res={res} separar={separar && !!res.divisao?.ativo} />
               <OrbitControls makeDefault enableDamping target={[0, 0, res.alturaTotal / 2]} />
             </Canvas>
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a96aa', fontSize: 14, textAlign: 'center', padding: 24 }}>
               {estado === 'upload' ? 'A processar o SVG…' : estado === 'erro' ? <span style={{ color: '#f87171' }}>{erro}</span> : resultado.erro ? <span style={{ color: '#f87171' }}>{resultado.erro}</span> : 'Carrega um SVG com um nome ou desenho a linhas para ver o canal em 3D.'}
+            </div>
+          )}
+          {res?.divisao?.ativo && (
+            <div style={{ position: 'absolute', top: 10, left: 10 }}>
+              <button type="button" onClick={() => setSeparar(v => !v)} style={{
+                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                border: `1px solid ${separar ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
+                background: separar ? 'rgba(239,68,68,0.18)' : 'rgba(15,23,42,0.7)', color: separar ? '#fca5a5' : '#94a3b8',
+              }}>✂ {separar ? 'Juntar blocos' : 'Separar blocos'}</button>
             </div>
           )}
           {res && (
@@ -201,7 +226,9 @@ export default function CaixaLuzNeonEditor({ designId, nome, userId, canDownload
         {res && (
           <div style={c.bloco}>
             <p style={c.titulo}>O que vais receber</p>
-            <p style={{ ...c.ajuda, color: '#cbd5e1' }}>canal.stl — uma peça só, com o fundo fechado e o canal aberto por cima, a toda a volta do traço.</p>
+            <p style={{ ...c.ajuda, color: '#cbd5e1' }}>{res.divisao?.ativo
+              ? `${res.divisao.blocos.length} blocos (${res.divisao.blocos.map(b => `canal_${b.id}.stl`).join(', ')}) — colam-se topo a topo.`
+              : 'canal.stl — uma peça só, com o fundo fechado e o canal aberto por cima, a toda a volta do traço.'}</p>
             {res.avisos.map((a, i) => <p key={i} style={{ ...c.ajuda, color: '#fbbf24' }}>⚠️ {a}</p>)}
           </div>
         )}

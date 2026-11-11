@@ -21,6 +21,7 @@ import DownloadStlButton from '@/components/DownloadStlButton';
 import { construirCaixaLuzLogo } from '@/lib/caixaLuzLogo';
 // @ts-ignore — módulo JS partilhado com o backend (Maker_Pro_Docker_Prod/app/vetorGeom.js)
 import { fatiasParaTriangulos } from '@/lib/vetorGeom';
+import { PainelDivisao, PlanosCorte, deslocamentoBloco, PARAMS_REPOEM_CORTES, type Divisao, type Bloco } from './DivisaoBlocos';
 
 type Vetor = {
   w: number; h: number; ehSvg: boolean; fundoOpaco?: boolean;
@@ -42,6 +43,8 @@ type Resultado = {
   corpoTris: number[];
   tampaTris: number[] | null;
   formaTipo: 'imagem' | 'redonda' | 'quadrada' | 'hexagonal';
+  // divisão em blocos (lib/divisaoBlocos.js): cada bloco traz as suas peças já cortadas
+  divisao?: (Omit<Divisao, 'blocos'> & { blocos: (Bloco & { corpoTris: number[] | null; tampaTris: number[] | null; pecas: Pecas['pecas'] })[] }) | null;
 };
 
 type Props = {
@@ -103,7 +106,9 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
   const [estado, setEstado] = useState<'idle' | 'upload' | 'vetor' | 'erro'>('idle');
   const [erro, setErro] = useState('');
   const [luzAcesa, setLuzAcesa] = useState(true);
-  const set = (k: string, v: any) => setP(prev => ({ ...prev, [k]: v }));
+  const [separar, setSeparar] = useState(false);
+  // mudar o tamanho/forma/mesa repõe a sugestão de cortes (os ajustes manuais deixam de servir)
+  const set = (k: string, v: any) => setP(prev => ({ ...prev, [k]: v, ...(PARAMS_REPOEM_CORTES.includes(k) ? { cortes_x: undefined, cortes_y: undefined } : {}) }));
 
   const pedido = useState(() => ({ current: 0 }))[0];
   useEffect(() => {
@@ -138,6 +143,7 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
     if (file.size > 8 * 1024 * 1024) { setErro('Ficheiro demasiado grande (máx. 8 MB).'); setEstado('erro'); return; }
     const ehSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
     setEstado('upload'); setErro(''); setVetor(null); setNomeFicheiro(file.name);
+    setP(prev => ({ ...prev, cortes_x: undefined, cortes_y: undefined }));
     try {
       const path = await onUpload(ehSvg && !file.type ? new File([file], file.name, { type: 'image/svg+xml' }) : file);
       setImagePath(path);
@@ -191,8 +197,10 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
             <Slider label="Mesa X" valor={p.mesa_x_mm} min={100} max={500} passo={5} onChange={v => set('mesa_x_mm', v)} />
             <Slider label="Mesa Y" valor={p.mesa_y_mm} min={100} max={500} passo={5} onChange={v => set('mesa_y_mm', v)} />
           </div>
-          <p style={c.ajuda}>Tamanho da mesa de impressão. Se a peça não couber, avisamos-te — a divisão automática em blocos ainda não está disponível.</p>
+          <p style={c.ajuda}>Tamanho da mesa de impressão. Se a peça não couber, é dividida em blocos — sugerimos os cortes e podes ajustá-los.</p>
         </div>
+
+        <PainelDivisao divisao={res?.divisao} p={p} set={set} />
 
         <div style={c.bloco}>
           <p style={c.titulo}>3 · Cores</p>
@@ -300,7 +308,7 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
               <ambientLight intensity={luzAcesa ? 0.2 : 0.5} />
               <directionalLight position={[40, -40, 80]} intensity={luzAcesa ? 0.3 : 1.1} />
               <Suspense fallback={null}><Environment preset="warehouse" /></Suspense>
-              <Modelo res={res} luzAcesa={luzAcesa} />
+              <Modelo res={res} luzAcesa={luzAcesa} separar={separar && !!res.divisao?.ativo} />
               <OrbitControls makeDefault enableDamping target={[0, 0, res.geo.profundidadeMm / 2]} />
             </Canvas>
           ) : (
@@ -320,6 +328,13 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
                   {v ? '💡 Luz acesa' : '🌙 Luz apagada'}
                 </button>
               ))}
+              {res.divisao?.ativo && (
+                <button type="button" onClick={() => setSeparar(v => !v)} style={{
+                  padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  border: `1px solid ${separar ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
+                  background: separar ? 'rgba(239,68,68,0.18)' : 'rgba(15,23,42,0.7)', color: separar ? '#fca5a5' : '#94a3b8',
+                }}>✂ {separar ? 'Juntar blocos' : 'Separar blocos'}</button>
+              )}
             </div>
           )}
           {r && (
@@ -334,6 +349,7 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
         {r && (
           <div style={c.bloco}>
             <p style={c.titulo}>O que vais receber ({formato})</p>
+            {res?.divisao?.ativo && <p style={{ ...c.ajuda, color: '#fca5a5' }}>✂ {res.divisao.blocos.length} blocos ({res.divisao.blocos.map(b => b.id).join(', ')}): cada ficheiro abaixo vem um por bloco — corpo_A1.stl, corpo_B1.stl, frente_A1…</p>}
             <p style={{ ...c.ajuda, color: '#cbd5e1' }}>corpo.stl — paredes ocas da caixa{p.tem_tampa ? '' : ', abertas dos dois lados'}</p>
             {!!p.tem_tampa && <p style={{ ...c.ajuda, color: '#cbd5e1' }}>tampa.stl — fecha o fundo</p>}
             {r.guia.map((g, i) => <p key={i} style={{ ...c.ajuda, color: '#cbd5e1' }}>{g}</p>)}
@@ -348,48 +364,65 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
 
 // ── Modelo 3D ────────────────────────────────────────────────────────────────
 
-function Modelo({ res, luzAcesa }: { res: Resultado; luzAcesa: boolean }) {
-  const { r, geo, corpoTris, tampaTris } = res;
+function Modelo({ res, luzAcesa, separar }: { res: Resultado; luzAcesa: boolean; separar: boolean }) {
+  const { r, geo, corpoTris, tampaTris, divisao } = res;
+  const altura = (geo.zFrente ?? geo.profundidadeMm) + r.alturaTotal;
+  return (
+    // Z para cima, igual à cama da impressora
+    <group>
+      {separar && divisao?.ativo
+        ? divisao.blocos.map(b => (
+          <group key={b.id} position={deslocamentoBloco(b, divisao)}>
+            <Conjunto corpoTris={b.corpoTris} tampaTris={b.tampaTris} pecas={b.pecas} geo={geo} luzAcesa={luzAcesa} />
+          </group>
+        ))
+        : <>
+          <Conjunto corpoTris={corpoTris} tampaTris={tampaTris} pecas={r.pecas} geo={geo} luzAcesa={luzAcesa} />
+          <PlanosCorte divisao={divisao} altura={altura} />
+        </>}
+      {luzAcesa && (
+        <pointLight position={[0, 0, geo.profundidadeMm * 0.3]} color="#ffc27a" intensity={4000} distance={0} decay={2} />
+      )}
+    </group>
+  );
+}
 
-  const corpoGeo = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(corpoTris, 3));
-    g.computeVertexNormals();
-    return g;
-  }, [corpoTris]);
-  useEffect(() => () => corpoGeo.dispose(), [corpoGeo]);
+function malhaDe(tris: number[] | null) {
+  if (!tris || !tris.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(tris, 3));
+  g.computeVertexNormals();
+  return g;
+}
 
-  const tampaGeo = useMemo(() => {
-    if (!tampaTris) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(tampaTris, 3));
-    g.computeVertexNormals();
-    return g;
-  }, [tampaTris]);
+/** Corpo + tampa + frente/cores (a peça inteira ou um bloco). */
+function Conjunto({ corpoTris, tampaTris, pecas, geo, luzAcesa }: {
+  corpoTris: number[] | null; tampaTris: number[] | null; pecas: Pecas['pecas']; geo: Resultado['geo']; luzAcesa: boolean;
+}) {
+  const corpoGeo = useMemo(() => malhaDe(corpoTris), [corpoTris]);
+  useEffect(() => () => corpoGeo?.dispose(), [corpoGeo]);
+  const tampaGeo = useMemo(() => malhaDe(tampaTris), [tampaTris]);
   useEffect(() => () => tampaGeo?.dispose(), [tampaGeo]);
 
   const malhas = useMemo(() => {
     const out: { geo: THREE.BufferGeometry; cor: string; frente: boolean }[] = [];
-    for (const peca of r.pecas) {
+    for (const peca of pecas) {
       for (const f of peca.fatias) {
-        const tri: number[] = fatiasParaTriangulos([f]);
-        if (!tri.length) continue;
-        const g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.Float32BufferAttribute(tri, 3));
-        g.computeVertexNormals();
-        out.push({ geo: g, cor: f.cor ?? peca.cor, frente: peca.nome === 'base' || peca.nome === 'porta-chaves' });
+        const g = malhaDe(fatiasParaTriangulos([f]));
+        if (g) out.push({ geo: g, cor: f.cor ?? peca.cor, frente: peca.nome === 'base' || peca.nome === 'porta-chaves' });
       }
     }
     return out;
-  }, [r]);
+  }, [pecas]);
   useEffect(() => () => malhas.forEach(m => m.geo.dispose()), [malhas]);
 
   return (
-    // Z para cima, igual à cama da impressora
     <group>
-      <mesh geometry={corpoGeo}>
-        <meshStandardMaterial color="#2b2c31" roughness={0.6} />
-      </mesh>
+      {corpoGeo && (
+        <mesh geometry={corpoGeo}>
+          <meshStandardMaterial color="#2b2c31" roughness={0.6} />
+        </mesh>
+      )}
       {tampaGeo && (
         <mesh geometry={tampaGeo}>
           <meshStandardMaterial color="#2b2c31" roughness={0.6} />
@@ -405,9 +438,6 @@ function Modelo({ res, luzAcesa }: { res: Resultado; luzAcesa: boolean }) {
           </mesh>
         ))}
       </group>
-      {luzAcesa && (
-        <pointLight position={[0, 0, geo.profundidadeMm * 0.3]} color="#ffc27a" intensity={4000} distance={0} decay={2} />
-      )}
     </group>
   );
 }
