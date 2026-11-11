@@ -187,13 +187,19 @@ function anjo(p: Record<string, any>): Parte[] {
   // saia e cabeça num só perfil (o maior dos dois)
   const cabeca = (z: number) => { const t = z - zh; return Math.abs(t) < rc ? Math.sqrt(rc * rc - t * t) : 0; };
   const rp: Rp = (a, z) => Math.max(0.05, z <= Hb ? saia(z) - re * (0.5 + 0.5 * cosd(ne * a)) * cl((Hb - z) / (0.18 * Hb), 0, 1) : 0, cabeca(z));
-  const out: Parte[] = [{ geo: solidoPolar(rp, zh + rc, Math.max(96, 6 * ne), 100, false), cor: '#F1E7D6' }];
+  // cores das partes do 3MF (cor_corpo / cor_aureola); as asas um pouco mais escuras, só para se verem
+  const hex = (v: unknown, d: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+  const corCorpo = hex(p.cor_corpo, '#F1E7D6'), corAureola = hex(p.cor_aureola, '#E0A526');
+  const out: Parte[] = [{ geo: solidoPolar(rp, zh + rc, Math.max(96, 6 * ne), 100, false), cor: corCorpo }];
   const s = (1.6 * as * R) / 30, zw = 0.56 * Hb;
   const asa = placaXZ(shapes(f2d(D.asa, s)), 3).translate(1.5, 0.42 * saia(zw), zw);
-  out.push({ geo: asa, cor: '#E5D3B3' }, { geo: espelhar(asa, 'x'), cor: '#E5D3B3' });
+  const corAsa = '#' + new THREE.Color(corCorpo).multiplyScalar(0.9).getHexString();
+  out.push({ geo: asa, cor: corAsa }, { geo: espelhar(asa, 'x'), cor: corAsa });
   if (sim(p.aureola, true)) {
+    // a auréola é uma peça à parte (sem AMS imprime-se deitada e cola-se atrás da cabeça); aqui
+    // mostra-se montada — a parte que fica dentro da cabeça não se vê
     const anel = shapes(dif([circ(0, 0, 1.12 * rc, 72)], [circ(0, 0, 0.9 * rc, 72)]));
-    out.push({ geo: placaXZ(anel, 2.4).translate(0, 0.4 * rc, zh + 0.5 * rc), cor: '#E0A526' });
+    out.push({ geo: placaXZ(anel, 2.4).translate(0, 0.4 * rc, zh + 0.5 * rc), cor: corAureola });
   }
   return out;
 }
