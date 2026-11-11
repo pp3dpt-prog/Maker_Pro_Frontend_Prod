@@ -578,6 +578,7 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
     const peca = new THREE.Group();
     const add = (tri: number[], cor: string, parte: string) => { const m = malhaDeTriangulos(tri, cor); if (m) { m.userData.parte = parte; peca.add(m); } };
     add(construirSuporteTelemovel(params), '#F97316', 'suporte');
+    // os parafusos vão num ficheiro à parte (parafusos.stl), mas mostram-se montados
     if (perso || String(params.peca ?? 'Tudo') !== 'Suporte') add(construirParafusosTelemovel(params), '#4ADE80', 'parafusos');
     if (perso) {
       const regioes: Partial<Record<Zona, any[]>> = {};
@@ -601,12 +602,12 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
 
   // cores (só no personalizado): só os materiais, sem recalcular a geometria
   const cores: Record<string, string> = perso
-    ? { suporte: corDe(params.cor_suporte, '#111111'), parafusos: corDe(params.cor_parafusos, '#111111'), rampa: corDe(params.cor_rampa, '#FFFFFF'), labio: corDe(params.cor_labio, '#FFFFFF') }
+    ? { suporte: corDe(params.cor_suporte, '#111111'), parafusos: corDe(params.cor_suporte, '#111111'), rampa: corDe(params.cor_rampa, '#FFFFFF'), labio: corDe(params.cor_labio, '#FFFFFF') }
     : {};
   useEffect(() => {
     if (!perso) return;
     grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as string | undefined; if (parte && cores[parte]) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
-  }, [grupo, perso, cores.suporte, cores.parafusos, cores.rampa, cores.labio]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [grupo, perso, cores.suporte, cores.rampa, cores.labio]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
 
