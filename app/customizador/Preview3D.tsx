@@ -14,6 +14,7 @@ import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb'
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
 import { construirSuporteTelemovel, construirParafusosTelemovel, isSuporteTelemovel, isSuporteTelemovelPersonalizado, conteudoZona, imagemZona, larguraImagemZona, regiaoTexto, construirEmbutidos, type Zona } from '@/lib/suporteTelemovel';
+import { modeloSuporteExtra, construirSuporteExtra, conteudoZonaExtra, imagemZonaExtra, larguraImagemZonaExtra, regiaoTextoExtra, construirEmbutidosExtra, ZONAS as ZONAS_SUPORTE_EXTRA } from '@/lib/suportesTelemovelExtra';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
@@ -612,6 +613,69 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
     if (!perso) return;
     grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as string | undefined; if (parte && cores[parte]) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
   }, [grupo, perso, cores.suporte, cores.rampa, cores.labio]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Suportes de telemóvel personalizados: secretária, dock vertical e desmontável de bolso ──
+// Ver lib/suportesTelemovelExtra.ts. Coordenadas do .scad (y para cima, frente em x = 0); roda-se
+// 90° em Y para a frente ficar virada para a câmara. Duas zonas de texto/imagem por modelo, com
+// as cores das partes do 3MF; as imagens vêm do vetorizador (/api/vetorizar).
+function SuporteExtraPreview({ params }: { params: Record<string, any> }) {
+  const modelo = modeloSuporteExtra(params)!;
+  const zonas = ZONAS_SUPORTE_EXTRA[modelo];
+  const comTexto = zonas.some((z) => conteudoZonaExtra(params, z) === 'Texto');
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Open Sans')] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+
+  const imgs = zonas.map((z) => (conteudoZonaExtra(params, z) === 'Imagem' ? imagemZonaExtra(params, z) : ''));
+  const [vetores, setVetores] = useState<Record<string, any>>({});
+  useEffect(() => {
+    for (const c of imgs) {
+      if (!c || vetores[c] !== undefined) continue;
+      setVetores((v) => ({ ...v, [c]: null }));
+      vetorizarImagem(c).then((vet) => { if (vet) setVetores((v) => ({ ...v, [c]: vet })); }).catch(() => {});
+    }
+  }, [imgs[0], imgs[1]]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fontPronta = comTexto ? font : null;
+  const corKey = ['cor_suporte', ...zonas.map((z) => `cor_${z}`)];
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !corKey.includes(k)), !!fontPronta, fontPath, imgs.map((c) => !!vetores[c])]);
+  const grupo = useMemo(() => {
+    const peca = new THREE.Group();
+    const add = (tri: number[], cor: string, parte: string) => { const m = malhaDeTriangulos(tri, cor); if (m) { m.userData.parte = parte; peca.add(m); } };
+    const geo = construirSuporteExtra(params);
+    if (geo) {
+      add(geo.corpo, '#111111', 'suporte');
+      const regioes: Record<string, any[]> = {};
+      for (const z of zonas) {
+        const tipo = conteudoZonaExtra(params, z);
+        if (tipo === 'Texto' && fontPronta) regioes[z] = regiaoTextoExtra(fontPronta, params, z, geo.zonas[z].ajuste);
+        if (tipo === 'Imagem') { const vet = vetores[imagemZonaExtra(params, z)]; if (vet) regioes[z] = logoParaRegiao(vet, larguraImagemZonaExtra(params, z)); }
+      }
+      const emb = construirEmbutidosExtra(geo, regioes);
+      for (const z of zonas) add(emb[z] ?? [], '#FFFFFF', z);
+    }
+    peca.rotation.y = Math.PI / 2;
+    const g = new THREE.Group();
+    g.add(peca);
+    const caixa = new THREE.Box3().setFromObject(g);
+    peca.position.set(-(caixa.min.x + caixa.max.x) / 2, -caixa.min.y, -(caixa.min.z + caixa.max.z) / 2);
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+
+  // cores: só os materiais, sem recalcular a geometria
+  const cores: Record<string, string> = { suporte: corDe(params.cor_suporte, '#111111') };
+  for (const z of zonas) cores[z] = corDe(params[`cor_${z}`], '#FFFFFF');
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as string | undefined; if (parte && cores[parte]) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
+  }, [grupo, cores.suporte, cores[zonas[0]], cores[zonas[1]]]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
 
@@ -1473,9 +1537,10 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isCaixaPcbModelo = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro && !isEtiqueta
     && isCaixaPcb(params);
   // Base para copos, suporte e nome flexível (ver lib/baseCopos.ts, lib/suporteBases.ts, lib/nomeFlexivel.ts)
-  // Suporte de telemóvel para debaixo do monitor: parâmetro escondido suporte = "telemovel_monitor"
+  // Suporte de telemóvel para debaixo do monitor: parâmetro escondido suporte = "telemovel_monitor";
+  // secretária / dock / desmontável: suporte = "secretaria_personalizado", ... (lib/suportesTelemovelExtra.ts)
   const isTelemovelModelo = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro && !isEtiqueta && !isCaixaPcbModelo
-    && isSuporteTelemovel(params);
+    && (isSuporteTelemovel(params) || !!modeloSuporteExtra(params));
   const outroModelo = isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo   = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
@@ -1550,7 +1615,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           ) : isCaixaPcbModelo ? (
             <CaixaPcbPreview params={params} />
           ) : isTelemovelModelo ? (
-            <SuporteTelemovelPreview params={params} />
+            modeloSuporteExtra(params) ? <SuporteExtraPreview params={params} /> : <SuporteTelemovelPreview params={params} />
           ) : isBaseCoposModelo ? (
             <BaseCoposPreview params={params} />
           ) : isSuporteModelo ? (

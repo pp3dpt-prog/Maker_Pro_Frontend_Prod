@@ -9,6 +9,7 @@ import { isCaixaPcb } from '@/lib/caixaPcb';
 import { isBaseCopos } from '@/lib/baseCopos';
 import { isSuporteBases } from '@/lib/suporteBases';
 import { isSuporteTelemovel } from '@/lib/suporteTelemovel';
+import { modeloSuporteExtra } from '@/lib/suportesTelemovelExtra';
 import { isNomeFlexivel } from '@/lib/nomeFlexivel';
 import { isDecoracao } from '@/lib/decoracao';
 import { isArvoreNatal } from '@/lib/arvoresNatal';
@@ -69,7 +70,7 @@ export default function CustomizadorClient({
   // (as duas listas têm de andar juntas: um modelo que falte aqui mostra a miniatura fixa).
   // Suporte de telemóvel para debaixo do monitor: parâmetro escondido suporte = "telemovel_monitor" (ver lib/suporteTelemovel.ts)
   const isTelemovelModelo = !hasPetTagPreview && !isNameKey && !isLetraNome && !isPatamares && !isCaixaLuz && !isEsquadro && !isEtiqueta && !isCaixaPcbModelo
-    && isSuporteTelemovel(params);
+    && (isSuporteTelemovel(params) || !!modeloSuporteExtra(params));   // + secretária / dock / desmontável (lib/suportesTelemovelExtra.ts)
   const outroModelo = hasPetTagPreview || isNameKey || isLetraNome || isPatamares || isCaixaLuz || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
