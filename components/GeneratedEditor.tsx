@@ -228,11 +228,28 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
           // disponíveis; aparecem como amostras clicáveis por cima do seletor livre.
           const paleta: { nome: string; hex: string }[] = Array.isArray(ui.paleta) ? ui.paleta : [];
           const atual = String(value ?? def.default ?? '').toUpperCase();
+          // ui.auto (opcional): texto de um botão que deixa a cor vazia = automática (p.ex. "Cor da
+          // imagem" nas imagens a cores dos suportes — o servidor usa a cor detetada na imagem)
+          const auto: string | null = typeof ui.auto === 'string' ? ui.auto : null;
           return (
             <div key={name} className="space-y-1">
               <label className="block text-xs text-slate-300 font-medium">
                 {label}
               </label>
+              {auto && (
+                <button
+                  type="button"
+                  aria-pressed={atual === ''}
+                  onClick={() => onChange({ ...values, [name]: '' })}
+                  style={{
+                    fontSize: 11, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', marginBottom: 4,
+                    background: atual === '' ? 'rgba(59,130,246,0.2)' : 'transparent', color: '#cbd5e1',
+                    border: atual === '' ? '1px solid #60a5fa' : '1px solid #334155',
+                  }}
+                >
+                  {auto}
+                </button>
+              )}
               {paleta.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
                   {paleta.map((c) => {
@@ -259,7 +276,7 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input
                   type="color"
-                  value={value ?? def.default ?? '#ffffff'}
+                  value={(value ?? def.default) || '#ffffff'}
                   onChange={(e) => onChange({ ...values, [name]: e.target.value })}
                   style={{
                     width: 40,
@@ -272,7 +289,7 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
                   }}
                 />
                 <span style={{ fontSize: 12, color: '#8a96aa', fontFamily: 'monospace' }}>
-                  {(value ?? def.default ?? '').toString().toUpperCase()}
+                  {auto && atual === '' ? auto : (value ?? def.default ?? '').toString().toUpperCase()}
                 </span>
               </div>
             </div>

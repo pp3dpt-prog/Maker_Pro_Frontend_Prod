@@ -14,7 +14,9 @@ import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb'
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
 import { construirSuporteTelemovel, construirParafusosTelemovel, isSuporteTelemovel, isSuporteTelemovelPersonalizado, conteudoZona, imagemZona, larguraImagemZona, regiaoTexto, construirEmbutidos, type Zona } from '@/lib/suporteTelemovel';
-import { modeloSuporteExtra, construirSuporteExtra, conteudoZonaExtra, imagemZonaExtra, larguraImagemZonaExtra, regiaoTextoExtra, construirEmbutidosExtra, ZONAS as ZONAS_SUPORTE_EXTRA } from '@/lib/suportesTelemovelExtra';
+import { modeloSuporteExtra, construirSuporteExtra, conteudoZonaExtra, imagemZonaExtra, larguraImagemZonaExtra, regiaoTextoExtra, construirEmbutidosExtra, numCoresImagem, ZONAS as ZONAS_SUPORTE_EXTRA } from '@/lib/suportesTelemovelExtra';
+// @ts-ignore — módulo JS partilhado com o backend (lib/imagemCores.js): uma região por cor da imagem
+import { regioesCores } from '@/lib/imagemCores';
 import { construirNomeFlexivel, isNomeFlexivel, libertarGrupo } from '@/lib/nomeFlexivel';
 import { construirDecoracao, isDecoracao, modeloDecoracao, COR_DECORACAO } from '@/lib/decoracao';
 import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
@@ -539,18 +541,41 @@ function SuporteBasesPreview({ params }: { params: Record<string, any> }) {
 // da moldura do ecrã, lábio à frente (+x), abas e parafusos atrás, rampa a descer até ao gancho.
 // O personalizado (suporte = "telemovel_personalizado") junta o texto/imagem à face na rampa e/ou
 // no lábio, com as cores das partes do 3MF; as imagens vêm do vetorizador (/api/vetorizar).
-async function vetorizarImagem(caminho: string): Promise<any> {
+async function vetorizarImagem(caminho: string, numCores = 1): Promise<any> {
   const r = await fetch('/api/auth/refresh', { method: 'POST' });
   const { access_token } = r.ok ? await r.json() : {};
   if (!access_token) return null;
   const res = await fetch('/api/vetorizar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` },
-    body: JSON.stringify({ image_path: caminho, num_cores: 1, remover_fundo: 1, tolerancia: 40, buracos_fundo: 1 }),
+    body: JSON.stringify({ image_path: caminho, num_cores: numCores, remover_fundo: 1, tolerancia: 40, buracos_fundo: 1 }),
   });
   const json = await res.json().catch(() => ({}));
   return res.ok ? json.vetor : null;
 }
+// Imagem a cores (cores_imagem_<zona> = "Cores da imagem"): chave do vetor = caminho|nº de cores;
+// cada cor é uma malha à parte (parte "<zona>_c<i>") com a cor escolhida (cor_<zona>_<i>) ou a
+// detetada na imagem (userData.hex) — as mesmas regiões do ficheiro final (lib/imagemCores.js).
+const chaveVetor = (caminho: string, n: number) => (caminho ? `${caminho}|${Math.max(1, n)}` : '');
+function useVetores(chaves: string[]) {
+  const [vetores, setVetores] = useState<Record<string, any>>({});
+  useEffect(() => {
+    for (const k of chaves) {
+      if (!k || vetores[k] !== undefined) continue;
+      setVetores((v) => ({ ...v, [k]: null }));
+      const [c, n] = [k.slice(0, k.lastIndexOf('|')), Number(k.slice(k.lastIndexOf('|') + 1))];
+      vetorizarImagem(c, n).then((vet) => { if (vet) setVetores((v) => ({ ...v, [k]: vet })); }).catch(() => {});
+    }
+  }, [chaves.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  return vetores;
+}
+const corParte = (params: Record<string, any>, m: THREE.Mesh, cores: Record<string, string>): string | undefined => {
+  const parte = m.userData?.parte as string | undefined;
+  if (!parte) return undefined;
+  if (m.userData.corParam) return corDe(params[m.userData.corParam], m.userData.hex || '#FFFFFF');
+  return cores[parte];
+};
+const chaveCores = (params: Record<string, any>) => JSON.stringify(Object.entries(params).filter(([k]) => k.startsWith('cor_')));
 function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
   const perso = isSuporteTelemovelPersonalizado(params);
   const zonas: Zona[] = ['rampa', 'labio'];
@@ -565,20 +590,11 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
   }, [fontPath, comTexto]);
 
   // imagens: uma vectorização por caminho (fica em cache enquanto o componente vive)
-  const imgRampa = perso && conteudoZona(params, 'rampa') === 'Imagem' ? imagemZona(params, 'rampa') : '';
-  const imgLabio = perso && conteudoZona(params, 'labio') === 'Imagem' ? imagemZona(params, 'labio') : '';
-  const [vetores, setVetores] = useState<Record<string, any>>({});
-  useEffect(() => {
-    for (const c of [imgRampa, imgLabio]) {
-      if (!c || vetores[c] !== undefined) continue;
-      setVetores((v) => ({ ...v, [c]: null }));
-      vetorizarImagem(c).then((vet) => { if (vet) setVetores((v) => ({ ...v, [c]: vet })); }).catch(() => {});
-    }
-  }, [imgRampa, imgLabio]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chaves = zonas.map((z) => (perso && conteudoZona(params, z) === 'Imagem' ? chaveVetor(imagemZona(params, z), numCoresImagem(params, z)) : ''));
+  const vetores = useVetores(chaves);
 
   const fontPronta = comTexto ? font : null;
-  const corKey = ['cor_suporte', 'cor_parafusos', 'cor_rampa', 'cor_labio'];
-  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !corKey.includes(k)), !!fontPronta, fontPath, !!vetores[imgRampa], !!vetores[imgLabio]]);
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath, chaves.map((k) => !!vetores[k])]);
   const grupo = useMemo(() => {
     const peca = new THREE.Group();
     const add = (tri: number[], cor: string, parte: string) => { const m = malhaDeTriangulos(tri, cor); if (m) { m.userData.parte = parte; peca.add(m); } };
@@ -587,11 +603,17 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
     if (perso || String(params.peca ?? 'Tudo') !== 'Suporte') add(construirParafusosTelemovel(params), '#4ADE80', 'parafusos');
     if (perso) {
       const regioes: Partial<Record<Zona, any[]>> = {};
-      for (const z of zonas) {
-        const tipo = conteudoZona(params, z);
+      zonas.forEach((z, k) => {
+        const tipo = conteudoZona(params, z), vet = vetores[chaves[k]];
         if (tipo === 'Texto' && fontPronta) regioes[z] = regiaoTexto(fontPronta, params, z);
-        if (tipo === 'Imagem') { const vet = vetores[imagemZona(params, z)]; if (vet) regioes[z] = logoParaRegiao(vet, larguraImagemZona(params, z)); }
-      }
+        if (tipo === 'Imagem' && vet) {
+          if (!numCoresImagem(params, z)) regioes[z] = logoParaRegiao(vet, larguraImagemZona(params, z));
+          else regioesCores(vet, larguraImagemZona(params, z)).cores.slice(0, 6).forEach((c: any, i: number) => {
+            const m = malhaDeTriangulos(construirEmbutidos(params, { [z]: c.regiao })[z], c.hex);
+            if (m) { Object.assign(m.userData, { parte: `${z}_c${i + 1}`, corParam: `cor_${z}_${i + 1}`, hex: c.hex }); peca.add(m); }
+          });
+        }
+      });
       const emb = construirEmbutidos(params, regioes);
       add(emb.rampa, '#FFFFFF', 'rampa');
       add(emb.labio, '#FFFFFF', 'labio');
@@ -611,8 +633,8 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
     : {};
   useEffect(() => {
     if (!perso) return;
-    grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as string | undefined; if (parte && cores[parte]) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
-  }, [grupo, perso, cores.suporte, cores.rampa, cores.labio]); // eslint-disable-line react-hooks/exhaustive-deps
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
+  }, [grupo, perso, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
 
@@ -633,19 +655,11 @@ function SuporteExtraPreview({ params }: { params: Record<string, any> }) {
     return () => { cancelado = true; };
   }, [fontPath, comTexto]);
 
-  const imgs = zonas.map((z) => (conteudoZonaExtra(params, z) === 'Imagem' ? imagemZonaExtra(params, z) : ''));
-  const [vetores, setVetores] = useState<Record<string, any>>({});
-  useEffect(() => {
-    for (const c of imgs) {
-      if (!c || vetores[c] !== undefined) continue;
-      setVetores((v) => ({ ...v, [c]: null }));
-      vetorizarImagem(c).then((vet) => { if (vet) setVetores((v) => ({ ...v, [c]: vet })); }).catch(() => {});
-    }
-  }, [imgs[0], imgs[1]]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chaves = zonas.map((z) => (conteudoZonaExtra(params, z) === 'Imagem' ? chaveVetor(imagemZonaExtra(params, z), numCoresImagem(params, z)) : ''));
+  const vetores = useVetores(chaves);
 
   const fontPronta = comTexto ? font : null;
-  const corKey = ['cor_suporte', ...zonas.map((z) => `cor_${z}`)];
-  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !corKey.includes(k)), !!fontPronta, fontPath, imgs.map((c) => !!vetores[c])]);
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath, chaves.map((k) => !!vetores[k])]);
   const grupo = useMemo(() => {
     const peca = new THREE.Group();
     const add = (tri: number[], cor: string, parte: string) => { const m = malhaDeTriangulos(tri, cor); if (m) { m.userData.parte = parte; peca.add(m); } };
@@ -653,11 +667,17 @@ function SuporteExtraPreview({ params }: { params: Record<string, any> }) {
     if (geo) {
       add(geo.corpo, '#111111', 'suporte');
       const regioes: Record<string, any[]> = {};
-      for (const z of zonas) {
-        const tipo = conteudoZonaExtra(params, z);
+      zonas.forEach((z, k) => {
+        const tipo = conteudoZonaExtra(params, z), vet = vetores[chaves[k]];
         if (tipo === 'Texto' && fontPronta) regioes[z] = regiaoTextoExtra(fontPronta, params, z, geo.zonas[z].ajuste);
-        if (tipo === 'Imagem') { const vet = vetores[imagemZonaExtra(params, z)]; if (vet) regioes[z] = logoParaRegiao(vet, larguraImagemZonaExtra(params, z)); }
-      }
+        if (tipo === 'Imagem' && vet) {
+          if (!numCoresImagem(params, z)) regioes[z] = logoParaRegiao(vet, larguraImagemZonaExtra(params, z));
+          else regioesCores(vet, larguraImagemZonaExtra(params, z)).cores.slice(0, 6).forEach((c: any, i: number) => {
+            const m = malhaDeTriangulos(construirEmbutidosExtra(geo, { [z]: c.regiao })[z] ?? [], c.hex);
+            if (m) { Object.assign(m.userData, { parte: `${z}_c${i + 1}`, corParam: `cor_${z}_${i + 1}`, hex: c.hex }); peca.add(m); }
+          });
+        }
+      });
       const emb = construirEmbutidosExtra(geo, regioes);
       for (const z of zonas) add(emb[z] ?? [], '#FFFFFF', z);
     }
@@ -674,8 +694,8 @@ function SuporteExtraPreview({ params }: { params: Record<string, any> }) {
   const cores: Record<string, string> = { suporte: corDe(params.cor_suporte, '#111111') };
   for (const z of zonas) cores[z] = corDe(params[`cor_${z}`], '#FFFFFF');
   useEffect(() => {
-    grupo.traverse((o) => { const m = o as THREE.Mesh; const parte = m.userData?.parte as string | undefined; if (parte && cores[parte]) (m.material as THREE.MeshStandardMaterial).color.set(cores[parte]); });
-  }, [grupo, cores.suporte, cores[zonas[0]], cores[zonas[1]]]); // eslint-disable-line react-hooks/exhaustive-deps
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
+  }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
 

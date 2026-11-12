@@ -272,3 +272,11 @@ export function construirEmbutidosExtra(geo: GeoExtra, regioes: Record<string, P
   }
   return out;
 }
+
+// ── imagem com as cores próprias (os 4 suportes personalizados, também o de monitor) ──
+export const VALOR_CORES_IMAGEM = 'Cores da imagem';
+/** Nº de cores pedidas para a imagem da zona (0 = imagem numa só cor) — o mesmo critério de lib/logo.js. */
+export function numCoresImagem(p: Record<string, any>, z: string): number {
+  if (String(p[`conteudo_${z}`] ?? '') !== 'Imagem' || String(p[`cores_imagem_${z}`] ?? '') !== VALOR_CORES_IMAGEM) return 0;
+  return Math.max(2, Math.min(6, Math.round(Number(p[`num_cores_${z}`])) || 3));
+}
