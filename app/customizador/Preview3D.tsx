@@ -23,6 +23,8 @@ import { construirArvoreNatal, isArvoreNatal } from '@/lib/arvoresNatal';
 import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/enfeitesNatal';
 import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
 import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDeco';
+import { construirPortaChaves, construirEnchimentosPC, isPortaChavesSuporte, ZONAS_PC, usaTexto, imagemZona as imagemZonaPC, larguraImagemZona as larguraImagemZonaPC, numCoresZona } from '@/lib/portaChavesSuporte';
+import { construirMarcadores, isMarcadoresCopo, nomesMarcadores, imagemEnfeite, numCoresEnfeite } from '@/lib/marcadoresCopo';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -693,6 +695,96 @@ function SuporteExtraPreview({ params }: { params: Record<string, any> }) {
   // cores: só os materiais, sem recalcular a geometria
   const cores: Record<string, string> = { suporte: corDe(params.cor_suporte, '#111111') };
   for (const z of zonas) cores[z] = corDe(params[`cor_${z}`], '#FFFFFF');
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
+  }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Porta-chaves suporte de telemóvel dobrável (porta_chaves = "suporte_dobravel") — ver lib/portaChavesSuporte.ts ──
+// Peça deitada como se imprime (z para cima → roda -90° em X); a aba roda no eixo da dobradiça com o
+// slider "Abrir" (0 = fechado, 1 = encostada à lomba). Texto/imagem na aba (em cima e por baixo), com as
+// cores das partes do 3MF; as imagens vêm do vetorizador (/api/vetorizar).
+function PortaChavesSuportePreview({ params, abrir }: { params: Record<string, any>; abrir: number }) {
+  const comTexto = ZONAS_PC.some((z) => usaTexto(params, z));
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Open Sans')] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+  const chaves = ZONAS_PC.map((z) => chaveVetor(imagemZonaPC(params, z), numCoresZona(params, z)));
+  const vetores = useVetores(chaves);
+  const fontPronta = comTexto ? font : null;
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath, chaves.map((k) => !!vetores[k])]);
+  const { grupo, pivo, abertura } = useMemo(() => {
+    const geo = construirPortaChaves(params);
+    const g = new THREE.Group();
+    const add = (alvo: THREE.Object3D, tri: number[], cor: string, parte: string, extra: Record<string, any> = {}) => {
+      const m = malhaDeTriangulos(tri, cor); if (m) { Object.assign(m.userData, { parte, ...extra }); alvo.add(m); }
+    };
+    add(g, geo.base, '#F472B6', 'corpo');
+    // a aba (com os enchimentos) num pivô no eixo da dobradiça
+    const [yh, za] = geo.eixo;
+    const pv = new THREE.Group(); pv.position.set(0, yh, za);
+    const abaG = new THREE.Group(); abaG.position.set(0, -yh, -za); pv.add(abaG);
+    add(abaG, geo.aba, '#F472B6', 'corpo');
+    ZONAS_PC.forEach((z, k) => {
+      const vet = vetores[chaves[k]];
+      const nc = numCoresZona(params, z), larg = larguraImagemZonaPC(params, z);
+      const imagem = vet ? (nc ? { uma: [], cores: regioesCores(vet, larg).cores } : { uma: logoParaRegiao(vet, larg), cores: [] }) : null;
+      const e = construirEnchimentosPC(geo, params, z, fontPronta, imagem);
+      add(abaG, e.principal, '#FFFFFF', z);
+      e.cores.forEach((c, i) => add(abaG, c.tri, c.hex, `${z}_c${i + 1}`, { corParam: `cor_${z}_${i + 1}`, hex: c.hex }));
+    });
+    g.add(pv);
+    g.rotation.x = -Math.PI / 2;
+    return { grupo: g, pivo: pv, abertura: geo.abertura };
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  useEffect(() => { pivo.rotation.x = -(abertura * Math.PI / 180) * abrir; }, [pivo, abertura, abrir]);
+  const cores: Record<string, string> = { corpo: corDe(params.cor_corpo, '#F472B6') };
+  for (const z of ZONAS_PC) cores[z] = corDe(params[`cor_${z}`], '#FFFFFF');
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
+  }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Marcadores de copo com clip (marcador = "copo_clip") — ver lib/marcadoresCopo.ts ──
+// A mesa como no ficheiro final (placas, clips, nomes, enfeite), z para cima → roda -90° em X.
+function MarcadoresCopoPreview({ params }: { params: Record<string, any> }) {
+  const comTexto = nomesMarcadores(params).some((n) => n);
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Pacifico')] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+  const chaves = [chaveVetor(imagemEnfeite(params), numCoresEnfeite(params))];
+  const vetores = useVetores(chaves);
+  const fontPronta = comTexto ? font : null;
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath, !!vetores[chaves[0]]]);
+  const grupo = useMemo(() => {
+    const vet = vetores[chaves[0]], larg = Number(params.tamanho_enfeite) || 10, nc = numCoresEnfeite(params);
+    const imagem = vet ? (nc ? { uma: [], cores: regioesCores(vet, larg).cores } : { uma: logoParaRegiao(vet, larg), cores: [] }) : null;
+    const pecas = construirMarcadores(params, fontPronta, imagem);
+    const g = new THREE.Group();
+    const add = (tri: number[], cor: string, parte: string, extra: Record<string, any> = {}) => {
+      const m = malhaDeTriangulos(tri, cor); if (m) { Object.assign(m.userData, { parte, ...extra }); g.add(m); }
+    };
+    add(pecas.placas, '#F472B6', 'corpo'); add(pecas.clips, '#F472B6', 'corpo');
+    add(pecas.nomes, '#FFFFFF', 'nome'); add(pecas.enfeite, '#DC2626', 'enfeite');
+    pecas.cores.forEach((c, i) => add(c.tri, c.hex, `enfeite_c${i + 1}`, { corParam: `cor_enfeite_${i + 1}`, hex: c.hex }));
+    g.rotation.x = -Math.PI / 2;
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  const cores: Record<string, string> = { corpo: corDe(params.cor_corpo, '#F472B6'), nome: corDe(params.cor_nome, '#FFFFFF'), enfeite: corDe(params.cor_enfeite, '#DC2626') };
   useEffect(() => {
     grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
   }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1532,6 +1624,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const isIluminaria = !isPetTag && geradorIluminaria(params) !== null;
   const [luzAcesa, setLuzAcesa] = useState(true);
   const [dobra, setDobra] = useState(0.7);   // caixa dobrável: 0 = plana, 1 = fechada
+  const [abrir, setAbrir] = useState(0);     // porta-chaves suporte: 0 = fechado, 1 = aberto (aba no batente)
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
   // todos os nomes de parâmetros com "Letras Decorativas" (letra, nome,
@@ -1561,7 +1654,10 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // secretária / dock / desmontável: suporte = "secretaria_personalizado", ... (lib/suportesTelemovelExtra.ts)
   const isTelemovelModelo = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro && !isEtiqueta && !isCaixaPcbModelo
     && (isSuporteTelemovel(params) || !!modeloSuporteExtra(params));
-  const outroModelo = isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo;
+  // Porta-chaves suporte de telemóvel e marcadores de copo: parâmetros escondidos porta_chaves / marcador
+  const isPortaChavesModelo = isPortaChavesSuporte(params);
+  const isMarcadoresModelo = !isPortaChavesModelo && isMarcadoresCopo(params);
+  const outroModelo = isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo || isPortaChavesModelo || isMarcadoresModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo   = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
   const isNomeFlexModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
@@ -1583,7 +1679,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isIluminaria ? [230, 200, 230] : isTelemovelModelo ? [210, 120, 190] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isPortaChavesModelo ? [70, 75, 85] : isMarcadoresModelo ? [0, 190, 120] : isIluminaria ? [230, 200, 230] : isTelemovelModelo ? [210, 120, 190] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1612,7 +1708,11 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             cellColor="#0b0f14"
           />
 
-          {isIluminaria ? (
+          {isPortaChavesModelo ? (
+            <PortaChavesSuportePreview params={params} abrir={abrir} />
+          ) : isMarcadoresModelo ? (
+            <MarcadoresCopoPreview params={params} />
+          ) : isIluminaria ? (
             <IluminariaPreview params={params} luzAcesa={luzAcesa} />
           ) : isPetTag ? (
             <PetTagModel
@@ -1660,12 +1760,19 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             makeDefault
             enablePan={false}
             target={isIluminaria ? [0, 80, 0] : isTelemovelModelo ? [0, 60, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
-            minDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={(isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={isPortaChavesModelo ? 30 : isMarcadoresModelo ? 60 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={isPortaChavesModelo ? 260 : isMarcadoresModelo ? 500 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
       </Canvas>
+      {isPortaChavesModelo && (
+        <div style={{ position: 'absolute', left: 12, right: 12, bottom: 64, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.8)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.25)' }}>
+          <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>📱 Abrir</span>
+          <input type="range" min={0} max={100} value={Math.round(abrir * 100)} onChange={(e) => setAbrir(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Abrir o suporte" />
+          <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{abrir <= 0.001 ? 'fechado' : abrir >= 0.999 ? 'aberto' : `${Math.round(abrir * 100)}%`}</span>
+        </div>
+      )}
       {isDobravelModelo && (
         <div style={{ position: 'absolute', left: 12, right: 12, bottom: 64, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.8)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.25)' }}>
           <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>📦 Dobrar</span>
