@@ -14,6 +14,7 @@ import { construirCaixaPcb, libertarCaixaPcb, isCaixaPcb } from '@/lib/caixaPcb'
 import { construirBaseCopos, isBaseCopos, logoParaRegiao } from '@/lib/baseCopos';
 import { construirSuporte, isSuporteBases } from '@/lib/suporteBases';
 import { construirSuporteTelemovel, construirParafusosTelemovel, isSuporteTelemovel, isSuporteTelemovelPersonalizado, conteudoZona, imagemZona, larguraImagemZona, regiaoTexto, construirEmbutidos, type Zona } from '@/lib/suporteTelemovel';
+import { isSuporteEncaixe, construirSuporteEncaixe } from '@/lib/suporteEncaixe';
 import { modeloSuporteExtra, construirSuporteExtra, conteudoZonaExtra, imagemZonaExtra, larguraImagemZonaExtra, regiaoTextoExtra, construirEmbutidosExtra, numCoresImagem, ZONAS as ZONAS_SUPORTE_EXTRA } from '@/lib/suportesTelemovelExtra';
 // @ts-ignore — módulo JS partilhado com o backend (lib/imagemCores.js): uma região por cor da imagem
 import { regioesCores } from '@/lib/imagemCores';
@@ -638,6 +639,32 @@ function SuporteTelemovelPreview({ params }: { params: Record<string, any> }) {
     if (!perso) return;
     grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
   }, [grupo, perso, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Suporte de telemóvel de secretária em duas peças (suporte = "telemovel_encaixe") — ver lib/suporteEncaixe.ts ──
+// Montado: as costas encaixadas na ranhura da base. Coordenadas do .scad (y para cima, frente em
+// x = 0); roda-se 90° em Y para a frente ficar virada para a câmara, como o SuporteExtraPreview.
+function SuporteEncaixePreview({ params }: { params: Record<string, any> }) {
+  const geomKey = JSON.stringify(Object.entries(params).filter(([k]) => !k.startsWith('cor_')));
+  const grupo = useMemo(() => {
+    const peca = new THREE.Group();
+    const { base, costas } = construirSuporteEncaixe(params);
+    const add = (tri: number[], cor: string, parte: string) => { const m = malhaDeTriangulos(tri, cor); if (m) { m.userData.parte = parte; peca.add(m); } };
+    add(base, '#8A5A3B', 'base');
+    add(costas, '#B07A52', 'costas');
+    peca.rotation.y = Math.PI / 2;
+    const g = new THREE.Group();
+    g.add(peca);
+    const caixa = new THREE.Box3().setFromObject(g);
+    peca.position.set(-(caixa.min.x + caixa.max.x) / 2, -caixa.min.y, -(caixa.min.z + caixa.max.z) / 2);
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  const cores: Record<string, string> = { base: corDe(params.cor_base, '#8A5A3B'), costas: corDe(params.cor_costas, '#B07A52') };
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const c = m.userData?.parte && cores[m.userData.parte]; if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
+  }, [grupo, cores.base, cores.costas]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
 
@@ -1690,8 +1717,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // Base para copos, suporte e nome flexível (ver lib/baseCopos.ts, lib/suporteBases.ts, lib/nomeFlexivel.ts)
   // Suporte de telemóvel para debaixo do monitor: parâmetro escondido suporte = "telemovel_monitor";
   // secretária / dock / desmontável: suporte = "secretaria_personalizado", ... (lib/suportesTelemovelExtra.ts)
+  // duas peças com encaixe: suporte = "telemovel_encaixe" (lib/suporteEncaixe.ts)
   const isTelemovelModelo = !isPetTag && !isNameKey && !isLetraNome && !isCaixaLuz && !isPatamares && !isEsquadro && !isEtiqueta && !isCaixaPcbModelo
-    && (isSuporteTelemovel(params) || !!modeloSuporteExtra(params));
+    && (isSuporteTelemovel(params) || !!modeloSuporteExtra(params) || isSuporteEncaixe(params));
   // Porta-chaves suporte de telemóvel e marcadores de copo: parâmetros escondidos porta_chaves / marcador
   const isPortaChavesModelo = isPortaChavesSuporte(params);
   const isMarcadoresModelo = !isPortaChavesModelo && (isMarcadoresCopo(params) || !!modeloMarcadorExtra(params));
@@ -1773,7 +1801,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           ) : isCaixaPcbModelo ? (
             <CaixaPcbPreview params={params} />
           ) : isTelemovelModelo ? (
-            modeloSuporteExtra(params) ? <SuporteExtraPreview params={params} /> : <SuporteTelemovelPreview params={params} />
+            isSuporteEncaixe(params) ? <SuporteEncaixePreview params={params} /> : modeloSuporteExtra(params) ? <SuporteExtraPreview params={params} /> : <SuporteTelemovelPreview params={params} />
           ) : isBaseCoposModelo ? (
             <BaseCoposPreview params={params} />
           ) : isSuporteModelo ? (
