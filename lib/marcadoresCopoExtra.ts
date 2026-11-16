@@ -155,7 +155,7 @@ function bailarina(p: Record<string, any>, font: Font | null): PecasMarcador {
     ...osso([2 * rc, top], b, W / 2), ...osso(b, [b[0] + PONTA * s30, b[1] - PONTA * c30], W / 2),
   ];
   const palco = offset(offset([ret(xc - larg / 2, yc - hp / 2, larg, hp)], -1.2, false), 1.2);
-  const corpo2d = uniao([...mover(escalar(BAILARINA_REG, k), -afast, 0), hull(circ(-afast, top, W / 2), circ(0, top, W / 2)), ...gancho, ...palco]);
+  const corpo2d = uniao([...mover(escalar(BAILARINA_REG, k), -afast, 0), hull(circ(-afast - 1.6 * k, 60.0 * k, W / 2), circ(0, top, W / 2), circ(0, 60.1 * k, W / 2)), ...gancho, ...palco]);
   const recesso = etiq ? offset([ret(xc - (larg - 4 - 1.2) / 2, yc - (fita + 0.6 - 1.2) / 2, larg - 4 - 1.2, fita + 0.6 - 1.2)], 0.6) : [];
   const cols = q > 6 ? 4 : Math.min(q, 3), passoX = Math.max(larg, 30 * k) + afast + 2 * rc + 2 * W + 6, passoY = NOMINAL * k + hp + rc + 6;
   const def = ['Marina', 'Leonor', 'Beatriz', 'Sofia', 'Inês', 'Matilde'];
