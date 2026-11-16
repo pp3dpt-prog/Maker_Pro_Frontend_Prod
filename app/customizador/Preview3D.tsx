@@ -24,6 +24,7 @@ import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/e
 import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
 import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDeco';
 import { construirPortaChaves, construirEnchimentosPC, isPortaChavesSuporte, ZONAS_PC, usaTexto, imagemZona as imagemZonaPC, larguraImagemZona as larguraImagemZonaPC, numCoresZona } from '@/lib/portaChavesSuporte';
+import { construirMarcadorExtra, modeloMarcadorExtra, temNomesMarcadorExtra, FONTE_OMISSAO, COR_OMISSAO } from '@/lib/marcadoresCopoExtra';
 import { construirMarcadores, isMarcadoresCopo, nomesMarcadores, imagemEnfeite, numCoresEnfeite } from '@/lib/marcadoresCopo';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
@@ -787,6 +788,43 @@ function MarcadoresCopoPreview({ params }: { params: Record<string, any> }) {
   const cores: Record<string, string> = { corpo: corDe(params.cor_corpo, '#F472B6'), nome: corDe(params.cor_nome, '#FFFFFF'), enfeite: corDe(params.cor_enfeite, '#DC2626') };
   useEffect(() => {
     grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
+  }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Outros marcadores de copo (bailarina, boneco de gengibre, nome na borda) — ver lib/marcadoresCopoExtra.ts ──
+// A mesa como no ficheiro final, centrada; z para cima → roda -90° em X. Cor de cada parte = cor_<parte>.
+function MarcadoresExtraPreview({ params }: { params: Record<string, any> }) {
+  const modelo = modeloMarcadorExtra(params)!;
+  const comTexto = temNomesMarcadorExtra(params);
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || FONTE_OMISSAO[modelo])] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+  const fontPronta = comTexto ? font : null;
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath]);
+  const grupo = useMemo(() => {
+    const g = new THREE.Group(), dentro = new THREE.Group();
+    for (const [parte, tri] of Object.entries(construirMarcadorExtra(params, fontPronta))) {
+      const m = malhaDeTriangulos(tri, COR_OMISSAO[parte] ?? '#FFFFFF');
+      if (m) { m.userData.parte = parte; dentro.add(m); }
+    }
+    const caixa = new THREE.Box3().setFromObject(dentro);
+    if (!caixa.isEmpty()) { const c = caixa.getCenter(new THREE.Vector3()); dentro.position.set(-c.x, -c.y, -caixa.min.z); }
+    g.add(dentro);
+    g.rotation.x = -Math.PI / 2;
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  useEffect(() => {
+    grupo.traverse((o) => {
+      const m = o as THREE.Mesh, parte = m.userData?.parte;
+      if (parte) (m.material as THREE.MeshStandardMaterial).color.set(corDe(params[`cor_${parte}`], COR_OMISSAO[parte] ?? '#FFFFFF'));
+    });
   }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
@@ -1656,7 +1694,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     && (isSuporteTelemovel(params) || !!modeloSuporteExtra(params));
   // Porta-chaves suporte de telemóvel e marcadores de copo: parâmetros escondidos porta_chaves / marcador
   const isPortaChavesModelo = isPortaChavesSuporte(params);
-  const isMarcadoresModelo = !isPortaChavesModelo && isMarcadoresCopo(params);
+  const isMarcadoresModelo = !isPortaChavesModelo && (isMarcadoresCopo(params) || !!modeloMarcadorExtra(params));
   const outroModelo = isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo || isPortaChavesModelo || isMarcadoresModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo   = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
@@ -1711,7 +1749,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           {isPortaChavesModelo ? (
             <PortaChavesSuportePreview params={params} abrir={abrir} />
           ) : isMarcadoresModelo ? (
-            <MarcadoresCopoPreview params={params} />
+            modeloMarcadorExtra(params) ? <MarcadoresExtraPreview params={params} /> : <MarcadoresCopoPreview params={params} />
           ) : isIluminaria ? (
             <IluminariaPreview params={params} luzAcesa={luzAcesa} />
           ) : isPetTag ? (
