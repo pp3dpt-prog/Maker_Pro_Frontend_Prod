@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import FamilyCard from '@/components/cards/FamilyCard';
+import { familyCoverFor } from '@/lib/familyCovers';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,9 +90,9 @@ export default async function Page() {
       if (!acc[familia]) {
         acc[familia] = {
           count: 0,
-          // Imagem provisória — substituída abaixo se este ou outro design
-          // da família tiver capa_familia marcada no admin (/admin/produtos).
-          thumbnail_url: design.thumbnail_url,
+          // Imagem provisória — substituída abaixo pela primeira miniatura
+          // disponível, e depois pela capa marcada no admin (/admin/produtos).
+          thumbnail_url: undefined,
           totalLikes: 0,
           totalDownloads: 0,
           designIds: [],
@@ -103,6 +104,10 @@ export default async function Page() {
       acc[familia].totalLikes += design.total_likes ?? 0;
       acc[familia].totalDownloads += design.total_downloads ?? 0;
       acc[familia].designIds.push(design.id);
+      // Preferir qualquer design da família que já tenha miniatura
+      if (!acc[familia].thumbnail_url && design.thumbnail_url) {
+        acc[familia].thumbnail_url = design.thumbnail_url;
+      }
 
       // Capa escolhida no admin ganha sempre à imagem provisória.
       if (design.capa_familia && design.thumbnail_url) {
@@ -283,7 +288,7 @@ export default async function Page() {
                 <FamilyCard
                   familia={familia}
                   modelCount={info.count}
-                  thumbnail_url={info.thumbnail_url}
+                  thumbnail_url={familyCoverFor(familia, info.thumbnail_url)}
                   totalLikes={info.totalLikes}
                   totalDownloads={info.totalDownloads}
                   designIds={info.designIds}

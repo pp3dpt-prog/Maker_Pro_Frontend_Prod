@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import FamilyCard from '@/components/cards/FamilyCard';
+import { familyCoverFor } from '@/lib/familyCovers';
 
 export const dynamic = 'force-dynamic';
 
@@ -146,7 +147,7 @@ export default async function MakersPage() {
                   <FamilyCard
                     familia={familia}
                     modelCount={info.count}
-                    thumbnail_url={info.thumbnail_url}
+                    thumbnail_url={familyCoverFor(familia, info.thumbnail_url)}
                     totalLikes={info.totalLikes}
                     totalDownloads={info.totalDownloads}
                     designIds={info.designIds}
