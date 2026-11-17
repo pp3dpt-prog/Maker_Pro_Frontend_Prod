@@ -18,7 +18,7 @@ const MODELOS: Record<string, ModeloMarcadorExtra> = { copo_bailarina: 'bailarin
 export const modeloMarcadorExtra = (p: Record<string, any> | null | undefined): ModeloMarcadorExtra | null => (p && MODELOS[String(p.marcador)]) || null;
 export const FONTE_OMISSAO: Record<ModeloMarcadorExtra, string> = { bailarina: 'Pacifico', gengibre: 'Luckiest Guy', borda: 'Luckiest Guy' };
 export const COR_OMISSAO: Record<string, string> = {
-  corpo: '#111111', nome: '#F472B6', cobertura: '#FFFFFF', vestido: '#F9A8D4',
+  corpo: '#111111', nome: '#F472B6', cobertura: '#FFFFFF',
   laco_1: '#16A34A', laco_2: '#DC2626', laco_3: '#FACC15', laco_4: '#7C3AED', laco_5: '#1E3A8A', laco_6: '#F472B6', laco_7: '#F97316', laco_8: '#38BDF8',
 };
 
@@ -145,7 +145,6 @@ function bailarina(p: Record<string, any>, font: Font | null): PecasMarcador {
   const larg = lim(num(p.largura, 44), 30, 80), alt = lim(num(p.altura_figura, 62), 45, 90), esp = lim(num(p.espessura, 3), 2.4, 5);
   const vidro = lim(num(p.espessura_vidro, 2.5), 1, 6), afast = lim(num(p.afastamento, 2), 0, 15);
   const NOMINAL = 62, k = alt / NOMINAL, W = 2.2, PERNA = 18, PONTA = 3, REL = 0.8, REB = 0.4;
-  const VESTIDO_Y0 = 12, VESTIDO_Y1 = 44, REL_VESTIDO = 0.5; // faixa do vestido/tutu (unidades nominais, antes de escalar)
   const gU = vidro + 1.2, gP = Math.max(0.6, vidro - 0.6), rc = (gU + W) / 2, hp = etiq ? fita + 3 : tam * 1.3 + 3;
   const xc = Math.min(-16 * k - afast, W / 2 - afast - larg / 2), yc = -hp / 2 + 0.6, top = NOMINAL * k;
   const s30 = Math.sin(30 * RAD), c30 = Math.cos(30 * RAD);
@@ -156,19 +155,15 @@ function bailarina(p: Record<string, any>, font: Font | null): PecasMarcador {
     ...osso([2 * rc, top], b, W / 2), ...osso(b, [b[0] + PONTA * s30, b[1] - PONTA * c30], W / 2),
   ];
   const palco = offset(offset([ret(xc - larg / 2, yc - hp / 2, larg, hp)], -1.2, false), 1.2);
-  const figuraEsc = mover(escalar(BAILARINA_REG, k), -afast, 0);
-  const corpo2d = uniao([...figuraEsc, hull(circ(-afast - 1.6 * k, 60.0 * k, W / 2), circ(0, top, W / 2), circ(0, 60.1 * k, W / 2)), ...gancho, ...palco]);
-  // vestido/tutu: faixa da silhueta entre a cintura e a bainha, para dar cor/relevo próprios
-  const vestido2d = intersecao(figuraEsc, [ret(-100, VESTIDO_Y0 * k, 200, (VESTIDO_Y1 - VESTIDO_Y0) * k)]);
+  const corpo2d = uniao([...mover(escalar(BAILARINA_REG, k), -afast, 0), hull(circ(-afast - 1.6 * k, 60.0 * k, W / 2), circ(0, top, W / 2), circ(0, 60.1 * k, W / 2)), ...gancho, ...palco]);
   const recesso = etiq ? offset([ret(xc - (larg - 4 - 1.2) / 2, yc - (fita + 0.6 - 1.2) / 2, larg - 4 - 1.2, fita + 0.6 - 1.2)], 0.6) : [];
   const cols = q > 6 ? 4 : Math.min(q, 3), passoX = Math.max(larg, 30 * k) + afast + 2 * rc + 2 * W + 6, passoY = NOMINAL * k + hp + rc + 6;
   const def = ['Marina', 'Leonor', 'Beatriz', 'Sofia', 'Inês', 'Matilde'];
-  const out: PecasMarcador = { corpo: [], nome: [], vestido: [] };
+  const out: PecasMarcador = { corpo: [], nome: [] };
   nomesDe(p, q, def).forEach((nome, i) => {
     const dx = (i % cols) * passoX, dy = -Math.floor(i / cols) * passoY;
     if (etiq) { extrudir(out.corpo, corpo2d, 0, esp - REB, dx, dy); extrudir(out.corpo, diferenca(corpo2d, recesso), esp - REB, esp, dx, dy); }
     else extrudir(out.corpo, corpo2d, 0, esp, dx, dy);
-    extrudir(out.vestido, vestido2d, esp - 0.01, esp + REL_VESTIDO, dx, dy);
     if (!etiq && nome && font) {
       const esc = Math.max(0.05, fatorEscala(font, nome, tam, larg - 6));
       extrudir(out.nome, mover(textoCentro(font, nome, tam * esc), xc, yc), esp - 0.01, esp + REL, dx, dy);
