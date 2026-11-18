@@ -221,15 +221,23 @@ function foto(
   const silhueta = multi ? uniao(imagem!.cores.flatMap((c) => c.regiao)) : (imagem?.uma ?? []);
   const bb = bbox(silhueta);
   const imgH = Number.isFinite(bb.ymax) ? Math.max(0, bb.ymax - bb.ymin) : 0;
-  const dxImg = -afast, dyImg = Number.isFinite(bb.ymin) ? -bb.ymin : 0;   // centra em x = -afast, base em y = 0
-  const top = Math.max(imgH + ESTICA, PERNA + 15);
+  const imgW = Number.isFinite(bb.xmax) ? Math.max(0, bb.xmax - bb.xmin) : 0;
+  const bbCX = Number.isFinite(bb.xmin) ? (bb.xmin + bb.xmax) / 2 : 0;
+  // por omissão a imagem fica afastada do poste do gancho (x = 0); o utilizador pode
+  // deslocá-la mais para um lado, para cima ou para baixo com estes dois parâmetros
+  const deslocXAuto = -(afast + W / 2 + imgW / 2 + 3);
+  const deslocX = deslocXAuto + lim(num(p.imagem_desloc_x, 0), -40, 40);
+  const deslocY = lim(num(p.imagem_desloc_y, 0), -30, 30);
+  const dxImg = deslocX - bbCX, dyImg = Number.isFinite(bb.ymin) ? -bb.ymin + deslocY : deslocY;
+  const imgTopY = imgH + deslocY, PENETRA = Math.min(3, imgH / 2);
+  const top = Math.max(imgTopY + ESTICA, PERNA + 15);
 
   const sAng = Math.sin(ANG_PONTA * RAD), cAng = Math.cos(ANG_PONTA * RAD);
   const xc = Math.min(-afast, W / 2 - afast - larg / 2), yc = -hp / 2 + 0.6;
   const b: V2 = [W + gP, top - PERNA];
   const gancho = [
     ...osso([0, top], [0, top - PERNA], W / 2), ...osso([0, top - PERNA], [-afast, yc], W / 2),
-    ...osso([-afast, imgH], [0, top], W / 2),   // haste: liga o topo da imagem ao gancho
+    ...osso([deslocX, Math.max(0, imgTopY - PENETRA)], [0, top], W / 2),   // haste: liga o topo da imagem ao gancho
     ...intersecao(diferenca([circulo(rc, top, rc + W / 2, 48)], [circulo(rc, top, rc - W / 2, 48)]), [ret(-W, top, 2 * rc + 2 * W, rc + W)]),
     ...osso([2 * rc, top], b, W / 2), ...osso(b, [b[0] + PONTA * sAng, b[1] - PONTA * cAng], W / 2),
   ];
