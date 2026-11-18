@@ -13,14 +13,16 @@ import type { Font } from 'three-stdlib';
 import { fatiasParaTriangulos } from '@/lib/vetorGeom';
 import { textoShapes, fatorEscala, larguraTexto, EM_POR_SIZE } from '@/lib/etiquetaMochila';
 
-export type ModeloMarcadorExtra = 'bailarina' | 'gengibre' | 'borda';
-const MODELOS: Record<string, ModeloMarcadorExtra> = { copo_bailarina: 'bailarina', copo_gengibre: 'gengibre', copo_borda: 'borda' };
+export type ModeloMarcadorExtra = 'bailarina' | 'gengibre' | 'borda' | 'foto';
+const MODELOS: Record<string, ModeloMarcadorExtra> = { copo_bailarina: 'bailarina', copo_gengibre: 'gengibre', copo_borda: 'borda', copo_foto: 'foto' };
 export const modeloMarcadorExtra = (p: Record<string, any> | null | undefined): ModeloMarcadorExtra | null => (p && MODELOS[String(p.marcador)]) || null;
-export const FONTE_OMISSAO: Record<ModeloMarcadorExtra, string> = { bailarina: 'Pacifico', gengibre: 'Luckiest Guy', borda: 'Luckiest Guy' };
+export const FONTE_OMISSAO: Record<ModeloMarcadorExtra, string> = { bailarina: 'Pacifico', gengibre: 'Luckiest Guy', borda: 'Luckiest Guy', foto: 'Pacifico' };
 export const COR_OMISSAO: Record<string, string> = {
   corpo: '#111111', nome: '#F472B6', cobertura: '#FFFFFF', acento: '#E0A526',
   laco_1: '#16A34A', laco_2: '#DC2626', laco_3: '#FACC15', laco_4: '#7C3AED', laco_5: '#1E3A8A', laco_6: '#F472B6', laco_7: '#F97316', laco_8: '#38BDF8',
 };
+// Paleta de reserva para as cores da imagem (marcador "foto"), só até se saber a cor real detetada.
+export const PALETA_CORES_IMAGEM = ['#E11D48', '#2563EB', '#16A34A', '#F59E0B', '#7C3AED', '#0EA5E9'];
 
 const num = (v: unknown, d: number) => (v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : d);
 const lim = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -76,6 +78,16 @@ const transformar = (paths: Path[], f: (x: number, y: number) => V2): Path[] =>
   paths.map((p) => { const q = p.map((pt) => { const [x, y] = f(pt.X / ESC, pt.Y / ESC); return P(x, y); }); return ClipperLib.Clipper.Orientation(q) === ClipperLib.Clipper.Orientation(p) ? q : q.reverse(); });
 const mover = (reg: Path[], dx: number, dy: number) => transformar(reg, (x, y) => [x + dx, y + dy]);
 const escalar = (reg: Path[], k: number) => transformar(reg, (x, y) => [x * k, y * k]);
+/** Caixa (mm) de uma região; xmin/ymin = +Infinity e xmax/ymax = -Infinity se vazia. */
+function bbox(paths: Path[]): { xmin: number; xmax: number; ymin: number; ymax: number } {
+  let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+  for (const path of paths) for (const pt of path) {
+    const x = pt.X / ESC, y = pt.Y / ESC;
+    if (x < xmin) xmin = x; if (x > xmax) xmax = x;
+    if (y < ymin) ymin = y; if (y > ymax) ymax = y;
+  }
+  return { xmin, xmax, ymin, ymax };
+}
 const rodar = (reg: Path[], ang: number) => { const c = Math.cos(ang * RAD), s = Math.sin(ang * RAD); return transformar(reg, (x, y) => [x * c - y * s, x * s + y * c]); };
 function extrudir(out: number[], regiao: Path[], z0: number, z1: number, dx = 0, dy = 0) {
   if (!regiao.length || z1 - z0 < 1e-6) return;
@@ -179,6 +191,76 @@ function bailarina(p: Record<string, any>, font: Font | null): PecasMarcador {
   return out;
 }
 
+export const imagemCorpoFoto = (p: Record<string, any>) => { const v = p.imagem_corpo; return typeof v === 'string' && v.startsWith('uploads/') ? v : ''; };
+export const larguraImagemFoto = (p: Record<string, any>) => lim(num(p.largura_imagem, 35), 20, 55);
+export const numCoresCorpoFoto = (p: Record<string, any>) =>
+  String(p.cores_imagem_corpo ?? '') === 'Cores da imagem' ? Math.max(2, Math.min(6, Math.round(Number(p.num_cores_corpo)) || 3)) : 0;
+
+// ══ Foto (imagem carregada, em vez da bailarina) ══
+// Mesmo gancho, palco, nome e rebordo da bailarina (ver bailarina() acima); só a silhueta muda —
+// em vez do desenho da bailarina, é o contorno da imagem carregada, com uma haste reta a ligá-la
+// ao gancho. Sem AMS (ou sem "Cores da imagem"): tudo numa peça só, uma cor, como a bailarina.
+// Com AMS e "Cores da imagem": o corpo (gancho + palco, sem a imagem) fica à parte e cada cor da
+// imagem sai como a sua própria peça ("cores"), já tratadas por lib/imagemCores.js (sem sobreposições).
+function foto(
+  p: Record<string, any>, font: Font | null,
+  imagem: { uma: Path[]; cores: { regiao: Path[]; hex: string }[] } | null,
+): { corpo: number[]; nome: number[]; acento: number[]; cores: { tri: number[]; hex: string }[] } {
+  const q = lim(Math.round(num(p.quantidade, 6)), 1, 12), tam = lim(num(p.tamanho_nome, 7), 4, 12);
+  const etiq = String(p.palco ?? 'Nome em relevo') === 'Rebaixo para etiqueta', fita = lim(num(p.fita, 9), 4, 14);
+  const larg = lim(num(p.largura, 44), 30, 80), esp = lim(num(p.espessura, 3), 2.4, 5);
+  const vidro = lim(num(p.espessura_vidro, 2.5), 1, 6), afast = lim(num(p.afastamento, 2), 0, 15);
+  const W = 2.2, PERNA = 18, PONTA = 3, REL = 0.8, REB = 0.4, ESTICA = 12; // ESTICA: haste imagem → gancho (mm)
+  const REBW = 1.2, REL_ACENTO = 0.5;
+  const ANG_PONTA = 25;
+  const temRebordo = String(p.rebordo ?? 'Sem rebordo') === 'Com rebordo';
+  const gU = vidro + 1.2, gP = Math.max(0.6, vidro - 0.6), rc = (gU + W) / 2, hp = etiq ? fita + 3 : tam * 1.3 + 3;
+
+  // imagem: com cores próprias (AMS) usa-se cada região à parte; senão a silhueta toda junta
+  const multi = !!imagem?.cores?.length;
+  const silhueta = multi ? uniao(imagem!.cores.flatMap((c) => c.regiao)) : (imagem?.uma ?? []);
+  const bb = bbox(silhueta);
+  const imgH = Number.isFinite(bb.ymax) ? Math.max(0, bb.ymax - bb.ymin) : 0;
+  const dxImg = -afast, dyImg = Number.isFinite(bb.ymin) ? -bb.ymin : 0;   // centra em x = -afast, base em y = 0
+  const top = Math.max(imgH + ESTICA, PERNA + 15);
+
+  const sAng = Math.sin(ANG_PONTA * RAD), cAng = Math.cos(ANG_PONTA * RAD);
+  const xc = Math.min(-afast, W / 2 - afast - larg / 2), yc = -hp / 2 + 0.6;
+  const b: V2 = [W + gP, top - PERNA];
+  const gancho = [
+    ...osso([0, top], [0, top - PERNA], W / 2), ...osso([0, top - PERNA], [-afast, yc], W / 2),
+    ...osso([-afast, imgH], [0, top], W / 2),   // haste: liga o topo da imagem ao gancho
+    ...intersecao(diferenca([circulo(rc, top, rc + W / 2, 48)], [circulo(rc, top, rc - W / 2, 48)]), [ret(-W, top, 2 * rc + 2 * W, rc + W)]),
+    ...osso([2 * rc, top], b, W / 2), ...osso(b, [b[0] + PONTA * sAng, b[1] - PONTA * cAng], W / 2),
+  ];
+  const palco = offset(offset([ret(xc - larg / 2, yc - hp / 2, larg, hp)], -1.2, false), 1.2);
+  const palcoInterior = offset(offset([ret(xc - (larg - 2 * REBW) / 2, yc - (hp - 2 * REBW) / 2, larg - 2 * REBW, hp - 2 * REBW)], -1.2, false), 1.2);
+  const acento2d = temRebordo ? diferenca(palco, palcoInterior) : [];
+  const recesso = etiq ? offset([ret(xc - (larg - 4 - 1.2) / 2, yc - (fita + 0.6 - 1.2) / 2, larg - 4 - 1.2, fita + 0.6 - 1.2)], 0.6) : [];
+
+  // sem cores próprias: a imagem entra no corpo (uma peça só, uma cor, como a bailarina)
+  const imgUma = multi ? [] : mover(silhueta, dxImg, dyImg);
+  const corpo2d = uniao([...gancho, ...palco, ...imgUma]);
+
+  const cols = q > 6 ? 4 : Math.min(q, 3), passoX = Math.max(larg, 30) + afast + 2 * rc + 2 * W + 6, passoY = top + hp + rc + 6;
+  const out = { corpo: [] as number[], nome: [] as number[], acento: [] as number[], cores: [] as { tri: number[]; hex: string }[] };
+  const corTri: number[][] = multi ? imagem!.cores.map(() => []) : [];
+  nomesDe(p, q).forEach((nome, i) => {
+    const dx = (i % cols) * passoX, dy = -Math.floor(i / cols) * passoY;
+    if (etiq) { extrudir(out.corpo, corpo2d, 0, esp - REB, dx, dy); extrudir(out.corpo, diferenca(corpo2d, recesso), esp - REB, esp, dx, dy); }
+    else extrudir(out.corpo, corpo2d, 0, esp, dx, dy);
+    if (multi) imagem!.cores.forEach((c, ci) => extrudir(corTri[ci], mover(c.regiao, dxImg, dyImg), 0, esp, dx, dy));
+    if (temRebordo) extrudir(out.acento, acento2d, esp - 0.01, esp + REL_ACENTO, dx, dy);
+    if (!etiq && nome && font) {
+      const esc = Math.max(0.05, fatorEscala(font, nome, tam, larg - 6));
+      extrudir(out.nome, mover(textoCentro(font, nome, tam * esc), xc, yc), esp - 0.01, esp + REL, dx, dy);
+    }
+  });
+  if (multi) imagem!.cores.forEach((c, ci) => out.cores.push({ tri: corTri[ci], hex: c.hex }));
+  return out;
+}
+export const construirMarcadorFoto = foto;
+
 // ══ Boneco de gengibre ══
 function gengibre(p: Record<string, any>, font: Font | null): PecasMarcador {
   const q = lim(Math.round(num(p.quantidade, 4)), 1, 8), alt = lim(num(p.altura_boneco, 38), 28, 55), esp = lim(num(p.espessura, 3), 2.4, 4);
@@ -275,6 +357,6 @@ export function construirMarcadorExtra(p: Record<string, any>, font: Font | null
 }
 export const temNomesMarcadorExtra = (p: Record<string, any>) => {
   const m = modeloMarcadorExtra(p);
-  if (m === 'bailarina' && String(p.palco ?? 'Nome em relevo') === 'Rebaixo para etiqueta') return false;
+  if ((m === 'bailarina' || m === 'foto') && String(p.palco ?? 'Nome em relevo') === 'Rebaixo para etiqueta') return false;
   return true;
 };

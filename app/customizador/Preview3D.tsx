@@ -25,7 +25,7 @@ import { construirEnfeite, isEnfeiteNatal, temNome, coresEnfeite } from '@/lib/e
 import { planificacao, dobrar, medidasCaixa, isCaixaDobravel } from '@/lib/caixaDobravel';
 import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDeco';
 import { construirPortaChaves, construirEnchimentosPC, isPortaChavesSuporte, ZONAS_PC, usaTexto, imagemZona as imagemZonaPC, larguraImagemZona as larguraImagemZonaPC, numCoresZona } from '@/lib/portaChavesSuporte';
-import { construirMarcadorExtra, modeloMarcadorExtra, temNomesMarcadorExtra, FONTE_OMISSAO, COR_OMISSAO } from '@/lib/marcadoresCopoExtra';
+import { construirMarcadorExtra, construirMarcadorFoto, modeloMarcadorExtra, temNomesMarcadorExtra, FONTE_OMISSAO, COR_OMISSAO, PALETA_CORES_IMAGEM, imagemCorpoFoto, larguraImagemFoto, numCoresCorpoFoto } from '@/lib/marcadoresCopoExtra';
 import { construirMarcadores, isMarcadoresCopo, nomesMarcadores, imagemEnfeite, numCoresEnfeite } from '@/lib/marcadoresCopo';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
@@ -852,6 +852,46 @@ function MarcadoresExtraPreview({ params }: { params: Record<string, any> }) {
       const m = o as THREE.Mesh, parte = m.userData?.parte;
       if (parte) (m.material as THREE.MeshStandardMaterial).color.set(corDe(params[`cor_${parte}`], COR_OMISSAO[parte] ?? '#FFFFFF'));
     });
+  }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
+// ── Marcador de copo com foto (marcador = "copo_foto") — ver lib/marcadoresCopoExtra.ts ──
+// Gancho, palco, nome e rebordo iguais à bailarina; a silhueta vem da imagem carregada (vetorizador
+// /api/vetorizar). Sem AMS (ou sem "Cores da imagem"): tudo numa peça só, uma cor, como a bailarina.
+// Com AMS + "Cores da imagem": cada cor da imagem sai como a sua própria peça, já com a cor detetada
+// por omissão (até o utilizador escolher outra).
+function MarcadorFotoPreview({ params }: { params: Record<string, any> }) {
+  const comTexto = temNomesMarcadorExtra(params);
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || FONTE_OMISSAO.foto)] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+  const chaves = [chaveVetor(imagemCorpoFoto(params), numCoresCorpoFoto(params))];
+  const vetores = useVetores(chaves);
+  const fontPronta = comTexto ? font : null;
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath, !!vetores[chaves[0]]]);
+  const grupo = useMemo(() => {
+    const vet = vetores[chaves[0]], larg = larguraImagemFoto(params), nc = numCoresCorpoFoto(params);
+    const imagem = vet ? (nc ? { uma: [], cores: regioesCores(vet, larg).cores } : { uma: logoParaRegiao(vet, larg), cores: [] }) : null;
+    const pecas = construirMarcadorFoto(params, fontPronta, imagem);
+    const g = new THREE.Group();
+    const add = (tri: number[], cor: string, parte: string, extra: Record<string, any> = {}) => {
+      const m = malhaDeTriangulos(tri, cor); if (m) { Object.assign(m.userData, { parte, ...extra }); g.add(m); }
+    };
+    add(pecas.corpo, '#111111', 'corpo'); add(pecas.nome, '#F472B6', 'nome'); add(pecas.acento, '#E0A526', 'acento');
+    pecas.cores.forEach((c, i) => add(c.tri, c.hex || PALETA_CORES_IMAGEM[i % PALETA_CORES_IMAGEM.length], `corpo_c${i + 1}`, { corParam: `cor_corpo_${i + 1}`, hex: c.hex }));
+    g.rotation.x = -Math.PI / 2;
+    return g;
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  const cores: Record<string, string> = { corpo: corDe(params.cor_corpo, COR_OMISSAO.corpo), nome: corDe(params.cor_nome, COR_OMISSAO.nome), acento: corDe(params.cor_acento, COR_OMISSAO.acento) };
+  useEffect(() => {
+    grupo.traverse((o) => { const m = o as THREE.Mesh; const c = corParte(params, m, cores); if (c) (m.material as THREE.MeshStandardMaterial).color.set(c); });
   }, [grupo, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
   return <primitive object={grupo} />;
 }
@@ -1777,6 +1817,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           {isPortaChavesModelo ? (
             <PortaChavesSuportePreview params={params} abrir={abrir} />
           ) : isMarcadoresModelo ? (
+            modeloMarcadorExtra(params) === 'foto' ? <MarcadorFotoPreview params={params} /> :
             modeloMarcadorExtra(params) ? <MarcadoresExtraPreview params={params} /> : <MarcadoresCopoPreview params={params} />
           ) : isIluminaria ? (
             <IluminariaPreview params={params} luzAcesa={luzAcesa} />
