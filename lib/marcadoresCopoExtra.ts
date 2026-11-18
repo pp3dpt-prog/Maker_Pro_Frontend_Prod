@@ -146,15 +146,16 @@ function bailarina(p: Record<string, any>, font: Font | null): PecasMarcador {
   const vidro = lim(num(p.espessura_vidro, 2.5), 1, 6), afast = lim(num(p.afastamento, 2), 0, 15);
   const NOMINAL = 62, k = alt / NOMINAL, W = 2.2, PERNA = 18, PONTA = 3, REL = 0.8, REB = 0.4;
   const REBW = 1.2, REL_ACENTO = 0.5; // largura e relevo do rebordo do palco (mm)
+  const ANG_PONTA = 25; // abertura da ponta do gancho (fechada um pouco, para apertar melhor no copo)
   const temRebordo = String(p.rebordo ?? 'Sem rebordo') === 'Com rebordo';
   const gU = vidro + 1.2, gP = Math.max(0.6, vidro - 0.6), rc = (gU + W) / 2, hp = etiq ? fita + 3 : tam * 1.3 + 3;
   const xc = Math.min(-16 * k - afast, W / 2 - afast - larg / 2), yc = -hp / 2 + 0.6, top = NOMINAL * k;
-  const s30 = Math.sin(30 * RAD), c30 = Math.cos(30 * RAD);
+  const sAng = Math.sin(ANG_PONTA * RAD), cAng = Math.cos(ANG_PONTA * RAD);
   const b: V2 = [W + gP, top - PERNA];
   const gancho = [
     ...osso([0, top], [0, top - PERNA], W / 2), ...osso([0, top - PERNA], [-afast, yc], W / 2),
     ...intersecao(diferenca([circulo(rc, top, rc + W / 2, 48)], [circulo(rc, top, rc - W / 2, 48)]), [ret(-W, top, 2 * rc + 2 * W, rc + W)]),
-    ...osso([2 * rc, top], b, W / 2), ...osso(b, [b[0] + PONTA * s30, b[1] - PONTA * c30], W / 2),
+    ...osso([2 * rc, top], b, W / 2), ...osso(b, [b[0] + PONTA * sAng, b[1] - PONTA * cAng], W / 2),
   ];
   const palco = offset(offset([ret(xc - larg / 2, yc - hp / 2, larg, hp)], -1.2, false), 1.2);
   const corpo2d = uniao([...mover(escalar(BAILARINA_REG, k), -afast, 0), hull(circ(-afast - 1.6 * k, 60.0 * k, W / 2), circ(0, top, W / 2), circ(0, 60.1 * k, W / 2)), ...gancho, ...palco]);
@@ -243,12 +244,13 @@ function borda(p: Record<string, any>, font: Font | null): PecasMarcador {
   const q = lim(Math.round(num(p.quantidade, 6)), 1, 12), tam = lim(num(p.tamanho_nome, 8), 5, 16), larg = lim(num(p.largura, 45), 25, 80);
   const esp = lim(num(p.espessura, 3), 2, 5), vidro = lim(num(p.espessura_vidro, 2.5), 1, 6);
   const W = 2.0, SOBRE = 0.4, PERNA = 22, PONTA = 3;
+  const ANG_PONTA = 25; // abertura da ponta do gancho (fechada um pouco, para apertar melhor no copo)
   const gP = Math.max(0.6, vidro - 0.6), rc = (vidro + 1.2 + W) / 2, xi = -4 - larg - 2;
   const a: V2 = [0, -2 * rc], b: V2 = [-PERNA, -(gP + W)];
   const gancho = uniao([
     ...osso([xi, 0], [0, 0], W / 2),
     ...intersecao(diferenca([circulo(0, -rc, rc + W / 2, 48)], [circulo(0, -rc, rc - W / 2, 48)]), [ret(0, -2 * rc - W, rc + W, 2 * rc + 2 * W)]),
-    ...osso(a, b, W / 2), ...osso(b, [b[0] - PONTA * Math.cos(30 * RAD), b[1] - PONTA * Math.sin(30 * RAD)], W / 2),
+    ...osso(a, b, W / 2), ...osso(b, [b[0] - PONTA * Math.cos(ANG_PONTA * RAD), b[1] - PONTA * Math.sin(ANG_PONTA * RAD)], W / 2),
   ]);
   const met = FONTES_BORDA[String(p.fonte ?? 'Luckiest Guy')] ?? [1.02, 0.19, 0.07];
   const maius = /^s/i.test(String(p.maiusculas ?? '').trim());
