@@ -34,7 +34,17 @@ A pergunta da impressora **já está implementada** em `app/bem-vindo/page.tsx`,
 | Consumidor | ✅ | `consumidor` | ✅ | ❌ |
 | Maker | ✅ | `maker` | ❌ (msg Discord/ticket) | ✅ |
 | Ambos | ✅ | `ambos` | ❌ (msg Discord/ticket) | ✅ |
+| Parceiro/Revendedor | ✅ | `revendedor` | — (não compra no site) | ❌ |
 | Admin | ✅ | (qualquer) + `role='admin'` | ✅ | ✅ |
+
+> **Parceiro/Revendedor** (`revendedor`, adicionado 2026-11): personaliza peças no
+> `/customizador` como qualquer utilizador, mas não compra nem descarrega — o botão de
+> encomendar/descarregar é substituído por "📨 Pedir proposta", que envia um email (via
+> `/api/pedido-proposta`) com a peça configurada (screenshot do preview 3D, já com as
+> cores escolhidas), os parâmetros, e os dados da empresa/morada. Fica gravado em
+> `prod_pedidos_orcamento` com `tipo_pedido='proposta'`, visível em `/admin/pedidos`.
+> **Não é autosserviço** — só se atribui em `/admin/utilizadores` (não aparece em
+> `/bem-vindo`), para evitar que qualquer um se "promova" a parceiro.
 
 > **Regra final:** `tipo_utilizador IN ('maker','ambos')` → **esconde preços** (mensagem Discord/ticket)
 > **e** dá acesso a downloads em `/makers`. `consumidor` (e visitante) → vê preços, sem downloads.

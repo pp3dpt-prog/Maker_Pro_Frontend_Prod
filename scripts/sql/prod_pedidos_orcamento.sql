@@ -45,7 +45,15 @@ create table if not exists public.prod_pedidos_orcamento (
                        'cancelado'
                      )),
   preco_estimado     numeric(10,2),
-  notas_internas     text
+  notas_internas     text,
+
+  -- Pedidos de proposta do revendedor (ver tipo_utilizador='revendedor' em prod_perfis):
+  -- mesma tabela, mesmo admin/pedidos — só mudam estes 3 campos. tipo_pedido distingue
+  -- 'encomenda' (cliente final, acima) de 'proposta' (revendedor, sem compra/download).
+  tipo_pedido        text not null default 'encomenda'
+                     check (tipo_pedido in ('encomenda', 'proposta')),
+  empresa            text,
+  imagem_url         text
 );
 
 create index if not exists prod_pedidos_orcamento_user_id_idx
@@ -54,12 +62,14 @@ create index if not exists prod_pedidos_orcamento_estado_idx
   on public.prod_pedidos_orcamento (estado);
 create index if not exists prod_pedidos_orcamento_created_at_idx
   on public.prod_pedidos_orcamento (created_at desc);
+create index if not exists prod_pedidos_orcamento_tipo_pedido_idx
+  on public.prod_pedidos_orcamento (tipo_pedido);
 
 -- RLS
 alter table public.prod_pedidos_orcamento enable row level security;
 
--- Inserção apenas para utilizadores autenticados registados como cliente final
--- (tipo_utilizador in ('consumidor','ambos') em prod_perfis).
+-- Inserção para utilizadores autenticados registados como cliente final OU revendedor
+-- (tipo_utilizador in ('consumidor','ambos','revendedor') em prod_perfis).
 drop policy if exists "pedidos_orcamento_insert_cliente_final" on public.prod_pedidos_orcamento;
 create policy "pedidos_orcamento_insert_cliente_final"
   on public.prod_pedidos_orcamento
@@ -70,7 +80,7 @@ create policy "pedidos_orcamento_insert_cliente_final"
     and exists (
       select 1 from public.prod_perfis p
       where p.id = auth.uid()
-        and p.tipo_utilizador in ('consumidor','ambos')
+        and p.tipo_utilizador in ('consumidor','ambos','revendedor')
     )
   );
 

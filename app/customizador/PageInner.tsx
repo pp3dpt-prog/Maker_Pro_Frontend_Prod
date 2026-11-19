@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -9,6 +9,7 @@ import CustomizadorClient from './CustomizadorClient';
 import DownloadStlButton from '@/components/DownloadStlButton';
 import IfThenPayDownloadButton from '@/components/IfThenPayDownloadButton';
 import PedidoOrcamentoModal from '@/components/PedidoOrcamentoModal';
+import PedidoPropostaModal from '@/components/PedidoPropostaModal';
 import { useCart } from '@/components/loja/CartContext';
 import { buildGuiaCoresPatamares } from '@/lib/patamares-guia';
 import styles from './ConfiguratorLayout.module.css';
@@ -101,6 +102,21 @@ export default function PageInner() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showPedidoModal, setShowPedidoModal] = useState(false);
+  const [showPedidoPropostaModal, setShowPedidoPropostaModal] = useState(false);
+  const viewerRef = useRef<HTMLElement>(null);
+
+  // Imagem da peça tal como está no ecrã (com as cores escolhidas), para o pedido de
+  // proposta do Parceiro/Revendedor — screenshot do canvas 3D que estiver visível
+  // (pré-visualização ao vivo ou o STL gerado).
+  function capturarImagemPeca(): string | null {
+    const canvas = viewerRef.current?.querySelector('canvas');
+    if (!canvas) return null;
+    try {
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } catch {
+      return null;
+    }
+  }
 
   const [txtUrl, setTxtUrl] = useState<string | null>(null);
 
@@ -492,6 +508,9 @@ export default function PageInner() {
   const userPlano = userProfile?.plano || 'gratuito'; // || em vez de ?? para tratar string vazia
   const tipo = userProfile?.tipo_utilizador ?? null;
   const isClienteFinal = tipo === 'consumidor' || tipo === 'ambos';
+  // Parceiro/Revendedor: personaliza e pré-visualiza, mas não compra nem descarrega —
+  // só pode pedir uma proposta por email (atribuído só pelo admin, ver /admin/utilizadores).
+  const isRevendedor = tipo === 'revendedor';
 
   // Porta-chaves texto com patamares: guia de troca de filamento a partir das
   // cores escolhidas no preview (só existem no browser — não fazem parte do
@@ -791,6 +810,25 @@ export default function PageInner() {
                 );
               }
 
+              if (isRevendedor) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setShowPedidoPropostaModal(true)}
+                    style={{
+                      padding: '12px 16px', borderRadius: 10,
+                      background: 'linear-gradient(135deg, #0ea5e9, #0369a1)',
+                      color: 'white', border: 'none', fontWeight: 800, fontSize: 14,
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 20px rgba(14,165,233,0.35)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
+                  >
+                    📨 Pedir proposta
+                  </button>
+                );
+              }
+
               if (!isClienteFinal) {
                 return (
                   <div style={{
@@ -903,8 +941,8 @@ export default function PageInner() {
               </div>
             )}
 
-            {/* Acções de download — quando STL gerado e autenticado */}
-            {mode === 'stl' && userId && (
+            {/* Acções de download — quando STL gerado e autenticado (nunca para o revendedor) */}
+            {mode === 'stl' && userId && !isRevendedor && (
               (podeDescarregarGratis || hasComprado) ? (
                 /* Pode descarregar: por plano+quota grátis OU com download comprado */
                 <>
@@ -943,7 +981,7 @@ export default function PageInner() {
             )}
 
             {/* Botão Download TXT — só aparece para HueForge */}
-            {mode === 'stl' && txtUrl && (
+            {mode === 'stl' && txtUrl && !isRevendedor && (
               <a
                 href={txtUrl}
                 download="hueforge_cores.txt"
@@ -976,7 +1014,7 @@ export default function PageInner() {
       </aside>
 
       {/* Viewer */}
-      <section className={styles.viewer}>
+      <section className={styles.viewer} ref={viewerRef}>
         <CustomizadorClient
           designId={designId}
           mode={mode}
@@ -1007,6 +1045,22 @@ export default function PageInner() {
         defaultEmail={userEmail ?? undefined}
         userId={userId}
         guiaCores={guiaCores}
+      />
+    )}
+
+    {showPedidoPropostaModal && params && (
+      <PedidoPropostaModal
+        isOpen={showPedidoPropostaModal}
+        onClose={() => setShowPedidoPropostaModal(false)}
+        design={{
+          id: design.id,
+          nome: design.nome,
+          familia: design.familia,
+          generation_schema: design.generation_schema,
+        }}
+        params={params}
+        defaultEmail={userEmail ?? undefined}
+        capturarImagem={capturarImagemPeca}
       />
     )}
     </>

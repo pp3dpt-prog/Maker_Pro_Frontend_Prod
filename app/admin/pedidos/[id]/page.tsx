@@ -27,6 +27,9 @@ interface Pedido {
   stl_url: string | null;
   token_expira_em: string | null;
   user_id: string;
+  tipo_pedido: string;
+  empresa: string | null;
+  imagem_url: string | null;
 }
 
 // ─── Badge helper ─────────────────────────────────────────────────────────────
@@ -294,6 +297,11 @@ export default function AdminPedidoDetailPage() {
               }}>
                 {badge.label}
               </span>
+              {pedido.tipo_pedido === 'proposta' && (
+                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#713f12', color: '#fde68a' }}>
+                  🤝 Proposta — Parceiro/Revendedor
+                </span>
+              )}
               <span style={{ fontSize: 12, color: '#8a96aa' }}>
                 {new Date(pedido.created_at).toLocaleString('pt-PT')}
               </span>
@@ -306,6 +314,13 @@ export default function AdminPedidoDetailPage() {
           {/* Left column — details */}
           <div>
             <Section title="Peça">
+              {pedido.imagem_url && (
+                <img
+                  src={pedido.imagem_url}
+                  alt="Peça configurada"
+                  style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid #1e293b', marginBottom: 16 }}
+                />
+              )}
               <Field label="Nome do design" value={pedido.design_nome} />
               <Field label="Família" value={pedido.familia} />
               {pedido.params && Object.keys(pedido.params).length > 0 && (
@@ -344,19 +359,28 @@ export default function AdminPedidoDetailPage() {
               )}
             </Section>
 
+            {pedido.tipo_pedido === 'proposta' && (
+              <Section title="Empresa">
+                <Field label="Nome da empresa" value={pedido.empresa} />
+                <Field label="Morada" value={pedido.morada_faturacao} />
+              </Section>
+            )}
+
             <Section title="Contacto">
               <Field label="Nome" value={pedido.contacto_nome} />
               <Field label="Email" value={pedido.contacto_email} />
               <Field label="Telefone" value={pedido.contacto_telefone} />
             </Section>
 
-            <Section title="Moradas">
-              <Field label="Faturação" value={pedido.morada_faturacao} />
-              {pedido.mesma_morada
-                ? <Field label="Envio" value="Igual à de faturação" />
-                : <Field label="Envio" value={pedido.morada_envio} />
-              }
-            </Section>
+            {pedido.tipo_pedido !== 'proposta' && (
+              <Section title="Moradas">
+                <Field label="Faturação" value={pedido.morada_faturacao} />
+                {pedido.mesma_morada
+                  ? <Field label="Envio" value="Igual à de faturação" />
+                  : <Field label="Envio" value={pedido.morada_envio} />
+                }
+              </Section>
+            )}
 
             <Section title="Notas do cliente">
               <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: 14, color: pedido.notas ? '#f1f5f9' : '#475569', fontStyle: pedido.notas ? 'normal' : 'italic' }}>

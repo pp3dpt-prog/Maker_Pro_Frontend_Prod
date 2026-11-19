@@ -47,7 +47,9 @@ export default function STLViewer({ stlUrl, state = 'idle', schema }: Props) {
     // =========================
     // RENDERER
     // =========================
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // preserveDrawingBuffer: true — permite capturar screenshot (toDataURL) do canvas,
+    // usado pelo pedido de proposta do Parceiro/Revendedor.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.innerHTML = '';

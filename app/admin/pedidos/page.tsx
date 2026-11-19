@@ -6,6 +6,8 @@ interface Pedido {
   design_nome: string;
   contacto_nome: string;
   contacto_email: string;
+  empresa: string | null;
+  tipo_pedido: string;
   created_at: string;
   estado: string;
 }
@@ -36,7 +38,7 @@ export default async function AdminPedidosPage() {
 
   const { data: pedidos, error } = await supabase
     .from('prod_pedidos_orcamento')
-    .select('id, design_nome, contacto_nome, contacto_email, created_at, estado')
+    .select('id, design_nome, contacto_nome, contacto_email, empresa, tipo_pedido, created_at, estado')
     .order('created_at', { ascending: false });
 
   return (
@@ -60,7 +62,7 @@ export default async function AdminPedidosPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#0a1120', borderBottom: '1px solid #1e293b' }}>
-                {['ID', 'Design', 'Cliente', 'Email', 'Data', 'Estado', ''].map((h) => (
+                {['ID', 'Tipo', 'Design', 'Cliente', 'Email', 'Data', 'Estado', ''].map((h) => (
                   <th key={h} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' }}>{h}</th>
                 ))}
               </tr>
@@ -68,7 +70,7 @@ export default async function AdminPedidosPage() {
             <tbody>
               {!pedidos || pedidos.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: '#8a96aa', fontStyle: 'italic' }}>
+                  <td colSpan={8} style={{ padding: '48px 20px', textAlign: 'center', color: '#8a96aa', fontStyle: 'italic' }}>
                     Sem pedidos de orçamento ainda.
                   </td>
                 </tr>
@@ -86,11 +88,19 @@ export default async function AdminPedidosPage() {
                       <td style={{ padding: '14px 20px', fontFamily: 'monospace', fontSize: 12, color: '#8a96aa', fontWeight: 600 }}>
                         {shortId(p.id)}
                       </td>
+                      <td style={{ padding: '14px 20px' }}>
+                        {p.tipo_pedido === 'proposta' ? (
+                          <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#713f12', color: '#fde68a' }}>🤝 Proposta</span>
+                        ) : (
+                          <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#1e293b', color: '#94a3b8' }}>📦 Encomenda</span>
+                        )}
+                      </td>
                       <td style={{ padding: '14px 20px', fontWeight: 600, color: '#f1f5f9', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {p.design_nome}
                       </td>
                       <td style={{ padding: '14px 20px', color: '#cbd5e1', fontSize: 14 }}>
                         {p.contacto_nome}
+                        {p.empresa && <span style={{ display: 'block', color: '#8a96aa', fontSize: 12 }}>{p.empresa}</span>}
                       </td>
                       <td style={{ padding: '14px 20px', color: '#8a96aa', fontSize: 13 }}>
                         {p.contacto_email}

@@ -1791,7 +1791,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           far: 2500,
         }}
         dpr={[1, 2]}
-        gl={{ antialias: true, preserveDrawingBuffer: false }}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
         style={{ width: '100%', height: '100%' }}
       >
         <Suspense fallback={null}>
