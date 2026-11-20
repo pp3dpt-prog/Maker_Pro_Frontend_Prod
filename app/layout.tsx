@@ -4,6 +4,7 @@ import Script from 'next/script';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import BannerCampanha from '@/components/layout/BannerCampanha';
+import WhatsAppButton from '@/components/layout/WhatsAppButton';
 import { CartProvider } from '@/components/loja/CartContext';
 import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
@@ -90,6 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </div>
           <Footer />
+          <WhatsAppButton />
         </CartProvider>
         <Analytics />
         {/* Google Analytics 4 */}
