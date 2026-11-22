@@ -26,14 +26,60 @@ type UserAsset = {
   is_archived: boolean;
 };
 
+type Encomenda = {
+  id: string;
+  numero: number;
+  created_at: string;
+  estado: string;
+  entrega: string | null;
+  total_cents: number;
+  codigo_rastreio: string | null;
+  transportadora: string | null;
+  url_rastreio: string | null;
+};
+
+type PedidoReparacao = {
+  id: string;
+  equipamento: string | null;
+  problema_descricao: string | null;
+  estado: string;
+  preco_estimado: number | null;
+  prazo_entrega_dias: number | null;
+  created_at: string;
+};
+
+const ESTADO_ENCOMENDA: Record<string, { label: string; cor: string }> = {
+  orcamento: { label: 'A orçamentar', cor: '#fbbf24' },
+  aguarda_pagamento: { label: 'Aguarda pagamento', cor: '#60a5fa' },
+  pendente: { label: 'Pendente', cor: '#94a3b8' },
+  pago: { label: 'Pago', cor: '#34d399' },
+  enviado: { label: 'Enviado', cor: '#a78bfa' },
+  entregue: { label: 'Entregue', cor: '#6ee7b7' },
+  cancelado: { label: 'Cancelado', cor: '#f87171' },
+};
+
+const ESTADO_REPARACAO: Record<string, { label: string; cor: string }> = {
+  pendente_orcamento: { label: 'A aguardar orçamento', cor: '#fbbf24' },
+  orcamento_enviado: { label: 'Orçamento enviado', cor: '#60a5fa' },
+  aceite: { label: 'Aceite', cor: '#4ade80' },
+  recusado: { label: 'Recusado', cor: '#f87171' },
+  em_producao: { label: 'Em reparação', cor: '#a78bfa' },
+  enviado: { label: 'Enviado', cor: '#a78bfa' },
+  concluido: { label: 'Concluído', cor: '#6ee7b7' },
+  cancelado: { label: 'Cancelado', cor: '#f87171' },
+};
+
 export default function Dashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'conta' | 'plano' | 'projetos' | 'suporte'>('conta');
+  const [activeTab, setActiveTab] = useState<'conta' | 'plano' | 'projetos' | 'suporte' | 'encomendas' | 'reparacoes'>('conta');
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [assets, setAssets] = useState<UserAsset[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [encomendas, setEncomendas] = useState<Encomenda[]>([]);
+  const [reparacoes, setReparacoes] = useState<PedidoReparacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
+  const [respondendo, setRespondendo] = useState<string | null>(null);
 
   useEffect(() => {
     let settled = false;
@@ -60,6 +106,21 @@ export default function Dashboard() {
           .eq('user_id', user_id)
           .order('created_at', { ascending: false });
         if (ticketsData) setTickets(ticketsData);
+
+        const { data: encomendasData } = await supabase
+          .from('prod_loja_encomendas')
+          .select('id, numero, created_at, estado, entrega, total_cents, codigo_rastreio, transportadora, url_rastreio')
+          .eq('user_id', user_id)
+          .order('created_at', { ascending: false });
+        if (encomendasData) setEncomendas(encomendasData as Encomenda[]);
+
+        const { data: reparacoesData } = await supabase
+          .from('prod_pedidos_orcamento')
+          .select('id, equipamento, problema_descricao, estado, preco_estimado, prazo_entrega_dias, created_at')
+          .eq('user_id', user_id)
+          .eq('tipo_pedido', 'reparacao')
+          .order('created_at', { ascending: false });
+        if (reparacoesData) setReparacoes(reparacoesData as PedidoReparacao[]);
       } catch (_) {
         // erro de rede — não bloquear o loading
       }
@@ -116,6 +177,25 @@ export default function Dashboard() {
     setTickets(prev => prev.map(t => t.id === ticket_id ? { ...t, avaliacao } : t));
   }
 
+  async function responderOrcamento(pedido_id: string, resposta: 'aceitar' | 'recusar') {
+    setRespondendo(pedido_id);
+    try {
+      const res = await fetch('/api/orcamento/responder-logado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id, resposta }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setReparacoes(prev => prev.map(r => r.id === pedido_id ? { ...r, estado: json.estado } : r));
+      } else {
+        alert(json.error || 'Não foi possível guardar a resposta.');
+      }
+    } finally {
+      setRespondendo(null);
+    }
+  }
+
   return (
     <>
     {showReview && <ReviewModal onClose={() => setShowReview(false)} />}
@@ -128,10 +208,12 @@ export default function Dashboard() {
         </h2>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
           {[
-            { id: 'conta',    label: '👤 Resumo da Conta' },
-            { id: 'plano',    label: '🎯 Plano & Downloads' },
-            { id: 'projetos', label: '📂 Meus Ficheiros STL' },
-            { id: 'suporte',  label: '🎫 Suporte' },
+            { id: 'conta',      label: '👤 Resumo da Conta' },
+            { id: 'plano',      label: '🎯 Plano & Downloads' },
+            { id: 'projetos',   label: '📂 Meus Ficheiros STL' },
+            { id: 'encomendas', label: '📦 Encomendas' },
+            { id: 'reparacoes', label: '🔧 Reparações' },
+            { id: 'suporte',    label: '🎫 Suporte' },
           ].map((item) => (
             <button key={item.id} onClick={() => setActiveTab(item.id as any)}
               style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === item.id ? '#1e293b' : 'transparent', color: activeTab === item.id ? '#3b82f6' : '#94a3b8', fontWeight: 'bold', fontFamily: 'inherit' }}>
@@ -270,6 +352,109 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ABA ENCOMENDAS */}
+        {activeTab === 'encomendas' && (
+          <div style={{ maxWidth: 800 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>📦 As minhas encomendas</h1>
+            <p style={{ color: '#94a3b8', marginBottom: 24, fontSize: 14 }}>
+              Compras feitas na loja e o respetivo estado de envio.
+            </p>
+
+            {encomendas.length === 0 ? (
+              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#8a96aa' }}>
+                Ainda não tens encomendas.
+              </div>
+            ) : encomendas.map(enc => {
+              const badge = ESTADO_ENCOMENDA[enc.estado] ?? { label: enc.estado, cor: '#94a3b8' };
+              return (
+                <div key={enc.id} style={{ background: '#1e293b', borderRadius: 16, padding: 24, marginBottom: 16, border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
+                    <div>
+                      <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>Encomenda #{enc.numero}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: '#8a96aa' }}>{new Date(enc.created_at).toLocaleString('pt-PT')}</p>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: `${badge.cor}22`, color: badge.cor }}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  <p style={{ margin: '0 0 8px', fontSize: 14, color: '#cbd5e1' }}>
+                    Total: <strong>{(enc.total_cents / 100).toFixed(2)} €</strong>
+                  </p>
+                  {enc.codigo_rastreio && (
+                    <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#94a3b8' }}>
+                      {enc.transportadora && <span>{enc.transportadora} · </span>}
+                      Código de rastreio: <strong style={{ color: '#f1f5f9' }}>{enc.codigo_rastreio}</strong>
+                      {enc.url_rastreio && (
+                        <a href={enc.url_rastreio} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10, color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>
+                          Acompanhar entrega →
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ABA REPARAÇÕES */}
+        {activeTab === 'reparacoes' && (
+          <div style={{ maxWidth: 800 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>🔧 As minhas reparações</h1>
+            <p style={{ color: '#94a3b8', marginBottom: 24, fontSize: 14 }}>
+              Pedidos de reparação de eletrónica (PPtronica) e o respetivo estado.
+            </p>
+
+            {reparacoes.length === 0 ? (
+              <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, textAlign: 'center', color: '#8a96aa' }}>
+                Ainda não tens pedidos de reparação.
+              </div>
+            ) : reparacoes.map(rep => {
+              const badge = ESTADO_REPARACAO[rep.estado] ?? { label: rep.estado, cor: '#94a3b8' };
+              return (
+                <div key={rep.id} style={{ background: '#1e293b', borderRadius: 16, padding: 24, marginBottom: 16, border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
+                    <div>
+                      <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{rep.equipamento || 'Equipamento'}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: '#8a96aa' }}>{new Date(rep.created_at).toLocaleString('pt-PT')}</p>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: `${badge.cor}22`, color: badge.cor }}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  {rep.problema_descricao && (
+                    <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+                      <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{rep.problema_descricao}</p>
+                    </div>
+                  )}
+                  {rep.estado === 'orcamento_enviado' && (
+                    <div>
+                      <p style={{ margin: '0 0 10px', fontSize: 14, color: '#cbd5e1' }}>
+                        Orçamento: <strong>{rep.preco_estimado != null ? `${Number(rep.preco_estimado).toFixed(2)} €` : 'N/D'}</strong>
+                        {rep.prazo_entrega_dias != null && <span style={{ color: '#8a96aa' }}> · prazo ~{rep.prazo_entrega_dias} dias</span>}
+                      </p>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={() => responderOrcamento(rep.id, 'aceitar')}
+                          disabled={respondendo === rep.id}
+                          style={{ padding: '10px 18px', borderRadius: 10, background: '#16a34a', color: 'white', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          {respondendo === rep.id ? '…' : 'Aceitar'}
+                        </button>
+                        <button
+                          onClick={() => responderOrcamento(rep.id, 'recusar')}
+                          disabled={respondendo === rep.id}
+                          style={{ padding: '10px 18px', borderRadius: 10, background: 'transparent', color: '#f87171', border: '1px solid #451a1a', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          Recusar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
