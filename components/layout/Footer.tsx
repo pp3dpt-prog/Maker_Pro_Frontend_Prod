@@ -65,9 +65,14 @@ export default function Footer() {
         {/* Rodapé inferior */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
           <span style={{ fontSize: 12, color: '#94a3b8' }}>© {new Date().getFullYear()} PP3D.pt — Todos os direitos reservados. Feito com ❤️ em Portugal.</span>
-          <a href="https://ko-fi.com/pp3dpt" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ff7875', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>
-            ☕ Apoiar no Ko-fi
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            <a href="https://www.instagram.com/pp3d.pt/" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94a3b8', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>
+              📷 Instagram
+            </a>
+            <a href="https://ko-fi.com/pp3dpt" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ff7875', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>
+              ☕ Apoiar no Ko-fi
+            </a>
+          </div>
         </div>
       </div>
     </footer>
