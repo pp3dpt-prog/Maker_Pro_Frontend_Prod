@@ -3,6 +3,8 @@
 -- customizador e marcar como 'ativo' no admin quando aprovado. Testado
 -- localmente com OpenSCAD (CLI) antes de inserir: "Simple: yes", sem erros
 -- de malha, com e sem logótipo.
+-- Revisão: fechado dos dois lados (paredes laterais), a pedido — antes os
+-- cartões podiam escorregar para fora pelas pontas.
 
 insert into public.prod_designs
   (id, nome, familia, descricao, estado, usa_modo, mostrar_empresas, scad_template, generation_schema)
@@ -15,9 +17,10 @@ values (
   false,
   true,
   $scad$// ── PORTA-CARTÕES DE VISITA (com logótipo opcional) ──
-// Suporte em "L": base onde os cartões assentam, encostados a uma parede vertical.
-// O logótipo (opcional) fica em relevo na parte de cima da parede, acima da altura
-// dos cartões, para não ficar tapado quando os cartões estão colocados.
+// Suporte em "L" fechado nos dois lados: base onde os cartões assentam, encostados
+// a uma parede vertical, com paredes laterais para os cartões não escorregarem para
+// os lados. O logótipo (opcional) fica em relevo na parte de cima da parede, acima
+// da altura dos cartões, para não ficar tapado quando os cartões estão colocados.
 // logo_pts / logo_paths / tem_logo vêm do servidor (lib/logo.js, generation_schema.logo).
 
 function _L()      = is_undef(largura) ? 95 : largura;
@@ -36,6 +39,9 @@ module suporte() {
             cube([_L(), _esp(), _lipH()]);
         translate([0, _prof() - _esp(), 0])
             cube([_L(), _esp(), _altp()]);
+        cube([_esp(), _prof(), _altp()]);
+        translate([_L() - _esp(), 0, 0])
+            cube([_esp(), _prof(), _altp()]);
     }
 }
 
