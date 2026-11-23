@@ -4,6 +4,8 @@
 -- no admin quando aprovado. Testado localmente com OpenSCAD (CLI) antes de
 -- inserir: "Simple: yes", sem erros de malha, com e sem logótipo (faixa
 -- "wordmark" larga e baixa na base — a aba de cima é só para o furo).
+-- Revisão: a placa de trás passa a sólida (fechada) em vez de ter janela
+-- também — só a frente mostra o cartão; mais rígido e protege o cartão.
 
 insert into public.prod_designs
   (id, nome, familia, descricao, estado, usa_modo, mostrar_empresas, scad_template, generation_schema)
@@ -16,9 +18,10 @@ values (
   false,
   true,
   $scad$// ── PORTA-CRACHÁ PARA CARTÃO DE ACESSO (com nome/logótipo opcional) ──
-// Moldura rígida com janela para ver o cartão, aberta por cima para o inserir/retirar.
-// Aba no topo com furo para fita/clipe. Faixa na base (a toda a largura) para o nome
-// ou logótipo da empresa, em relevo.
+// Moldura rígida com janela na frente para ver o cartão; a parte de trás é sólida
+// (fechada), mais rígida e protege o cartão. Aberta por cima para inserir/retirar o
+// cartão. Aba no topo com furo para fita/clipe. Faixa na base (a toda a largura)
+// para o nome ou logótipo da empresa, em relevo.
 // logo_pts / logo_paths / tem_logo vêm do servidor (lib/logo.js, generation_schema.logo).
 
 function _Wc()     = is_undef(largura_cartao) ? 86 : largura_cartao;
@@ -56,11 +59,18 @@ module parede_estrutural() {
     }
 }
 
-module placa(y0) {
-    translate([0, y0, 0])
+module placa_frontal() {
+    translate([0, _par(), 0])
         rotate([90, 0, 0])
             linear_extrude(height = _par())
                 frame2d();
+}
+
+module placa_traseira() {
+    translate([0, _prof(), 0])
+        rotate([90, 0, 0])
+            linear_extrude(height = _par())
+                square([_W(), _Hframe()]);
 }
 
 module aba() {
@@ -85,8 +95,8 @@ module logo3d() {
 difference() {
     union() {
         parede_estrutural();
-        placa(_par());
-        placa(_prof());
+        placa_frontal();
+        placa_traseira();
         aba();
         logo3d();
     }
