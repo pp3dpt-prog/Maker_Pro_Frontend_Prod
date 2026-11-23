@@ -6,6 +6,8 @@
 //
 // Coordenadas como no .scad, na posição montada (fundo do corpo em z = 0, z para cima). A tampa
 // vem na posição "aberta" (patilhas na entrada); fecha-se rodando -ROT graus.
+// Tampa regulável: rasgos em raio na tampa e um disco com os mesmos rasgos por cima (peça "disco",
+// filha da tampa); o disco na origem = rasgos alinhados (máximo); roda REG_FECHO graus = fechado.
 
 import ClipperLib from 'clipper-lib';
 import type { Font } from 'three-stdlib';
@@ -26,6 +28,8 @@ const LUG_D = 1.0, LUG_H = 1.6, LUG_ANG = 24, TOPO_LUG = 0.8;
 export const ROT = 60;
 const TAM_TXT = 6, LARG_TXT = 34;
 const DT_W0 = 6, DT_W1 = 8, DT_H = 1.6, CLIP_W = 10, DENTE_L = 16;
+const N_RASGO = 8, A_RASGO = 20, DISCO_E = 1.6, PINO_D = 4;
+export const REG_FECHO = 180 / N_RASGO;   // rodar o disco isto fecha os rasgos
 
 // ── Clipper (µm) ──
 const ESC = 1000;
@@ -85,10 +89,12 @@ export function medidasAmbientador(p: Record<string, any>) {
   const grelha = lim(num(p.espessura_grelha, 2), 0.8, 4);
   const folga = lim(num(p.folga, 0.25), 0.1, 0.5);
   // como no .scad: só com "Com texto"; texto vazio → "Carro" (a peça do texto nunca sai vazia)
-  const texto = p.texto_tampa === 'Com texto' ? (String(p.texto ?? '') || 'Carro') : '';
+  const reg = p.regulador === 'Tampa regulável';
+  const texto = !reg && p.texto_tampa === 'Com texto' ? (String(p.texto ?? '') || 'Carro') : '';
   const F = clip ? 1.6 + DT_H : 1.6, H = F + prof, Ri = D / 2 - PAREDE;
   const sro = Ri - folga, sri = sro - SAIA_E, zlug = H - TOPO_LUG - LUG_H;
-  return { forma, D, prof, padrao, furo, fundoF, clip, argola, grelha, folga, texto, F, H, Ri, sro, sri, zlug, k: D / 50 };
+  const r1 = PINO_D / 2 + 2.2, r2 = sri - 0.8, rd = r2 + 1.5;
+  return { reg, r1, r2, rd, forma, D, prof, padrao, furo, fundoF, clip, argola, grelha, folga, texto, F, H, Ri, sro, sri, zlug, k: D / 50 };
 }
 type M = ReturnType<typeof medidasAmbientador>;
 
@@ -124,6 +130,22 @@ function padrao(m: M, rmax: number, banda = 0, calha = 0): Path[] {
   return reg;
 }
 
+/** Regulador: as aberturas (rasgos em raio), iguais na tampa e no disco. */
+function rasgos(m: M): Path[] {
+  const passo = 360 / N_RASGO;
+  return diferenca(anel(m.r2, m.r1), Array.from({ length: N_RASGO }, (_, i) => setor(m.r2 + 1, i * passo + A_RASGO, (i + 1) * passo)));
+}
+/** Marcas gravadas na tampa: ponto = alinhado (máximo), traço = desencontrado (mínimo). */
+function marcas(m: M): Path[] {
+  const rm = (m.rd + m.D / 2) / 2 - 0.3, passo = 360 / N_RASGO, out: Path[] = [];
+  for (let i = 0; i < N_RASGO; i++) {
+    const a = (90 + i * passo) * RAD, b = 90 + i * passo + passo / 2;
+    out.push(circulo(rm * Math.cos(a), rm * Math.sin(a), 0.7, 16));
+    out.push(ret(rm * Math.cos(b * RAD), rm * Math.sin(b * RAD), 2, 0.7, b));
+  }
+  return out;
+}
+
 function shapesParaRegiao(shapes: ReturnType<typeof textoShapes>): Path[] {
   const paths: Path[] = [];
   for (const sh of shapes) {
@@ -142,7 +164,7 @@ function tamanhoTexto(m: M, font: Font | null) {
 }
 
 // ── peças (posição montada, tampa aberta) ──
-export type PecasAmbientador = { corpo: number[]; tampa: number[]; texto: number[]; clip: number[] };
+export type PecasAmbientador = { corpo: number[]; tampa: number[]; texto: number[]; clip: number[]; disco: number[] };
 
 export function construirAmbientador(p: Record<string, any>, font: Font | null): PecasAmbientador {
   const m = medidasAmbientador(p);
@@ -183,7 +205,7 @@ export function construirAmbientador(p: Record<string, any>, font: Font | null):
   // tampa (montada, aberta)
   const tsize = m.texto ? tamanhoTexto(m, font) : 0;
   const banda = m.texto ? tsize * 1.5 + 2 : 0;
-  const face = diferenca(cont, padrao(m, m.sri - 0.8, banda));
+  const face = m.reg ? diferenca(cont, [...rasgos(m), circulo(0, 0, PINO_D / 2 + m.folga, 32)]) : diferenca(cont, padrao(m, m.sri - 0.8, banda));
   const txt = font && m.texto ? rodar(shapesParaRegiao(textoShapes(font, m.texto, tsize, 1, 0, 0)), ROT) : [];
   const saia = anel(m.sro, m.sri);
   const ra = m.Ri - LUG_D - m.folga;
@@ -198,9 +220,34 @@ export function construirAmbientador(p: Record<string, any>, font: Font | null):
     { z0: z0g, z1: z1g, regiao: diferenca(saia, ranhura) },
     { z0: z1g, z1: z1g + 0.5, regiao: diferenca(saia, cova) },
     { z0: z1g + 0.5, z1: m.H, regiao: saia },
-    { z0: m.H, z1: m.H + T_TAMPA - INLAY, regiao: face },
-    { z0: m.H + T_TAMPA - INLAY, z1: m.H + T_TAMPA, regiao: diferenca(face, txt) },
+    ...(m.reg ? [
+      { z0: m.H, z1: m.H + T_TAMPA - 0.4, regiao: face },
+      { z0: m.H + T_TAMPA - 0.4, z1: m.H + T_TAMPA, regiao: diferenca(face, marcas(m)) },
+    ] : [
+      { z0: m.H, z1: m.H + T_TAMPA - INLAY, regiao: face },
+      { z0: m.H + T_TAMPA - INLAY, z1: m.H + T_TAMPA, regiao: diferenca(face, txt) },
+    ]),
   ];
+
+  // disco do regulador (com patilha a apontar para as marcas) e pino partido com cabeça cónica
+  let disco: number[] = [];
+  if (m.reg) {
+    const z0 = m.H + T_TAMPA + 0.2;
+    const patilha = cascoConvexo([...circ(0, m.rd - 2, 2.2, 24), ...circ(0, m.rd + 1.2, 0.6, 12)]);
+    const corpoDisco = diferenca(uniao([circulo(0, 0, m.rd, 120), patilha]), rasgos(m));
+    const fenda = [ret(0, 0, 1.2, 2 * PINO_D)];
+    const fatias: Fatia[] = [
+      { z0, z1: z0 + DISCO_E, regiao: corpoDisco },
+      { z0: m.H - 0.15, z1: m.H + T_TAMPA - 0.4, regiao: diferenca([circulo(0, 0, PINO_D / 2, 32)], fenda) },   // haste partida
+      { z0: m.H + T_TAMPA - 0.4, z1: z0 + 0.01, regiao: [circulo(0, 0, PINO_D / 2, 32)] },
+    ];
+    // cabeça cónica (4 degraus), de d = PINO_D − 0.6 em baixo a PINO_D + 1.4 em cima, com a fenda
+    for (let i = 0; i < 4; i++) {
+      const za = m.H - 1.95 + (1.8 * i) / 4, zb = m.H - 1.95 + (1.8 * (i + 1)) / 4, d = PINO_D - 0.6 + (2 * (i + 0.5)) / 4;
+      fatias.push({ z0: za, z1: zb, regiao: diferenca([circulo(0, 0, d / 2, 32)], fenda) });
+    }
+    disco = tri(fatias);
+  }
   const textoT = txt.length ? tri([{ z0: m.H + T_TAMPA - INLAY + 0.01, z1: m.H + T_TAMPA, regiao: txt }]) : [];
 
   // clip: perfil (u através da calha, v para fora do fundo), extrudido ao longo de x
@@ -230,7 +277,7 @@ export function construirAmbientador(p: Record<string, any>, font: Font | null):
     }
   }
 
-  return { corpo: tri(corpoF), tampa: tri(tampaF), texto: textoT, clip };
+  return { corpo: tri(corpoF), tampa: tri(tampaF), texto: textoT, clip, disco };
 }
 
 function cascoConvexo(pontos: V2[]): Path {
@@ -242,4 +289,4 @@ function cascoConvexo(pontos: V2[]): Path {
   return poligono([...lo.slice(0, -1), ...hi.slice(0, -1)]);
 }
 
-export const CORES_AMBIENTADOR = { corpo: '#38BDF8', tampa: '#FFFFFF', texto: '#1E3A8A' };
+export const CORES_AMBIENTADOR = { corpo: '#38BDF8', tampa: '#FFFFFF', texto: '#1E3A8A', disco: '#38BDF8' };

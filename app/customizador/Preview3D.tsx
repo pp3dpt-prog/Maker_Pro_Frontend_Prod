@@ -27,7 +27,7 @@ import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDec
 import { construirPortaChaves, construirEnchimentosPC, isPortaChavesSuporte, ZONAS_PC, usaTexto, imagemZona as imagemZonaPC, larguraImagemZona as larguraImagemZonaPC, numCoresZona } from '@/lib/portaChavesSuporte';
 import { construirMarcadorExtra, construirMarcadorFoto, modeloMarcadorExtra, temNomesMarcadorExtra, FONTE_OMISSAO, COR_OMISSAO, PALETA_CORES_IMAGEM, imagemCorpoFoto, larguraImagemFoto, numCoresCorpoFoto } from '@/lib/marcadoresCopoExtra';
 import { construirMarcadores, isMarcadoresCopo, nomesMarcadores, imagemEnfeite, numCoresEnfeite } from '@/lib/marcadoresCopo';
-import { construirAmbientador, isAmbientadorCarro, CORES_AMBIENTADOR, ROT as ROT_AMBIENTADOR } from '@/lib/ambientadorCarro';
+import { construirAmbientador, isAmbientadorCarro, CORES_AMBIENTADOR, ROT as ROT_AMBIENTADOR, REG_FECHO } from '@/lib/ambientadorCarro';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -1726,7 +1726,8 @@ function EsquadroPreview({ params }: { params: Record<string, any> }) {
 // ── Ambientador para o carro (ambientador = "carro") — ver lib/ambientadorCarro.ts ──
 // Montado: corpo, tampa fechada (rodada -ROT) e clip na calha. O slider "Abrir" roda a tampa até à
 // entrada da baioneta (0 → 0,5) e depois levanta-a (0,5 → 1) para se ver o sítio do algodão.
-function AmbientadorPreview({ params, abrir }: { params: Record<string, any>; abrir: number }) {
+// Tampa regulável: o slider "Cheiro" roda o disco (1 = rasgos alinhados, 0 = fechados).
+function AmbientadorPreview({ params, abrir, cheiro }: { params: Record<string, any>; abrir: number; cheiro: number }) {
   const comTexto = params.texto_tampa === 'Com texto';
   const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Luckiest Guy')] ?? ETIQUETA_FONT_MAP['Open Sans'];
   const [font, setFont] = useState<Font | null>(null);
@@ -1738,20 +1739,21 @@ function AmbientadorPreview({ params, abrir }: { params: Record<string, any>; ab
   }, [fontPath, comTexto]);
   const fontPronta = comTexto ? font : null;
   const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath]);
-  const { grupo, tampa } = useMemo(() => {
+  const { grupo, tampa, disco } = useMemo(() => {
     const pecas = construirAmbientador(params, fontPronta);
-    const g = new THREE.Group(), dentro = new THREE.Group(), t = new THREE.Group();
+    const g = new THREE.Group(), dentro = new THREE.Group(), t = new THREE.Group(), d = new THREE.Group();
     const add = (alvo: THREE.Group, tri: number[], parte: keyof typeof CORES_AMBIENTADOR) => {
       const m = malhaDeTriangulos(tri, CORES_AMBIENTADOR[parte]); if (m) { m.userData.parte = parte; alvo.add(m); }
     };
     add(dentro, pecas.corpo, 'corpo'); add(dentro, pecas.clip, 'corpo');
     add(t, pecas.tampa, 'tampa'); add(t, pecas.texto, 'texto');
+    add(d, pecas.disco, 'disco'); t.add(d);
     dentro.add(t);
     const caixa = new THREE.Box3().setFromObject(dentro);
     if (!caixa.isEmpty()) dentro.position.set(0, 0, -caixa.min.z);
     g.add(dentro);
     g.rotation.x = -Math.PI / 2;
-    return { grupo: g, tampa: t };
+    return { grupo: g, tampa: t, disco: d };
   }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => libertarGrupo(grupo), [grupo]);
   useEffect(() => {
@@ -1759,6 +1761,7 @@ function AmbientadorPreview({ params, abrir }: { params: Record<string, any>; ab
     tampa.rotation.z = -ROT_AMBIENTADOR * (1 - rodar) * Math.PI / 180;
     tampa.position.z = subir * 28;
   }, [tampa, abrir]);
+  useEffect(() => { disco.rotation.z = -(1 - cheiro) * REG_FECHO * Math.PI / 180; }, [disco, cheiro]);
   // Sem AMS o texto fica gravado na tampa (mesma cor); com AMS sai na cor do texto.
   const semAms = /^sem/i.test(String(params.impressao ?? '').trim());
   useEffect(() => {
@@ -1780,6 +1783,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   const [luzAcesa, setLuzAcesa] = useState(true);
   const [dobra, setDobra] = useState(0.7);   // caixa dobrável: 0 = plana, 1 = fechada
   const [abrir, setAbrir] = useState(0);     // porta-chaves suporte: 0 = fechado, 1 = aberto (aba no batente)
+  const [cheiro, setCheiro] = useState(1);   // ambientador com tampa regulável: 1 = máximo, 0 = fechado
   const isNameKey   = !isPetTag && typeof params.Text === 'string' && typeof params.Font_name === 'string';
   // Tem de vir ANTES de isLetraNome: o schema da caixa de luz partilha quase
   // todos os nomes de parâmetros com "Letras Decorativas" (letra, nome,
@@ -1867,7 +1871,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           />
 
           {isAmbientadorModelo ? (
-            <AmbientadorPreview params={params} abrir={abrir} />
+            <AmbientadorPreview params={params} abrir={abrir} cheiro={cheiro} />
           ) : isPortaChavesModelo ? (
             <PortaChavesSuportePreview params={params} abrir={abrir} />
           ) : isMarcadoresModelo ? (
@@ -1939,6 +1943,13 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>🌸 Abrir</span>
           <input type="range" min={0} max={100} value={Math.round(abrir * 100)} onChange={(e) => setAbrir(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Abrir a tampa do ambientador" />
           <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{abrir <= 0.001 ? 'fechado' : abrir >= 0.999 ? 'aberto' : abrir <= 0.5 ? 'a rodar' : 'a tirar'}</span>
+        </div>
+      )}
+      {isAmbientadorModelo && params.regulador === 'Tampa regulável' && (
+        <div style={{ position: 'absolute', left: 12, right: 12, bottom: 112, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.8)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.25)' }}>
+          <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>💨 Cheiro</span>
+          <input type="range" min={0} max={100} value={Math.round(cheiro * 100)} onChange={(e) => setCheiro(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Regular a intensidade do cheiro" />
+          <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{cheiro <= 0.02 ? 'fechado' : cheiro >= 0.98 ? 'máximo' : `${Math.round(cheiro * 100)}%`}</span>
         </div>
       )}
       {isDobravelModelo && (

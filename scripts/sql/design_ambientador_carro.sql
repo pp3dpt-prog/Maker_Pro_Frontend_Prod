@@ -3,6 +3,7 @@
 -- clique a fechar), para pôr um disco de algodão com gotas de ambientador. Fixação por clip na
 -- grelha da ventilação (peça à parte numa calha em cauda de andorinha), argola para o retrovisor
 -- ou nenhuma. Texto opcional embutido na tampa (cor própria com AMS; gravado sem AMS).
+-- Tampa regulável (opcional): rasgos em raio + disco rodante por cima para mais/menos cheiro.
 -- Pré-visualização em tempo real: lib/ambientadorCarro.ts (parâmetro escondido ambientador=carro).
 -- Template também em scripts/scad/ambientador_carro.scad. Testado com OpenSCAD (CLI): todas as
 -- peças "Simple: yes"; encaixe da baioneta verificado (sem interferência aberta e fechada,
@@ -26,6 +27,9 @@ values (
 // Fixação: clip para a grelha da ventilação (peça à parte, entra numa calha em cauda de
 // andorinha no fundo), argola para pendurar no retrovisor, ou sem fixação.
 // Texto opcional na tampa, embutido à face (com AMS sai noutra cor; sem AMS fica gravado).
+// Tampa regulável (opcional): a tampa leva rasgos em raio e por cima roda um disco com os
+// mesmos rasgos, preso por um pino de encaixe ao centro — alinhados = cheiro no máximo,
+// desencontrados = quase fechado. Marcas na tampa: ponto = máximo, traço = mínimo.
 //
 // Tudo imprime sem suportes: o corpo com o fundo na mesa, a tampa com a face na mesa
 // (já vem virada), o clip deitado de lado.
@@ -37,13 +41,14 @@ values (
 //   padrao_furos     "Furos redondos" | "Ranhuras" | "Favo"
 //   tamanho_furo     (mm)
 //   furos_fundo      true/false — furos também no fundo (deixa passar o ar da ventilação)
+//   regulador        "Sem regulador" | "Tampa regulável" (com regulador não há texto)
 //   texto_tampa      "Sem texto" | "Com texto"
 //   texto, fonte     texto na tampa (vazio → "Carro", para a peça do texto nunca sair vazia); esc_texto (0–1) vem do servidor
 //                    (generation_schema.ajuste_texto) para caber
 //   fixacao          "Clip para a grelha da ventilação" | "Argola para pendurar" | "Sem fixação"
 //   espessura_grelha espessura da lâmina da grelha que o clip agarra (mm)
 //   folga            folga da baioneta e da calha do clip (mm)
-//   modo             "corpo" | "tampa" | "texto" | "clip" | "tudo"
+//   modo             "corpo" | "tampa" | "texto" | "clip" | "disco" | "tudo"
 
 function _forma() = is_undef(forma) ? "Redonda" : forma;
 function _D()     = is_undef(diametro) ? 50 : max(40, min(70, diametro));
@@ -51,7 +56,8 @@ function _prof()  = is_undef(profundidade) ? 8 : max(5, min(15, profundidade));
 function _padrao()= is_undef(padrao_furos) ? "Furos redondos" : padrao_furos;
 function _furo()  = is_undef(tamanho_furo) ? 3 : max(2, min(5, tamanho_furo));
 function _fundoF()= is_undef(furos_fundo) ? true : (furos_fundo == true || furos_fundo == 1 || furos_fundo == "true");
-function _comTxt()= !is_undef(texto_tampa) && texto_tampa == "Com texto";
+function _reg()   = !is_undef(regulador) && regulador == "Tampa regulável";
+function _comTxt()= !_reg() && !is_undef(texto_tampa) && texto_tampa == "Com texto";
 function _txt()   = !_comTxt() ? "" : (is_undef(texto) || texto == "") ? "Carro" : texto;
 function _fonte() = is_undef(fonte) ? "Luckiest Guy" : fonte;
 function _esc()   = is_undef(esc_texto) ? 1 : max(0.2, min(1, esc_texto));
@@ -78,6 +84,10 @@ LARG_TXT = 34;     // largura útil do texto no nominal — igual a ajuste_texto
 DT_W0 = 6; DT_W1 = 8; DT_H = 1.6;   // calha do clip: largura na face, largura no fundo, altura
 CLIP_W = 10;       // largura do clip (comprimento do trilho)
 DENTE_L = 16;      // comprimento dos dentes do clip
+N_RASGO = 8;       // regulador: rasgos em raio (de 45 em 45°)
+A_RASGO = 20;      // largura de cada rasgo (graus) — 22,5° de rodar fecha tudo
+DISCO_E = 1.6;     // espessura do disco
+PINO_D  = 4;       // pino do disco
 
 function _k()    = _D() / 50;
 function _F()    = _clip() ? 1.6 + DT_H : 1.6;            // espessura do fundo
@@ -87,6 +97,9 @@ function _sro()  = _Ri() - _folga();                        // saia: raio exteri
 function _sri()  = _sro() - SAIA_E;                         // saia: raio interior
 function _zlug() = _H() - TOPO_LUG - LUG_H;                 // base da parte recta da patilha
 function _tsize()= TAM_TXT * _k() * _esc();
+function _r1()   = PINO_D/2 + 2.2;                         // regulador: rasgos de r1 a r2
+function _r2()   = _sri() - 0.8;
+function _rd()   = _r2() + 1.5;                             // raio do disco
 function _banda()= _txt() == "" ? 0 : _tsize() * 1.5 + 2;  // faixa sem furos para o texto
 
 // ---------- 2D ----------
@@ -125,6 +138,22 @@ module padrao2d(rmax, excluirBanda = 0, excluirCalha = 0) {
             if (excluirBanda > 0) rotate(ROT) square([4*rmax, excluirBanda], center = true);  // texto direito com a tampa fechada
             if (excluirCalha > 0) square([4*rmax, excluirCalha], center = true);
         }
+    }
+}
+
+module rasgos2d() {   // regulador: rasgos em raio (iguais na tampa e no disco)
+    difference() {
+        circle(_r2());
+        circle(_r1());
+        for (i = [0:N_RASGO-1]) rotate(i*360/N_RASGO + A_RASGO) setor(_r2() + 1, 0, 360/N_RASGO - A_RASGO);
+    }
+}
+
+module marcas2d() {   // ponto = rasgos alinhados (máximo), traço = desencontrados (mínimo)
+    rm = (_rd() + _D()/2) / 2 - 0.3;
+    for (i = [0:N_RASGO-1]) {
+        rotate(90 + i*360/N_RASGO) translate([rm, 0]) circle(0.7, $fn = 16);
+        rotate(90 + i*360/N_RASGO + 180/N_RASGO) translate([rm, 0]) square([2, 0.7], center = true);
     }
 }
 
@@ -202,7 +231,30 @@ module tampa_toda() {   // tampa montada (face de z=H a H+T_TAMPA), sem o texto 
         }
         for (i = [0:2]) ranhura_baioneta(i*120);
         translate([0, 0, _H() - 1]) linear_extrude(T_TAMPA + 2)
-            padrao2d(_sri() - 0.8, _banda(), 0);
+            if (_reg()) { rasgos2d(); circle(PINO_D/2 + _folga(), $fn = 32); }
+            else padrao2d(_sri() - 0.8, _banda(), 0);
+        if (_reg()) translate([0, 0, _H() + T_TAMPA - 0.4]) linear_extrude(1) marcas2d();
+    }
+}
+
+// disco do regulador, montado em cima da tampa (rasgos alinhados = posição de origem), com
+// uma patilha para rodar que aponta para as marcas e o pino de encaixe por baixo
+module disco_m() {
+    z0 = _H() + T_TAMPA + 0.2;
+    translate([0, 0, z0]) linear_extrude(DISCO_E) difference() {
+        union() {
+            circle(_rd());
+            rotate(90) hull() { translate([_rd() - 2, 0]) circle(2.2, $fn = 24); translate([_rd() + 1.2, 0]) circle(0.6, $fn = 12); }
+        }
+        rasgos2d();
+    }
+    // pino: haste pela tampa e cabeça cónica partida ao meio (encaixa por pressão e roda)
+    difference() {
+        union() {
+            translate([0, 0, _H() - 0.15]) cylinder(d = PINO_D, h = z0 - _H() + 0.16, $fn = 32);
+            translate([0, 0, _H() - 1.95]) cylinder(d1 = PINO_D - 0.6, d2 = PINO_D + 1.4, h = 1.8, $fn = 32);
+        }
+        translate([-0.6, -PINO_D, _H() - 2]) cube([1.2, 2*PINO_D, 2 + T_TAMPA - 0.4]);
     }
 }
 
@@ -235,13 +287,15 @@ module clip_m() {
 // ---------- na mesa ----------
 function _dx() = _D() + 12;
 module na_mesa_tampa() { translate([_dx(), 0, _H() + T_TAMPA]) rotate([180, 0, 0]) children(); }
+module na_mesa_disco() { translate([-_dx(), 0, _H() + T_TAMPA + 0.2 + DISCO_E]) rotate([180, 0, 0]) children(); }
 module na_mesa_clip()  { translate([0, -_D()/2 - 32, 0]) linear_extrude(CLIP_W) rotate(180) clip_perfil(); }
 
 if (_modo() == "corpo"  || _modo() == "tudo") corpo();
 if (_modo() == "tampa"  || _modo() == "tudo") na_mesa_tampa() tampa_m();
 if (_modo() == "texto"  || _modo() == "tudo") na_mesa_tampa() texto3d();
+if ((_modo() == "disco" || _modo() == "tudo") && _reg()) na_mesa_disco() disco_m();
 if ((_modo() == "clip"  || _modo() == "tudo") && _clip()) na_mesa_clip();
-if (_modo() == "montado") { corpo(); rotate(-ROT) { tampa_m(); texto3d(); } if (_clip()) clip_m(); }   // só para conferir
+if (_modo() == "montado") { corpo(); rotate(-ROT) { tampa_m(); texto3d(); if (_reg()) disco_m(); } if (_clip()) clip_m(); }   // só para conferir
 $scad$,
   $json${
  "engine": "openscad",
@@ -271,7 +325,16 @@ $scad$,
     "nome": "Texto da tampa",
     "cor_param": "cor_texto",
     "so_quando": {
-     "texto_tampa": "Com texto"
+     "texto_tampa": "Com texto",
+     "regulador": "Sem regulador"
+    }
+   },
+   {
+    "modo": "disco",
+    "nome": "Disco regulador",
+    "cor_param": "cor_disco",
+    "so_quando": {
+     "regulador": "Tampa regulável"
     }
    }
   ],
@@ -283,6 +346,8 @@ $scad$,
    "  tampa.stl — a tampa com a face na mesa (já vem virada); o texto, se tiver, fica gravado.",
    "  clip.stl — o clip deitado de lado (só com a fixação por clip). Entra pela calha do fundo",
    "  até parar a meio; se ficar solto, uma gota de cola.",
+   "  disco.stl — o disco regulador com a face para baixo e o pino para cima (só com a tampa",
+   "  regulável). Encaixa o pino no furo do centro da tampa, por fora, até dar o clique.",
    "  Usa PETG ou ASA — o PLA pode deformar dentro do carro ao sol."
   ],
   "sem_ams_ficheiros": [
@@ -305,6 +370,15 @@ $scad$,
     },
     "so_quando": {
      "fixacao": "Clip para a grelha da ventilação"
+    }
+   },
+   {
+    "nome": "disco.stl",
+    "params": {
+     "modo": "disco"
+    },
+    "so_quando": {
+     "regulador": "Tampa regulável"
     }
    }
   ]
@@ -374,7 +448,12 @@ $scad$,
      "Furos redondos",
      "Ranhuras",
      "Favo"
-    ]
+    ],
+    "visible_when": {
+     "regulador": {
+      "eq": "Sem regulador"
+     }
+    }
    },
    "order": 4,
    "default": "Furos redondos"
@@ -383,7 +462,12 @@ $scad$,
    "ui": {
     "label": "Tamanho dos furos",
     "widget": "slider",
-    "step": 0.5
+    "step": 0.5,
+    "visible_when": {
+     "regulador": {
+      "eq": "Sem regulador"
+     }
+    }
    },
    "min": 2,
    "max": 5,
@@ -407,7 +491,12 @@ $scad$,
     "options": [
      "Sem texto",
      "Com texto"
-    ]
+    ],
+    "visible_when": {
+     "regulador": {
+      "eq": "Sem regulador"
+     }
+    }
    },
    "order": 7,
    "default": "Sem texto"
@@ -420,6 +509,9 @@ $scad$,
     "visible_when": {
      "texto_tampa": {
       "eq": "Com texto"
+     },
+     "regulador": {
+      "eq": "Sem regulador"
      }
     }
    },
@@ -450,6 +542,9 @@ $scad$,
     "visible_when": {
      "texto_tampa": {
       "eq": "Com texto"
+     },
+     "regulador": {
+      "eq": "Sem regulador"
      }
     }
    },
@@ -700,6 +795,9 @@ $scad$,
      },
      "impressao": {
       "eq": "AMS (3MF multicor)"
+     },
+     "regulador": {
+      "eq": "Sem regulador"
      }
     }
    },
@@ -709,10 +807,89 @@ $scad$,
   "info_ambientador": {
    "ui": {
     "widget": "info",
-    "text": "🌸 Ambientador para o carro: abre-se a tampa rodando-a no sentido contrário aos ponteiros do relógio (cerca de 1/6 de volta), põe-se um disco de algodão com umas gotas de ambientador ou óleo essencial, e fecha-se rodando até dar o clique. O clip entra pela calha do fundo e agarra uma lâmina da grelha da ventilação — mede a espessura da lâmina e acerta o valor. Tudo imprime sem suportes: o corpo de pé, a tampa com a face para baixo (já vem virada) e o clip deitado. Com AMS o texto sai embutido na tampa noutra cor; sem AMS fica gravado na tampa. Usa PETG ou ASA: o PLA pode deformar num carro ao sol."
+    "text": "🌸 Ambientador para o carro: abre-se a tampa rodando-a no sentido contrário aos ponteiros do relógio (cerca de 1/6 de volta), põe-se um disco de algodão com umas gotas de ambientador ou óleo essencial, e fecha-se rodando até dar o clique. O clip entra pela calha do fundo e agarra uma lâmina da grelha da ventilação — mede a espessura da lâmina e acerta o valor. Tudo imprime sem suportes: o corpo de pé, a tampa com a face para baixo (já vem virada) e o clip deitado. Com AMS o texto sai embutido na tampa noutra cor; sem AMS fica gravado na tampa. Com a tampa regulável, roda o disco por cima da tampa: rasgos alinhados (ponto) = cheiro no máximo, desencontrados (traço) = quase fechado; o disco encaixa por pressão no furo do centro. Usa PETG ou ASA: o PLA pode deformar num carro ao sol."
    },
    "order": 99,
    "default": null
+  },
+  "regulador": {
+   "ui": {
+    "label": "Regular o cheiro (disco rodante na tampa)",
+    "widget": "select",
+    "options": [
+     "Sem regulador",
+     "Tampa regulável"
+    ]
+   },
+   "order": 3.5,
+   "default": "Sem regulador"
+  },
+  "cor_disco": {
+   "ui": {
+    "label": "Cor do disco regulador",
+    "widget": "color",
+    "paleta": [
+     {
+      "hex": "#FFFFFF",
+      "nome": "Branco"
+     },
+     {
+      "hex": "#111111",
+      "nome": "Preto"
+     },
+     {
+      "hex": "#9CA3AF",
+      "nome": "Cinzento"
+     },
+     {
+      "hex": "#E0A526",
+      "nome": "Dourado"
+     },
+     {
+      "hex": "#C0C0C0",
+      "nome": "Prateado"
+     },
+     {
+      "hex": "#DC2626",
+      "nome": "Vermelho"
+     },
+     {
+      "hex": "#F97316",
+      "nome": "Laranja"
+     },
+     {
+      "hex": "#FACC15",
+      "nome": "Amarelo"
+     },
+     {
+      "hex": "#16A34A",
+      "nome": "Verde"
+     },
+     {
+      "hex": "#38BDF8",
+      "nome": "Azul claro"
+     },
+     {
+      "hex": "#1E3A8A",
+      "nome": "Azul"
+     },
+     {
+      "hex": "#7C3AED",
+      "nome": "Roxo"
+     },
+     {
+      "hex": "#F472B6",
+      "nome": "Rosa"
+     }
+    ],
+    "visible_when": {
+     "regulador": {
+      "eq": "Tampa regulável"
+     }
+    }
+   },
+   "order": 22.5,
+   "default": "#38BDF8"
   }
  }
 }$json$::jsonb
