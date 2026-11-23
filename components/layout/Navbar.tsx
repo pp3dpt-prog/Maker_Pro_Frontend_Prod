@@ -88,6 +88,7 @@ export default function Navbar() {
           <Link href="/loja">Loja</Link>
           <Link href="/galeria">Galeria</Link>
           <Link href="/makers">Makers</Link>
+          <Link href="/eletronica">PPtronica</Link>
           <Link href="/pricing">Preçário</Link>
 
           <Link href="/carrinho" aria-label={`Carrinho${count > 0 ? ` (${count} itens)` : ''}`} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -141,6 +142,7 @@ export default function Navbar() {
           <Link href="/loja" onClick={() => setMobileOpen(false)}>Loja</Link>
           <Link href="/galeria" onClick={() => setMobileOpen(false)}>Galeria</Link>
           <Link href="/makers" onClick={() => setMobileOpen(false)}>Makers</Link>
+          <Link href="/eletronica" onClick={() => setMobileOpen(false)}>PPtronica</Link>
           <Link href="/carrinho" onClick={() => setMobileOpen(false)}>Carrinho{count > 0 ? ` (${count})` : ''}</Link>
           <Link href="/pricing" onClick={() => setMobileOpen(false)}>Preçário</Link>
 
