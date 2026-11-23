@@ -250,6 +250,17 @@ export default function Dashboard() {
               <StatCard label="DOWNLOADS RESTANTES" value={String(downloadsRestantes)} color="#3b82f6" />
               <StatCard label="FICHEIROS STL" value={String(assets.length)} color="#a78bfa" />
             </div>
+            {perfil?.tipo_utilizador === 'revendedor' && (
+              <div style={{ padding: '30px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', marginBottom: '20px' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: '16px' }}>🤝 Conta de Parceiro/Revendedor</h4>
+                <p style={{ margin: '0 0 12px', color: '#94a3b8', fontSize: '14px' }}>
+                  Configura peças e pede propostas sem compromisso de compra.
+                </p>
+                <Link href="/empresas" style={{ color: '#60a5fa', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
+                  Ver catálogo para empresas →
+                </Link>
+              </div>
+            )}
             <div style={{ padding: '30px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155' }}>
               <h4 style={{ marginBottom: '20px', fontSize: '16px' }}>🛡️ Estado da Licença</h4>
               <p style={{ color: '#94a3b8', fontSize: '14px' }}>

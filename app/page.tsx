@@ -254,6 +254,7 @@ export default async function HomePage() {
             </p>
             <div className="ll-cta-row">
               <a href="mailto:pp3d.pt@gmail.com?subject=Parceria%2FRevenda%20PP3D" className="ll-btn ll-btn-primary">Falar sobre parcerias</a>
+              <Link href="/empresas" className="ll-btn ll-btn-ghost">Catálogo para empresas</Link>
               <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="ll-btn ll-btn-ghost">Entrar no Discord</a>
             </div>
           </div>
