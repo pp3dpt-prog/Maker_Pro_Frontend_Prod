@@ -19,6 +19,7 @@
 //   padrao_furos     "Furos redondos" | "Ranhuras" | "Favo"
 //   tamanho_furo     (mm)
 //   furos_fundo      true/false — furos também no fundo (deixa passar o ar da ventilação)
+//   espaco_furos_fundo espaço extra entre buracos do fundo (mm, 0-25) — mais alto = menos buracos
 //   regulador        "Sem regulador" | "Tampa regulável" (com regulador não há texto)
 //   texto_tampa      "Sem texto" | "Com texto"
 //   texto, fonte     texto na tampa (vazio → "Carro", para a peça do texto nunca sair vazia); esc_texto (0–1) vem do servidor
@@ -44,6 +45,7 @@ function _clip()  = _fix() == "Clip para a grelha da ventilação";
 function _argola()= _fix() == "Argola para pendurar";
 function _grelha()= is_undef(espessura_grelha) ? 2 : max(0.8, min(4, espessura_grelha));
 function _folga() = is_undef(folga) ? 0.25 : max(0.1, min(0.5, folga));
+function _espacoFundo() = is_undef(espaco_furos_fundo) ? 1.5 : max(0, min(25, espaco_furos_fundo));
 function _modo()  = is_undef(modo) ? "tudo" : modo;
 
 $fn = 72;
@@ -100,8 +102,8 @@ module setor(r, a0, a1) {   // fatia de pizza de a0 a a1 graus
     polygon(concat([[0, 0]], [for (i = [0:n]) let(a = a0 + (a1 - a0)*i/n) r*[cos(a), sin(a)]]));
 }
 
-module padrao2d(rmax, excluirBanda = 0, excluirCalha = 0) {
-    d = _furo(); s = d + 1.6;
+module padrao2d(rmax, excluirBanda = 0, excluirCalha = 0, escalaD = 1, espacoExtra = 0) {
+    d = _furo() * escalaD; s = d + 1.6 + espacoExtra;
     intersection() {
         circle(rmax);
         difference() {
@@ -177,7 +179,7 @@ module corpo() {
         }
         translate([0, 0, _F()]) cylinder(r = _Ri(), h = _H());
         if (_fundoF()) translate([0, 0, -1]) linear_extrude(_F() + 2)
-            padrao2d(_Ri() - 1.5, 0, _clip() ? DT_W1 + 3 : 0);
+            padrao2d(_Ri() - 1.5, 0, _clip() ? DT_W1 + 3 : 0, 0.7, _espacoFundo());   // fundo: buracos mais pequenos que a tampa; espaçamento ajustável (espaco_furos_fundo)
         if (_clip()) calha();
     }
     for (i = [0:2]) { patilha(i*120); trinco(i*120); }

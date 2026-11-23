@@ -88,13 +88,15 @@ export function medidasAmbientador(p: Record<string, any>) {
   const clip = fix === 'Clip para a grelha da ventilação', argola = fix === 'Argola para pendurar';
   const grelha = lim(num(p.espessura_grelha, 2), 0.8, 4);
   const folga = lim(num(p.folga, 0.25), 0.1, 0.5);
+  // espaço extra entre os buracos do fundo (mm) — só o fundo, a tampa não muda (ver padrao2d() no .scad)
+  const espacoFundo = lim(num(p.espaco_furos_fundo, 1.5), 0, 25);
   // como no .scad: só com "Com texto"; texto vazio → "Carro" (a peça do texto nunca sai vazia)
   const reg = p.regulador === 'Tampa regulável';
   const texto = !reg && p.texto_tampa === 'Com texto' ? (String(p.texto ?? '') || 'Carro') : '';
   const F = clip ? 1.6 + DT_H : 1.6, H = F + prof, Ri = D / 2 - PAREDE;
   const sro = Ri - folga, sri = sro - SAIA_E, zlug = H - TOPO_LUG - LUG_H;
   const r1 = PINO_D / 2 + 2.2, r2 = sri - 0.8, rd = r2 + 1.5;
-  return { reg, r1, r2, rd, forma, D, prof, padrao, furo, fundoF, clip, argola, grelha, folga, texto, F, H, Ri, sro, sri, zlug, k: D / 50 };
+  return { reg, r1, r2, rd, forma, D, prof, padrao, furo, fundoF, espacoFundo, clip, argola, grelha, folga, texto, F, H, Ri, sro, sri, zlug, k: D / 50 };
 }
 type M = ReturnType<typeof medidasAmbientador>;
 
@@ -109,8 +111,8 @@ function contorno(m: M): Path[] {
   return diferenca([circulo(0, 0, R, 120)], Array.from({ length: 12 }, (_, i) => { const a = i * 30 * RAD; return circulo((R + 0.35) * Math.cos(a), (R + 0.35) * Math.sin(a), 0.9, 16); }));
 }
 
-function padrao(m: M, rmax: number, banda = 0, calha = 0): Path[] {
-  const d = m.furo, s = d + 1.6, n = Math.ceil(rmax / s);
+function padrao(m: M, rmax: number, banda = 0, calha = 0, escalaD = 1, espacoExtra = 0): Path[] {
+  const d = m.furo * escalaD, s = d + 1.6 + espacoExtra, n = Math.ceil(rmax / s);
   const furos: Path[] = [];
   if (m.padrao === 'Ranhuras') {
     for (let j = -n; j <= n; j++) furos.push(...offset([ret(0, j * s, 2 * rmax, 0.02)], d / 2 - 0.01));
@@ -178,7 +180,7 @@ export function construirAmbientador(p: Record<string, any>, font: Font | null):
     const arg = diferenca(uniao([circulo(0, cy, ro, 40), ret(0, cy - (ro + 2) / 2, 2 * ro, ro + 2)]), [circulo(0, cy, ri, 32)]);
     corpoF.push({ z0: 0, z1: 3, regiao: diferenca(arg, cont) });
   }
-  const furosFundo = m.fundoF ? padrao(m, m.Ri - 1.5, 0, m.clip ? DT_W1 + 3 : 0) : [];
+  const furosFundo = m.fundoF ? padrao(m, m.Ri - 1.5, 0, m.clip ? DT_W1 + 3 : 0, 0.7, m.espacoFundo) : [];
   base = diferenca(base, furosFundo);
   if (m.clip) {
     // calha em cauda de andorinha (3 degraus), aberta em -x e fechada em x = CLIP_W/2 + folga
