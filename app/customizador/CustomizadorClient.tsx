@@ -5,6 +5,7 @@ import Preview3D from './Preview3D';
 import STLViewer from '@/components/STLViewer';
 import LoadingViewer from './LoadingViewer';
 import { isEtiquetaMochila } from '@/lib/etiquetaMochila';
+import { isAmbientadorCarro } from '@/lib/ambientadorCarro';
 import { isCaixaPcb } from '@/lib/caixaPcb';
 import { isBaseCopos } from '@/lib/baseCopos';
 import { isSuporteBases } from '@/lib/suporteBases';
@@ -85,7 +86,9 @@ export default function CustomizadorClient({
   const isDobravelModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && isCaixaDobravel(params);
   // Decoração de Natal: parâmetro escondido deco = rena, anjo, ... (ver lib/natalDeco.ts)
   const isNatalDecoModelo = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && !isNomeFlexModelo && !isDecoModelo && !isArvoreModelo && !isEnfeiteModelo && !isDobravelModelo && isNatalDeco(params);
-  const temPreviewVivo = outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo || isArvoreModelo || isEnfeiteModelo || isDobravelModelo || isNatalDecoModelo;
+  // Ambientador para o carro: parâmetro escondido ambientador = "carro" (ver lib/ambientadorCarro.ts)
+  const isAmbientadorModelo = !hasPetTagPreview && isAmbientadorCarro(params);
+  const temPreviewVivo = isAmbientadorModelo || outroModelo || isBaseCoposModelo || isSuporteModelo || isNomeFlexModelo || isDecoModelo || isArvoreModelo || isEnfeiteModelo || isDobravelModelo || isNatalDecoModelo;
 
   // Caixa de luz: além da peça do "modo" selecionado (para gerar o STL), o
   // preview permite ver várias peças montadas em conjunto (ex.: corpo + nome,
