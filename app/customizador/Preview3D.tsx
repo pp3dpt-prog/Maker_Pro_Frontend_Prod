@@ -27,6 +27,7 @@ import { construirNatalDeco, isNatalDeco, modeloNatalDeco } from '@/lib/natalDec
 import { construirPortaChaves, construirEnchimentosPC, isPortaChavesSuporte, ZONAS_PC, usaTexto, imagemZona as imagemZonaPC, larguraImagemZona as larguraImagemZonaPC, numCoresZona } from '@/lib/portaChavesSuporte';
 import { construirMarcadorExtra, construirMarcadorFoto, modeloMarcadorExtra, temNomesMarcadorExtra, FONTE_OMISSAO, COR_OMISSAO, PALETA_CORES_IMAGEM, imagemCorpoFoto, larguraImagemFoto, numCoresCorpoFoto } from '@/lib/marcadoresCopoExtra';
 import { construirMarcadores, isMarcadoresCopo, nomesMarcadores, imagemEnfeite, numCoresEnfeite } from '@/lib/marcadoresCopo';
+import { construirAmbientador, isAmbientadorCarro, CORES_AMBIENTADOR, ROT as ROT_AMBIENTADOR } from '@/lib/ambientadorCarro';
 import IluminariaPreview, { geradorIluminaria } from './IluminariaPreview';
 
 type Preview3DProps = {
@@ -1722,6 +1723,55 @@ function EsquadroPreview({ params }: { params: Record<string, any> }) {
   return <primitive object={group} />;
 }
 
+// ── Ambientador para o carro (ambientador = "carro") — ver lib/ambientadorCarro.ts ──
+// Montado: corpo, tampa fechada (rodada -ROT) e clip na calha. O slider "Abrir" roda a tampa até à
+// entrada da baioneta (0 → 0,5) e depois levanta-a (0,5 → 1) para se ver o sítio do algodão.
+function AmbientadorPreview({ params, abrir }: { params: Record<string, any>; abrir: number }) {
+  const comTexto = params.texto_tampa === 'Com texto';
+  const fontPath = ETIQUETA_FONT_MAP[String(params.fonte || 'Luckiest Guy')] ?? ETIQUETA_FONT_MAP['Open Sans'];
+  const [font, setFont] = useState<Font | null>(null);
+  useEffect(() => {
+    if (!comTexto) return;
+    let cancelado = false;
+    carregarFont(fontPath).then((f) => { if (!cancelado) setFont(f); }).catch(() => {});
+    return () => { cancelado = true; };
+  }, [fontPath, comTexto]);
+  const fontPronta = comTexto ? font : null;
+  const geomKey = JSON.stringify([Object.entries(params).filter(([k]) => !k.startsWith('cor_')), !!fontPronta, fontPath]);
+  const { grupo, tampa } = useMemo(() => {
+    const pecas = construirAmbientador(params, fontPronta);
+    const g = new THREE.Group(), dentro = new THREE.Group(), t = new THREE.Group();
+    const add = (alvo: THREE.Group, tri: number[], parte: keyof typeof CORES_AMBIENTADOR) => {
+      const m = malhaDeTriangulos(tri, CORES_AMBIENTADOR[parte]); if (m) { m.userData.parte = parte; alvo.add(m); }
+    };
+    add(dentro, pecas.corpo, 'corpo'); add(dentro, pecas.clip, 'corpo');
+    add(t, pecas.tampa, 'tampa'); add(t, pecas.texto, 'texto');
+    dentro.add(t);
+    const caixa = new THREE.Box3().setFromObject(dentro);
+    if (!caixa.isEmpty()) dentro.position.set(0, 0, -caixa.min.z);
+    g.add(dentro);
+    g.rotation.x = -Math.PI / 2;
+    return { grupo: g, tampa: t };
+  }, [geomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => libertarGrupo(grupo), [grupo]);
+  useEffect(() => {
+    const rodar = Math.min(1, abrir / 0.5), subir = Math.max(0, (abrir - 0.5) / 0.5);
+    tampa.rotation.z = -ROT_AMBIENTADOR * (1 - rodar) * Math.PI / 180;
+    tampa.position.z = subir * 28;
+  }, [tampa, abrir]);
+  // Sem AMS o texto fica gravado na tampa (mesma cor); com AMS sai na cor do texto.
+  const semAms = /^sem/i.test(String(params.impressao ?? '').trim());
+  useEffect(() => {
+    grupo.traverse((o) => {
+      const m = o as THREE.Mesh, parte = m.userData?.parte as keyof typeof CORES_AMBIENTADOR | undefined;
+      if (!parte) return;
+      const p = parte === 'texto' && semAms ? 'tampa' : parte;
+      (m.material as THREE.MeshStandardMaterial).color.set(corDe(params[`cor_${p}`], CORES_AMBIENTADOR[p]));
+    });
+  }, [grupo, semAms, chaveCores(params)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <primitive object={grupo} />;
+}
+
 // ── Componente principal ──
 export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCaixaLuz }: Preview3DProps) {
   const isPetTag    = !!stlFilePath;
@@ -1763,7 +1813,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
   // Porta-chaves suporte de telemóvel e marcadores de copo: parâmetros escondidos porta_chaves / marcador
   const isPortaChavesModelo = isPortaChavesSuporte(params);
   const isMarcadoresModelo = !isPortaChavesModelo && (isMarcadoresCopo(params) || !!modeloMarcadorExtra(params));
-  const outroModelo = isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo || isPortaChavesModelo || isMarcadoresModelo;
+  // Ambientador para o carro: parâmetro escondido ambientador = "carro" (lib/ambientadorCarro.ts)
+  const isAmbientadorModelo = !isPetTag && isAmbientadorCarro(params);
+  const outroModelo = isAmbientadorModelo || isPetTag || isNameKey || isLetraNome || isCaixaLuz || isPatamares || isEsquadro || isEtiqueta || isCaixaPcbModelo || isTelemovelModelo || isPortaChavesModelo || isMarcadoresModelo;
   const isBaseCoposModelo = !outroModelo && isBaseCopos(params);
   const isSuporteModelo   = !outroModelo && !isBaseCoposModelo && isSuporteBases(params);
   const isNomeFlexModelo  = !outroModelo && !isBaseCoposModelo && !isSuporteModelo && isNomeFlexivel(params);
@@ -1785,7 +1837,7 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{
-          position: isPortaChavesModelo ? [70, 75, 85] : isMarcadoresModelo ? [0, 190, 120] : isIluminaria ? [230, 200, 230] : isTelemovelModelo ? [210, 120, 190] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
+          position: isAmbientadorModelo ? [55, 75, 95] : isPortaChavesModelo ? [70, 75, 85] : isMarcadoresModelo ? [0, 190, 120] : isIluminaria ? [230, 200, 230] : isTelemovelModelo ? [210, 120, 190] : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? [0, 170, 300] : isPetTag ? [0, -60, 50] : isEnfeiteModelo ? [0, -100, 170] : isDobravelModelo ? [0, -260, 220] : isEtiqueta ? [0, -70, 90] : isBaseCoposModelo ? [0, -95, 120] : isSuporteModelo ? [0, -150, 120] : isNomeFlexModelo ? [0, -150, 150] : (isNameKey || isPatamares) ? [0, -60, 120] : isLetraNome ? [0, -220, 160] : isCaixaLuzNome ? [0, -60, 60] : isCaixaLuz ? [0, -280, 240] : isEsquadro ? [180, 140, 180] : [120, 90, 120],
           fov: 45,
           near: 0.1,
           far: 2500,
@@ -1814,7 +1866,9 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             cellColor="#0b0f14"
           />
 
-          {isPortaChavesModelo ? (
+          {isAmbientadorModelo ? (
+            <AmbientadorPreview params={params} abrir={abrir} />
+          ) : isPortaChavesModelo ? (
             <PortaChavesSuportePreview params={params} abrir={abrir} />
           ) : isMarcadoresModelo ? (
             modeloMarcadorExtra(params) === 'foto' ? <MarcadorFotoPreview params={params} /> :
@@ -1867,8 +1921,8 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
             makeDefault
             enablePan={false}
             target={isIluminaria ? [0, 80, 0] : isTelemovelModelo ? [0, 60, 0] : (isDecoModelo || isNatalDecoModelo) ? [0, 50, 0] : isArvoreModelo ? [0, 70, 0] : undefined}
-            minDistance={isPortaChavesModelo ? 30 : isMarcadoresModelo ? 60 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
-            maxDistance={isPortaChavesModelo ? 260 : isMarcadoresModelo ? 500 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
+            minDistance={isAmbientadorModelo ? 40 : isPortaChavesModelo ? 30 : isMarcadoresModelo ? 60 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 60 : isPetTag ? 20 : (isEtiqueta || isEnfeiteModelo) ? 40 : isCaixaPcbModelo ? 40 : isLetraNome ? 100 : isCaixaLuzNome ? 30 : isCaixaLuz ? 160 : isEsquadro ? 60 : 80}
+            maxDistance={isAmbientadorModelo ? 300 : isPortaChavesModelo ? 260 : isMarcadoresModelo ? 500 : (isDecoModelo || isArvoreModelo || isNatalDecoModelo) ? 900 : isPetTag ? 200 : (isEtiqueta || isEnfeiteModelo) ? 300 : isCaixaPcbModelo ? 900 : isLetraNome ? 500 : isCaixaLuzNome ? 300 : isCaixaLuz ? 850 : isEsquadro ? 700 : 400}
             maxPolarAngle={isEsquadro ? Math.PI : Math.PI / 2.1}
           />
         </Suspense>
@@ -1878,6 +1932,13 @@ export default function Preview3D({ params, stlFilePath, coresPatamares, pecasCa
           <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>📱 Abrir</span>
           <input type="range" min={0} max={100} value={Math.round(abrir * 100)} onChange={(e) => setAbrir(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Abrir o suporte" />
           <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{abrir <= 0.001 ? 'fechado' : abrir >= 0.999 ? 'aberto' : `${Math.round(abrir * 100)}%`}</span>
+        </div>
+      )}
+      {isAmbientadorModelo && (
+        <div style={{ position: 'absolute', left: 12, right: 12, bottom: 64, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.8)', borderRadius: 10, border: '1px solid rgba(148,163,184,0.25)' }}>
+          <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, whiteSpace: 'nowrap' }}>🌸 Abrir</span>
+          <input type="range" min={0} max={100} value={Math.round(abrir * 100)} onChange={(e) => setAbrir(Number(e.target.value) / 100)} style={{ flex: 1 }} aria-label="Abrir a tampa do ambientador" />
+          <span style={{ fontSize: 12, color: '#94a3b8', width: 70, textAlign: 'right' }}>{abrir <= 0.001 ? 'fechado' : abrir >= 0.999 ? 'aberto' : abrir <= 0.5 ? 'a rodar' : 'a tirar'}</span>
         </div>
       )}
       {isDobravelModelo && (
