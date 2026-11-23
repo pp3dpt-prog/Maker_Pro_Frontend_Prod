@@ -7,7 +7,7 @@
 // Coordenadas como no .scad, na posição montada (fundo do corpo em z = 0, z para cima). A tampa
 // vem na posição "aberta" (patilhas na entrada); fecha-se rodando -ROT graus.
 // Tampa regulável: rasgos em raio na tampa e um disco com os mesmos rasgos por cima (peça "disco",
-// filha da tampa); o disco na origem = rasgos alinhados (máximo); roda REG_FECHO graus = fechado.
+// filha da tampa); o disco na origem = rasgos alinhados (máximo); roda REG_FECHO (45°) graus = fechado.
 
 import ClipperLib from 'clipper-lib';
 import type { Font } from 'three-stdlib';
@@ -28,7 +28,7 @@ const LUG_D = 1.0, LUG_H = 1.6, LUG_ANG = 24, TOPO_LUG = 0.8;
 export const ROT = 60;
 const TAM_TXT = 6, LARG_TXT = 34;
 const DT_W0 = 6, DT_W1 = 8, DT_H = 1.6, CLIP_W = 10, DENTE_L = 16;
-const N_RASGO = 8, A_RASGO = 20, DISCO_E = 1.6, PINO_D = 4;
+const N_RASGO = 4, A_RASGO = 20, DISCO_E = 1.6, PINO_D = 4;
 export const REG_FECHO = 180 / N_RASGO;   // rodar o disco isto fecha os rasgos
 
 // ── Clipper (µm) ──

@@ -84,8 +84,8 @@ LARG_TXT = 34;     // largura útil do texto no nominal — igual a ajuste_texto
 DT_W0 = 6; DT_W1 = 8; DT_H = 1.6;   // calha do clip: largura na face, largura no fundo, altura
 CLIP_W = 10;       // largura do clip (comprimento do trilho)
 DENTE_L = 16;      // comprimento dos dentes do clip
-N_RASGO = 8;       // regulador: rasgos em raio (de 45 em 45°)
-A_RASGO = 20;      // largura de cada rasgo (graus) — 22,5° de rodar fecha tudo
+N_RASGO = 4;       // regulador: rasgos em raio (de 90 em 90°)
+A_RASGO = 20;      // largura de cada rasgo (graus) — rodar 45° fecha tudo
 DISCO_E = 1.6;     // espessura do disco
 PINO_D  = 4;       // pino do disco
 
