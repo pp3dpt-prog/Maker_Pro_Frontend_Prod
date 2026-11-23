@@ -12,6 +12,7 @@ type Design = {
   thumbnail_url: string | null;
   estado: string;
   capa_familia: boolean;
+  mostrar_empresas: boolean;
 };
 
 async function uploadFoto(designId: string, file: File): Promise<string> {
@@ -29,6 +30,24 @@ async function uploadFoto(designId: string, file: File): Promise<string> {
 function DesignCard({ d, onChanged, erro }: { d: Design; onChanged: () => void; erro: (msg: string) => void }) {
   const [uploading, setUploading] = useState(false);
   const [settingCapa, setSettingCapa] = useState(false);
+  const [settingEmpresas, setSettingEmpresas] = useState(false);
+
+  async function toggleEmpresas() {
+    setSettingEmpresas(true);
+    try {
+      const resp = await fetch('/api/admin/designs/toggle-empresas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ design_id: d.id, mostrar_empresas: !d.mostrar_empresas }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.error ?? 'Erro ao atualizar.');
+      onChanged();
+    } catch (e: any) {
+      erro(e.message ?? 'Erro ao atualizar.');
+    } finally {
+      setSettingEmpresas(false);
+    }
+  }
 
   async function onFile(files: FileList | null) {
     const file = files?.[0];
@@ -99,6 +118,18 @@ function DesignCard({ d, onChanged, erro }: { d: Design; onChanged: () => void; 
         style={{ ...s.btnGhost, padding: '6px 10px', fontSize: 11, cursor: d.capa_familia ? 'default' : 'pointer', opacity: d.capa_familia ? 0.5 : 1 }}
       >
         {d.capa_familia ? '★ É a capa' : settingCapa ? 'A marcar…' : '☆ Marcar como capa'}
+      </button>
+      <button
+        type="button"
+        onClick={toggleEmpresas}
+        disabled={settingEmpresas}
+        style={{
+          ...s.btnGhost, padding: '6px 10px', fontSize: 11, cursor: 'pointer',
+          color: d.mostrar_empresas ? '#60a5fa' : s.btnGhost.color,
+          border: d.mostrar_empresas ? '1px solid #2563eb' : s.btnGhost.border,
+        }}
+      >
+        {settingEmpresas ? 'A atualizar…' : d.mostrar_empresas ? '✓ Em /empresas' : '+ Mostrar em /empresas'}
       </button>
     </div>
   );

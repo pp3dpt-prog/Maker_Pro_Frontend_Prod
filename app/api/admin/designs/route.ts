@@ -26,7 +26,7 @@ export async function GET() {
   const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { data, error } = await admin
     .from('prod_designs')
-    .select('id, nome, familia, thumbnail_url, estado, capa_familia')
+    .select('id, nome, familia, thumbnail_url, estado, capa_familia, mostrar_empresas')
     .order('familia', { ascending: true })
     .order('nome', { ascending: true });
 

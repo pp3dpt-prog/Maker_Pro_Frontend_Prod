@@ -16,13 +16,7 @@ type Design = {
   familia: string;
   thumbnail_url?: string;
   estado: string;
-  generation_schema: { parameters?: Record<string, { ui?: { widget?: string } }> } | null;
 };
-
-function aceitaLogotipo(design: Design): boolean {
-  const params = design.generation_schema?.parameters ?? {};
-  return Object.values(params).some((p) => p?.ui?.widget === 'image_upload');
-}
 
 const PEDIR_ACESSO_HREF =
   'mailto:pp3d.pt@gmail.com?subject=' + encodeURIComponent('Pedido de acesso — catálogo para empresas');
@@ -80,11 +74,12 @@ export default async function EmpresasPage() {
     );
   }
 
-  // ── Com acesso: só os designs que aceitam upload de logótipo/imagem ──
+  // ── Com acesso: só os designs escolhidos no admin (mostrar_empresas) ──
   const { data, error } = await supabase
     .from('prod_designs')
-    .select('id, nome, familia, thumbnail_url, estado, generation_schema')
-    .eq('estado', 'ativo');
+    .select('id, nome, familia, thumbnail_url, estado')
+    .eq('estado', 'ativo')
+    .eq('mostrar_empresas', true);
 
   if (error) {
     return (
@@ -95,7 +90,7 @@ export default async function EmpresasPage() {
     );
   }
 
-  const designs = ((data ?? []) as Design[]).filter(aceitaLogotipo);
+  const designs = (data ?? []) as Design[];
 
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
@@ -107,14 +102,14 @@ export default async function EmpresasPage() {
           Peças com o <span style={{ color: '#3b82f6' }}>teu logótipo</span>
         </h1>
         <p style={{ fontSize: 16, color: '#475569', maxWidth: 560, lineHeight: 1.65, margin: 0 }}>
-          Só mostramos aqui os modelos que aceitam carregar uma imagem/logótipo no customizador.
-          Configura, envia o pedido e recebes uma proposta por email, sem compromisso de compra.
+          Modelos selecionados para empresas. Configura com o teu logótipo no customizador,
+          envia o pedido e recebes uma proposta por email, sem compromisso de compra.
         </p>
       </div>
 
       {designs.length === 0 ? (
         <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 40px 80px', textAlign: 'center', color: '#8a96aa' }}>
-          Ainda não há modelos ativos com upload de logótipo.
+          Ainda não há modelos selecionados para este catálogo.
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 24, padding: '0 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
