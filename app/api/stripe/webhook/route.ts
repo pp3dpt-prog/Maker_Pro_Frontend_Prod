@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
             const { data: itens } = await admin
               .from('prod_loja_encomenda_itens')
-              .select('produto_id, variante_id, quantidade, nome, cor, cor_secundaria, cor_terciaria, tamanho, preco_cents')
+              .select('produto_id, variante_id, quantidade, nome, cor, cor_secundaria, cor_terciaria, tamanho, preco_cents, personalizacao')
               .eq('encomenda_id', encomendaId);
 
             for (const it of itens ?? []) {
@@ -108,12 +108,14 @@ export async function POST(req: NextRequest) {
 
             // Notificar admin
             const { data: encInfo } = await admin
-              .from('prod_loja_encomendas').select('numero, total_cents, entrega').eq('id', encomendaId).maybeSingle();
+              .from('prod_loja_encomendas').select('numero, total_cents, entrega, morada_envio').eq('id', encomendaId).maybeSingle();
             await notificarAdminEncomenda({
               numero: encInfo?.numero ?? 0, tipo: 'pago', entrega: encInfo?.entrega,
               clienteEmail: email, clienteNome: userName,
+              telefone: (encInfo as any)?.morada_envio?.telefone ?? null, morada: (encInfo as any)?.morada_envio ?? null,
+              codigo: session.metadata?.codigo || null,
               totalCents: encInfo?.total_cents ?? Math.round(valor * 100),
-              itens: (itens ?? []).map((i: any) => ({ nome: i.nome, quantidade: i.quantidade, label: [i.cor, i.cor_secundaria, i.cor_terciaria, i.tamanho].filter(Boolean).join(' / ') || null, preco_cents: i.preco_cents })),
+              itens: (itens ?? []).map((i: any) => ({ nome: i.nome, quantidade: i.quantidade, label: [i.cor, i.cor_secundaria, i.cor_terciaria, i.tamanho].filter(Boolean).join(' / ') || null, preco_cents: i.preco_cents, personalizacao: i.personalizacao })),
             });
           }
           break;

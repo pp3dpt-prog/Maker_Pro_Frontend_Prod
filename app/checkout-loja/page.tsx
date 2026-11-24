@@ -12,7 +12,15 @@ export default function CheckoutLojaPage() {
   const router = useRouter();
   const { items, ready, totalFixoCents, temOrcamento, entrega, clear } = useCart();
   const emMaos = entrega === 'maos';
-  const viaOrcamento = temOrcamento || emMaos;
+
+  // Código (desconto ou "sem pagamento")
+  const [codigoInput, setCodigoInput] = useState('');
+  const [codigo, setCodigo] = useState<{ codigo: string; tipo: 'desconto' | 'sem_pagamento'; desconto_percent: number } | null>(null);
+  const [codigoMsg, setCodigoMsg] = useState('');
+  const [aValidar, setAValidar] = useState(false);
+  const semPagamento = codigo?.tipo === 'sem_pagamento';
+  const pct = codigo && !semPagamento ? codigo.desconto_percent : 0;
+  const viaOrcamento = !semPagamento && (temOrcamento || emMaos);
 
   const [authChecked, setAuthChecked] = useState(false);
   const [logado, setLogado] = useState(false);
@@ -52,6 +60,22 @@ export default function CheckoutLojaPage() {
     );
   }
 
+  async function aplicarCodigo() {
+    const c = codigoInput.trim();
+    if (!c) return;
+    setAValidar(true); setCodigoMsg('');
+    try {
+      const res = await fetch('/api/loja/codigo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: c }) });
+      const data = await res.json();
+      if (data.valido) { setCodigo({ codigo: data.codigo, tipo: data.tipo, desconto_percent: data.desconto_percent }); }
+      else { setCodigo(null); setCodigoMsg('Código inválido ou expirado.'); }
+    } catch { setCodigoMsg('Não foi possível validar o código.'); }
+    setAValidar(false);
+  }
+
+  const descontoCents = semPagamento ? totalFixoCents : Math.round(totalFixoCents * pct / 100);
+  const totalComDesconto = totalFixoCents - descontoCents;
+
   async function finalizar() {
     if (!nome.trim()) { setErro('Indica o teu nome.'); return; }
     if (!logado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setErro('Indica um email válido — é para onde enviamos a confirmação.'); return; }
@@ -74,6 +98,7 @@ export default function CheckoutLojaPage() {
           nome_completo: nome,
           email,
           nif,
+          codigo: codigo?.codigo ?? '',
         }),
       });
       const data = await res.json();
@@ -81,9 +106,9 @@ export default function CheckoutLojaPage() {
 
       if (data.tipo === 'pagamento' && data.url) {
         window.location.href = data.url;            // Stripe (carrinho limpa-se no sucesso)
-      } else if (data.tipo === 'orcamento') {
+      } else if (data.tipo === 'orcamento' || data.tipo === 'codigo') {
         clear();
-        router.push(`/checkout-loja/sucesso?tipo=orcamento&numero=${data.numero ?? ''}`);
+        router.push(`/checkout-loja/sucesso?tipo=${data.tipo}&numero=${data.numero ?? ''}`);
       }
     } catch (e: any) {
       setErro(e.message ?? 'Erro ao finalizar.');
@@ -93,7 +118,7 @@ export default function CheckoutLojaPage() {
 
   return (
     <main style={wrap}>
-      <h1 style={h1}>Finalizar {viaOrcamento ? 'pedido' : 'compra'}</h1>
+      <h1 style={h1}>Finalizar {viaOrcamento || semPagamento ? 'pedido' : 'compra'}</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 24, alignItems: 'start' }}>
         {/* Dados */}
@@ -142,10 +167,47 @@ export default function CheckoutLojaPage() {
               <span>{it.preco_cents == null ? '—' : eur(it.preco_cents * it.quantidade)}</span>
             </div>
           ))}
-          <div style={{ borderTop: '1px solid #1e293b', margin: '12px 0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800 }}>
-            <span>{viaOrcamento ? 'Estimativa' : 'Subtotal'}</span>
-            <span>{eur(totalFixoCents)}</span>
+          {/* Código */}
+          <div style={{ borderTop: '1px solid #1e293b', marginTop: 12, paddingTop: 12 }}>
+            {codigo ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                <span style={{ color: '#34d399', fontWeight: 700 }}>
+                  🎟️ {codigo.codigo} — {semPagamento ? 'sem pagamento' : `−${codigo.desconto_percent}%`}
+                </span>
+                <button onClick={() => { setCodigo(null); setCodigoInput(''); }} style={{ background: 'none', border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 12 }}>Remover</button>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="f-codigo" style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a96aa', marginBottom: 6 }}>Tens um código?</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input id="f-codigo" value={codigoInput} onChange={e => setCodigoInput(e.target.value.toUpperCase())}
+                    onKeyDown={e => { if (e.key === 'Enter') aplicarCodigo(); }}
+                    style={{ flex: 1, minWidth: 0, background: '#0a1120', border: '1px solid #1e293b', borderRadius: 8, padding: '9px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none', fontFamily: 'monospace' }} />
+                  <button onClick={aplicarCodigo} disabled={aValidar || !codigoInput.trim()}
+                    style={{ padding: '0 14px', background: '#1e293b', color: '#f1f5f9', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    {aValidar ? '…' : 'Aplicar'}
+                  </button>
+                </div>
+                {codigoMsg && <p style={{ fontSize: 12, color: '#f87171', margin: '6px 0 0' }}>{codigoMsg}</p>}
+              </>
+            )}
           </div>
+
+          {descontoCents > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#34d399', marginTop: 10 }}>
+              <span>Desconto</span><span>−{eur(descontoCents)}</span>
+            </div>
+          )}
+          <div style={{ borderTop: '1px solid #1e293b', margin: '12px 0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800 }}>
+            <span>{viaOrcamento ? 'Estimativa' : semPagamento ? 'Total' : 'Subtotal'}</span>
+            <span>{eur(totalComDesconto)}</span>
+          </div>
+
+          {semPagamento && (
+            <p style={{ fontSize: 12, color: '#34d399', lineHeight: 1.5, marginBottom: 14 }}>
+              Com este código não há pagamento — o teu pedido é enviado diretamente para a PP3D e contactamos-te para a entrega.
+            </p>
+          )}
 
           {viaOrcamento && (
             <p style={{ fontSize: 12, color: '#fbbf24', lineHeight: 1.5, marginBottom: 14 }}>
@@ -154,13 +216,13 @@ export default function CheckoutLojaPage() {
                 : 'Tens peças a orçamentar — não há pagamento agora. Confirmamos o valor final e depois pagas.'}
             </p>
           )}
-          {!viaOrcamento && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
+          {!viaOrcamento && !semPagamento && <p style={{ fontSize: 12, color: '#8a96aa', marginBottom: 14 }}>Portes calculados no passo de pagamento.</p>}
 
           {erro && <p style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>{erro}</p>}
 
           <button onClick={finalizar} disabled={submitting}
             style={{ width: '100%', padding: 14, background: submitting ? '#1e3a5f' : '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer' }}>
-            {submitting ? 'A processar…' : viaOrcamento ? 'Enviar pedido' : 'Pagar com cartão'}
+            {submitting ? 'A processar…' : viaOrcamento || semPagamento ? 'Enviar pedido' : 'Pagar com cartão'}
           </button>
           {/* Pagamento seguro */}
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #1e293b' }}>

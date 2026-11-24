@@ -52,6 +52,7 @@ const ESTADO_ENCOMENDA: Record<string, { label: string; cor: string }> = {
   orcamento: { label: 'A orçamentar', cor: '#fbbf24' },
   aguarda_pagamento: { label: 'Aguarda pagamento', cor: '#60a5fa' },
   pendente: { label: 'Pendente', cor: '#94a3b8' },
+  confirmado: { label: 'Confirmada', cor: '#2dd4bf' },
   pago: { label: 'Pago', cor: '#34d399' },
   enviado: { label: 'Enviado', cor: '#a78bfa' },
   entregue: { label: 'Entregue', cor: '#6ee7b7' },

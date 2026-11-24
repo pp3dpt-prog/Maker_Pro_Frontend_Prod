@@ -10,7 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; }
+interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; tipo?: string | null; notas?: string | null; }
 interface TicketSuporte { id: string; assunto: string; mensagem?: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; resposta?: string; respondido_em?: string; }
 interface Campanha { id: string; titulo: string; tipo: string; segmento: string; conteudo_html?: string | null; cliques: number; vistas: number; ativa: boolean; expira_em?: string | null; created_at: string; }
 
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const [{ data: cData }, { data: tData }, { data: cpData }, { count: uCount }, { count: tOpenCount }, { count: pedidosCount }, { count: parceriasCount }, { count: feedbackCount }, { data: faturasData, count: faturasCount }] = await Promise.all([
-        supabase.from('cupons').select('*').order('created_at', { ascending: false }),
+        supabase.from('prod_cupons').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_tickets_suporte').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_campanhas').select('*').order('created_at', { ascending: false }),
         supabase.from('prod_perfis').select('*', { count: 'exact', head: true }),
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
 
   const deleteCoupon = async (id: number) => {
     if (!confirm('Eliminar este cupão?')) return;
-    const { error } = await supabase.from('cupons').delete().eq('id', id);
+    const { error } = await supabase.from('prod_cupons').delete().eq('id', id);
     if (!error) fetchData();
   };
 
@@ -505,7 +505,7 @@ export default function AdminDashboard() {
         {activeTab === 'cupons' && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Cupões de Desconto</h1>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Códigos da loja</h1>
               <button onClick={() => setShowModal(true)} style={{ ...s.btn, display: 'flex', alignItems: 'center', gap: 8 }}>
                 + Novo Cupão
               </button>
@@ -514,7 +514,7 @@ export default function AdminDashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={s.thead}>
                   <tr>
-                    {['Código', 'Desconto', 'Usos', 'Estado', ''].map(h => (
+                    {['Código', 'Efeito', 'Usos', 'Estado', ''].map(h => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
@@ -525,7 +525,10 @@ export default function AdminDashboard() {
                   ) : cupons.map(c => (
                     <tr key={c.id}>
                       <td style={{ ...s.td, fontFamily: 'monospace', color: '#93c5fd', fontWeight: 700 }}>{c.codigo}</td>
-                      <td style={s.td}>{c.desconto_percent}%</td>
+                      <td style={s.td}>
+                        {c.tipo === 'sem_pagamento' ? <span style={{ color: '#2dd4bf', fontWeight: 700 }}>Sem pagamento</span> : `${c.desconto_percent}%`}
+                        {c.notas && <div style={{ fontSize: 11, color: '#8a96aa' }}>{c.notas}</div>}
+                      </td>
                       <td style={{ ...s.td, color: '#8a96aa' }}>{c.usos_atuais} / {c.max_usos}</td>
                       <td style={s.td}>
                         <span style={s.badge(c.ativo ? '#14532d' : '#1e293b', c.ativo ? '#86efac' : '#64748b')}>

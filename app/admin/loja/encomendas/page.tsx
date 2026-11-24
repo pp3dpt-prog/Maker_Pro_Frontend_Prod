@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { s, eur } from '../_ui';
 
-const ESTADOS = ['orcamento', 'aguarda_pagamento', 'pendente', 'pago', 'enviado', 'entregue', 'cancelado'];
+const ESTADOS = ['orcamento', 'aguarda_pagamento', 'pendente', 'confirmado', 'pago', 'enviado', 'entregue', 'cancelado'];
 
 const estadoCor: Record<string, [string, string]> = {
   orcamento: ['rgba(251,191,36,0.18)', '#fbbf24'],
   aguarda_pagamento: ['rgba(96,165,250,0.18)', '#60a5fa'],
   pendente: ['rgba(148,163,184,0.18)', '#94a3b8'],
+  confirmado: ['rgba(45,212,191,0.18)', '#2dd4bf'],
   pago: ['rgba(52,211,153,0.18)', '#34d399'],
   enviado: ['rgba(167,139,250,0.18)', '#a78bfa'],
   entregue: ['rgba(52,211,153,0.28)', '#6ee7b7'],
@@ -21,6 +22,7 @@ interface Encomenda {
   id: string; numero: number; created_at: string; estado: string; entrega: string | null;
   total_cents: number; portes_cents: number | null; metodo_pagamento: string | null;
   morada_envio: any; nif: string | null; user_id: string | null; payment_ref: string | null;
+  codigo_usado?: string | null; desconto_cents?: number | null;
 }
 interface Item { id: string; nome: string; cor: string | null; cor_secundaria: string | null; cor_terciaria: string | null; tamanho: string | null; preco_cents: number | null; quantidade: number; personalizacao: any; }
 
@@ -147,7 +149,7 @@ export default function EncomendasAdminPage() {
                     </div>
                     <span style={badge(enc.estado)}>{enc.estado}</span>
                     <span style={{ fontWeight: 700, color: '#f1f5f9' }}>{eur(enc.total_cents)}</span>
-                    <span style={{ fontSize: 12, color: ehOrcamento ? '#fbbf24' : '#64748b' }}>{ehOrcamento ? 'orçamento' : (enc.metodo_pagamento ?? '—')}</span>
+                    <span style={{ fontSize: 12, color: ehOrcamento ? '#fbbf24' : '#64748b' }}>{ehOrcamento ? 'orçamento' : (enc.metodo_pagamento ?? '—')}{enc.codigo_usado ? ` · 🎟️ ${enc.codigo_usado}` : ''}</span>
                     <span style={{ color: '#8a96aa', textAlign: 'center' }}>{aberto ? '▴' : '▾'}</span>
                   </div>
 

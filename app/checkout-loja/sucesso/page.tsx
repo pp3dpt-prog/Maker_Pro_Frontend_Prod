@@ -86,6 +86,7 @@ function Conteudo() {
   const params = useSearchParams();
   const { clear } = useCart();
   const orcamento = params.get('tipo') === 'orcamento';
+  const comCodigo = params.get('tipo') === 'codigo';
   const numero = params.get('numero');
   const [logado, setLogado] = useState<boolean | null>(null);
 
@@ -98,13 +99,15 @@ function Conteudo() {
   return (
     <main style={{ background: '#080c10', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ maxWidth: 480, textAlign: 'center', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 18, padding: 40 }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>{orcamento ? '📝' : '✅'}</div>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>{orcamento ? '📝' : comCodigo ? '🎟️' : '✅'}</div>
         <h1 style={{ fontSize: 24, fontWeight: 900, color: '#f1f5f9', margin: '0 0 12px' }}>
-          {orcamento ? 'Pedido de orçamento enviado' : 'Pagamento concluído!'}
+          {orcamento ? 'Pedido de orçamento enviado' : comCodigo ? 'Encomenda enviada!' : 'Pagamento concluído!'}
         </h1>
         <p style={{ fontSize: 15, color: '#94a3b8', lineHeight: 1.7, margin: '0 0 24px' }}>
           {orcamento
             ? <>Recebemos o teu pedido{numero ? <> (nº {numero})</> : ''}. Vamos confirmar o valor final e enviar-te os detalhes para pagamento.</>
+            : comCodigo
+            ? <>Recebemos a tua encomenda{numero ? <> (nº {numero})</> : ''}. Não há nada a pagar — vamos produzir a tua peça e contactar-te para a entrega.</>
             : <>Obrigado pela tua compra! Vais receber a confirmação por email{logado ? '. Podes acompanhar a encomenda no teu dashboard.' : '.'}</>}
         </p>
         {logado === false && <CriarContaRapida />}

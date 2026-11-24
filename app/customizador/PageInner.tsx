@@ -316,16 +316,18 @@ export default function PageInner() {
     router.push(`/customizador?${p.toString()}`);
   };
 
-  // Carregar produto da loja ligado (quando se chega via /produto/[slug] → Personalizar)
+  // Carregar produto da loja ligado: pelo ?produto=slug (vindo de /produto/[slug] → Personalizar)
+  // ou, se não vier, pelo produto da loja associado a este design (ex.: pet tags abertas pela família).
   useEffect(() => {
-    if (!produtoParam) return;
+    if (!produtoParam && !designId) return;
     (async () => {
-      const { data } = await supabase
+      let q = supabase
         .from('prod_loja_produtos')
         .select('id, slug, nome, preco_cents, preco_promo_cents, requer_orcamento, prod_loja_imagens(url, ordem)')
-        .eq('slug', produtoParam)
-        .eq('estado', 'ativo')
-        .maybeSingle();
+        .eq('estado', 'ativo');
+      q = produtoParam ? q.eq('slug', produtoParam) : q.eq('design_id', designId!);
+      const { data } = await q.limit(1).maybeSingle();
+      if (!data) { setLojaProduto(null); return; }
       if (data) {
         const fotos = ((data as any).prod_loja_imagens ?? []).sort((a: any, b: any) => a.ordem - b.ordem);
         setLojaProduto({
@@ -335,9 +337,9 @@ export default function PageInner() {
         });
       }
     })();
-  }, [produtoParam]);
+  }, [produtoParam, designId]);
 
-  function adicionarPersonalizadoAoCarrinho() {
+  function adicionarPersonalizadoAoCarrinho(irParaCheckout = false) {
     if (!lojaProduto) return;
     const preco = lojaProduto.requer_orcamento ? null : (lojaProduto.preco_promo_cents ?? lojaProduto.preco_cents);
     addItem({
@@ -357,6 +359,7 @@ export default function PageInner() {
       },
       personalizacao_label: 'Peça personalizada',
     });
+    if (irParaCheckout) { router.push('/checkout-loja'); return; }
     setAddedMsg('Adicionado ao carrinho ✓');
     setTimeout(() => setAddedMsg(''), 3000);
   }
@@ -852,7 +855,7 @@ export default function PageInner() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <button
                       type="button"
-                      onClick={adicionarPersonalizadoAoCarrinho}
+                      onClick={() => adicionarPersonalizadoAoCarrinho(true)}
                       disabled={!stlPronto}
                       style={{
                         padding: '12px 16px', borderRadius: 10,
@@ -863,9 +866,31 @@ export default function PageInner() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       }}
                     >
-                      🛒 Adicionar ao carrinho
+                      📦 Encomendar esta peça
+                      {!lojaProduto.requer_orcamento && (
+                        <span style={{ fontWeight: 600, opacity: 0.85 }}>
+                          · {((lojaProduto.preco_promo_cents ?? lojaProduto.preco_cents) / 100).toFixed(2).replace('.', ',')} €
+                        </span>
+                      )}
                     </button>
-                    {!stlPronto && <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>Pré-visualiza a peça primeiro para a adicionares.</p>}
+                    <button
+                      type="button"
+                      onClick={() => adicionarPersonalizadoAoCarrinho(false)}
+                      disabled={!stlPronto}
+                      style={{
+                        padding: '9px 16px', borderRadius: 10, background: 'transparent',
+                        color: stlPronto ? '#93c5fd' : '#475569', border: '1px solid #1e293b', fontWeight: 700, fontSize: 13,
+                        cursor: stlPronto ? 'pointer' : 'not-allowed',
+                      }}
+                    >
+                      🛒 Adicionar ao carrinho e continuar
+                    </button>
+                    {stlPronto && (
+                      <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', textAlign: 'center', lineHeight: 1.5 }}>
+                        No passo seguinte pagas, ou indicas o teu código para enviar o pedido sem pagamento.
+                      </p>
+                    )}
+                    {!stlPronto && <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>Pré-visualiza a peça primeiro para a encomendares.</p>}
                     {addedMsg && (
                       <p style={{ margin: 0, fontSize: 13, color: '#34d399', textAlign: 'center' }}>
                         {addedMsg} <Link href="/carrinho" style={{ color: '#60a5fa', fontWeight: 700 }}>Ver carrinho →</Link>

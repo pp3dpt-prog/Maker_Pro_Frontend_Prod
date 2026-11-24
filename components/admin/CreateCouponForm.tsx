@@ -13,8 +13,10 @@ export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponPro
   const [erro, setErro] = useState('');
   const [formData, setFormData] = useState({
     codigo: '',
+    tipo: 'desconto' as 'desconto' | 'sem_pagamento',
     desconto: 10,
-    limite: 100
+    limite: 100,
+    notas: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,12 +25,15 @@ export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponPro
     setErro('');
 
     const { error } = await supabase
-      .from('cupons')
+      .from('prod_cupons')
       .insert([{
-        codigo: formData.codigo.toUpperCase(),
-        desconto_percent: formData.desconto,
+        codigo: formData.codigo.trim().toUpperCase(),
+        tipo: formData.tipo,
+        desconto_percent: formData.tipo === 'sem_pagamento' ? 100 : formData.desconto,
         max_usos: formData.limite,
-        ativo: true
+        notas: formData.notas.trim() || null,
+        ativo: true,
+        usos_atuais: 0
       }]);
 
     if (!error) {
@@ -64,12 +69,36 @@ export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponPro
           />
         </div>
 
+        <div>
+          <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2 font-bold">Tipo</label>
+          <select
+            value={formData.tipo}
+            className="w-full bg-[#0f0f1e] border border-gray-800 rounded-xl p-3 outline-none focus:border-indigo-500 text-white"
+            onChange={(e) => setFormData({...formData, tipo: e.target.value as 'desconto' | 'sem_pagamento'})}
+          >
+            <option value="desconto">Desconto (%) — o cliente paga o resto</option>
+            <option value="sem_pagamento">Sem pagamento — a encomenda segue só por email</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2 font-bold">Notas (ex.: parceiro)</label>
+          <input
+            type="text"
+            placeholder="Ex: Retiro Pet Spa"
+            value={formData.notas}
+            className="w-full bg-[#0f0f1e] border border-gray-800 rounded-xl p-3 outline-none focus:border-indigo-500 text-white"
+            onChange={(e) => setFormData({...formData, notas: e.target.value})}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          <div style={{ opacity: formData.tipo === 'sem_pagamento' ? 0.4 : 1 }}>
             <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2 font-bold">Desconto (%)</label>
             <input 
               type="number" 
               value={formData.desconto}
+              disabled={formData.tipo === 'sem_pagamento'}
               className="w-full bg-[#0f0f1e] border border-gray-800 rounded-xl p-3 outline-none focus:border-indigo-500 text-white"
               onChange={(e) => setFormData({...formData, desconto: parseInt(e.target.value)})}
             />
@@ -90,7 +119,7 @@ export default function CreateCouponForm({ onSuccess, onClose }: CreateCouponPro
           type="submit"
           className="w-full bg-indigo-600 hover:bg-indigo-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 mt-4 disabled:opacity-50"
         >
-          {loading ? "A processar..." : "Ativar Campanha"}
+          {loading ? "A processar..." : "Criar código"}
         </button>
       </form>
     </div>

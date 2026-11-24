@@ -2,6 +2,8 @@
 // Recalcula preços server-side (nunca confia no cliente).
 // Ramifica: se algum item requer orçamento -> encomenda fica 'orcamento' (paga depois);
 // caso contrário -> cria sessão Stripe (mode 'payment').
+// Código opcional (prod_cupons): 'desconto' aplica % antes do pagamento;
+// 'sem_pagamento' regista a encomenda e envia o email, sem passar pelo pagamento.
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
@@ -27,6 +29,7 @@ export async function POST(request: Request) {
   const nif: string = body.nif ?? '';
   const nomeCompleto: string = body.nome_completo ?? '';
   const entrega: 'envio' | 'maos' = body.entrega === 'maos' ? 'maos' : 'envio';
+  const codigoReq: string = typeof body.codigo === 'string' ? body.codigo.trim().toUpperCase() : '';
   if (itens.length === 0) return NextResponse.json({ error: 'Carrinho vazio.' }, { status: 400 });
 
   const emailConvidado: string = typeof body.email === 'string' ? body.email.trim() : '';
@@ -57,32 +60,52 @@ export async function POST(request: Request) {
   }
   if (linhas.length === 0) return NextResponse.json({ error: 'Sem itens válidos.' }, { status: 400 });
 
+  // ── Código (opcional): valida e consome um uso de forma atómica ──
+  let cupao: { codigo: string; tipo: string; desconto_percent: number | null } | null = null;
+  if (codigoReq) {
+    const { data: usados, error: cupErr } = await admin.rpc('usar_cupao_loja', { p_codigo: codigoReq });
+    const c = Array.isArray(usados) ? usados[0] : null;
+    if (cupErr || !c) {
+      if (cupErr) console.error('[loja/checkout] erro código:', cupErr);
+      return NextResponse.json({ error: 'Código inválido, expirado ou já esgotado.' }, { status: 400 });
+    }
+    cupao = { codigo: c.codigo, tipo: c.tipo ?? 'desconto', desconto_percent: c.desconto_percent ?? 0 };
+  }
+  const semPagamento = cupao?.tipo === 'sem_pagamento';
+  const pct = cupao && !semPagamento ? Math.min(100, Math.max(0, cupao.desconto_percent ?? 0)) : 0;
+  const subtotalBruto = linhas.reduce((a, l) => a + (l.requer_orcamento ? 0 : l.unit * l.qtd), 0);
+  if (pct > 0) for (const l of linhas) l.unit = Math.round(l.unit * (100 - pct) / 100);
+
   const temOrcamento = linhas.some(l => l.requer_orcamento);
   // Entrega em mãos é coordenada com o admin e paga depois -> segue sempre como orçamento.
-  const viaOrcamento = temOrcamento || entrega === 'maos';
+  // Com código "sem pagamento" a encomenda fica logo confirmada (não há orçamento nem pagamento).
+  const viaOrcamento = !semPagamento && (temOrcamento || entrega === 'maos');
   const subtotal = linhas.reduce((a, l) => a + (l.requer_orcamento ? 0 : l.unit * l.qtd), 0);
+  const descontoCents = semPagamento ? subtotalBruto : subtotalBruto - subtotal;
 
   // Portes: 0 se entrega em mãos; senão global + override por produto (máximo), grátis acima do limiar
   let portes = 0;
-  if (entrega !== 'maos') {
+  if (entrega !== 'maos' && !semPagamento) {
     portes = cfg?.portes_cents ?? 0;
     const overrides = linhas.map(l => l.p.portes_cents).filter((x): x is number => x != null);
     if (overrides.length) portes = Math.max(portes, ...overrides);
     if (cfg?.portes_gratis_acima_cents != null && subtotal >= cfg.portes_gratis_acima_cents) portes = 0;
   }
 
-  const estado = viaOrcamento ? 'orcamento' : 'pendente';
-  const totalCents = viaOrcamento ? subtotal : subtotal + portes;
+  const estado = semPagamento ? 'confirmado' : viaOrcamento ? 'orcamento' : 'pendente';
+  const totalCents = semPagamento ? 0 : viaOrcamento ? subtotal : subtotal + portes;
 
   const { data: enc, error: encErr } = await admin.from('prod_loja_encomendas').insert({
     user_id: user?.id ?? null,
     estado,
     entrega,
     total_cents: totalCents,
-    portes_cents: viaOrcamento ? 0 : portes,
-    metodo_pagamento: viaOrcamento ? null : 'stripe',
+    portes_cents: viaOrcamento || semPagamento ? 0 : portes,
+    metodo_pagamento: semPagamento ? 'codigo' : viaOrcamento ? null : 'stripe',
     morada_envio: morada,
     nif: nif || null,
+    codigo_usado: cupao?.codigo ?? null,
+    desconto_cents: descontoCents,
   }).select('id, numero').single();
   if (encErr || !enc) {
     console.error('[loja/checkout] erro encomenda:', encErr);
@@ -103,13 +126,32 @@ export async function POST(request: Request) {
     personalizacao: l.personalizacao,
   })));
 
+  const itensEmail = linhas.map(l => ({
+    nome: l.p.nome, quantidade: l.qtd, label: l.label,
+    preco_cents: l.requer_orcamento ? null : l.unit,
+    personalizacao: l.personalizacao,
+  }));
+
+  // ── Código "sem pagamento": encomenda confirmada, só email ──
+  if (semPagamento) {
+    await notificarAdminEncomenda({
+      numero: enc.numero, tipo: 'codigo', entrega,
+      clienteEmail, clienteNome: morada?.nome ?? nomeCompleto,
+      telefone: morada?.telefone ?? null, morada, codigo: cupao?.codigo ?? null,
+      totalCents: 0, descontoCents,
+      itens: itensEmail,
+    });
+    return NextResponse.json({ ok: true, tipo: 'codigo', numero: enc.numero });
+  }
+
   // ── Orçamento: sem pagamento agora (itens a orçamentar ou entrega em mãos) ──
   if (viaOrcamento) {
     await notificarAdminEncomenda({
       numero: enc.numero, tipo: 'orcamento', entrega,
       clienteEmail, clienteNome: morada?.nome ?? nomeCompleto,
-      totalCents: subtotal,
-      itens: linhas.map(l => ({ nome: l.p.nome, quantidade: l.qtd, label: l.label, preco_cents: l.requer_orcamento ? null : l.unit })),
+      telefone: morada?.telefone ?? null, morada, codigo: cupao?.codigo ?? null,
+      totalCents: subtotal, descontoCents,
+      itens: itensEmail,
     });
     return NextResponse.json({ ok: true, tipo: 'orcamento', numero: enc.numero });
   }
@@ -134,7 +176,7 @@ export async function POST(request: Request) {
     line_items,
     customer_email: clienteEmail,
     client_reference_id: user?.id ?? undefined,
-    metadata: { tipo: 'loja', encomenda_id: enc.id, user_id: user?.id ?? '', nome_completo: nomeCompleto, nif: nif || '' },
+    metadata: { tipo: 'loja', encomenda_id: enc.id, user_id: user?.id ?? '', nome_completo: nomeCompleto, nif: nif || '', codigo: cupao?.codigo ?? '' },
     success_url: `${siteUrl}/checkout-loja/sucesso?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}/carrinho`,
     locale: 'pt',
