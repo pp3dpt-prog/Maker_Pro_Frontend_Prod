@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import StoreCatalog from '@/components/loja/StoreCatalog';
-import { fetchCatalogo, getViewer, getPrazoConfig } from '@/lib/loja-server';
+import { fetchCatalogo, getViewer, getPrazoConfig, resgatarPremioLoja } from '@/lib/loja-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,16 +12,28 @@ export const metadata: Metadata = {
 };
 
 export default async function LojaPage() {
-  const [viewer, prazoCfg] = await Promise.all([getViewer(), getPrazoConfig()]);
+  const [viewer, prazoCfg, premio] = await Promise.all([getViewer(), getPrazoConfig(), resgatarPremioLoja()]);
   const { categorias, produtos, categoriaAtual } = await fetchCatalogo(undefined, viewer.isAdmin);
 
   return (
-    <StoreCatalog
-      categorias={categorias}
-      produtos={produtos}
-      categoriaAtual={categoriaAtual}
-      ocultarPrecos={viewer.ocultarPrecos}
-      prazoCfg={prazoCfg}
-    />
+    <>
+      {premio?.tipo === 'maker_bonus' && (
+        <div style={{ background: 'linear-gradient(90deg,#065f46,#047857)', color: '#ecfdf5', padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700 }}>
+          🎁 Detetámos e corrigimos um bug no registo — como pedido de desculpa, já creditámos +{premio.quantidade} downloads grátis na tua conta. Obrigado pela confiança!
+        </div>
+      )}
+      {premio?.tipo === 'desconto_loja' && (
+        <div style={{ background: 'linear-gradient(90deg,#1e3a8a,#1d4ed8)', color: '#eff6ff', padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700 }}>
+          🎁 Detetámos e corrigimos um bug no registo — como pedido de desculpa, tens 10% de desconto numa compra com o código <strong>{premio.codigo}</strong> no checkout.
+        </div>
+      )}
+      <StoreCatalog
+        categorias={categorias}
+        produtos={produtos}
+        categoriaAtual={categoriaAtual}
+        ocultarPrecos={viewer.ocultarPrecos}
+        prazoCfg={prazoCfg}
+      />
+    </>
   );
 }

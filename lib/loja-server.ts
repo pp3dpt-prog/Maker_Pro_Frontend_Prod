@@ -138,6 +138,21 @@ export async function fetchParceirosPorCategoria(categoriaId: string | null): Pr
   return parceiros;
 }
 
+// ── Prémio da campanha "bug corrigido" (ver resgatar_premio_loja no Supabase) ──
+// Revela e credita o prémio a quem ainda não o resgatou, na primeira visita à loja
+// depois da campanha. Idempotente (a função marca bonus_bugfix_resgatado = true).
+export type PremioLoja =
+  | { tipo: 'maker_bonus'; quantidade: number }
+  | { tipo: 'desconto_loja'; codigo: string }
+  | null;
+
+export async function resgatarPremioLoja(): Promise<PremioLoja> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('resgatar_premio_loja');
+  if (error || !data || data.tipo === 'ja_resgatado' || data.tipo === null) return null;
+  return data as PremioLoja;
+}
+
 // Config de prazos (singleton). Devolve defaults se não existir.
 export async function getPrazoConfig(): Promise<PrazoConfig> {
   const supabase = await createClient();

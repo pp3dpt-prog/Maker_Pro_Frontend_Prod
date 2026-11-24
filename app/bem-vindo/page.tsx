@@ -50,10 +50,7 @@ export default function BemVindo() {
       return;
     }
 
-    const { error } = await supabase
-      .from('prod_perfis')
-      .update({ tipo_utilizador: selecionado })
-      .eq('id', user.id);
+    const { error } = await supabase.rpc('escolher_persona', { p_tipo: selecionado });
 
     if (error) {
       console.error('[bem-vindo] erro ao guardar tipo_utilizador:', error.message);
