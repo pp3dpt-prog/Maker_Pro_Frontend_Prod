@@ -12,13 +12,36 @@ import type { CSSProperties, ReactNode } from 'react';
 
 interface Cupom { id: number; codigo: string; desconto_percent: number; usos_atuais: number; max_usos: number; ativo: boolean; tipo?: string | null; notas?: string | null; }
 interface TicketSuporte { id: string; assunto: string; mensagem?: string; user_email: string; status: 'aberto' | 'fechado'; prioridade: 'baixa' | 'media' | 'alta'; created_at: string; resposta?: string; respondido_em?: string; }
-interface Campanha { id: string; titulo: string; tipo: string; segmento: string; conteudo_html?: string | null; cliques: number; vistas: number; ativa: boolean; expira_em?: string | null; created_at: string; }
+interface Campanha { id: string; titulo: string; tipo: string; segmento: string; conteudo?: string | null; conteudo_html?: string | null; cliques: number; vistas: number; ativa: boolean; expira_em?: string | null; created_at: string; }
 
 const SEGMENTO_LABEL: Record<string, string> = {
   todos: 'Todos',
   maker: 'Makers',
   consumidor: 'Clientes finais',
 };
+
+// Espelha o template automático de app/api/enviar-campanha/route.ts, para a
+// pré-visualização mostrar exatamente o que o email vai ter quando a campanha
+// não usa HTML personalizado.
+function renderPreviewHtml(camp: Campanha): string {
+  if (camp.conteudo_html?.trim()) return camp.conteudo_html;
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin:0;padding:0;background:#0f0f1e;font-family:sans-serif;color:#f1f5f9;">
+      <div style="max-width:600px;margin:40px auto;background:#16162d;border-radius:16px;padding:40px;border:1px solid rgba(255,255,255,0.08);">
+        <div style="margin-bottom:24px;">
+          <span style="color:#6366f1;font-weight:900;font-size:20px;font-style:italic;letter-spacing:-0.03em;">MAKERPRO</span>
+        </div>
+        <h1 style="color:#f1f5f9;font-size:24px;font-weight:900;margin:0 0 16px;letter-spacing:-0.03em;">${camp.titulo}</h1>
+        <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 32px;">${(camp.conteudo ?? '').replace(/\n/g, '<br>')}</p>
+        <a href="https://pp3d.pt" style="display:inline-block;background:#6366f1;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Ver na plataforma</a>
+        <p style="color:#334155;font-size:12px;margin-top:32px;">Recebeste este email porque tens conta no PP3D.</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -85,6 +108,7 @@ export default function AdminDashboard() {
   const [campErro, setCampErro] = useState('');
 
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [previewCampanha, setPreviewCampanha] = useState<Campanha | null>(null);
   const [newsletterMsg, setNewsletterMsg] = useState<{ id: string; texto: string; tipo: 'ok' | 'erro' } | null>(null);
   const [respostasTicket, setRespostasTicket] = useState<Record<string, string>>({});
   const [enviandoResposta, setEnviandoResposta] = useState<string | null>(null);
@@ -793,13 +817,21 @@ export default function AdminDashboard() {
                         )}
                       </td>
                       <td style={s.td}>
-                        <button
-                          onClick={() => enviarNewsletter(camp)}
-                          disabled={enviandoId === camp.id}
-                          style={{ ...s.btn, padding: '6px 14px', fontSize: 12, background: '#1e293b', color: '#93c5fd', opacity: enviandoId === camp.id ? 0.5 : 1 }}
-                        >
-                          {enviandoId === camp.id ? 'A enviar…' : '✉ Email'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => setPreviewCampanha(camp)}
+                            style={{ ...s.btn, padding: '6px 12px', fontSize: 12, background: '#1e293b', color: '#a5b4fc' }}
+                          >
+                            👁 Pré-visualizar
+                          </button>
+                          <button
+                            onClick={() => enviarNewsletter(camp)}
+                            disabled={enviandoId === camp.id}
+                            style={{ ...s.btn, padding: '6px 14px', fontSize: 12, background: '#1e293b', color: '#93c5fd', opacity: enviandoId === camp.id ? 0.5 : 1 }}
+                          >
+                            {enviandoId === camp.id ? 'A enviar…' : '✉ Email'}
+                          </button>
+                        </div>
                       </td>
                       <td style={s.td}>
                         <button
@@ -821,6 +853,43 @@ export default function AdminDashboard() {
         )}
 
       </main>
+
+      {previewCampanha && (
+        <div
+          onClick={() => setPreviewCampanha(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#0a1120', border: '1px solid #1e293b', borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1e293b' }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#f1f5f9' }}>{previewCampanha.titulo}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: '#8a96aa' }}>
+                  Pré-visualização do email · {SEGMENTO_LABEL[previewCampanha.segmento] ?? previewCampanha.segmento ?? 'Todos'}
+                </p>
+              </div>
+              <button
+                onClick={() => setPreviewCampanha(null)}
+                style={{ background: 'transparent', border: 'none', color: '#8a96aa', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4 }}
+                aria-label="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+            <iframe
+              title="Pré-visualização da campanha"
+              srcDoc={renderPreviewHtml(previewCampanha)}
+              style={{ flex: 1, border: 'none', width: '100%', minHeight: 480, background: '#fff' }}
+              sandbox=""
+            />
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setPreviewCampanha(null)} style={{ ...s.btn, background: '#1e293b', color: '#cbd5e1' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
