@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       // Envia sempre para o admin com onboarding@resend.dev (não precisa de domínio verificado).
       // Quando o domínio pp3d.pt estiver verificado no Resend, mudar para enviar ao cliente.
       const { error: resendError } = await resend.emails.send({
-        from: 'PP3D <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>',
         to: adminEmail,
         replyTo: pedido.contacto_email,
         subject: `[REENCAMINHAR a ${pedido.contacto_email}] Orçamento — ${pedido.design_nome}`,

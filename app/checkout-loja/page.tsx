@@ -15,7 +15,7 @@ export default function CheckoutLojaPage() {
 
   // Código (desconto ou "sem pagamento")
   const [codigoInput, setCodigoInput] = useState('');
-  const [codigo, setCodigo] = useState<{ codigo: string; tipo: 'desconto' | 'sem_pagamento'; desconto_percent: number } | null>(null);
+  const [codigo, setCodigo] = useState<{ codigo: string; tipo: 'desconto' | 'sem_pagamento'; desconto_percent: number; valor_cents: number | null } | null>(null);
   const [codigoMsg, setCodigoMsg] = useState('');
   const [aValidar, setAValidar] = useState(false);
   const semPagamento = codigo?.tipo === 'sem_pagamento';
@@ -67,13 +67,15 @@ export default function CheckoutLojaPage() {
     try {
       const res = await fetch('/api/loja/codigo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: c }) });
       const data = await res.json();
-      if (data.valido) { setCodigo({ codigo: data.codigo, tipo: data.tipo, desconto_percent: data.desconto_percent }); }
-      else { setCodigo(null); setCodigoMsg('Código inválido ou expirado.'); }
+      if (data.valido) { setCodigo({ codigo: data.codigo, tipo: data.tipo, desconto_percent: data.desconto_percent, valor_cents: data.valor_cents ?? null }); }
+      else { setCodigo(null); setCodigoMsg(data.mensagem ?? 'Código inválido ou expirado.'); }
     } catch { setCodigoMsg('Não foi possível validar o código.'); }
     setAValidar(false);
   }
 
-  const descontoCents = semPagamento ? totalFixoCents : Math.round(totalFixoCents * pct / 100);
+  const descontoCents = semPagamento ? totalFixoCents
+    : codigo?.valor_cents ? Math.min(totalFixoCents, codigo.valor_cents)
+    : Math.round(totalFixoCents * pct / 100);
   const totalComDesconto = totalFixoCents - descontoCents;
 
   async function finalizar() {
@@ -172,7 +174,7 @@ export default function CheckoutLojaPage() {
             {codigo ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
                 <span style={{ color: '#34d399', fontWeight: 700 }}>
-                  🎟️ {codigo.codigo} — {semPagamento ? 'sem pagamento' : `−${codigo.desconto_percent}%`}
+                  🎟️ {codigo.codigo} — {semPagamento ? 'sem pagamento' : codigo.valor_cents ? `−${eur(codigo.valor_cents)}` : `−${codigo.desconto_percent}%`}
                 </span>
                 <button onClick={() => { setCodigo(null); setCodigoInput(''); }} style={{ background: 'none', border: 'none', color: '#8a96aa', cursor: 'pointer', fontSize: 12 }}>Remover</button>
               </div>

@@ -273,7 +273,7 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
                   })}
                 </div>
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {!(ui.sem_livre && paleta.length > 0) && <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input
                   type="color"
                   value={(value ?? def.default) || '#ffffff'}
@@ -291,7 +291,12 @@ export default function GeneratedEditor({ schema, values, onChange, onFileUpload
                 <span style={{ fontSize: 12, color: '#8a96aa', fontFamily: 'monospace' }}>
                   {auto && atual === '' ? auto : (value ?? def.default ?? '').toString().toUpperCase()}
                 </span>
-              </div>
+              </div>}
+              {ui.sem_livre && paleta.length > 0 && (
+                <span style={{ fontSize: 12, color: '#8a96aa' }}>
+                  {paleta.find((c) => String(c.hex).toUpperCase() === atual)?.nome ?? ''}
+                </span>
+              )}
             </div>
           );
         }

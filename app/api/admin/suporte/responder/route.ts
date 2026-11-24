@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     try {
       const resend = new Resend(resendKey);
       await resend.emails.send({
-        from: 'PP3D <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>',
         to: process.env.PEDIDOS_ADMIN_EMAIL || 'pp3d.pt@gmail.com', // sandbox fallback
         replyTo: ticket.user_email,
         subject: `[Suporte PP3D] Resposta ao teu pedido: ${ticket.assunto}`,

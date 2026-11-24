@@ -90,7 +90,7 @@ export async function alertarSeguranca(identificador: string, tipo: string): Pro
       const { Resend } = await import('resend');
       const resend = new Resend(resendKey);
       await resend.emails.send({
-        from: 'PP3D Segurança <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL || 'PP3D Segurança <onboarding@resend.dev>',
         to: adminEmail,
         subject: `🛡️ Alerta de abuso — ${identificador}`,
         html: `

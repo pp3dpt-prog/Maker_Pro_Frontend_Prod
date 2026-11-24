@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { notificarAdminEncomenda } from '@/lib/loja-email';
+import { notificarAdminEncomenda, confirmarClienteEncomenda } from '@/lib/loja-email';
 
 export const runtime = 'nodejs';
 
@@ -116,6 +116,11 @@ export async function POST(req: NextRequest) {
               codigo: session.metadata?.codigo || null,
               totalCents: encInfo?.total_cents ?? Math.round(valor * 100),
               itens: (itens ?? []).map((i: any) => ({ nome: i.nome, quantidade: i.quantidade, label: [i.cor, i.cor_secundaria, i.cor_terciaria, i.tamanho].filter(Boolean).join(' / ') || null, preco_cents: i.preco_cents, personalizacao: i.personalizacao })),
+            });
+            await confirmarClienteEncomenda({
+              numero: encInfo?.numero ?? 0, tipo: 'pago', clienteEmail: email, clienteNome: userName,
+              totalCents: encInfo?.total_cents ?? Math.round(valor * 100),
+              itens: (itens ?? []).map((i: any) => ({ nome: i.nome, quantidade: i.quantidade, label: [i.cor, i.cor_secundaria, i.cor_terciaria, i.tamanho].filter(Boolean).join(' / ') || null })),
             });
           }
           break;

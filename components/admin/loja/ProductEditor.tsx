@@ -128,6 +128,13 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
   useEffect(() => { loadProduto(); }, [loadProduto]);
 
+  // Paleta de filamentos (/admin/cores) para sugerir nomes de cor nas variantes
+  const [paleta, setPaleta] = useState<{ nome: string; hex: string }[]>([]);
+  useEffect(() => {
+    supabase.from('prod_cores').select('nome, hex').eq('ativo', true).order('ordem')
+      .then(({ data }) => setPaleta((data ?? []) as { nome: string; hex: string }[]));
+  }, []);
+
   // ── Variantes ──
   function addVariante() {
     setVariantes(prev => [...prev, { cor: '', cor_secundaria: '', cor_terciaria: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true }]);
@@ -259,6 +266,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
   return (
     <div style={s.page}>
+      <datalist id="pp3d-paleta-cores">{paleta.map(c => <option key={c.hex} value={c.nome} />)}</datalist>
       <div style={s.wrap}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <h1 style={s.h1}>{isEdit ? 'Editar produto' : 'Novo produto'}</h1>
@@ -385,9 +393,9 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
               </div>
               {variantes.map((v, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, alignItems: 'center' }}>
-                  <input style={s.input} value={v.cor} onChange={e => updVariante(i, { cor: e.target.value })} placeholder={duasCores ? 'Preto' : 'Preto'} />
-                  {duasCores && <input style={s.input} value={v.cor_secundaria} onChange={e => updVariante(i, { cor_secundaria: e.target.value })} placeholder="Branco" />}
-                  {duasCores && tresCores && <input style={s.input} value={v.cor_terciaria} onChange={e => updVariante(i, { cor_terciaria: e.target.value })} placeholder="Dourado" />}
+                  <input style={s.input} list="pp3d-paleta-cores" value={v.cor} onChange={e => updVariante(i, { cor: e.target.value })} placeholder="Preto" />
+                  {duasCores && <input style={s.input} list="pp3d-paleta-cores" value={v.cor_secundaria} onChange={e => updVariante(i, { cor_secundaria: e.target.value })} placeholder="Branco" />}
+                  {duasCores && tresCores && <input style={s.input} list="pp3d-paleta-cores" value={v.cor_terciaria} onChange={e => updVariante(i, { cor_terciaria: e.target.value })} placeholder="Dourado" />}
                   <input style={s.input} value={v.tamanho} onChange={e => updVariante(i, { tamanho: e.target.value })} placeholder="M" />
                   <input style={s.input} value={v.sku} onChange={e => updVariante(i, { sku: e.target.value })} placeholder="SKU" />
                   <input style={s.input} value={v.stock} onChange={e => updVariante(i, { stock: parseInt(e.target.value, 10) || 0 })} inputMode="numeric" />

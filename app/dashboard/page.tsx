@@ -1,4 +1,5 @@
 ﻿'use client';
+import ResgatarCodigo from '@/components/ResgatarCodigo';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -275,6 +276,7 @@ export default function Dashboard() {
                 </a>
               )}
             </div>
+            <ResgatarCodigo onResgatado={() => window.location.reload()} />
           </div>
         )}
 

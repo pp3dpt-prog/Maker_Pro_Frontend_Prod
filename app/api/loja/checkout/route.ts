@@ -8,7 +8,7 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { notificarAdminEncomenda } from '@/lib/loja-email';
+import { notificarAdminEncomenda, confirmarClienteEncomenda } from '@/lib/loja-email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   if (linhas.length === 0) return NextResponse.json({ error: 'Sem itens válidos.' }, { status: 400 });
 
   // ── Código (opcional): valida e consome um uso de forma atómica ──
-  let cupao: { codigo: string; tipo: string; desconto_percent: number | null } | null = null;
+  let cupao: { id: number; codigo: string; tipo: string; desconto_percent: number | null; valor_cents: number | null } | null = null;
   if (codigoReq) {
     const { data: usados, error: cupErr } = await admin.rpc('usar_cupao_loja', { p_codigo: codigoReq });
     const c = Array.isArray(usados) ? usados[0] : null;
@@ -69,12 +69,21 @@ export async function POST(request: Request) {
       if (cupErr) console.error('[loja/checkout] erro código:', cupErr);
       return NextResponse.json({ error: 'Código inválido, expirado ou já esgotado.' }, { status: 400 });
     }
-    cupao = { codigo: c.codigo, tipo: c.tipo ?? 'desconto', desconto_percent: c.desconto_percent ?? 0 };
+    cupao = { id: c.id, codigo: c.codigo, tipo: c.tipo ?? 'desconto', desconto_percent: c.desconto_percent ?? 0, valor_cents: c.valor_cents ?? null };
   }
   const semPagamento = cupao?.tipo === 'sem_pagamento';
-  const pct = cupao && !semPagamento ? Math.min(100, Math.max(0, cupao.desconto_percent ?? 0)) : 0;
   const subtotalBruto = linhas.reduce((a, l) => a + (l.requer_orcamento ? 0 : l.unit * l.qtd), 0);
-  if (pct > 0) for (const l of linhas) l.unit = Math.round(l.unit * (100 - pct) / 100);
+  // Desconto: valor fixo (valor_cents) ou percentagem; repartido pelas linhas com preço
+  let descontoAlvo = 0;
+  if (cupao && !semPagamento) {
+    descontoAlvo = cupao.valor_cents && cupao.valor_cents > 0
+      ? Math.min(subtotalBruto, cupao.valor_cents)
+      : Math.round(subtotalBruto * Math.min(100, Math.max(0, cupao.desconto_percent ?? 0)) / 100);
+  }
+  if (descontoAlvo > 0 && subtotalBruto > 0) {
+    const fator = (subtotalBruto - descontoAlvo) / subtotalBruto;
+    for (const l of linhas) if (!l.requer_orcamento) l.unit = Math.max(0, Math.round(l.unit * fator));
+  }
 
   const temOrcamento = linhas.some(l => l.requer_orcamento);
   // Entrega em mãos é coordenada com o admin e paga depois -> segue sempre como orçamento.
@@ -112,6 +121,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erro ao criar encomenda.' }, { status: 500 });
   }
 
+  if (cupao) {
+    await admin.from('prod_cupoes_resgates').insert({
+      cupao_id: cupao.id, user_id: user?.id ?? null, email: clienteEmail, encomenda_id: enc.id,
+      detalhe: semPagamento ? 'Encomenda sem pagamento' : `Desconto de ${(descontoCents / 100).toFixed(2)} €`,
+    });
+  }
+
   await admin.from('prod_loja_encomenda_itens').insert(linhas.map(l => ({
     encomenda_id: enc.id,
     produto_id: l.p.id,
@@ -141,6 +157,7 @@ export async function POST(request: Request) {
       totalCents: 0, descontoCents,
       itens: itensEmail,
     });
+    await confirmarClienteEncomenda({ numero: enc.numero, tipo: 'codigo', clienteEmail, clienteNome: morada?.nome ?? nomeCompleto, totalCents: 0, itens: itensEmail });
     return NextResponse.json({ ok: true, tipo: 'codigo', numero: enc.numero });
   }
 
@@ -153,6 +170,7 @@ export async function POST(request: Request) {
       totalCents: subtotal, descontoCents,
       itens: itensEmail,
     });
+    await confirmarClienteEncomenda({ numero: enc.numero, tipo: 'orcamento', clienteEmail, clienteNome: morada?.nome ?? nomeCompleto, totalCents: subtotal, itens: itensEmail });
     return NextResponse.json({ ok: true, tipo: 'orcamento', numero: enc.numero });
   }
 

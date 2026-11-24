@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
 
     try {
       await resend.emails.send({
-        from:    'PP3D <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL || 'PP3D <onboarding@resend.dev>',
         to:      destinatario,
         replyTo: perfil.email,
         subject: diasRestantes <= 7

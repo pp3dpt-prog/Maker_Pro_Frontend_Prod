@@ -203,7 +203,30 @@ export default function AdminDashboard() {
         <p style={s.sidebarTitle}>Admin</p>
 
         <SideBtn active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 Geral</SideBtn>
-        <SideBtn active={activeTab === 'cupons'} onClick={() => setActiveTab('cupons')}>🏷️ Cupões</SideBtn>
+        <Link
+          href="/admin/codigos"
+          style={{
+            display: 'flex', alignItems: 'center',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🏷️ Códigos</span>
+        </Link>
+        <Link
+          href="/admin/cores"
+          style={{
+            display: 'flex', alignItems: 'center',
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+            color: '#94a3b8', textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🎨 Cores</span>
+        </Link>
         <SideBtn active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')}>🎫 Tickets</SideBtn>
         <SideBtn active={activeTab === 'campanhas'} onClick={() => setActiveTab('campanhas')}>📣 Campanhas</SideBtn>
         <SideBtn active={activeTab === 'thumbnails'} onClick={() => setActiveTab('thumbnails')}>🖼️ Thumbnails</SideBtn>
