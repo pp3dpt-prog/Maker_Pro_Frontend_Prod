@@ -139,10 +139,11 @@ export async function fetchParceirosPorCategoria(categoriaId: string | null): Pr
 }
 
 // ── Prémio da campanha "bug corrigido" (ver resgatar_premio_loja no Supabase) ──
-// Revela e credita o prémio a quem ainda não o resgatou, na primeira visita à loja
-// depois da campanha. Idempotente (a função marca bonus_bugfix_resgatado = true).
+// Revela o código do prémio a quem ainda não o viu, na primeira visita à loja
+// depois da campanha (idempotente). O código em si resgata-se em "Tens um
+// código?" no dashboard, tal como qualquer outro cupão de prod_cupons.
 export type PremioLoja =
-  | { tipo: 'maker_bonus'; quantidade: number }
+  | { tipo: 'maker_bonus'; codigo: string; quantidade: number }
   | { tipo: 'desconto_loja'; codigo: string }
   | null;
 

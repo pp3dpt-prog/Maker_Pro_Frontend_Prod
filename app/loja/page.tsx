@@ -19,7 +19,7 @@ export default async function LojaPage() {
     <>
       {premio?.tipo === 'maker_bonus' && (
         <div style={{ background: 'linear-gradient(90deg,#065f46,#047857)', color: '#ecfdf5', padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700 }}>
-          🎁 Detetámos e corrigimos um bug no registo — como pedido de desculpa, já creditámos +{premio.quantidade} downloads grátis na tua conta. Obrigado pela confiança!
+          🎁 Detetámos e corrigimos um bug no registo — como pedido de desculpa, tens +{premio.quantidade} downloads grátis com o código <strong>{premio.codigo}</strong> em &quot;Tens um código?&quot; no teu dashboard.
         </div>
       )}
       {premio?.tipo === 'desconto_loja' && (
