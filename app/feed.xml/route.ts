@@ -32,7 +32,8 @@ export async function GET() {
     const { data } = await supabase
       .from('prod_loja_produtos')
       .select('slug, nome, descricao, preco_cents, preco_promo_cents, stock, sob_encomenda, requer_orcamento, prod_loja_categorias(nome), prod_loja_imagens(url, ordem), prod_loja_variantes(stock)')
-      .eq('estado', 'ativo');
+      .eq('estado', 'ativo')
+      .eq('tipo', 'peca');
 
     const produtos = ((data ?? []) as unknown as Prod[])
       .filter(p => !p.requer_orcamento && p.prod_loja_imagens?.length);

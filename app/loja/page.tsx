@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import StoreCatalog from '@/components/loja/StoreCatalog';
-import { fetchCatalogo, getViewer, getPrazoConfig, resgatarPremioLoja } from '@/lib/loja-server';
+import BannerSlot from '@/components/loja/BannerSlot';
+import { fetchBanners, fetchCatalogo, getViewer, getPrazoConfig, resgatarPremioLoja } from '@/lib/loja-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LojaPage() {
-  const [viewer, prazoCfg, premio] = await Promise.all([getViewer(), getPrazoConfig(), resgatarPremioLoja()]);
+  const [viewer, prazoCfg, premio, [bannerEntre]] = await Promise.all([getViewer(), getPrazoConfig(), resgatarPremioLoja(), fetchBanners('entre_produtos')]);
   const { categorias, produtos, categoriaAtual } = await fetchCatalogo(undefined, viewer.isAdmin);
 
   return (
@@ -33,6 +34,8 @@ export default async function LojaPage() {
         categoriaAtual={categoriaAtual}
         ocultarPrecos={viewer.ocultarPrecos}
         prazoCfg={prazoCfg}
+        topo={<BannerSlot posicao="topo_loja" />}
+        bannerEntre={bannerEntre ?? null}
       />
     </>
   );

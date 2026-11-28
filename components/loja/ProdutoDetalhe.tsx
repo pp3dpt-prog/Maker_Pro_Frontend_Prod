@@ -33,6 +33,8 @@ export default function ProdutoDetalhe({
   const router = useRouter();
 
   const varSel = variantes.find(v => v.id === varId) ?? null;
+  const isFilamento = produto.tipo === 'filamento';
+  const fil = produto.prod_loja_filamento_detalhes;
 
   // Preço efetivo: override da variante > promo > base
   const precoBase = produto.preco_promo_cents ?? produto.preco_cents;
@@ -84,7 +86,9 @@ export default function ProdutoDetalhe({
   return (
     <main style={{ background: '#080c10', minHeight: '100vh' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 32px 80px' }}>
-        <Link href="/loja" style={{ color: '#3b82f6', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>← Voltar à loja</Link>
+        <Link href={isFilamento ? '/makers/filamentos' : '/loja'} style={{ color: '#3b82f6', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+          {isFilamento ? '← Voltar aos filamentos' : '← Voltar à loja'}
+        </Link>
 
         {produto.estado !== 'ativo' && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 16, padding: '8px 14px', borderRadius: 10, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.35)' }}>
@@ -120,6 +124,11 @@ export default function ProdutoDetalhe({
                 {produto.prod_loja_categorias.nome}
               </Link>
             )}
+            {isFilamento && (
+              <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#34d399' }}>
+                Filamento · Exclusivo makers{fil?.prod_loja_marcas ? ` · ${fil.prod_loja_marcas.nome}` : ''}
+              </span>
+            )}
             <h1 style={{ fontSize: 'clamp(24px,3vw,34px)', fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.02em', margin: '8px 0 14px' }}>{produto.nome}</h1>
 
             {/* Prazo */}
@@ -130,8 +139,53 @@ export default function ProdutoDetalhe({
 
             {produto.descricao && <p style={{ fontSize: 15, color: '#94a3b8', lineHeight: 1.7, margin: '0 0 22px' }}>{produto.descricao}</p>}
 
+            {/* Especificações do filamento */}
+            {isFilamento && fil && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 22 }}>
+                <Spec label="Material" valor={fil.material} />
+                <Spec label="Diâmetro" valor={`${Number(fil.diametro_mm).toFixed(2)} mm`} />
+                <Spec label="Peso líquido" valor={fil.peso_liquido_g >= 1000 ? `${(fil.peso_liquido_g / 1000).toLocaleString('pt-PT')} kg` : `${fil.peso_liquido_g} g`} />
+                {fil.temp_bico_min != null && <Spec label="Bico" valor={`${fil.temp_bico_min}${fil.temp_bico_max ? `–${fil.temp_bico_max}` : ''} °C`} />}
+                {fil.temp_mesa_min != null && <Spec label="Mesa" valor={`${fil.temp_mesa_min}${fil.temp_mesa_max ? `–${fil.temp_mesa_max}` : ''} °C`} />}
+                {fil.ficha_tecnica_url && (
+                  <a href={fil.ficha_tecnica_url} target="_blank" rel="noopener noreferrer" style={{ ...specBox, textDecoration: 'none', color: '#60a5fa', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+                    Ficha técnica ↗
+                  </a>
+                )}
+              </div>
+            )}
+
+            {isFilamento && fil?.notas && (
+              <p style={{ fontSize: 13, color: '#cbd5e1', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: 10, padding: '10px 14px', margin: '-8px 0 22px' }}>💡 {fil.notas}</p>
+            )}
+
+            {/* Cores do filamento (amostras) */}
+            {isFilamento && temVariantes && (
+              <div style={{ marginBottom: 22 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa', marginBottom: 10 }}>
+                  Cor: <span style={{ color: '#f1f5f9' }}>{varSel?.cor ?? '—'}</span>
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {variantes.map(v => {
+                    const esgotado = v.stock <= 0 && !produto.sob_encomenda;
+                    const sel = v.id === varId;
+                    return (
+                      <button key={v.id} type="button" title={`${v.cor ?? 'Cor'}${esgotado ? ' — esgotado' : ''}`}
+                        onClick={() => !esgotado && setVarId(v.id)} disabled={esgotado}
+                        style={{
+                          width: 38, height: 38, borderRadius: '50%', cursor: esgotado ? 'not-allowed' : 'pointer',
+                          background: v.cor_hex ?? '#334155', opacity: esgotado ? 0.35 : 1,
+                          border: sel ? '3px solid #3b82f6' : '2px solid #1e293b',
+                          boxShadow: sel ? '0 0 0 2px #080c10 inset' : 'none',
+                        }} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Variantes */}
-            {temVariantes && (
+            {temVariantes && !isFilamento && (
               <div style={{ marginBottom: 22 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa', marginBottom: 8 }}>
                   {produto.tres_cores ? 'Cor base / Cor secundária / Cor terciária / Tamanho' : produto.duas_cores ? 'Cor base / Cor secundária / Tamanho' : 'Opção'}
@@ -195,20 +249,33 @@ export default function ProdutoDetalhe({
               </Link>
             )}
 
-            {/* Partilha */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28, paddingTop: 20, borderTop: '1px solid #1e293b' }}>
+            {/* Partilha (não nos filamentos: são só para makers) */}
+            {!isFilamento && <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28, paddingTop: 20, borderTop: '1px solid #1e293b' }}>
               <span style={{ fontSize: 13, color: '#8a96aa' }}>Partilhar:</span>
               <button onClick={partilhar} style={shareBtn}>🔗 Partilhar</button>
               <a href={`https://wa.me/?text=${shareUrl}`} target="_blank" rel="noopener noreferrer" style={shareBtn}>WhatsApp</a>
               <a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener noreferrer" style={shareBtn}>Facebook</a>
-            </div>
+            </div>}
           </div>
         </div>
 
-        <ParceirosSecao parceiros={parceiros} />
-        <ParceriaCTA produtoSlug={produto.slug} produtoNome={produto.nome} />
+        {!isFilamento && <ParceirosSecao parceiros={parceiros} />}
+        {!isFilamento && <ParceriaCTA produtoSlug={produto.slug} produtoNome={produto.nome} />}
       </div>
     </main>
+  );
+}
+
+const specBox: React.CSSProperties = {
+  background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '10px 14px',
+};
+
+function Spec({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div style={specBox}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a96aa' }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#f1f5f9', marginTop: 2 }}>{valor}</div>
+    </div>
   );
 }
 

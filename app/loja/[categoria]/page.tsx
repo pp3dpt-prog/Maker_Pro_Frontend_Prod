@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import StoreCatalog from '@/components/loja/StoreCatalog';
-import { fetchCatalogo, getViewer, getPrazoConfig } from '@/lib/loja-server';
+import BannerSlot from '@/components/loja/BannerSlot';
+import { fetchBanners, fetchCatalogo, getViewer, getPrazoConfig } from '@/lib/loja-server';
 import { categoriaDescricao } from '@/lib/loja';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ categoria
 
 export default async function CategoriaPage({ params }: { params: Promise<{ categoria: string }> }) {
   const { categoria } = await params;
-  const [viewer, prazoCfg] = await Promise.all([getViewer(), getPrazoConfig()]);
+  const [viewer, prazoCfg, [bannerEntre]] = await Promise.all([getViewer(), getPrazoConfig(), fetchBanners('entre_produtos')]);
   const { categorias, produtos, categoriaAtual } = await fetchCatalogo(categoria, viewer.isAdmin);
 
   const breadcrumbJsonLd = categoriaAtual ? {
@@ -43,6 +44,8 @@ export default async function CategoriaPage({ params }: { params: Promise<{ cate
         categoriaAtual={categoriaAtual}
         ocultarPrecos={viewer.ocultarPrecos}
         prazoCfg={prazoCfg}
+        topo={<BannerSlot posicao="topo_pecas" />}
+        bannerEntre={bannerEntre ?? null}
       />
     </>
   );

@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import FamilyCard from '@/components/cards/FamilyCard';
 import { familyCoverFor } from '@/lib/familyCovers';
+import { isMakerTipo } from '@/lib/loja';
+import BannerSlot from '@/components/loja/BannerSlot';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +129,21 @@ export default async function MakersPage() {
             Ver planos
           </Link>
         </div>
+
+        {/* Filamentos — revenda exclusiva para makers */}
+        {(isAdmin || isMakerTipo(perfil?.tipo_utilizador)) && (
+          <Link href="/makers/filamentos" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginTop: 16, padding: '18px 22px', background: 'linear-gradient(90deg, rgba(37,99,235,0.18), rgba(52,211,153,0.12))', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 14, textDecoration: 'none' }}>
+            <span style={{ fontSize: 28 }}>🧵</span>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9' }}>Filamentos para makers</div>
+              <div style={{ fontSize: 13, color: '#94a3b8' }}>Revenda oficial — compra bobinas junto com as tuas peças.</div>
+            </div>
+            <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>Ver filamentos →</span>
+          </Link>
+        )}
       </div>
+
+      <BannerSlot posicao="area_maker" />
 
       {error ? (
         <p style={{ color: '#f87171', padding: '0 32px' }}>Erro ao carregar: {error.message}</p>
