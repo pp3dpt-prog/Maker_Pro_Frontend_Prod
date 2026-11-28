@@ -5,13 +5,16 @@
 // o cliente vê e ajusta aqui são guardados em params.cortes_x / cortes_y (frações 0–1 da largura /
 // altura da peça) e o servidor aplica-os tal e qual no download.
 import * as THREE from 'three';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 // @ts-ignore — módulo JS partilhado com o backend (Maker_Pro_Docker_Prod/app/divisaoBlocos.js)
 import { BLOCO_MIN } from '@/lib/divisaoBlocos';
 
 export type Bloco = { id: string; col: number; lin: number; x0: number; x1: number; y0: number; y1: number; w: number; h: number; cabe: boolean };
 export type Divisao = {
   ativo: boolean; cabeInteira: boolean;
+  // 'letras' (lib/divisaoLetras.js): uma peça por letra, corte a acompanhar as letras; 'retas': cortes a direito
+  modo?: 'letras' | 'retas';
+  linhas?: [number, number][][];   // modo letras: linhas de corte (mm)
   bb: { minX: number; minY: number; maxX: number; maxY: number; w: number; h: number };
   sugestao: { fx: number[]; fy: number[] };
   fx: number[]; fy: number[];
@@ -72,24 +75,47 @@ function CortesEixo({ eixo, fr, comp, onChange }: { eixo: 'x' | 'y'; fr: number[
   );
 }
 
-export function PainelDivisao({ divisao, p, set }: { divisao: Divisao | null | undefined; p: Record<string, any>; set: (k: string, v: any) => void }) {
+export function PainelDivisao({ divisao, p, set, porLetras = false }: { divisao: Divisao | null | undefined; p: Record<string, any>; set: (k: string, v: any) => void; porLetras?: boolean }) {
   if (!divisao?.bb) return null;
   const modo = p.dividir === 'sim' || p.dividir === 'nao' ? p.dividir : 'auto';
   const manual = Array.isArray(p.cortes_x) || Array.isArray(p.cortes_y);
   const mostrar = divisao.ativo || !divisao.cabeInteira || modo === 'sim';
   const setCortes = (fx: number[], fy: number[]) => { set('cortes_x', fx); set('cortes_y', fy); };
+  const tipo = porLetras && p.tipo_corte !== 'retas' ? 'letras' : 'retas';
   return (
     <div style={st.bloco}>
-      <p style={st.titulo}>Divisão em blocos</p>
+      <p style={st.titulo}>{porLetras ? 'Divisão' : 'Divisão em blocos'}</p>
       <div style={{ display: 'flex', gap: 6 }}>
         {([['auto', 'Se não couber'], ['sim', 'Dividir sempre'], ['nao', 'Não dividir']] as const).map(([k, t]) => (
           <button key={k} type="button" style={st.seg(modo === k)} onClick={() => set('dividir', k)}>{t}</button>
         ))}
       </div>
+      {porLetras && modo !== 'nao' && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([['letras', '🔤 Pelas letras'], ['retas', '📏 Cortes a direito']] as const).map(([k, t]) => (
+            <button key={k} type="button" style={st.seg(tipo === k)} onClick={() => set('tipo_corte', k)}>{t}</button>
+          ))}
+        </div>
+      )}
       {!mostrar ? (
         <p style={st.ajuda}>A peça cabe inteira na mesa ({fmt(divisao.bb.w)} × {fmt(divisao.bb.h)} mm).</p>
       ) : modo === 'nao' ? (
         <p style={{ ...st.ajuda, color: '#fbbf24' }}>A peça ({fmt(divisao.bb.w)} × {fmt(divisao.bb.h)} mm) não cabe na mesa e não vai ser dividida.</p>
+      ) : divisao.modo === 'letras' ? (
+        <>
+          <p style={st.ajuda}>
+            Uma peça por letra (L1, L2… da esquerda para a direita). O corte passa a meio do espaço entre as letras e acompanha a forma delas — as linhas vermelhas na pré-visualização.
+            {' '}As juntas são a meia-madeira: a metade de baixo de cada letra entra por baixo da seguinte. Monta pela ordem L1, L2, L3… e cola.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {divisao.blocos.map(b => (
+              <span key={b.id} style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 6, border: `1px solid ${b.cabe ? '#14532d' : '#7f1d1d'}`, color: b.cabe ? '#86efac' : '#fca5a5', background: b.cabe ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.12)' }}>
+                {b.id} · {fmt(b.w)}×{fmt(b.h)} {b.cabe ? '✓' : '✗'}
+              </span>
+            ))}
+          </div>
+          {divisao.blocos.some(b => !b.cabe) && <p style={{ ...st.ajuda, color: '#fbbf24' }}>Há letras maiores do que a mesa: reduz a largura ou usa cortes a direito.</p>}
+        </>
       ) : (
         <>
           <p style={st.ajuda}>
@@ -118,7 +144,21 @@ export function PainelDivisao({ divisao, p, set }: { divisao: Divisao | null | u
 
 /** Planos vermelhos translúcidos nos cortes (coordenadas da peça, z para cima de 0 a `altura`). */
 export function PlanosCorte({ divisao, altura }: { divisao: Divisao | null | undefined; altura: number }) {
+  // modo letras: "cortinas" verticais a seguir as linhas de corte
+  const cortina = useMemo(() => {
+    if (!divisao?.ativo || divisao.modo !== 'letras' || !divisao.linhas?.length) return null;
+    const m = 6, z0 = -m, z1 = altura + m, pos: number[] = [];
+    for (const linha of divisao.linhas) for (let k = 0; k + 1 < linha.length; k++) {
+      const [ax, ay] = linha[k], [bx, by] = linha[k + 1];
+      pos.push(ax, ay, z0, bx, by, z0, bx, by, z1, ax, ay, z0, bx, by, z1, ax, ay, z1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    return g;
+  }, [divisao, altura]);
+  useEffect(() => () => cortina?.dispose(), [cortina]);
   const planos = useMemo(() => {
+    if (divisao?.modo === 'letras') return [];
     if (!divisao?.ativo) return [];
     const { bb } = divisao, m = 6, out: { pos: [number, number, number]; tam: [number, number, number] }[] = [];
     for (const f of divisao.fx) out.push({ pos: [bb.minX + f * bb.w, (bb.minY + bb.maxY) / 2, altura / 2], tam: [0.4, bb.h + 2 * m, altura + 2 * m] });
@@ -127,6 +167,11 @@ export function PlanosCorte({ divisao, altura }: { divisao: Divisao | null | und
   }, [divisao, altura]);
   return (
     <>
+      {cortina && (
+        <mesh geometry={cortina}>
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+        </mesh>
+      )}
       {planos.map((pl, i) => (
         <mesh key={i} position={pl.pos}>
           <boxGeometry args={pl.tam} />
