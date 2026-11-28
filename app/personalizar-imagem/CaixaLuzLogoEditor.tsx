@@ -65,6 +65,7 @@ const PADRAO = {
   encaixe: 0.6, folga: 0.2,
   parede_caixa_mm: 2.4, profundidade_mm: 25, mesa_x_mm: 256, mesa_y_mm: 256,
   forma_caixa: 'imagem', tem_tampa: 0, espessura_tampa_mm: 2, montagem: 'pe',
+  tipo_corte: 'letras',
 };
 
 const FORMAS: [string, string][] = [
@@ -197,10 +198,10 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
             <Slider label="Mesa X" valor={p.mesa_x_mm} min={100} max={500} passo={5} onChange={v => set('mesa_x_mm', v)} />
             <Slider label="Mesa Y" valor={p.mesa_y_mm} min={100} max={500} passo={5} onChange={v => set('mesa_y_mm', v)} />
           </div>
-          <p style={c.ajuda}>Tamanho da mesa de impressão. Se a peça não couber, é dividida em blocos — sugerimos os cortes e podes ajustá-los.</p>
+          <p style={c.ajuda}>Tamanho da mesa de impressão. Se a peça não couber, é dividida — por letras (o corte acompanha a forma das letras) ou com cortes a direito.</p>
         </div>
 
-        <PainelDivisao divisao={res?.divisao} p={p} set={set} />
+        <PainelDivisao divisao={res?.divisao} p={p} set={set} porLetras />
 
         <div style={c.bloco}>
           <p style={c.titulo}>3 · Cores</p>
@@ -333,7 +334,7 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
                   padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   border: `1px solid ${separar ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
                   background: separar ? 'rgba(239,68,68,0.18)' : 'rgba(15,23,42,0.7)', color: separar ? '#fca5a5' : '#94a3b8',
-                }}>✂ {separar ? 'Juntar blocos' : 'Separar blocos'}</button>
+                }}>✂ {separar ? (res.divisao.modo === 'letras' ? 'Juntar letras' : 'Juntar blocos') : (res.divisao.modo === 'letras' ? 'Separar letras' : 'Separar blocos')}</button>
               )}
             </div>
           )}
@@ -349,7 +350,11 @@ export default function CaixaLuzLogoEditor({ designId, nome, userId, canDownload
         {r && (
           <div style={c.bloco}>
             <p style={c.titulo}>O que vais receber ({formato})</p>
-            {res?.divisao?.ativo && <p style={{ ...c.ajuda, color: '#fca5a5' }}>✂ {res.divisao.blocos.length} blocos ({res.divisao.blocos.map(b => b.id).join(', ')}): cada ficheiro abaixo vem um por bloco — corpo_A1.stl, corpo_B1.stl, frente_A1…</p>}
+            {res?.divisao?.ativo && (() => {
+              const ids = res.divisao.blocos.map(b => b.id);
+              const porLetra = res.divisao.modo === 'letras';
+              return <p style={{ ...c.ajuda, color: '#fca5a5' }}>✂ {ids.length} {porLetra ? 'letras' : 'blocos'} ({ids.join(', ')}): cada ficheiro abaixo vem um por {porLetra ? 'letra' : 'bloco'} — corpo_{ids[0]}.stl, corpo_{ids[1]}.stl, frente_{ids[0]}…</p>;
+            })()}
             <p style={{ ...c.ajuda, color: '#cbd5e1' }}>corpo.stl — paredes ocas da caixa{p.tem_tampa ? '' : ', abertas dos dois lados'}</p>
             {!!p.tem_tampa && <p style={{ ...c.ajuda, color: '#cbd5e1' }}>tampa.stl — fecha o fundo</p>}
             {r.guia.map((g, i) => <p key={i} style={{ ...c.ajuda, color: '#cbd5e1' }}>{g}</p>)}
