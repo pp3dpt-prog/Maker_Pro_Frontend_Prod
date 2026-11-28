@@ -10,6 +10,7 @@ import LitofaniaPreview3D, { CuboLitofaniaPreview3D, CaixaLuzLitofaniaPreview3D,
 import TermoformagemPreview3D from './TermoformagemPreview3D';
 import PortachavesVetorEditor from './PortachavesVetorEditor';
 import CaixaLuzLogoEditor from './CaixaLuzLogoEditor';
+import TermoformagemEditor from './TermoformagemEditor';
 import CaixaLuzNeonEditor from './CaixaLuzNeonEditor';
 import styles from '@/app/customizador/ConfiguratorLayout.module.css';
 
@@ -469,6 +470,27 @@ export default function PageInner() {
         <PortachavesVetorEditor
           designId={designId}
           nome={design.nome}
+          userId={userId}
+          canDownload={!!userId && canDownloadStl && !semDownloads}
+          bloqueioMsg={!userId ? null : stlBloqueadoDownload ? (design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar` : 'Download não disponível neste plano') : semDownloads ? 'Limite mensal de downloads atingido — upgrade do plano' : null}
+          downloadsInfo={userId && isMaker ? { usados: userProfile?.downloads_mes ?? 0, limite: userProfile?.downloads_limite ?? 3 } : null}
+          onUpload={file => handleFileUpload('image_path', file)}
+          onDownloadSuccess={handleDownloadSuccess}
+        />
+      </>
+    );
+  }
+
+  // Termoformagem (kit de molde / enfeite em 2 metades): editor próprio com formas prontas ou
+  // imagem, pré-visualização no browser com lib/termoformagem.js (o mesmo código do backend)
+  if ((design.generation_schema as any)?.engine === 'termoformagem') {
+    return (
+      <>
+        {cabecalhoEditor}
+        <TermoformagemEditor
+          designId={designId}
+          nome={design.nome}
+          modelo={tipoDesign(design) === 'termoformagem-enfeite' ? 'enfeite' : 'kit'}
           userId={userId}
           canDownload={!!userId && canDownloadStl && !semDownloads}
           bloqueioMsg={!userId ? null : stlBloqueadoDownload ? (design.acesso_maker ? `Plano ${design.acesso_maker} para descarregar` : 'Download não disponível neste plano') : semDownloads ? 'Limite mensal de downloads atingido — upgrade do plano' : null}
