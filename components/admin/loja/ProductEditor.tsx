@@ -19,7 +19,11 @@ interface Variante {
   stock: number;
   preco_cents: number | null;  // override (null = herda)
   ativo: boolean;
+  cor_hex: string;      // amostra de cor (usada nos filamentos)
 }
+
+interface Marca { id: string; nome: string; }
+const MATERIAIS = ['PLA', 'PLA+', 'PLA Silk', 'PLA Matte', 'PETG', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC'];
 
 interface Imagem {
   id?: string;
@@ -64,6 +68,20 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   const [pesoGramas, setPesoGramas] = useState('');
   const [stockSimples, setStockSimples] = useState('0'); // usado se sem variantes
 
+  // Filamento (revenda, só visível a makers)
+  const [tipo, setTipo] = useState<'peca' | 'filamento'>('peca');
+  const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [filMarcaId, setFilMarcaId] = useState('');
+  const [filMaterial, setFilMaterial] = useState('PLA');
+  const [filDiametro, setFilDiametro] = useState('1.75');
+  const [filPeso, setFilPeso] = useState('1000');
+  const [filBicoMin, setFilBicoMin] = useState('');
+  const [filBicoMax, setFilBicoMax] = useState('');
+  const [filMesaMin, setFilMesaMin] = useState('');
+  const [filMesaMax, setFilMesaMax] = useState('');
+  const [filFicha, setFilFicha] = useState('');
+  const [filNotas, setFilNotas] = useState('');
+
   const [variantes, setVariantes] = useState<Variante[]>([]);
   const [imagens, setImagens] = useState<Imagem[]>([]);
   const [removedVarIds, setRemovedVarIds] = useState<string[]>([]);
@@ -80,11 +98,13 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   // Carregar opções (categorias + designs)
   useEffect(() => {
     (async () => {
-      const [{ data: cats }, { data: dsgs }, { data: cfg }] = await Promise.all([
+      const [{ data: cats }, { data: dsgs }, { data: cfg }, { data: mrc }] = await Promise.all([
         supabase.from('prod_loja_categorias').select('id, nome').order('ordem'),
         supabase.from('prod_designs').select('id, nome').order('nome'),
         supabase.from('prod_loja_config').select('prazo_stock_min, prazo_stock_max, prazo_producao_min, prazo_producao_max').eq('id', 1).maybeSingle(),
+        supabase.from('prod_loja_marcas').select('id, nome').order('ordem'),
       ]);
+      setMarcas((mrc ?? []) as Marca[]);
       setCategorias((cats ?? []) as Categoria[]);
       setDesigns((dsgs ?? []) as DesignOpt[]);
       if (cfg) setPrazoCfg(cfg as PrazoConfig);
@@ -97,7 +117,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     setLoading(true);
     const { data: p, error } = await supabase
       .from('prod_loja_produtos')
-      .select('*, prod_loja_variantes(*), prod_loja_imagens(*)')
+      .select('*, prod_loja_variantes(*), prod_loja_imagens(*), prod_loja_filamento_detalhes(*)')
       .eq('id', produtoId)
       .single();
     if (error || !p) { setErro(error?.message ?? 'Produto não encontrado.'); setLoading(false); return; }
@@ -118,9 +138,23 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
     setPortes(toEuros(p.portes_cents));
     setPesoGramas(p.peso_gramas != null ? String(p.peso_gramas) : '');
     setStockSimples(String(p.stock ?? 0));
+    setTipo(p.tipo === 'filamento' ? 'filamento' : 'peca');
+    const fd = Array.isArray(p.prod_loja_filamento_detalhes) ? p.prod_loja_filamento_detalhes[0] : p.prod_loja_filamento_detalhes;
+    if (fd) {
+      setFilMarcaId(fd.marca_id ?? '');
+      setFilMaterial(fd.material ?? 'PLA');
+      setFilDiametro(fd.diametro_mm != null ? String(fd.diametro_mm) : '1.75');
+      setFilPeso(fd.peso_liquido_g != null ? String(fd.peso_liquido_g) : '1000');
+      setFilBicoMin(fd.temp_bico_min != null ? String(fd.temp_bico_min) : '');
+      setFilBicoMax(fd.temp_bico_max != null ? String(fd.temp_bico_max) : '');
+      setFilMesaMin(fd.temp_mesa_min != null ? String(fd.temp_mesa_min) : '');
+      setFilMesaMax(fd.temp_mesa_max != null ? String(fd.temp_mesa_max) : '');
+      setFilFicha(fd.ficha_tecnica_url ?? '');
+      setFilNotas(fd.notas ?? '');
+    }
     setVariantes(((p.prod_loja_variantes ?? []) as any[]).map(v => ({
       id: v.id, cor: v.cor ?? '', cor_secundaria: v.cor_secundaria ?? '', cor_terciaria: v.cor_terciaria ?? '', tamanho: v.tamanho ?? '', sku: v.sku ?? '',
-      stock: v.stock ?? 0, preco_cents: v.preco_cents, ativo: v.ativo ?? true,
+      stock: v.stock ?? 0, preco_cents: v.preco_cents, ativo: v.ativo ?? true, cor_hex: v.cor_hex ?? '',
     })));
     setImagens(((p.prod_loja_imagens ?? []) as any[]).map(i => ({ id: i.id, url: i.url, ordem: i.ordem ?? 0 })).sort((a, b) => a.ordem - b.ordem));
     setLoading(false);
@@ -137,7 +171,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
 
   // ── Variantes ──
   function addVariante() {
-    setVariantes(prev => [...prev, { cor: '', cor_secundaria: '', cor_terciaria: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true }]);
+    setVariantes(prev => [...prev, { cor: '', cor_secundaria: '', cor_terciaria: '', tamanho: '', sku: '', stock: 0, preco_cents: null, ativo: true, cor_hex: '' }]);
   }
   function updVariante(i: number, patch: Partial<Variante>) {
     setVariantes(prev => prev.map((v, idx) => idx === i ? { ...v, ...patch } : v));
@@ -196,6 +230,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   async function guardar() {
     if (!nome.trim()) { setErro('O nome é obrigatório.'); return; }
     if (!requerOrcamento && toCents(preco) == null) { setErro('Preço inválido (ou marca "requer orçamento").'); return; }
+    if (tipo === 'filamento' && !filMaterial.trim()) { setErro('Indica o material do filamento.'); return; }
     setSaving(true); setErro('');
 
     const payload = {
@@ -216,6 +251,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       portes_cents: toCents(portes),
       peso_gramas: pesoGramas.trim() === '' ? null : parseInt(pesoGramas, 10),
       stock: variantes.length > 0 ? 0 : (parseInt(stockSimples, 10) || 0),
+      tipo,
       updated_at: new Date().toISOString(),
     };
 
@@ -229,6 +265,25 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
       id = data.id;
     }
 
+    // Detalhes do filamento (só makers veem)
+    const intOuNull = (v: string) => (v.trim() === '' ? null : parseInt(v, 10));
+    if (tipo === 'filamento') {
+      const { error: fErr } = await supabase.from('prod_loja_filamento_detalhes').upsert({
+        produto_id: id,
+        marca_id: filMarcaId || null,
+        material: filMaterial.trim(),
+        diametro_mm: parseFloat(filDiametro.replace(',', '.')) || 1.75,
+        peso_liquido_g: parseInt(filPeso, 10) || 1000,
+        temp_bico_min: intOuNull(filBicoMin), temp_bico_max: intOuNull(filBicoMax),
+        temp_mesa_min: intOuNull(filMesaMin), temp_mesa_max: intOuNull(filMesaMax),
+        ficha_tecnica_url: filFicha.trim() || null,
+        notas: filNotas.trim() || null,
+      });
+      if (fErr) { setErro('Filamento: ' + fErr.message); setSaving(false); return; }
+    } else if (isEdit) {
+      await supabase.from('prod_loja_filamento_detalhes').delete().eq('produto_id', id);
+    }
+
     // Variantes: apagar removidas, update existentes, insert novas
     if (removedVarIds.length) await supabase.from('prod_loja_variantes').delete().in('id', removedVarIds);
     for (let i = 0; i < variantes.length; i++) {
@@ -238,6 +293,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
         cor_terciaria: (duasCores && tresCores) ? (v.cor_terciaria || null) : null,
         tamanho: v.tamanho || null, sku: v.sku || null,
         stock: v.stock || 0, preco_cents: v.preco_cents, ordem: i, ativo: v.ativo,
+        cor_hex: v.cor_hex || null,
       };
       if (v.id) await supabase.from('prod_loja_variantes').update(row).eq('id', v.id);
       else await supabase.from('prod_loja_variantes').insert(row);
@@ -258,9 +314,9 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
   if (loading) return <div style={s.page}><div style={s.wrap}><p style={{ color: '#8a96aa' }}>A carregar…</p></div></div>;
 
   const fieldRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 };
-  const gridCols = duasCores && tresCores ? '1fr 1fr 1fr 1fr 1fr 70px 80px 36px'
-    : duasCores ? '1fr 1fr 1fr 1fr 70px 80px 36px'
-    : '1fr 1fr 1fr 80px 90px 36px';
+  const gridCols = (duasCores && tresCores ? '1fr 1fr 1fr 1fr 1fr 70px 80px'
+    : duasCores ? '1fr 1fr 1fr 1fr 70px 80px'
+    : '1fr 1fr 1fr 80px 90px') + (tipo === 'filamento' ? ' 56px' : '') + ' 36px';
   const stockAtual = variantes.length > 0 ? variantes.reduce((a, v) => a + (v.stock || 0), 0) : (parseInt(stockSimples, 10) || 0);
   const prazo = prazoEntrega({ stockTotal: stockAtual, sobEncomenda }, prazoCfg);
 
@@ -274,6 +330,21 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
         </div>
 
         {erro && <p style={{ color: '#f87171', marginBottom: 16 }}>{erro}</p>}
+
+        {/* Tipo de produto */}
+        <div style={{ ...s.card, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ ...s.label, margin: 0 }}>Tipo</span>
+          {(['peca', 'filamento'] as const).map(t => (
+            <button key={t} type="button" onClick={() => setTipo(t)} style={{
+              ...s.btnGhost,
+              background: tipo === t ? '#1d4ed8' : 'transparent', color: tipo === t ? '#fff' : '#94a3b8',
+              borderColor: tipo === t ? '#1d4ed8' : '#1e293b',
+            }}>{t === 'peca' ? '🧩 Peça 3D (loja pública)' : '🧵 Filamento (só makers)'}</button>
+          ))}
+          {tipo === 'filamento' && (
+            <span style={{ fontSize: 12, color: '#8a96aa' }}>Aparece só em /makers/filamentos — fora da loja pública, do Google e do feed.</span>
+          )}
+        </div>
 
         {/* Dados base */}
         <div style={{ ...s.card, marginBottom: 20 }}>
@@ -337,6 +408,58 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
           </div>
         </div>
 
+        {/* Dados do filamento */}
+        {tipo === 'filamento' && (
+          <div style={{ ...s.card, marginBottom: 20 }}>
+            <label style={{ ...s.label, marginBottom: 12 }}>Dados do filamento</label>
+            <div style={fieldRow}>
+              <div>
+                <label style={s.label}>Marca</label>
+                <select style={s.input} value={filMarcaId} onChange={e => setFilMarcaId(e.target.value)}>
+                  <option value="">— Escolhe a marca —</option>
+                  {marcas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                </select>
+                {marcas.length === 0 && <p style={{ fontSize: 12, color: '#8a96aa', margin: '6px 0 0' }}>Cria as marcas em <Link href="/admin/loja/marcas" style={{ color: '#60a5fa' }}>Marcas</Link>.</p>}
+              </div>
+              <div>
+                <label style={s.label}>Material *</label>
+                <input style={s.input} list="pp3d-materiais" value={filMaterial} onChange={e => setFilMaterial(e.target.value)} />
+                <datalist id="pp3d-materiais">{MATERIAIS.map(m => <option key={m} value={m} />)}</datalist>
+              </div>
+            </div>
+            <div style={fieldRow}>
+              <div>
+                <label style={s.label}>Diâmetro (mm)</label>
+                <select style={s.input} value={filDiametro} onChange={e => setFilDiametro(e.target.value)}>
+                  <option value="1.75">1.75</option>
+                  <option value="2.85">2.85</option>
+                </select>
+              </div>
+              <div>
+                <label style={s.label}>Peso líquido (g)</label>
+                <input style={s.input} value={filPeso} onChange={e => setFilPeso(e.target.value)} inputMode="numeric" placeholder="1000" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div><label style={s.label}>Bico mín. °C</label><input style={s.input} value={filBicoMin} onChange={e => setFilBicoMin(e.target.value)} inputMode="numeric" placeholder="190" /></div>
+              <div><label style={s.label}>Bico máx. °C</label><input style={s.input} value={filBicoMax} onChange={e => setFilBicoMax(e.target.value)} inputMode="numeric" placeholder="220" /></div>
+              <div><label style={s.label}>Mesa mín. °C</label><input style={s.input} value={filMesaMin} onChange={e => setFilMesaMin(e.target.value)} inputMode="numeric" placeholder="50" /></div>
+              <div><label style={s.label}>Mesa máx. °C</label><input style={s.input} value={filMesaMax} onChange={e => setFilMesaMax(e.target.value)} inputMode="numeric" placeholder="60" /></div>
+            </div>
+            <div style={fieldRow}>
+              <div>
+                <label style={s.label}>Ficha técnica (link)</label>
+                <input style={s.input} value={filFicha} onChange={e => setFilFicha(e.target.value)} placeholder="https://…" />
+              </div>
+              <div>
+                <label style={s.label}>Dica para o maker (visível)</label>
+                <input style={s.input} value={filNotas} onChange={e => setFilNotas(e.target.value)} placeholder="Ex: secar 4h a 55 °C antes de usar" />
+              </div>
+            </div>
+            <p style={{ fontSize: 12, color: '#8a96aa', margin: 0 }}>Cada cor é uma variante (em baixo) — escolhe a cor da amostra na última coluna. Lembra-te de pôr o peso/portes da bobina.</p>
+          </div>
+        )}
+
         {/* Ligação ao personalizador */}
         <div style={{ ...s.card, marginBottom: 20 }}>
           <label style={{ ...s.label, marginBottom: 12 }}>Ligação ao personalizador</label>
@@ -389,7 +512,7 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
                 <span>{duasCores ? 'Cor base' : 'Cor'}</span>
                 {duasCores && <span>Cor secundária</span>}
                 {duasCores && tresCores && <span>Cor terciária</span>}
-                <span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span><span></span>
+                <span>Tamanho</span><span>SKU</span><span>Stock</span><span>Preço €</span>{tipo === 'filamento' && <span>Cor</span>}<span></span>
               </div>
               {variantes.map((v, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, alignItems: 'center' }}>
@@ -400,6 +523,11 @@ export default function ProductEditor({ produtoId }: { produtoId?: string }) {
                   <input style={s.input} value={v.sku} onChange={e => updVariante(i, { sku: e.target.value })} placeholder="SKU" />
                   <input style={s.input} value={v.stock} onChange={e => updVariante(i, { stock: parseInt(e.target.value, 10) || 0 })} inputMode="numeric" />
                   <input style={s.input} value={toEuros(v.preco_cents)} onChange={e => updVariante(i, { preco_cents: toCents(e.target.value) })} placeholder="herda" inputMode="decimal" />
+                  {tipo === 'filamento' && (
+                    <input type="color" title="Cor da amostra" value={v.cor_hex || '#888888'}
+                      onChange={e => updVariante(i, { cor_hex: e.target.value })}
+                      style={{ width: '100%', height: 40, background: 'transparent', border: '1px solid #1e293b', borderRadius: 8, padding: 2, cursor: 'pointer' }} />
+                  )}
                   <button style={{ ...s.btnDanger, padding: '8px 0' }} onClick={() => rmVariante(i)} type="button" title="Remover">✕</button>
                 </div>
               ))}

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProdutoDetalhe from '@/components/loja/ProdutoDetalhe';
+import BannerSlot from '@/components/loja/BannerSlot';
 import { fetchProduto, getViewer, getPrazoConfig, fetchParceirosPorCategoria } from '@/lib/loja-server';
 import { eur } from '@/lib/loja';
 
@@ -16,6 +17,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const preco = produto.preco_promo_cents ?? produto.preco_cents;
   const desc = produto.descricao?.slice(0, 160) ?? `${produto.nome} — ${eur(preco)} na loja PP3D.`;
   const url = `https://pp3d.pt/produto/${slug}`;
+
+  // Filamentos são só para makers: fora do Google e sem partilha pública.
+  if (produto.tipo === 'filamento') {
+    return { title: produto.nome, robots: { index: false, follow: false } };
+  }
 
   return {
     title: produto.nome,
@@ -48,10 +54,21 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
   const produto = await fetchProduto(slug, viewer.isAdmin);
   if (!produto) notFound();
 
+  const isFilamento = produto.tipo === 'filamento';
   const [prazoCfg, parceiros] = await Promise.all([
     getPrazoConfig(),
-    fetchParceirosPorCategoria(produto.categoria_id),
+    isFilamento ? Promise.resolve([]) : fetchParceirosPorCategoria(produto.categoria_id),
   ]);
+
+  // Filamento: só chega aqui quem é maker (a RLS esconde-o aos outros) — e o maker vê o preço e compra.
+  if (isFilamento) {
+    return (
+      <>
+        <ProdutoDetalhe produto={produto} ocultarPrecos={false} prazoCfg={prazoCfg} parceiros={[]} />
+        <BannerSlot posicao="pagina_produto" maxWidth={1100} padding="0 32px 60px" />
+      </>
+    );
+  }
 
   const url = `https://pp3d.pt/produto/${slug}`;
   const fotos = [...produto.prod_loja_imagens].sort((a, b) => a.ordem - b.ordem).map(i => i.url);
@@ -97,6 +114,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <ProdutoDetalhe produto={produto} ocultarPrecos={viewer.ocultarPrecos} prazoCfg={prazoCfg} parceiros={parceiros} />
+      <BannerSlot posicao="pagina_produto" maxWidth={1100} padding="0 32px 60px" />
     </>
   );
 }

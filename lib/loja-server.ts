@@ -56,12 +56,14 @@ export async function fetchCatalogo(categoriaSlug?: string, isAdmin = false): Pr
     .from('prod_loja_categorias')
     .select('id, slug, nome, descricao')
     .eq('ativo', true)
+    .eq('tipo', 'peca') // filamentos vivem só na Área Maker (/makers/filamentos)
     .order('ordem', { ascending: true });
   const categorias = (cats ?? []) as CatalogoCategoria[];
 
   let q = supabase
     .from('prod_loja_produtos')
     .select('id, slug, nome, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, requer_orcamento, categoria_id, prod_loja_imagens(url, ordem), prod_loja_variantes(stock, ativo)')
+    .eq('tipo', 'peca')
     .order('updated_at', { ascending: false });
   if (!isAdmin) q = q.eq('estado', 'ativo');
 
@@ -80,23 +82,39 @@ export interface ProdutoImagem { id: string; url: string; alt: string | null; or
 export interface ProdutoVariante {
   id: string; cor: string | null; cor_secundaria: string | null; cor_terciaria: string | null; tamanho: string | null;
   sku: string | null; stock: number; preco_cents: number | null; ordem: number; ativo: boolean;
+  cor_hex: string | null;
+}
+
+export interface FilamentoDetalhes {
+  material: string;
+  diametro_mm: number;
+  peso_liquido_g: number;
+  temp_bico_min: number | null; temp_bico_max: number | null;
+  temp_mesa_min: number | null; temp_mesa_max: number | null;
+  ficha_tecnica_url: string | null;
+  notas: string | null;
+  prod_loja_marcas: { nome: string; slug: string; logo_url: string | null } | null;
 }
 export interface ProdutoDetalhe {
   id: string; slug: string; nome: string; descricao: string | null; estado: string;
   preco_cents: number; preco_promo_cents: number | null; stock: number;
   sob_encomenda: boolean; duas_cores: boolean; tres_cores: boolean; requer_orcamento: boolean;
   permite_personalizar: boolean; design_id: string | null; categoria_id: string | null;
+  tipo: 'peca' | 'filamento';
+  prod_loja_filamento_detalhes: FilamentoDetalhes | null;
   prod_loja_categorias: { slug: string; nome: string } | null;
   prod_loja_imagens: ProdutoImagem[];
   prod_loja_variantes: ProdutoVariante[];
 }
+
+const FILAMENTO_SELECT = 'prod_loja_filamento_detalhes(material, diametro_mm, peso_liquido_g, temp_bico_min, temp_bico_max, temp_mesa_min, temp_mesa_max, ficha_tecnica_url, notas, prod_loja_marcas(nome, slug, logo_url))';
 
 // Produto por slug. Por omissão só ativo; isAdmin=true permite pré-visualizar rascunhos/inativos.
 export async function fetchProduto(slug: string, isAdmin = false): Promise<ProdutoDetalhe | null> {
   const supabase = await createClient();
   let q = supabase
     .from('prod_loja_produtos')
-    .select('id, slug, nome, descricao, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, tres_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, cor_terciaria, tamanho, sku, stock, preco_cents, ordem, ativo)')
+    .select(`id, slug, nome, descricao, estado, preco_cents, preco_promo_cents, stock, sob_encomenda, duas_cores, tres_cores, requer_orcamento, permite_personalizar, design_id, categoria_id, tipo, prod_loja_categorias(slug, nome), prod_loja_imagens(id, url, alt, ordem), prod_loja_variantes(id, cor, cor_secundaria, cor_terciaria, tamanho, sku, stock, preco_cents, ordem, ativo, cor_hex), ${FILAMENTO_SELECT}`)
     .eq('slug', slug);
   if (!isAdmin) q = q.eq('estado', 'ativo');
   const { data } = await q.maybeSingle();
@@ -163,4 +181,49 @@ export async function getPrazoConfig(): Promise<PrazoConfig> {
     .eq('id', 1)
     .maybeSingle();
   return (data as PrazoConfig) ?? PRAZO_DEFAULT;
+}
+
+// ── Filamentos (só makers; a RLS do Supabase devolve vazio a quem não é maker) ──
+export interface FilamentoCard {
+  id: string; slug: string; nome: string;
+  preco_cents: number; preco_promo_cents: number | null; stock: number; sob_encomenda: boolean;
+  prod_loja_imagens: { url: string; ordem: number }[];
+  prod_loja_variantes: { cor: string | null; cor_hex: string | null; stock: number; ativo: boolean; preco_cents: number | null; ordem: number }[];
+  prod_loja_filamento_detalhes: FilamentoDetalhes | null;
+}
+export interface Marca { id: string; nome: string; slug: string; logo_url: string | null; }
+
+export async function fetchFilamentos(): Promise<{ filamentos: FilamentoCard[]; marcas: Marca[] }> {
+  const supabase = await createClient();
+  const [{ data: prods }, { data: marcas }] = await Promise.all([
+    supabase
+      .from('prod_loja_produtos')
+      .select(`id, slug, nome, preco_cents, preco_promo_cents, stock, sob_encomenda, prod_loja_imagens(url, ordem), prod_loja_variantes(cor, cor_hex, stock, ativo, preco_cents, ordem), ${FILAMENTO_SELECT}`)
+      .eq('tipo', 'filamento')
+      .eq('estado', 'ativo')
+      .order('nome', { ascending: true }),
+    supabase.from('prod_loja_marcas').select('id, nome, slug, logo_url').eq('ativo', true).order('ordem'),
+  ]);
+  return { filamentos: (prods ?? []) as unknown as FilamentoCard[], marcas: (marcas ?? []) as Marca[] };
+}
+
+// ── Banners (a RLS filtra por público, datas e ativo) ──
+export type BannerPosicao = 'topo_loja' | 'topo_pecas' | 'topo_filamentos' | 'area_maker' | 'entre_produtos' | 'pagina_produto';
+export interface Banner {
+  id: string; titulo: string; subtitulo: string | null;
+  imagem_url: string; imagem_mobile_url: string | null;
+  link: string | null; texto_botao: string | null; posicao: BannerPosicao;
+}
+
+export async function fetchBanners(posicao: BannerPosicao, limite = 1): Promise<Banner[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('prod_loja_banners')
+    .select('id, titulo, subtitulo, imagem_url, imagem_mobile_url, link, texto_botao, posicao')
+    .eq('posicao', posicao)
+    .order('prioridade', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limite);
+  if (error) return [];
+  return (data ?? []) as Banner[];
 }

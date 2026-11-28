@@ -1,7 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { eur, prazoEntrega, categoriaDescricao, type PrazoConfig } from '@/lib/loja';
-import type { CatalogoProduto, CatalogoCategoria } from '@/lib/loja-server';
+import { Fragment, type ReactNode } from 'react';
+import type { CatalogoProduto, CatalogoCategoria, Banner } from '@/lib/loja-server';
+import BannerView from '@/components/loja/BannerView';
+
+// Banner "entre produtos": aparece depois do 8.º produto (e não mais do que uma vez).
+const BANNER_DEPOIS_DE = 8;
 
 function stockTotal(p: CatalogoProduto): number {
   if (p.prod_loja_variantes && p.prod_loja_variantes.length > 0) {
@@ -16,8 +21,10 @@ function primeiraFoto(p: CatalogoProduto): string | null {
 }
 
 export default function StoreCatalog({
-  categorias, produtos, categoriaAtual, ocultarPrecos, prazoCfg,
+  categorias, produtos, categoriaAtual, ocultarPrecos, prazoCfg, topo, bannerEntre,
 }: {
+  topo?: ReactNode;
+  bannerEntre?: Banner | null;
   categorias: CatalogoCategoria[];
   produtos: CatalogoProduto[];
   categoriaAtual: CatalogoCategoria | null;
@@ -52,19 +59,23 @@ export default function StoreCatalog({
         </div>
       </div>
 
+      {topo}
+
       <div style={{
         maxWidth: 1200, margin: '0 auto', padding: '0 32px 80px',
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 22,
       }}>
         {produtos.length === 0 ? (
           <p style={{ color: '#8a96aa', gridColumn: '1/-1' }}>Sem produtos nesta categoria.</p>
-        ) : produtos.map(p => {
+        ) : produtos.map((p, idx) => {
           const foto = primeiraFoto(p);
           const st = stockTotal(p);
           const prazo = prazoEntrega({ stockTotal: st, sobEncomenda: p.sob_encomenda }, prazoCfg);
           const temPromo = p.preco_promo_cents != null;
+          const mostrarBanner = !!bannerEntre && idx === BANNER_DEPOIS_DE - 1 && produtos.length > BANNER_DEPOIS_DE;
           return (
-            <Link key={p.id} href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: p.estado !== 'ativo' ? '1px solid rgba(251,191,36,0.4)' : '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
+            <Fragment key={p.id}>
+            <Link href={`/produto/${p.slug}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: '#0f172a', border: p.estado !== 'ativo' ? '1px solid rgba(251,191,36,0.4)' : '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ position: 'relative', aspectRatio: '1', background: '#0a1120', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {foto
                   ? <Image src={foto} alt={p.nome} fill sizes="(max-width: 640px) 50vw, 300px" style={{ objectFit: 'cover' }} />
@@ -92,6 +103,10 @@ export default function StoreCatalog({
                 </div>
               </div>
             </Link>
+            {mostrarBanner && (
+              <div style={{ gridColumn: '1 / -1' }}><BannerView banner={bannerEntre!} compacto /></div>
+            )}
+            </Fragment>
           );
         })}
       </div>

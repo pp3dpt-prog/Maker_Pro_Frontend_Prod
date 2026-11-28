@@ -16,6 +16,7 @@ interface Produto {
   sob_encomenda: boolean;
   estado: string;
   prod_loja_categorias: { nome: string } | null;
+  tipo?: 'peca' | 'filamento';
   prod_loja_variantes: Variante[];
 }
 
@@ -37,7 +38,7 @@ export default function LojaAdminPage() {
     const [{ data, error }, { data: cfg }] = await Promise.all([
       supabase
         .from('prod_loja_produtos')
-        .select('id, nome, slug, preco_cents, preco_promo_cents, stock, sob_encomenda, estado, prod_loja_categorias(nome), prod_loja_variantes(stock, ativo)')
+        .select('id, nome, slug, preco_cents, preco_promo_cents, stock, sob_encomenda, estado, tipo, prod_loja_categorias(nome), prod_loja_variantes(stock, ativo)')
         .order('updated_at', { ascending: false }),
       supabase.from('prod_loja_config').select('prazo_stock_min, prazo_stock_max, prazo_producao_min, prazo_producao_max').eq('id', 1).maybeSingle(),
     ]);
@@ -69,6 +70,8 @@ export default function LojaAdminPage() {
             <Link href="/admin/loja/encomendas" style={s.btnGhost}>Encomendas</Link>
             <Link href="/admin/loja/categorias" style={s.btnGhost}>Categorias</Link>
             <Link href="/admin/loja/parceiros" style={s.btnGhost}>Parceiros</Link>
+            <Link href="/admin/loja/marcas" style={s.btnGhost}>Marcas</Link>
+            <Link href="/admin/loja/banners" style={s.btnGhost}>Banners</Link>
             <Link href="/admin/loja/definicoes" style={s.btnGhost}>Portes</Link>
             <Link href="/admin/loja/novo" style={{ ...s.btn, textDecoration: 'none' }}>+ Novo produto</Link>
           </div>
@@ -106,7 +109,7 @@ export default function LojaAdminPage() {
                         <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{p.nome}</div>
                         <div style={{ fontSize: 12, color: '#8a96aa' }}>/{p.slug}</div>
                       </td>
-                      <td style={s.td}>{p.prod_loja_categorias?.nome ?? '—'}</td>
+                      <td style={s.td}>{p.tipo === 'filamento' ? <span style={s.badge('rgba(52,211,153,0.18)', '#34d399')}>🧵 Filamento</span> : (p.prod_loja_categorias?.nome ?? '—')}</td>
                       <td style={s.td}>
                         {p.preco_promo_cents != null ? (
                           <span><span style={{ color: '#34d399', fontWeight: 700 }}>{eur(p.preco_promo_cents)}</span>{' '}

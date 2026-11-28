@@ -44,14 +44,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Loja: categorias + produtos ativos
     const { data: lojaCats } = await supabase
-      .from('prod_loja_categorias').select('slug').eq('ativo', true);
+      .from('prod_loja_categorias').select('slug').eq('ativo', true).eq('tipo', 'peca');
     const lojaCatPages: MetadataRoute.Sitemap = (lojaCats ?? []).map(c => ({
       url: `${siteUrl}/loja/${c.slug}`,
       lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.7,
     }));
 
     const { data: lojaProds } = await supabase
-      .from('prod_loja_produtos').select('slug, updated_at').eq('estado', 'ativo');
+      .from('prod_loja_produtos').select('slug, updated_at').eq('estado', 'ativo').eq('tipo', 'peca');
     const lojaProdPages: MetadataRoute.Sitemap = (lojaProds ?? []).map(p => ({
       url: `${siteUrl}/produto/${p.slug}`,
       lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),

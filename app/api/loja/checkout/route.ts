@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
   const ids = [...new Set(itens.map(i => i.produto_id))];
   const [{ data: produtos }, { data: variantes }, { data: cfg }] = await Promise.all([
-    admin.from('prod_loja_produtos').select('id, slug, nome, preco_cents, preco_promo_cents, requer_orcamento, portes_cents, estado').in('id', ids),
+    admin.from('prod_loja_produtos').select('id, slug, nome, preco_cents, preco_promo_cents, requer_orcamento, portes_cents, estado, tipo').in('id', ids),
     admin.from('prod_loja_variantes').select('id, produto_id, cor, cor_secundaria, cor_terciaria, tamanho, preco_cents').in('produto_id', ids),
     admin.from('prod_loja_config').select('portes_cents, portes_gratis_acima_cents').eq('id', 1).maybeSingle(),
   ]);
@@ -59,6 +59,17 @@ export async function POST(request: Request) {
     linhas.push({ p, v, unit, qtd, label, requer_orcamento: !!p.requer_orcamento, personalizacao: it.personalizacao ?? null });
   }
   if (linhas.length === 0) return NextResponse.json({ error: 'Sem itens válidos.' }, { status: 400 });
+
+  // Filamentos: só makers (maker/ambos) ou admin podem comprar. A base de dados também bloqueia.
+  if (linhas.some(l => l.p.tipo === 'filamento')) {
+    const { data: perfilComprador } = user
+      ? await admin.from('prod_perfis').select('tipo_utilizador, role').eq('id', user.id).maybeSingle()
+      : { data: null };
+    const podeComprar = !!perfilComprador && (['maker', 'ambos'].includes(perfilComprador.tipo_utilizador ?? '') || perfilComprador.role === 'admin');
+    if (!podeComprar) {
+      return NextResponse.json({ error: 'Os filamentos estão disponíveis apenas para contas maker. Inicia sessão com a tua conta maker.' }, { status: 403 });
+    }
+  }
 
   // ── Código (opcional): valida e consome um uso de forma atómica ──
   let cupao: { id: number; codigo: string; tipo: string; desconto_percent: number | null; valor_cents: number | null } | null = null;
